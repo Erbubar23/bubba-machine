@@ -1,4 +1,4 @@
-/* Bubba Machine — patrón, formato disperso, escalas y acordes. */
+/* Bubba Machine — patrón, formato disperso, P-Locks TR, escalas y cuadrícula de acordes. */
 #include <string.h>
 #include <stdio.h>
 #include "bm_pattern.h"
@@ -6,6 +6,9 @@
 typedef char bm_assert_event[(sizeof(bm_event) == 8) ? 1 : -1];
 typedef char bm_assert_track[(sizeof(bm_track) == 32) ? 1 : -1];
 typedef char bm_assert_meta[(sizeof(bm_meta) == 64) ? 1 : -1];
+
+const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
+const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
 
 void bm_event_clear(bm_event *e)
 {
@@ -20,106 +23,241 @@ void bm_track_defaults(bm_track *t, int track)
     memset(t, 0, sizeof *t);
     t->macro[0] = 96; t->macro[1] = 30; t->macro[2] = 60; t->macro[3] = 0;
     t->level = 100; t->pan = 64; t->send = 0; t->duck = (track >= 2) ? 60 : 0;
-    t->source = 0;
     t->attack = 0; t->sustain = 80; t->release = 40; t->env_amt = 40; t->glide = 30;
     t->interp = (track == 1) ? 1 : 0;
     t->transpose = 24;
     t->arp_mode = 0; t->arp_rate = 1; t->arp_oct = 1; t->arp_gate = 60;
-    if (track == 0) { t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 90; }
-    if (track == 1) { t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 100; }
+    t->speed = SPD_X1; t->length = 16;
+    if (track == 0) { t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 127; }
+    if (track == 1) { t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 127; }
     if (track == 2) { t->source = 0; t->macro[0] = 60; t->macro[1] = 70; t->macro[2] = 50; t->sustain = 60; }
     if (track == 3) { t->source = 11; t->macro[0] = 80; t->macro[2] = 70; t->send = 30; }
     if (track == 4) { t->source = 7; t->macro[0] = 90; t->attack = 20; t->release = 60; t->send = 20; }
     if (track == 5) { t->source = 9; t->macro[0] = 75; t->attack = 40; t->release = 70; t->send = 40; }
 }
 
+void bm_tr_defaults(bm_tr *tr)
+{
+    memset(tr, 0, sizeof *tr);
+    for (int l = 0; l < BM_LANES; l++) { tr->lane[l].len = 16; tr->lane[l].level = 100; tr->lane[l].tune = 64; tr->lane[l].decay = 127; }
+    for (int i = 0; i < BM_LANE_LOCKS; i++) tr->lk[i].lane = 0xFF;
+}
+
 void bm_track_clear_events(bm_pattern *p, int track)
 {
+    if (bm_is_tr(track)) {
+        bm_tr *tr = &p->tr[track];
+        memset(tr->st, 0, sizeof tr->st);
+        for (int i = 0; i < BM_LANE_LOCKS; i++) tr->lk[i].lane = 0xFF;
+        return;
+    }
     for (int s = 0; s < BM_STEPS; s++)
         for (int e = 0; e < BM_EVENTS; e++)
-            bm_event_clear(&p->ev[track][s][e]);
+            bm_event_clear(&p->ev[track - BM_TR_TRACKS][s][e]);
 }
 
 void bm_pattern_init(bm_pattern *p)
 {
-    memset(&p->meta, 0, sizeof p->meta);
-    p->meta.bpm_x10 = 1200; p->meta.swing = 50; p->meta.length = 64;
+    memset(p, 0, sizeof *p);
+    p->meta.bpm_x10 = 1200; p->meta.swing = 50; p->meta.master = 4;
     p->meta.dly_time = 2; p->meta.dly_fb = 50; p->meta.dly_mix = 60;
-    p->meta.sc_release = 50; p->meta.root = 9; p->meta.scale = 1; p->meta.voicing = 0;
-    for (int t = 0; t < BM_TRACKS; t++) {
-        bm_track_defaults(&p->trk[t], t);
-        bm_track_clear_events(p, t);
-    }
+    p->meta.sc_release = 50; p->meta.root = 9; p->meta.scale = 1;
+    p->meta.chord_oct = 3;
+    for (int t = 0; t < BM_TRACKS; t++) bm_track_defaults(&p->trk[t], t);
+    for (int t = 0; t < BM_TR_TRACKS; t++) bm_tr_defaults(&p->tr[t]);
+    for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) bm_track_clear_events(p, t);
+    for (int i = 0; i < BM_SYN_TRACKS; i++) p->loop[i].bars = 2;
 }
+
+int bm_master_steps(const bm_meta *m) { return m->master * BM_PAGE_STEPS; }
 
 int bm_pattern_count_events(const bm_pattern *p)
 {
     int n = 0;
-    for (int t = 0; t < BM_TRACKS; t++)
+    for (int t = 0; t < BM_TR_TRACKS; t++)
+        for (int l = 0; l < BM_LANES; l++)
+            for (int s = 0; s < BM_STEPS; s++) if (p->tr[t].st[l][s] & ST_ON) n++;
+    for (int t = 0; t < BM_SYN_TRACKS; t++)
         for (int s = 0; s < BM_STEPS; s++)
-            for (int e = 0; e < BM_EVENTS; e++)
-                if (!bm_event_empty(&p->ev[t][s][e])) n++;
+            for (int e = 0; e < BM_EVENTS; e++) if (!bm_event_empty(&p->ev[t][s][e])) n++;
     return n;
 }
 
-/* Cuerpo: meta (64, bpm en little-endian) | pistas (6 x 32) |
- * por pista: n u16 + n x (byte de posición + evento 8). Posición: bits 0-5 paso, bits 6-7 slot. */
+/* ------------------------------------------------------------ P-Locks TR */
+int bm_tr_lock_get(const bm_tr *tr, int step, int lane, int param)
+{
+    for (int i = 0; i < BM_LANE_LOCKS; i++) {
+        const bm_lock *k = &tr->lk[i];
+        if (k->lane == lane && k->step == step && k->param == param) return k->val;
+    }
+    return -1;
+}
+
+bool bm_tr_lock_set(bm_tr *tr, int step, int lane, int param, int val)
+{
+    int free_i = -1;
+    for (int i = 0; i < BM_LANE_LOCKS; i++) {
+        bm_lock *k = &tr->lk[i];
+        if (k->lane == lane && k->step == step && k->param == param) {
+            if (val < 0) k->lane = 0xFF; else k->val = (uint8_t)val;
+            goto flag;
+        }
+        if (k->lane == 0xFF && free_i < 0) free_i = i;
+    }
+    if (val < 0) goto flag;
+    if (free_i < 0) return false;
+    tr->lk[free_i].step = (uint8_t)step; tr->lk[free_i].lane = (uint8_t)lane;
+    tr->lk[free_i].param = (uint8_t)param; tr->lk[free_i].val = (uint8_t)val;
+flag: {
+        int any = 0;
+        for (int i = 0; i < BM_LANE_LOCKS; i++) if (tr->lk[i].lane == lane && tr->lk[i].step == step) any = 1;
+        if (any) tr->st[lane][step] |= ST_LOCK; else tr->st[lane][step] &= (uint8_t)~ST_LOCK;
+    }
+    return true;
+}
+
+void bm_tr_lock_clear_step(bm_tr *tr, int step, int lane)
+{
+    for (int i = 0; i < BM_LANE_LOCKS; i++)
+        if (tr->lk[i].lane == lane && tr->lk[i].step == step) tr->lk[i].lane = 0xFF;
+    tr->st[lane][step] &= (uint8_t)~ST_LOCK;
+}
+
+/* ------------------------------------------------------------ formato disperso
+ * meta 64 (bpm LE) | pistas 6x32 |
+ * TR x2: líneas 64 + mute 2 | n u16 + n x (pos u16 = lane<<6|paso, valor u8) | m u8 + m x 4 (P-Locks) |
+ * synth x4: n u16 + n x (pos u8 = slot<<6|paso, evento 8) |
+ * loop x4: on, bars, n + n x (tick u16, nota, vel) */
+#define NEED(k) do { if (o + (k) > cap) return -1; } while (0)
+
 int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap)
 {
     int o = 0;
-    if (cap < 64 + 192 + 12) return -1;
+    NEED(64 + 192);
     memcpy(out, &p->meta, 64);
-    out[0] = (uint8_t)(p->meta.bpm_x10 & 0xFF);
-    out[1] = (uint8_t)(p->meta.bpm_x10 >> 8);
+    out[0] = (uint8_t)(p->meta.bpm_x10 & 0xFF); out[1] = (uint8_t)(p->meta.bpm_x10 >> 8);
     o = 64;
     memcpy(out + o, p->trk, sizeof p->trk); o += (int)sizeof p->trk;
-    int total = 0;
-    for (int t = 0; t < BM_TRACKS; t++) {
+    for (int t = 0; t < BM_TR_TRACKS; t++) {
+        const bm_tr *tr = &p->tr[t];
+        NEED(66 + 2);
+        memcpy(out + o, tr->lane, 64); o += 64;
+        out[o++] = (uint8_t)tr->mute; out[o++] = (uint8_t)(tr->mute >> 8);
         int at = o; o += 2;
+        int n = 0;
+        for (int l = 0; l < BM_LANES; l++)
+            for (int s = 0; s < BM_STEPS; s++) {
+                uint8_t v = tr->st[l][s];
+                if (!v) continue;
+                NEED(3);
+                uint16_t pos = (uint16_t)(l << 6 | s);
+                out[o++] = (uint8_t)pos; out[o++] = (uint8_t)(pos >> 8); out[o++] = v;
+                n++;
+            }
+        out[at] = (uint8_t)n; out[at + 1] = (uint8_t)(n >> 8);
+        int mat = o; NEED(1); o++;
+        int m = 0;
+        for (int i = 0; i < BM_LANE_LOCKS; i++) {
+            if (tr->lk[i].lane == 0xFF) continue;
+            NEED(4); memcpy(out + o, &tr->lk[i], 4); o += 4; m++;
+        }
+        out[mat] = (uint8_t)m;
+    }
+    for (int t = 0; t < BM_SYN_TRACKS; t++) {
+        int at = o; NEED(2); o += 2;
         int n = 0;
         for (int s = 0; s < BM_STEPS; s++)
             for (int e = 0; e < BM_EVENTS; e++) {
                 const bm_event *ev = &p->ev[t][s][e];
                 if (bm_event_empty(ev)) continue;
-                if (o + 9 > cap || total >= BM_PAT_MAX_EVENTS) return -1;
+                NEED(9);
                 out[o++] = (uint8_t)(s | (e << 6));
                 memcpy(out + o, ev, 8); o += 8;
-                n++; total++;
+                n++;
             }
-        out[at] = (uint8_t)(n & 0xFF); out[at + 1] = (uint8_t)(n >> 8);
+        out[at] = (uint8_t)n; out[at + 1] = (uint8_t)(n >> 8);
+    }
+    for (int t = 0; t < BM_SYN_TRACKS; t++) {
+        const bm_loop *lp = &p->loop[t];
+        NEED(3 + 4 * lp->n);
+        out[o++] = lp->on; out[o++] = lp->bars; out[o++] = lp->n;
+        for (int i = 0; i < lp->n; i++) {
+            out[o++] = (uint8_t)lp->ev[i].tick; out[o++] = (uint8_t)(lp->ev[i].tick >> 8);
+            out[o++] = lp->ev[i].note; out[o++] = lp->ev[i].vel;
+        }
     }
     return o;
 }
 
+#define GET(k) do { if (o + (k) > len) return -1; } while (0)
+
 int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
 {
-    if (len < 64 + 192 + 12) return -1;
+    int o = 0;
+    GET(64 + 192);
+    bm_pattern_init(p);
     memcpy(&p->meta, in, 64);
     p->meta.bpm_x10 = (uint16_t)(in[0] | (in[1] << 8));
-    int o = 64;
+    o = 64;
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
-    for (int t = 0; t < BM_TRACKS; t++) {
-        bm_track_clear_events(p, t);
-        if (o + 2 > len) return -1;
+    for (int t = 0; t < BM_TR_TRACKS; t++) {
+        bm_tr *tr = &p->tr[t];
+        GET(68);
+        memcpy(tr->lane, in + o, 64); o += 64;
+        tr->mute = (uint16_t)(in[o] | (in[o + 1] << 8)); o += 2;
         int n = in[o] | (in[o + 1] << 8); o += 2;
         for (int i = 0; i < n; i++) {
-            if (o + 9 > len) return -1;
+            GET(3);
+            int pos = in[o] | (in[o + 1] << 8);
+            tr->st[(pos >> 6) & 15][pos & 63] = in[o + 2];
+            o += 3;
+        }
+        GET(1);
+        int m = in[o++];
+        for (int i = 0; i < m; i++) {
+            GET(4);
+            if (i < BM_LANE_LOCKS) memcpy(&tr->lk[i], in + o, 4);
+            o += 4;
+        }
+        for (int l = 0; l < BM_LANES; l++) if (tr->lane[l].len < 1 || tr->lane[l].len > BM_STEPS) tr->lane[l].len = 16;
+    }
+    for (int t = 0; t < BM_SYN_TRACKS; t++) {
+        GET(2);
+        int n = in[o] | (in[o + 1] << 8); o += 2;
+        for (int i = 0; i < n; i++) {
+            GET(9);
             int s = in[o] & 0x3F, slot = in[o] >> 6;
             o++;
             memcpy(&p->ev[t][s][slot], in + o, 8);
             o += 8;
         }
     }
-    /* saneo de rangos por si el dato viene de una versión futura */
+    for (int t = 0; t < BM_SYN_TRACKS; t++) {
+        GET(3);
+        bm_loop *lp = &p->loop[t];
+        lp->on = in[o++]; lp->bars = in[o++]; lp->n = in[o++];
+        if (lp->n > BM_LOOP_EVENTS) return -1;
+        for (int i = 0; i < lp->n; i++) {
+            GET(4);
+            lp->ev[i].tick = (uint16_t)(in[o] | (in[o + 1] << 8));
+            lp->ev[i].note = in[o + 2]; lp->ev[i].vel = in[o + 3];
+            o += 4;
+        }
+        if (lp->bars != 1 && lp->bars != 2 && lp->bars != 4) lp->bars = 2;
+    }
     if (p->meta.bpm_x10 < 400 || p->meta.bpm_x10 > 2400) p->meta.bpm_x10 = 1200;
     if (p->meta.swing < 50 || p->meta.swing > 75) p->meta.swing = 50;
-    if (p->meta.length != 16 && p->meta.length != 32 && p->meta.length != 48) p->meta.length = 64;
+    if (p->meta.master > 8) p->meta.master = 4;
     if (p->meta.scale >= BM_SCALES) p->meta.scale = 0;
     p->meta.root %= 12;
+    for (int t = 0; t < BM_TRACKS; t++) {
+        if (p->trk[t].speed >= SPD_COUNT) p->trk[t].speed = SPD_X1;
+        if (p->trk[t].length < 1 || p->trk[t].length > BM_STEPS) p->trk[t].length = 16;
+    }
     return o;
 }
 
-/* ------------------------------------------------------------------ escalas */
+/* ------------------------------------------------------------ escalas */
 const char *const bm_note_names[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 const char *const bm_scale_names[BM_SCALES] = {
     "MAJOR", "MINOR", "DORIAN", "PHRYG", "MIXO", "LYDIAN", "HARM MIN", "PENTA MA", "PENTA MI"};
@@ -143,7 +281,7 @@ int bm_scale_note(int root, int scale, int degree, int base_oct)
     return bm_clampi(12 * (base_oct + 1) + root + SCALES[scale][d] + 12 * oct, 0, 127);
 }
 
-/* ext: 0 triada, 1 +7, 2 +9, 3 SUS2, 4 SUS4 */
+/* ext: 0 tríada, 1 +7, 2 +9, 3 SUS2, 4 SUS4 */
 int bm_chord_notes(int root, int scale, int degree, int ext, int base_oct, uint8_t out[4])
 {
     int k = 0;
@@ -157,15 +295,23 @@ int bm_chord_notes(int root, int scale, int degree, int ext, int base_oct, uint8
     return k;
 }
 
-void bm_chord_name(int root, int scale, int degree, int ext, char *buf, int cap)
+static int quality(int root, int scale, int degree)   /* 0 mayor, 1 menor, 2 dism, 3 aum */
 {
     uint8_t n[4];
     bm_chord_notes(root, scale, degree, 0, 3, n);
     int third = (n[1] - n[0] + 24) % 12, fifth = (n[2] - n[0] + 24) % 12;
-    const char *q = "";
-    if (third == 3 && fifth == 6) q = "~";          /* disminuido (° en la fuente) */
-    else if (third == 3) q = "m";
-    else if (third == 4 && fifth == 8) q = "+";
+    if (third == 3 && fifth == 6) return 2;
+    if (third == 3) return 1;
+    if (third == 4 && fifth == 8) return 3;
+    return 0;
+}
+
+void bm_chord_name(int root, int scale, int degree, int ext, char *buf, int cap)
+{
+    uint8_t n[4];
+    bm_chord_notes(root, scale, degree, 0, 3, n);
+    int qq = quality(root, scale, degree);
+    const char *q = qq == 2 ? "~" : qq == 1 ? "m" : qq == 3 ? "+" : "";
     const char *x = "";
     if (ext == 1) {
         uint8_t m[4]; bm_chord_notes(root, scale, degree, 1, 3, m);
@@ -180,4 +326,38 @@ void bm_chord_name(int root, int scale, int degree, int ext, char *buf, int cap)
 void bm_note_str(int note, char *buf, int cap)
 {
     snprintf(buf, (size_t)cap, "%s%d", bm_note_names[note % 12], note / 12 - 1);
+}
+
+/* ------------------------------------------------------------ cuadrícula de acordes */
+const char *const bm_chord_set_names[BM_CHORD_SETS] = {"DIATONICO", "PROGRESIONES", "NEO SOUL"};
+
+static const bm_pad_chord SETS[BM_CHORD_SETS][16] = {
+    {{0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0},
+     {0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}},
+    {{0, 0}, {4, 0}, {5, 0}, {3, 0}, {5, 0}, {3, 0}, {0, 0}, {4, 0},
+     {1, 1}, {4, 1}, {0, 1}, {5, 1}, {0, 0}, {5, 0}, {3, 0}, {4, 0}},
+    {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 2}, {5, 2}, {1, 2}, {0, 2},
+     {3, 1}, {2, 1}, {5, 1}, {4, 4}, {1, 2}, {4, 1}, {0, 3}, {5, 1}},
+};
+
+bm_pad_chord bm_chord_pad(int set, int pad)
+{
+    return SETS[(set % BM_CHORD_SETS + BM_CHORD_SETS) % BM_CHORD_SETS][pad & 15];
+}
+
+int bm_chord_function(int degree)
+{
+    int d = degree % 7;
+    if (d == 0 || d == 2 || d == 5) return 0;
+    if (d == 1 || d == 3) return 1;
+    return 2;
+}
+
+void bm_roman(int root, int scale, int degree, int ext, char *buf, int cap)
+{
+    static const char *const UP[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+    static const char *const LO[7] = {"i", "ii", "iii", "iv", "v", "vi", "vii"};
+    int d = degree % 7, q = quality(root, scale, degree);
+    const char *x = ext == 1 ? "7" : ext == 2 ? "9" : ext == 3 ? "S2" : ext == 4 ? "S4" : "";
+    snprintf(buf, (size_t)cap, "%s%s%s", q == 0 || q == 3 ? UP[d] : LO[d], q == 2 ? "~" : "", x);
 }

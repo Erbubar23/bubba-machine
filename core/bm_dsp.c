@@ -64,18 +64,19 @@ void bm_dsp_tick(bm_ctx *c)
 {
     if (!ulaw_ready) ulaw_init();
     /* punch-in: cuantizado a 1/16 si está sonando */
-    if (c->punch_req != c->punch_cur && (!c->playing || (c->tick % BM_TICKS_STEP) == 0)) {
+    if (c->punch_req != c->punch_cur && (!c->playing || (c->btick % BM_TICKS_STEP) == 0)) {
         c->punch_cur = c->punch_req;
         c->punch_t = 0;
         c->punch_w0 = c->fx_w;
         c->punch_rp = (c->fx_w % BM_FXBUF_LEN) << 8;
+        if (c->arena_busy && c->punch_cur <= FX_TAPESTOP) c->punch_cur = 0xFF;   /* sin buffer mientras hay sample sin guardar */
         c->pf_ic1[0] = c->pf_ic1[1] = c->pf_ic2[0] = c->pf_ic2[1] = 0;
         c->st.punch = c->punch_cur;
     }
     /* Split Sync: pulsos a ppqn configurable */
     if (c->sync_mode == 1 && c->playing) {
         uint8_t ppqn = c->sync_ppqn ? c->sync_ppqn : 2;
-        if (c->tick % (BM_PPQN / ppqn) == 0) {
+        if (c->btick % (BM_PPQN / ppqn) == 0) {
             c->sync_wait = (uint32_t)c->sync_lat * BM_FS / 1000u;
             c->sync_left = BM_FS * 5u / 1000u;
         }
@@ -104,6 +105,9 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     if (dd < 1) dd = 1;
     int32_t fb = m->dly_fb * 115 / 127;                 /* Q7, máx ~0.9 */
     int pc = c->punch_cur == 0xFF ? -1 : c->punch_cur;
+    int16_t *dly = c->mem->fx.dly;
+    uint8_t *fxb = c->mem->fx.fx;
+    bool busy = c->arena_busy || c->smp_rec;
     if (pc == FX_FREEZE) fb = 128;
     if (pc == FX_THROW && fb < 96) fb = 96;
     int32_t peak[BM_TRACKS] = {0};
@@ -146,20 +150,21 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         }
 
         /* delay a Fs/2: escribe en muestras pares, mantiene en impares */
-        c->d_acc += (pc == FX_FREEZE) ? 0 : send + ((pc == FX_THROW) ? (L + R) / 2 : 0);
-        if ((c->sample_clock + i) & 1) {
-            uint32_t rd = (c->dly_w - dd) & (BM_DELAY_LEN - 1);
-            c->d_out = c->dly[rd];
-            c->dly[c->dly_w] = sat16(c->d_acc / 2 + ((c->d_out * fb) >> 7));
-            c->dly_w = (c->dly_w + 1) & (BM_DELAY_LEN - 1);
-            c->d_acc = 0;
+        if (!busy) {
+            c->d_acc += (pc == FX_FREEZE) ? 0 : send + ((pc == FX_THROW) ? (L + R) / 2 : 0);
+            if ((c->sample_clock + i) & 1) {
+                uint32_t rd = (c->dly_w - dd) & (BM_DELAY_LEN - 1);
+                c->d_out = dly[rd];
+                dly[c->dly_w] = sat16(c->d_acc / 2 + ((c->d_out * fb) >> 7));
+                c->dly_w = (c->dly_w + 1) & (BM_DELAY_LEN - 1);
+                c->d_acc = 0;
+            }
+            L += (c->d_out * m->dly_mix) >> 7;
+            R += (c->d_out * m->dly_mix) >> 7;
+            /* captura para stutter/reverse/tape */
+            fxb[c->fx_w % BM_FXBUF_LEN] = ulaw_enc((L + R) / 2);
+            c->fx_w++;
         }
-        L += (c->d_out * m->dly_mix) >> 7;
-        R += (c->d_out * m->dly_mix) >> 7;
-
-        /* captura para stutter/reverse/tape */
-        c->fxb[c->fx_w % BM_FXBUF_LEN] = ulaw_enc((L + R) / 2);
-        c->fx_w++;
 
         if (pc >= 0) {
             uint32_t t = c->punch_t++;
@@ -168,12 +173,12 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             case FX_STUT4: case FX_STUT8: case FX_STUT16: case FX_STUT32: {
                 static const uint8_t TK[4] = {96, 48, 24, 12};
                 uint32_t len = fx_len(c, TK[pc]);
-                s = bm_ulaw_dec[c->fxb[(c->punch_w0 + t % len) % BM_FXBUF_LEN]];
+                s = bm_ulaw_dec[fxb[(c->punch_w0 + t % len) % BM_FXBUF_LEN]];
                 L = R = s; break;
             }
             case FX_REV8: case FX_REV4: {
                 uint32_t len = fx_len(c, pc == FX_REV8 ? 48 : 96);
-                s = bm_ulaw_dec[c->fxb[(c->punch_w0 + BM_FXBUF_LEN * 4u - 1u - t % len) % BM_FXBUF_LEN]];
+                s = bm_ulaw_dec[fxb[(c->punch_w0 + BM_FXBUF_LEN * 4u - 1u - t % len) % BM_FXBUF_LEN]];
                 L = R = s; break;
             }
             case FX_TAPESTOP: {
@@ -181,7 +186,7 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
                 int32_t rate = T ? 256 - (int32_t)((uint64_t)t * 256u / T) : 0;   /* Q8 */
                 if (rate <= 0) { L = R = 0; break; }
                 c->punch_rp += (uint32_t)rate;
-                s = bm_ulaw_dec[c->fxb[(c->punch_rp >> 8) % BM_FXBUF_LEN]];
+                s = bm_ulaw_dec[fxb[(c->punch_rp >> 8) % BM_FXBUF_LEN]];
                 L = R = s; break;
             }
             case FX_GATE: {
@@ -203,13 +208,21 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             }
         }
 
-        /* sampler: resample de la mezcla (post-FX, pre-master) */
+        /* sampler: resample de la mezcla (post-FX, pre-master), diezmado a 16 kHz */
         if (c->smp_rec) {
-            if (c->smp_rec_pos < BM_SAMPLER_LEN) {
-                int32_t v = (L + R) / 2 >> 8;
-                c->smp[c->smp_rec_pos++] = (int8_t)(v > 127 ? 127 : (v < -128 ? -128 : v));
-            } else {
-                c->smp_rec = 0; c->smp_len = BM_SAMPLER_LEN; c->st.smp_rec = 0;
+            int32_t mono = (L + R) / 2;
+            c->smp_lp += ((mono - c->smp_lp) * 27852) >> 15;          /* pasa-bajos antes de diezmar */
+            c->smp_dec_acc += BM_SMP_RATE;
+            if (c->smp_dec_acc >= BM_FS) {
+                c->smp_dec_acc -= BM_FS;
+                if (c->smp_rec_pos < BM_SMP_REC_MAX) {
+                    int32_t v = c->smp_lp >> 8;
+                    c->mem->arena[c->smp_rec_pos++] = (uint8_t)(int8_t)(v > 127 ? 127 : (v < -128 ? -128 : v));
+                } else {
+                    c->smp_rec = 0; c->st.smp_rec = 0;
+                    c->smp.data = (const int8_t *)c->mem->arena; c->smp.len = BM_SMP_REC_MAX;
+                    c->arena_busy = 1; c->st.smp_unsaved = 1;
+                }
             }
         }
 
@@ -254,5 +267,5 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         c->peak_acc[t] = p > old ? p : (old * 7) / 8;
         c->st.peak[t] = (uint8_t)c->peak_acc[t];
     }
-    if (c->smp_rec) { c->st.smp_len = c->smp_rec_pos; }
+    if (c->smp_rec) c->st.smp_len = c->smp_rec_pos;
 }

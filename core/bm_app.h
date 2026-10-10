@@ -7,19 +7,25 @@
 #include "bm_gesture.h"
 #include "bm_gfx.h"
 
-/* Lo que la plataforma (HAL) le da a la aplicación. */
 typedef struct {
     void (*blit)(void *u, int x, int y, int w, int h, const uint16_t *px);
     void (*led)(void *u, int id, uint8_t level);
-    void (*midi_out)(void *u, uint8_t b);                 /* se llama desde la ISR de audio */
+    void (*midi_out)(void *u, uint8_t b);                 /* desde la ISR de audio */
     const uint8_t *(*flash_map)(void *u, uint32_t addr);  /* lectura XIP directa */
     const bm_flash_ops *flash;
     void *user;
 } bm_platform;
 
 typedef enum {
-    V_BOOT, V_HOME, V_SEQ, V_EDIT, V_ENV, V_LFO, V_FX, V_SCL, V_ARP, V_SAVE, V_GLO, V_SONG,
-    V_BANK, V_MUTE, V_PUNCH, V_KEYMAP, V_ARPLIVE, V_COUNT
+    V_BOOT,
+    /* pantallas (toque) */
+    V_HOME, V_SCENES, V_SEQ, V_LOOP, V_EDIT, V_INST, V_ENV, V_LFO, V_FX, V_SCL, V_CHORDS,
+    V_ARP, V_SAVE, V_GLO, V_SONG,
+    /* pantallas especiales (2 s) */
+    V_SYSTEM, V_TIME, V_SAMPLER,
+    /* capas (mantener) */
+    V_BANK, V_MUTE, V_ERASE, V_PUNCH, V_CHORDLIVE, V_ARPLIVE, V_ROLL, V_LANEMUTE,
+    V_COUNT
 } bm_view;
 
 typedef struct {
@@ -28,7 +34,7 @@ typedef struct {
 } bm_settings;
 
 typedef struct {
-    uint8_t on, enc, pct, ghost;   /* ghost 255 = ninguno */
+    uint8_t on, enc, pct, ghost;
     uint16_t color;
     char title[22], val[12], unit[6];
     uint32_t until;
@@ -36,8 +42,11 @@ typedef struct {
 
 typedef struct { char name[10], val[10]; uint8_t pct, locked; } bm_legend;
 
-#define BM_JOBS 8
-enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD };
+#define BM_JOBS 10
+enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD,
+       JOB_SAVE_SAMPLE, JOB_SAMPLE_MARKS, JOB_SAMPLE_ERASE };
+
+typedef union { bm_tr tr; bm_event ev[BM_STEPS][BM_EVENTS]; } bm_trackbuf;
 
 typedef struct bm_app {
     bm_platform pf;
@@ -59,36 +68,51 @@ typedef struct bm_app {
     uint8_t set_dirty, song_dirty;
     uint32_t t_edit;
     uint8_t job[BM_JOBS], job_arg[BM_JOBS], njob, job_fading;
+    bm_smp_src smp_info[BM_SMP_SLOTS];
+    uint8_t smp_valid[BM_SMP_SLOTS];
+    bm_smp_src smp_send;          /* copia estable que lee el audio */
+    uint8_t chops_mode;           /* 0 manual, 1: 4, 2: 8, 3: 16 */
+    uint8_t wave[232];            /* picos de la forma de onda del sample (para dibujar) */
+    uint8_t wave_was_rec;
 
-    /* portapapeles y undo */
-    bm_event clip_ev[BM_STEPS][BM_EVENTS];
+    /* portapapeles, undo y redo (una pista) */
+    bm_trackbuf clip;
     bm_event clip_step[BM_EVENTS];
-    bm_track clip_trk;
-    uint8_t clip_type;            /* 0 nada, 1 paso, 2 pista */
-    bm_event undo_ev[BM_STEPS][BM_EVENTS];
-    int8_t undo_track;
+    uint8_t clip_type, clip_track;   /* 0 nada, 1 paso, 2 pista */
+    bm_trackbuf undo, redo;
+    int8_t undo_track, redo_track;
 
     /* UI */
     bm_gesture ges;
     bm_screen scr;
-    uint8_t view, layer, track, page, drum_sel, env_page;
+    uint8_t view, layer, track, page, env_page;
+    uint8_t sel_lane[BM_TR_TRACKS];
     int8_t oct;
-    uint8_t rec, glo_down, fill;
-    int8_t held_step;             /* paso absoluto mantenido (-1) */
-    int8_t held_white;
+    uint8_t rec, rec_before, glo_down, fill;
+    int8_t held_step, held_white;
     uint8_t held_edit, held_had_event, held_long;
     uint32_t step_t0;
     uint8_t keys_down[BM_KEYS];
     uint8_t key_notes[BM_KEYS][4], key_nn[BM_KEYS], key_trk[BM_KEYS];
     int8_t key_rec_step[BM_KEYS], key_rec_slot[BM_KEYS];
-    uint16_t key_rec_tick[BM_KEYS];
-    uint8_t chord_mod;            /* bits de los modificadores 8-11 mantenidos */
-    int8_t last_degree;
-    char chord_name[10];
+    uint32_t key_rec_tick[BM_KEYS];
+    uint32_t key_t0[BM_KEYS];
+    uint8_t chord_mod;
+    int8_t last_pad;
+    uint8_t prev_chord[4], prev_chord_n;
+    char chord_name[10], chord_roman[10];
     uint8_t last_note[BM_TRACKS];
     int8_t pat_sel;
     uint32_t pat_sel_t;
-    uint8_t menu_row, save_row, save_target, song_cur, clear_armed;
+    uint16_t erase_mask;          /* capa BORRAR sonando: instrumentos que se borran al pasar */
+    uint8_t erase_syn;
+    uint8_t roll_rate;            /* índice 0..4 */
+    uint16_t roll_mask;
+    uint8_t launch_held, chain[8], chain_n;
+    uint8_t song_rec;
+    uint32_t song_rec_loops;
+    uint8_t time_row, time_lane;
+    uint8_t menu_row, save_row, save_target, song_cur, clear_armed, init_armed, erase_slot_armed;
     uint32_t clear_t;
     bm_overlay ov;
     char toast[30];
@@ -98,9 +122,11 @@ typedef struct bm_app {
     uint32_t now, boot_t;
     uint8_t last_trig[BM_TRACKS];
     uint32_t trig_until[BM_TRACKS];
+    uint32_t lane_flash[BM_TR_TRACKS][BM_LANES];
     int8_t punch_key;
     uint32_t clip_until;
     uint8_t smp_was_rec;
+    uint16_t edits_seen;
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);
@@ -110,8 +136,9 @@ void bm_app_encoder(bm_app *a, int id, int delta, uint32_t now);
 void bm_app_master(bm_app *a, uint16_t adc10);
 void bm_app_battery(bm_app *a, uint8_t pct);
 void bm_app_midi_in(bm_app *a, uint8_t byte);
-void bm_app_tick(bm_app *a, uint32_t now);                     /* bucle principal, ~30 Hz */
-void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames); /* ISR de audio */
+void bm_app_tick(bm_app *a, uint32_t now);
+void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);
+void bm_app_samples_reload(bm_app *a);   /* tras escribir un sample desde fuera (editor/emulador) */
 
 /* para el dibujo */
 int  bm_app_eff_view(const bm_app *a);
@@ -122,6 +149,9 @@ const char *bm_macro_name(int track, int i);
 const char *bm_track_name(int t);
 uint16_t bm_track_color(int t);
 uint16_t bm_knob_color(int i);
-int bm_app_flash_events(const bm_app *a);
+const char *bm_lane_name(const bm_app *a, int t, int lane);
+int  bm_app_track_step(const bm_app *a, int t, int lane);   /* paso que suena (lane < 0: pista synth) */
+int  bm_app_chord_track(const bm_app *a);
+extern const char *const bm_roll_names[5];
 
 #endif

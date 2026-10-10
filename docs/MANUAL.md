@@ -1,121 +1,162 @@
-# Bubba Machine — Manual
+# Bubba Machine 0.2 — Manual
 
-Bubba Machine convierte el FM-1 en una groovebox de 6 pistas para tocar en vivo. Cada botón abre la pantalla de su nombre; si lo **mantienes**, activa su modo en vivo sobre las teclas, y al soltarlo vuelves a donde estabas.
+Bubba Machine convierte el FM-1 en una groovebox de directo de 6 pistas. Tiene batería estilo TR, un sampler cuyos chops se secuencian igual que la batería, y bajo y synths con loopera. Cada pista puede tener su propio largo y su propia velocidad.
+
+## Tres formas de apretar un botón
+
+| Pulsación | Qué hace |
+|---|---|
+| **Toque** | Abre la pantalla del botón. Otro toque: su página siguiente |
+| **Mantener** (300 ms) | Abre su **capa en vivo** mientras lo sostienes. Al soltar, vuelves a donde estabas |
+| **Mantener 2 s** | Abre una **pantalla especial**. Un anillo amarillo arriba se llena mientras esperas. Si tocas otra cosa durante la pulsación, los 2 s se cancelan |
 
 ## La pantalla
 
-```
-┌────────────────────────────────────┐
-│ ▶ A01 2.3  [T1] 112 BPM      ▭     │  estado: siempre igual
-├────────────────────────────────────┤
-│                                    │
-│   lo que hace el modo actual       │  contexto: cambia con cada botón
-│   (los valores que giras aparecen  │
-│    aquí encima y se van solos)     │
-├────────┬────────┬────────┬─────────┤
-│ KNOB 1 │ KNOB 2 │ KNOB 3 │ KNOB 4  │  qué hace cada perilla ahora,
-└────────┴────────┴────────┴─────────┘  en su color y en su orden físico
-```
-
-- **Estado**: transporte, patrón (y el siguiente en cola), compás.tiempo, pista, BPM, reloj externo, song, batería.
-- **Borde rojo**: la mezcla saturó (baja niveles o el DRIVE).
+- **Arriba:** transporte, patrón (y el que sigue en cola), compás y tiempo, pista, BPM. También la escena que suena (A-D), **F** cuando suena el fill, el anillo de los 2 s y la batería.
+- **En medio:** lo que hace el modo actual. Los valores que giras aparecen aquí encima y se van solos.
+- **Abajo:** qué hace cada perilla K1-K4, en su color y en su orden físico.
+- **Borde rojo:** la mezcla saturó.
 
 ## Las pistas
 
-| Pista | Motor | Teclas fuera de SEQ |
-|---|---|---|
-| **T1 DRUMS** | ROMpler: kit KO-808 o KO-909 (16 sonidos). El hi-hat cerrado corta al abierto. | Blancas 1-16 = sonidos |
-| **T2 SAMPLER** | Graba la mezcla y la corta en 16 partes | Blancas 1-16 = partes |
-| **T3 BASS** | Wavetable mono con filtro y glide | Cromático (una octava abajo) |
-| **T4-T6 SYN A/B/C** | Wavetable polifónico (pool de 7 voces) con filtro | Cromático, o en escala |
+| Pista | Qué es |
+|---|---|
+| **T1 DRUMS** | Batería TR: 16 instrumentos (kit KO-808 o KO-909), cada uno con su línea de pasos |
+| **T2 SAMPLER** | 16 chops de un sample (slot A o B). Se secuencian igual que la batería |
+| **T3 BASS** | Wavetable monofónico con filtro y glide |
+| **T4-T6 SYN** | Wavetable polifónico con filtro |
 
-Cambia de pista con **ALGORITHM**. En SEQ también con las negras 1-6.
+**ALGORITHM** cambia de pista desde cualquier pantalla.
 
-## Los botones
+## Botones
 
-| Botón | Toque | Mantener | GLO + botón |
-|---|---|---|---|
-| **PLAY** | Play/stop (al presionar) | — | Reinicia desde el paso 1 |
-| **REC** | Grabación en vivo de notas | En EDIT de T2: graba el sampler mientras lo mantienes | — |
-| **SEQ** | Pasos | **Patrones**: blanca = elegir (si suena, entra al final) | **Song** |
-| **HOME** | Las 6 pistas + mezclador | **Mute**: blancas 1-6 mute, 9-14 solo | — |
-| **EDIT** | El sonido de la pista | — | — |
-| **ENV** | Envolvente (otra vez: página 2) | — | — |
-| **LFO** | Reservado | — | — |
-| **FX** | Delay y sidechain | **Punch-in**: cada blanca es un efecto mientras la sostienes | — |
-| **SCL** | Escala y acordes | **Acordes en vivo** | — |
-| **ARP** | Arpegiador | **Arpegio en vivo** con las notas que sostengas | — |
-| **SAVE** | Menú de guardado (SAVE otra vez = ejecutar) | 1 s = guardado rápido | — |
-| **GLO** | Ajustes globales | Es el modificador | — |
-| **OCT − / +** | Octava · en SEQ: página | — | Transponer la pista ± 1 semitono |
+| Botón | Toque | Otra vez | Mantener | 2 s |
+|---|---|---|---|---|
+| **HOME** | Pistas y mezclador | **Escenas** | Mute (blancas 1-6) y solo (9-14) | **Sistema** |
+| **SEQ** | Pasos | Synth: **loopera** | Patrones (blanca = siguiente) | **Tiempo** |
+| **EDIT** | Sonido (kit, sample u onda) | TR: instrumento | **Borrar** estilo TR | T2: **sampler** · otras: sonido inicial |
+| **ENV** | Envolvente | Página 2 | — | — |
+| **FX** | Delay y sidechain | — | **Punch-in** | — |
+| **SCL** | Escala | **Cuadrícula de acordes** | Acordes en vivo | — |
+| **ARP** | Arpegiador | — | Synth: arpegio · TR: **roll** | — |
+| **SAVE** | Menú de guardado | Ejecuta | — | Guardado rápido |
+| **GLO** | Global (BPM, swing, largo maestro, drive, fills) | — | Modificador | — |
+| **REC** | Grabar en vivo (en LOOP: loopera · en el sampler: grabar) | — | — | **Borrar la pista** |
+| **PLAY** | Play/stop | — | — | — |
+| **OCT − / +** | Octava · en SEQ: página · en BORRAR: deshacer / rehacer | — | — | — |
 
-Si mantienes un botón y tocas otra cosa antes de los 300 ms, su modo en vivo se activa al instante.
+**GLO sostenido +:** KNOB 1-4 = BPM · swing · largo maestro · drive · SELECT = fill automático · ALGORITHM = kit / slot / banco de ondas · SEQ = canción · OCT = transponer · negras 1-6 = mute.
 
-## Las perillas
+## Batería TR (SEQ en T1 y T2)
 
-| Perilla | Siempre | Con GLO |
-|---|---|---|
-| **KNOB 1-4** | Lo que dice la leyenda de abajo | BPM · SWING · LARGO · DRIVE |
-| **SELECT** | Mover en listas · en SEQ/EDIT de T1/T2: sonido o parte a secuenciar | — |
-| **ALGORITHM** | Pista | Kit (T1), interpolación (T2) o banco de ondas (T3-T6) |
-| **PRESETS** | Patrón A01-A16 | — |
-| **MASTER** | Volumen final (no se guarda) | — |
+La pantalla es una matriz: 16 instrumentos × los 16 pasos de la página. Cada línea muestra su cabezal, porque cada instrumento puede tener su propio largo.
 
-Macros de las pistas (KNOB 1-4 en SEQ y EDIT): synths **CUTOFF · RESO · DECAY · WAVE**; batería y sampler **TONE · TUNE · DECAY · START**.
+| Control | Hace |
+|---|---|
+| **Blancas** | Pasos del instrumento elegido: toque = poner o quitar |
+| **Negras 1-8** | Eligen (y tocan) un instrumento de la sección |
+| **Negra 9** | Cambia de sección (1-8 / 9-16) |
+| **Negra 10** | FILL mientras la sostienes |
+| **Negra 11** | Toque: mute del instrumento · mantener: mutes de todos |
+| **OCT − / +** | Página |
+| **SELECT** | Instrumento |
 
-## Secuenciar (SEQ)
+**Paso sostenido + perilla:**
+- KNOB 1-4: P-Lock de TONE, TUNE, DECAY o START, solo en ese paso.
+- SELECT: acento.
+- ALGORITHM: repetición ×1 a ×4, o FLAM.
+- PRESETS: condición (SIEMPRE, SOLO FILL, SIN FILL).
 
-- Las **16 blancas son los pasos** de la página actual. **OCT − / +** cambia de página. Los LEDs muestran los pasos: encendido = nota, tenue = vacío, parpadeo = paso que suena, respiración = paso con P-Lock.
-- **Toque** en un paso vacío = crea una nota. **Toque** en un paso con nota = la borra.
-- En T1 y T2, el paso usa el sonido elegido con **SELECT** (también puedes tocarlo en otra pantalla para elegirlo).
-- **Mantén un paso** y gira:
-  - **KNOB 1-4**: P-Lock (ese valor solo en ese paso; la marca blanca muestra el valor de la pista).
-  - **SELECT**: la nota (o el sonido).
-  - **ALGORITHM**: probabilidad (de 5 en 5 %).
-  - **PRESETS**: largo de 1 a 16 pasos, o **TIE** (se liga con la siguiente: glide en el bajo).
-- Negras: **1-6** pista (GLO + negra = mute) · **7** COPY · **8** PASTE · **9** CLEAR · **10** FILL (mientras la sostienes, todo suena aunque tenga probabilidad) · **11** UNDO.
-- Con un paso mantenido, COPY/PASTE/CLEAR actúan sobre el paso; si no, sobre la pista entera.
-- **REC** + tocar en otra pantalla graba en vivo, cuantizado al paso más cercano.
+**EDIT otra vez (INSTRUMENTO):** nivel, afinación, decay y **largo de la línea**. Por ejemplo, un hi-hat de 12 pasos contra un bombo de 16.
 
-## Escala y acordes (SCL)
+**BORRAR (EDIT sostenido):**
+- Sonando, sostener una blanca borra ese instrumento en cada paso por donde pasa el cabezal. Parado, lo borra entero.
+- Negras 1-3: copiar, pegar y limpiar la pista.
+- OCT − / +: deshacer y rehacer.
 
-- KNOB 1 tónica · KNOB 2 escala (9 escalas) · KNOB 3 acorde base · KNOB 4 **LOCK** (el teclado queda en escala en todas las pantallas).
-- Blancas: notas de la escala. Negras 1-7: los acordes de la escala. Negras 8-11 (+7, +9, SUS2, SUS4) modifican el acorde mientras las sostienes.
-- La pantalla dibuja el teclado real con el nombre de cada nota y acorde.
+**ROLL (ARP sostenido):** cada blanca repite su instrumento a la velocidad de K1 (1/8, 1/16, 1/32, tresillos). Con REC encendido, se graba como pasos con repetición.
+
+**Fills:** los pasos con condición suenan o callan en el fill. El fill suena mientras sostienes la negra 10, o solo cada 2, 4 u 8 compases (GLO + SELECT).
+
+## Tiempo (SEQ 2 s)
+
+Muestra las 6 pistas como barras de su duración real, con el cabezal de cada una: el polímetro a la vista.
+
+- SELECT o ALGORITHM: elige la pista.
+- K1: largo (1-64).
+- K2: velocidad (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4).
+- K3 y K4 (solo pistas TR): elige un instrumento y cambia su largo.
+
+El **largo maestro** (GLO + K3: 16, 32, 48, 64, 128 o INF) reinicia todas las pistas a la vez. Ahí cambian los patrones y las escenas.
 
 ## Sampler (T2)
 
-1. Elige T2 y pulsa **EDIT**.
-2. **Mantén REC**: graba lo que está sonando (hasta 1.1 s).
-3. Mientras grabas, cada **blanca** marca un corte (hasta 16). Sin cortes, se divide en 16 partes iguales.
-4. Suelta REC. Toca las blancas para disparar las partes o secuéncialas en SEQ.
+1. Elige T2 y abre **EDIT**.
+2. **Mantén REC:** graba lo que está sonando (hasta 3 s, 16 kHz).
+3. Mientras grabas, cada **blanca** marca un chop. Sin chops, el sample se divide en 16 partes iguales.
+4. Al **parar**, el sample se guarda solo en su slot (A o B, hasta 4 s cada uno). Mientras no se guarda, el delay y los punch-in con buffer quedan en pausa, porque comparten la memoria.
+5. Los chops son los 16 instrumentos de la rejilla TR de T2.
 
-El sample es **volátil**: se pierde al apagar.
+**SAMPLER (EDIT 2 s en T2):**
+- K1: slot A o B.
+- K2: chops manuales o 4, 8 o 16 partes iguales.
+- Negra 11 dos veces: borra el slot.
+
+## Synths
+
+- **SEQ:** como en 0.1. Hasta 4 notas por paso. Paso sostenido: KNOB = P-Lock, SELECT = nota, ALGORITHM = probabilidad o fill, PRESETS = largo o TIE (glide).
+- **LOOP (SEQ otra vez):** loopera de notas sin cuantizar.
+  - K1 ON/OFF · K2 compases (1, 2 o 4).
+  - **REC** arma la grabación (empieza en el siguiente compás). Al cerrar el loop pasa a PLAY. REC otra vez: sobregrabar (OVERDUB). REC otra vez: PLAY.
+  - **REC 2 s** borra el loop.
+
+## Acordes: la cuadrícula (SCL otra vez)
+
+Las 16 blancas son 16 acordes, dibujados como una cuadrícula de 4×4 (fila 1 = blancas 1-4). Cada pad muestra el **grado** (I, ii, V7…) y el **nombre** del acorde. Su color dice su función:
+- **Azul (reposo):** I, iii, vi.
+- **Verde (preparación):** ii, IV.
+- **Naranja (tensión):** V, vii.
+
+Se lee como un mapa: de verde a naranja a azul suena a "ir y volver".
+
+- **K1:** juego de acordes.
+  - DIATÓNICO: tríadas y séptimas.
+  - PROGRESIONES: cada fila es una progresión clásica, de izquierda a derecha.
+  - NEO SOUL: séptimas y novenas.
+- **K2:** voicing (cerrado, abierto o conducido: cada acorde en la inversión más cercana al anterior).
+- **K3:** octava · **K4:** strum.
+- **Negras 1-4** (mientras las sostienes): +7, +9, SUS2, SUS4.
+- Los acordes suenan en la pista synth elegida (o en T4 si estás en una pista TR).
+- **SCL sostenido** activa la cuadrícula en las teclas desde cualquier pantalla.
+
+## Escenas (HOME otra vez)
+
+Una escena = **patrón + mutes** (de las pistas y de los instrumentos TR).
+
+- Blancas 1-4: lanzan A-D en el siguiente ciclo maestro (parado: al instante).
+- Blancas 5-8: guardan lo que suena en A-D.
+- Mantener una de 1-4 y tocar otras: **cadena** en bucle.
+- **REC:** SONG REC. Cada ciclo que suena queda escrito en la canción (GLO + SEQ para verla y editarla).
 
 ## Efectos
 
-- **FX** (toque): tiempo del delay (1/16 a 1/4), feedback, mezcla y release del sidechain. El envío al delay y el ducking de cada pista están en HOME (KNOB 3 y 4).
-- **FX** (mantener) + blanca: punch-in, cuantizado a 1/16: STUTTER 1/4 · 1/8 · 1/16 · 1/32 · REVERSE 1/8 · 1/4 · TAPE STOP · GATE · LPF SWEEP · HPF SWEEP · BITCRUSH · SR DOWN · DELAY THROW · ECHO FREEZE · KILL LOW · KILL HIGH.
-- **Sidechain**: cada bombo de T1 baja el volumen de T3-T6, según el DUCK de cada pista.
-- **DRIVE** (GLO + KNOB 4): saturación suave de la mezcla.
-
-## Patrones y song
-
-- **PRESETS** o **SEQ mantenido + blanca**: elige patrón. Si está sonando, entra al final del patrón.
-- Los cambios no guardados se conservan al cambiar de patrón sonando. Se guardan solos al parar (autoguardado tras 10 s sin tocar nada).
-- **GLO + SEQ**: song. Blanca = agrega un patrón · SELECT = elegir fila · KNOB 1 patrón · KNOB 2 repeticiones · KNOB 4 song ON/OFF · negra 9 = borrar fila.
+- **FX:** tiempo del delay, feedback, mezcla y release del sidechain. El envío al delay y el ducking de cada pista se ajustan en HOME (K3, K4).
+- **FX sostenido + blanca:** 16 punch-in cuantizados a 1/16 (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high).
+- **DRIVE** (GLO + K4): saturación de la mezcla.
 
 ## Guardar
 
 - La flash **solo se escribe en STOP** (escribir detiene el audio unos instantes).
-- **SAVE**: guardar · guardar como (KNOB 1 elige destino) · guardar song · borrar patrón (SAVE dos veces) · contar eventos (máximo 768 por patrón).
-- **SAVE mantenido 1 s**: guardado rápido.
+- **Autoguardado:** parado, después de 10 s sin tocar nada.
+- **SAVE:** guardar · guardar como · guardar canción y escenas · borrar patrón (SAVE dos veces) · contar eventos.
+- **SAVE 2 s:** guardado rápido.
 
-## Ajustes (GLO)
+## Sistema (HOME 2 s)
 
-Reloj interno/externo · salida Split Sync (L = pulso, R = mezcla mono) · PPQN del pulso (1, 2 o 4) · latencia del pulso · drive · autoguardado · brillo de LEDs en reposo · fuente del sampler · memoria usada · versión.
+Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · fuente del sampler · patrones guardados · samples · versión.
 
 ## MIDI
 
-- Entrada (USB y TRS): canales 1-6 = pistas 1-6. Con reloj externo, sigue el MIDI Clock y Start/Stop.
-- Salida: MIDI Clock con reloj interno.
+- Entrada (USB y TRS): canales 1-6 = pistas. En T1 y T2, la nota elige el instrumento (0-15).
+- Reloj externo: sigue el MIDI Clock y Start/Stop.
+- Salida: MIDI Clock cuando el reloj es interno.

@@ -351,3 +351,16 @@ y=240 └───────────────────────�
 | Primer arranque | sin detalle | Si la flash está vacía, se carga una demo (Am-F-C-G, 112 BPM) | Para que PLAY suene de inmediato |
 | Sobremuestreo x2 | ZOH (escalón) | Interpolación lineal | El ZOH dejaba -22 dB de imágenes arriba de 11 kHz; lineal baja a -27 dB por casi el mismo costo |
 | Botones sin capa | TAP al soltar antes de 300 ms | EDIT, ENV y LFO hacen TAP al soltar aunque se hayan mantenido (salvo combo) | Más tolerante, sin función que perder |
+
+---
+
+## 13. Versión 0.2
+
+El diseño de la 0.2 está en [`DISENO_0.2.md`](DISENO_0.2.md) y reemplaza a las secciones 4.1, 5, 6.2 y 6.5 donde no coinciden:
+
+- **Pistas TR** (T1 y T2): un byte por paso y por instrumento (on, acento, repetición, flam, condición de fill, P-Lock) en lugar de eventos de 8 bytes.
+- **Tiempo por pista:** largo y velocidad por pista; largo por instrumento TR; largo maestro.
+- **Tercera pulsación de 2 s** para pantallas especiales, que se cancela si se toca otro control.
+- **Sampler:** 2 slots de 64 KiB en flash (4 s a 16 kHz) y grabación de hasta 3 s en una arena de 48 KiB compartida con el delay y el punch-in. Decisión 3 resuelta: el sample se guarda.
+- **Flash:** el log de patrones baja a 20 slots (`0x097000-0x0BFFFF`) y los samples ocupan `0x0C0000-0x0DFFFF`.
+- **Escenas** A-D, **loopera** por synth, **roll**, **strum** y **cuadrícula de acordes**.

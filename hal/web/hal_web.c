@@ -2,6 +2,7 @@
 #include <emscripten/emscripten.h>
 #include <string.h>
 #include "../bm_hal_sim.h"
+#include "../../core/bm_sample.h"
 
 static bm_sim sim;
 static bm_app app;
@@ -53,16 +54,21 @@ EMSCRIPTEN_KEEPALIVE float *bm_web_render(int frames)
 EMSCRIPTEN_KEEPALIVE uint16_t *bm_web_fb(void) { return sim.fb; }
 EMSCRIPTEN_KEEPALIVE uint8_t *bm_web_leds(void) { return sim.leds; }
 
-/* Sampler: el JS escribe aquí un WAV ya convertido a int8 a 22.05 kHz (solo emulador). */
-EMSCRIPTEN_KEEPALIVE int8_t *bm_web_sampler(void) { return app.amem.smp; }
-EMSCRIPTEN_KEEPALIVE int bm_web_sampler_cap(void) { return BM_SAMPLER_LEN; }
-EMSCRIPTEN_KEEPALIVE void bm_web_sampler_set(int len)
+/* Sampler: el JS escribe aquí un audio ya convertido a int8 a 16 kHz y lo guarda en un slot
+ * de flash, igual que lo haría el editor web por USB en el equipo. */
+static int8_t smp_buf[BM_SMP_MAX];
+EMSCRIPTEN_KEEPALIVE int8_t *bm_web_sampler(void) { return smp_buf; }
+EMSCRIPTEN_KEEPALIVE int bm_web_sampler_cap(void) { return BM_SMP_MAX; }
+EMSCRIPTEN_KEEPALIVE int bm_web_sampler_set(int len, int slot)
 {
-    if (len < 0) len = 0;
-    if (len > (int)BM_SAMPLER_LEN) len = BM_SAMPLER_LEN;
-    app.ctx.smp_len = (uint32_t)len;
-    app.ctx.smp_marks = 0;
-    app.ctx.st.smp_marks = 0;
+    if (len < 1 || len > (int)BM_SMP_MAX || slot < 0 || slot >= BM_SMP_SLOTS) return -1;
+    bm_platform pf;
+    bm_sim_platform(&sim, &pf);
+    uint32_t marks[BM_SLICES];
+    for (int i = 0; i < BM_SLICES; i++) marks[i] = (uint32_t)len * (uint32_t)i / BM_SLICES;
+    if (bm_sample_write(pf.flash, slot, smp_buf, (uint32_t)len, marks, BM_SLICES)) return -1;
+    bm_app_samples_reload(&app);
+    return 0;
 }
 
 EMSCRIPTEN_KEEPALIVE int bm_web_midi_out(uint8_t *dst, int cap)

@@ -25,8 +25,10 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
 {
     memset(c, 0, sizeof *c);
     c->pat = pat; c->song = song; c->cmdq = q;
-    c->dly = mem->dly; c->fxb = mem->fx; c->smp = mem->smp;
+    c->mem = mem;
     memset(mem, 0, sizeof *mem);
+    c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
+    c->scene_q = -1;
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;
         c->eng[t].track = (uint8_t)t;
@@ -42,6 +44,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->drive = 25;
     c->sync_ppqn = 2;
     c->st.queued = 0xFF; c->st.punch = 0xFF; c->st.step = -1;
+    c->st.scene = 0xFF; c->st.scene_q = 0xFF;
 }
 
 /* ------------------------------------------------------------ MIDI de entrada */
@@ -90,6 +93,8 @@ static void all_off(bm_ctx *c)
         v->pend = 0;
     }
     for (int t = 0; t < BM_TRACKS; t++) { c->arp[t].n = 0; c->arp[t].playing = 0; }
+    for (int t = 0; t < BM_TR_TRACKS; t++) c->roll[t].mask = 0;
+    memset(c->strum, 0, sizeof c->strum);
 }
 
 static void apply(bm_ctx *c, const bm_cmd *k)
@@ -98,7 +103,26 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_NOTE_ON: bm_live_note(c, k->a, k->b, k->c, 1); break;
     case CMD_NOTE_OFF: bm_live_note(c, k->a, k->b, 0, 0); break;
     case CMD_SET_EVENT:
-        if (k->a < BM_TRACKS && k->b < BM_STEPS && k->c < BM_EVENTS) c->pat->ev[k->a][k->b][k->c] = k->u.ev;
+        if (k->a >= BM_TR_TRACKS && k->a < BM_TRACKS && k->b < BM_STEPS && k->c < BM_EVENTS)
+            c->pat->ev[k->a - BM_TR_TRACKS][k->b][k->c] = k->u.ev;
+        break;
+    case CMD_SET_TRSTEP:
+        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < BM_STEPS) {
+            uint8_t v = (uint8_t)k->u.i;
+            if (!(v & ST_ON)) { bm_tr_lock_clear_step(&c->pat->tr[k->a], k->c, k->b); v = 0; }
+            else v = (uint8_t)((v & ~ST_LOCK) | (c->pat->tr[k->a].st[k->b][k->c] & ST_LOCK));
+            c->pat->tr[k->a].st[k->b][k->c] = v;
+        }
+        break;
+    case CMD_TR_LOCK:
+        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < BM_STEPS)
+            bm_tr_lock_set(&c->pat->tr[k->a], k->c, k->b, (k->u.i >> 8) & 0xFF, (k->u.i & 0x10000) ? -1 : (k->u.i & 0xFF));
+        break;
+    case CMD_SET_LANE:
+        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < 4) ((uint8_t *)&c->pat->tr[k->a].lane[k->b])[k->c] = (uint8_t)k->u.i;
+        break;
+    case CMD_LANE_MUTE:
+        if (k->a < BM_TR_TRACKS) c->pat->tr[k->a].mute = (uint16_t)k->u.i;
         break;
     case CMD_SET_TRACK:
         if (k->a < BM_TRACKS && k->b < sizeof(bm_track)) ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
@@ -108,7 +132,9 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         break;
     case CMD_SET_BPM: c->pat->meta.bpm_x10 = (uint16_t)k->u.i; if (!c->ext_clock) bm_seq_set_bpm(c, (uint16_t)k->u.i); break;
     case CMD_TRACK_BULK:
-        if (k->a < BM_TRACKS && k->u.ptr) memcpy(c->pat->ev[k->a], k->u.ptr, sizeof c->pat->ev[0]);
+        if (!k->u.ptr || k->a >= BM_TRACKS) break;
+        if (bm_is_tr(k->a)) memcpy(&c->pat->tr[k->a], k->u.ptr, sizeof(bm_tr));
+        else memcpy(c->pat->ev[k->a - BM_TR_TRACKS], k->u.ptr, sizeof c->pat->ev[0]);
         break;
     case CMD_TRACK_CLEAR:
         if (k->a < BM_TRACKS) bm_track_clear_events(c->pat, k->a);
@@ -125,13 +151,35 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         }
         break;
     case CMD_SONG: c->song_on = k->a; c->st.song_on = k->a; c->song_pos = 0; c->song_rep = 0; break;
+    case CMD_SCENE: bm_scene_cmd(c, k->a); break;
+    case CMD_CHAIN: if (k->u.ptr) bm_chain_cmd(c, (const uint8_t *)k->u.ptr, k->a); break;
     case CMD_SMP_REC:
-        if (k->a) { c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_len = 0; c->smp_marks = 0; c->st.smp_marks = 0; }
-        else if (c->smp_rec) { c->smp_rec = 0; c->smp_len = c->smp_rec_pos; }
-        c->st.smp_rec = c->smp_rec; c->st.smp_len = c->smp_rec ? 0 : c->smp_len;
+        if (k->a && !c->smp_rec) {
+            for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].active && c->voice[i].track == 1) c->voice[i].active = 0;
+            c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_dec_acc = 0; c->smp_lp = 0;
+            c->smp.data = (const int8_t *)c->mem->arena; c->smp.len = 0; c->smp.nmarks = 0;
+            c->punch_cur = c->punch_req = 0xFF;
+            memset(c->mem->arena, 0, sizeof c->mem->arena);
+            c->arena_busy = 1; c->st.smp_marks = 0;
+        } else if (!k->a && c->smp_rec) {
+            c->smp_rec = 0; c->smp.len = c->smp_rec_pos; c->st.smp_unsaved = c->smp_rec_pos > 0;
+        }
+        c->st.smp_rec = c->smp_rec; c->st.smp_len = c->smp_rec ? 0 : c->smp.len;
         break;
     case CMD_SMP_MARK:
-        if (c->smp_rec && c->smp_marks < BM_SLICES) { c->smp_mark[c->smp_marks++] = c->smp_rec_pos; c->st.smp_marks = c->smp_marks; }
+        if (c->smp_rec && c->smp.nmarks < BM_SLICES) { c->smp.marks[c->smp.nmarks++] = c->smp_rec_pos; c->st.smp_marks = c->smp.nmarks; }
+        break;
+    case CMD_SMP_SRC:
+    case CMD_SMP_SAVED:
+        if (c->smp_rec) break;
+        for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].active && c->voice[i].track == 1) c->voice[i].active = 0;
+        if (k->u.ptr) c->smp = *(const bm_smp_src *)k->u.ptr; else memset(&c->smp, 0, sizeof c->smp);
+        c->st.smp_len = c->smp.len; c->st.smp_marks = c->smp.nmarks;
+        if (k->type == CMD_SMP_SAVED || !c->st.smp_unsaved) {
+            c->arena_busy = 0; c->st.smp_unsaved = 0;
+            memset(c->mem->arena, 0, sizeof c->mem->arena);   /* vuelve a ser delay + punch */
+            c->d_out = c->d_acc = 0;
+        }
         break;
     case CMD_MASTER: c->master_target = (uint16_t)k->u.i; break;
     case CMD_DRIVE: c->drive = k->a; break;
@@ -141,6 +189,19 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         if (!k->a) bm_seq_set_bpm(c, c->pat->meta.bpm_x10);
         break;
     case CMD_MIDI: midi_byte(c, k->a); break;
+    case CMD_ROLL:
+        if (k->a < BM_TR_TRACKS && k->b < BM_LANES) {
+            if (k->c) c->roll[k->a].mask |= (uint16_t)(1u << k->b); else c->roll[k->a].mask &= (uint16_t)~(1u << k->b);
+            if (k->u.i > 0) c->roll[k->a].rate = (uint8_t)k->u.i;
+        }
+        break;
+    case CMD_REC: c->rec = k->a; break;
+    case CMD_LOOP: bm_loop_cmd(c, k->a, k->b, k->c); break;
+    case CMD_STRUM: {
+        uint8_t n[4] = {(uint8_t)k->u.i, (uint8_t)(k->u.i >> 8), (uint8_t)(k->u.i >> 16), (uint8_t)(k->u.i >> 24)};
+        bm_strum_cmd(c, k->a, n, k->b > 4 ? 4 : k->b, k->c);
+        break;
+    }
     case CMD_ARP:
         if (k->a < BM_TRACKS) {
             c->arp[k->a].on = k->b;
@@ -174,6 +235,7 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
     while (guard++ < BM_CMDQ_LEN && bm_cmd_pop(c->cmdq, &k)) apply(c, &k);
 
     uint32_t n_eng = out_frames / BM_OVERSAMPLE;
+    bm_seq_strum_block(c, n_eng);
     while (n_eng) {
         uint32_t n = n_eng < BM_BLOCK ? n_eng : BM_BLOCK;
         for (int t = 0; t < BM_TRACKS; t++) memset(c->tbuf[t], 0, n * sizeof(int32_t));

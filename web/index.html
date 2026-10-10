@@ -103,16 +103,18 @@ button.act:hover { background: #33373d; }
     <div class="card">
       <h2>Cómo se toca</h2>
       <ul>
-        <li><b>Toque corto</b> en un botón abre su pantalla. <b>Mantener</b> (300 ms) activa su capa en vivo: SEQ = patrones, HOME = mute, FX = punch-in, SCL = acordes, ARP = arpegio.</li>
-        <li><b>GLO</b> es el modificador: GLO + KNOB 1-4 = BPM, swing, largo, drive. GLO + SEQ = song.</li>
-        <li><b>SEQ</b>: las blancas son los pasos. Mantén un paso y gira un knob = P-Lock. SELECT = nota, ALGORITHM = probabilidad, PRESETS = largo/TIE.</li>
-        <li><b>ALGORITHM</b> cambia de pista. <b>PRESETS</b> cambia de patrón.</li>
+        <li><b>Toque</b>: abre la pantalla del botón (otra vez: su página siguiente). <b>Mantener</b> 300 ms: su capa en vivo. <b>Mantener 2 s</b> sin tocar nada más: pantalla especial (el anillo amarillo arriba se llena).</li>
+        <li><b>Capas</b>: SEQ = patrones · HOME = mute · EDIT = borrar estilo TR · FX = punch-in · SCL = acordes · ARP = arpegio (synths) o roll (batería).</li>
+        <li><b>2 s</b>: SEQ = TIEMPO (largo y velocidad por pista) · HOME = SISTEMA · EDIT en T2 = SAMPLER · REC = borrar pista · SAVE = guardado rápido.</li>
+        <li><b>Batería TR</b> (SEQ en T1): negras 1-8 eligen instrumento, 9 cambia de sección, 10 FILL, 11 mute. Mantén un paso y gira: KNOB = P-Lock, SELECT = acento, ALGORITHM = repetición/flam, PRESETS = condición de fill.</li>
+        <li><b>HOME otra vez</b> = escenas. <b>SCL otra vez</b> = cuadrícula de acordes. <b>SEQ otra vez</b> en un synth = loopera.</li>
+        <li><b>ALGORITHM</b> cambia de pista, <b>PRESETS</b> de patrón, <b>GLO</b> es el modificador.</li>
         <li>Clic derecho en un botón o tecla la deja <b>presionada</b> (para combos con ratón).</li>
       </ul>
     </div>
     <div class="card">
       <h2>Teclado de la PC</h2>
-      <p><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob.</p>
+      <p><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob. Mantén <kbd>2</kbd> dos segundos para la pantalla TIEMPO.</p>
     </div>
     <div class="card">
       <h2>Hardware simulado</h2>
@@ -123,9 +125,10 @@ button.act:hover { background: #33373d; }
     </div>
     <div class="card">
       <h2>Sampler y memoria</h2>
-      <p>En el FM-1 el sampler graba la mezcla (REC en EDIT de T2). Aquí además puedes cargar un WAV corto (máx. 1.1 s).</p>
+      <p>En el FM-1 el sampler graba la mezcla (mantén REC en EDIT de T2). Aquí además puedes cargar un audio en un slot (hasta 4 s, 16 kHz). Se corta en 16 chops que se secuencian como la batería.</p>
       <div class="acts">
-        <button class="act" id="wavbtn" type="button">Cargar WAV en T2</button>
+        <button class="act" id="wavbtn" type="button">WAV al slot A</button>
+        <button class="act" id="wavbtnb" type="button">WAV al slot B</button>
         <input type="file" id="wav" accept="audio/*" hidden>
         <button class="act" id="midibtn" type="button">Activar MIDI IN</button>
         <button class="act" id="wipe" type="button">Borrar memoria</button>
@@ -302,24 +305,27 @@ button.act:hover { background: #33373d; }
 
   /* ---------------- WAV al sampler ---------------- */
   const wav = document.getElementById('wav');
-  document.getElementById('wavbtn').addEventListener('click', () => wav.click());
+  let wavSlot = 0;
+  document.getElementById('wavbtn').addEventListener('click', () => { wavSlot = 0; wav.click(); });
+  document.getElementById('wavbtnb').addEventListener('click', () => { wavSlot = 1; wav.click(); });
   wav.addEventListener('change', async () => {
     const f = wav.files[0]; if (!f) return;
     try {
       const buf = await f.arrayBuffer();
-      const tmp = new OfflineAudioContext(1, 1, 22059);
+      const tmp = new OfflineAudioContext(1, 1, 16000);
       const dec = await tmp.decodeAudioData(buf);
       const cap = M._bm_web_sampler_cap();
-      const len = Math.min(cap, Math.floor(dec.duration * 22059));
-      const off = new OfflineAudioContext(1, len, 22059);
+      const len = Math.min(cap, Math.floor(dec.duration * 16000));
+      const off = new OfflineAudioContext(1, len, 16000);
       const src = off.createBufferSource(); src.buffer = dec; src.connect(off.destination); src.start();
       const out = (await off.startRendering()).getChannelData(0);
       let pk = 0; for (const v of out) pk = Math.max(pk, Math.abs(v));
       const g = pk ? 0.95 / pk : 1;
       const i8 = new Int8Array(len); for (let i = 0; i < len; i++) i8[i] = Math.max(-128, Math.min(127, Math.round(out[i] * g * 127)));
       M.HEAP8.set(i8, M._bm_web_sampler());
-      M._bm_web_sampler_set(len);
-      msg('WAV cargado: ' + (len / 22059).toFixed(2) + ' s en 16 partes. Elige T2 (ALGORITHM) y toca las blancas.');
+      if (M._bm_web_sampler_set(len, wavSlot) !== 0) { msg('No se pudo guardar en el slot.'); return; }
+      persist();
+      msg('Slot ' + 'AB'[wavSlot] + ': ' + (len / 16000).toFixed(2) + ' s en 16 chops. Elige T2 con ALGORITHM (GLO + ALGORITHM cambia de slot) y toca las blancas.');
     } catch (e) { msg('No se pudo leer ese archivo de audio.'); }
     wav.value = '';
   });

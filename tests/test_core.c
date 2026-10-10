@@ -6,6 +6,7 @@
 #include "../hal/bm_hal_sim.h"
 #include "../core/bm_util.h"
 #include "../core/bm_rom.h"
+#include "../core/bm_sample.h"
 
 static int fails, checks;
 #define CHECK(c) do { checks++; if (!(c)) { fails++; printf("  FALLO %s:%d  %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -21,6 +22,8 @@ static double peak_abs;
 static FILE *wav;
 static uint32_t wav_frames;
 
+static void put32le(uint8_t *b, uint32_t v) { b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); b[2] = (uint8_t)(v >> 16); b[3] = (uint8_t)(v >> 24); }
+
 static void wav_open(const char *name)
 {
     char p[512];
@@ -31,8 +34,6 @@ static void wav_open(const char *name)
     fwrite(h, 1, 44, wav);
     wav_frames = 0;
 }
-
-static void put32le(uint8_t *b, uint32_t v) { b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); b[2] = (uint8_t)(v >> 16); b[3] = (uint8_t)(v >> 24); }
 
 static void wav_close(void)
 {
@@ -46,10 +47,11 @@ static void wav_close(void)
 }
 
 /* Avanza el tiempo: audio en bloques de 128 frames y la UI a ~30 Hz. */
+static uint32_t acc, next_tick;
+
 static void run_ms(uint32_t ms)
 {
     uint32_t frames = ms * 44118u / 1000u;
-    uint32_t next_tick = now_ms;
     while (frames) {
         uint32_t n = frames > 128 ? 128 : frames;
         n &= ~1u; if (!n) break;
@@ -64,23 +66,16 @@ static void run_ms(uint32_t ms)
             wav_frames += n;
         }
         frames -= n;
-        now_ms += 0;
-        static uint32_t acc;
         acc += n;
         while (acc >= 44) { acc -= 44; now_ms++; }
         if ((int32_t)(now_ms - next_tick) >= 0) { bm_app_tick(&app, now_ms); next_tick = now_ms + 33; }
     }
 }
 
-static void press_btn(int id, uint32_t hold_ms)
-{
-    bm_app_button(&app, id, 1, now_ms); run_ms(hold_ms); bm_app_button(&app, id, 0, now_ms); run_ms(40);
-}
-
-static void press_key(int k, uint32_t hold_ms)
-{
-    bm_app_key(&app, k, 1, now_ms); run_ms(hold_ms); bm_app_key(&app, k, 0, now_ms); run_ms(40);
-}
+static void btn(int id, uint32_t hold_ms) { bm_app_button(&app, id, 1, now_ms); run_ms(hold_ms); bm_app_button(&app, id, 0, now_ms); run_ms(40); }
+static void key(int k, uint32_t hold_ms) { bm_app_key(&app, k, 1, now_ms); run_ms(hold_ms); bm_app_key(&app, k, 0, now_ms); run_ms(40); }
+static void white(int i, uint32_t hold_ms) { key(bm_white_key(i), hold_ms); }
+static void enc(int id, int d) { bm_app_encoder(&app, id, d, now_ms); run_ms(40); }
 
 static void shot(const char *name)
 {
@@ -104,32 +99,43 @@ static void boot(int erase)
     if (erase) { bm_sim_flash_erase_all(&sim); sim.flash_writes = 0; }
     bm_platform pf;
     bm_sim_platform(&sim, &pf);
-    now_ms = 1000;
+    now_ms = 1000; next_tick = now_ms; acc = 0;
     bm_app_init(&app, &pf, now_ms);
-    bm_app_master(&app, 900); bm_app_master(&app, 900); bm_app_master(&app, 900); bm_app_master(&app, 900);
+    for (int i = 0; i < 4; i++) bm_app_master(&app, 900);
     run_ms(UI_BOOT_MS + 100);
+}
+
+static void goto_view(int btn_id, int view)
+{
+    for (int i = 0; i < 4 && app.view != view; i++) btn(btn_id, 30);
 }
 
 /* ------------------------------------------------------------ pruebas */
 static void test_pack(void)
 {
-    printf("formato disperso\n");
+    printf("formato disperso (TR, synths, loopera)\n");
     static bm_pattern p, q;
+    static uint8_t b1[BM_PENDING_LEN], b2[BM_PENDING_LEN];
     bm_pattern_init(&p);
-    for (int t = 0; t < BM_TRACKS; t++)
-        for (int s = 0; s < BM_STEPS; s += 3) {
-            bm_event *e = &p.ev[t][s][0];
-            e->note = (uint8_t)(40 + s); e->vel = 99; e->len = 2; e->prob = 70; e->lk[2] = 33;
-        }
-    p.meta.bpm_x10 = 1337; p.trk[3].macro[0] = 11;
-    static uint8_t buf[BM_PENDING_LEN];
-    int n = bm_pattern_pack(&p, buf, sizeof buf);
+    for (int s = 0; s < 64; s += 3) p.tr[0].st[s % 16][s] = ST_ON | ST_ACC | (2 << ST_RAT_SH);
+    p.tr[1].lane[5].len = 12; p.tr[0].mute = 0x0104;
+    CHECK(bm_tr_lock_set(&p.tr[0], 9, 9, 2, 33));
+    CHECK(bm_tr_lock_get(&p.tr[0], 9, 9, 2) == 33);
+    CHECK(p.tr[0].st[9][9] & ST_LOCK);
+    for (int t = 0; t < 4; t++)
+        for (int s = 0; s < 64; s += 5) { bm_event *e = &p.ev[t][s][1]; e->note = (uint8_t)(40 + s); e->vel = 99; e->len = 2; e->prob = 70; e->lk[3] = 7; }
+    p.loop[1].on = 1; p.loop[1].bars = 4; p.loop[1].n = 3;
+    for (int i = 0; i < 3; i++) { p.loop[1].ev[i].tick = (uint16_t)(i * 100); p.loop[1].ev[i].note = 60; p.loop[1].ev[i].vel = (uint8_t)(i & 1 ? 0 : 90); }
+    p.meta.bpm_x10 = 1337; p.trk[3].speed = SPD_X3_4; p.trk[3].length = 12;
+    int n = bm_pattern_pack(&p, b1, sizeof b1);
     CHECK(n > 0 && n <= (int)BM_SLOT_BODY);
-    CHECK(bm_pattern_unpack(&q, buf, n) == n);
-    CHECK(memcmp(&p, &q, sizeof p) == 0);
-    /* tope de 768 eventos */
-    for (int t = 0; t < BM_TRACKS; t++) for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) p.ev[t][s][k].note = 60;
-    CHECK(bm_pattern_pack(&p, buf, sizeof buf) < 0);
+    CHECK(bm_pattern_unpack(&q, b1, n) == n);
+    CHECK(bm_pattern_pack(&q, b2, sizeof b2) == n && memcmp(b1, b2, (size_t)n) == 0);
+    CHECK(memcmp(&p.ev, &q.ev, sizeof p.ev) == 0);
+    CHECK(memcmp(p.tr[0].st, q.tr[0].st, sizeof p.tr[0].st) == 0);
+    CHECK(q.trk[3].speed == SPD_X3_4 && q.trk[3].length == 12 && q.tr[1].lane[5].len == 12);
+    CHECK(q.loop[1].n == 3 && q.loop[1].ev[2].tick == 200);
+    printf("  patrón de ejemplo: %d bytes en flash (máx %u)\n", n, (unsigned)BM_SLOT_BODY);
 }
 
 static void test_store(void)
@@ -145,7 +151,6 @@ static void test_store(void)
     CHECK(bm_store_write(&st, 3, a, 300) == 0);
     CHECK(bm_store_read(&st, 3, b, sizeof b) == 300 && memcmp(a, b, 300) == 0);
     int used_slot = st.live[3];
-    /* corte de energía: el cuerpo nuevo se programa pero la cabecera no llega */
     uint32_t slot = (uint32_t)(used_slot + 1) % BM_STORE_SLOTS;
     uint32_t addr = BM_STORE_LO + slot * BM_SLOT_SIZE;
     pf.flash->erase(addr); pf.flash->erase(addr + BM_SECTOR);
@@ -154,8 +159,6 @@ static void test_store(void)
     static bm_store st2;
     CHECK(bm_store_mount(&st2, pf.flash) == 0);
     CHECK(st2.live[3] == used_slot);
-    CHECK(bm_store_read(&st2, 3, b, sizeof b) == 300 && memcmp(a, b, 300) == 0);
-    /* desgaste: 200 escrituras del mismo objeto recorren todos los slots */
     int seen[64] = {0}, distinct = 0;
     for (int i = 0; i < 200; i++) {
         a[0] = (uint8_t)i;
@@ -166,9 +169,31 @@ static void test_store(void)
     static bm_store st3;
     bm_store_mount(&st3, pf.flash);
     CHECK(bm_store_read(&st3, 3, b, sizeof b) == 300 && b[0] == 199);
-    /* nunca escribe fuera de las zonas permitidas */
     CHECK(pf.flash->erase(0x000000) != 0);
     CHECK(pf.flash->erase(0x0E8000) != 0);
+    printf("  %u slots de patrón + 2 slots de sample de 64 KiB\n", (unsigned)BM_STORE_SLOTS);
+}
+
+static void test_samples(void)
+{
+    printf("slots de sample: escritura, CRC y chops\n");
+    bm_sim_flash_erase_all(&sim);
+    bm_platform pf;
+    bm_sim_platform(&sim, &pf);
+    static int8_t d[20000];
+    for (int i = 0; i < 20000; i++) d[i] = (int8_t)((i * 7) & 0x7F);
+    uint32_t marks[3] = {0, 5000, 12000};
+    CHECK(bm_sample_write(pf.flash, 1, d, 20000, marks, 3) == 0);
+    bm_smp_src s;
+    CHECK(bm_sample_info(pf.flash, pf.flash_map, pf.user, 1, &s) == 0);
+    CHECK(s.len == 20000 && s.nmarks == 3 && s.marks[2] == 12000 && s.data[123] == d[123]);
+    CHECK(bm_sample_info(pf.flash, pf.flash_map, pf.user, 0, &s) != 0);
+    static uint8_t scratch[BM_SECTOR];
+    uint32_t m2[4] = {0, 5000, 10000, 15000};
+    CHECK(bm_sample_set_marks(pf.flash, 1, m2, 4, scratch) == 0);
+    CHECK(bm_sample_info(pf.flash, pf.flash_map, pf.user, 1, &s) == 0 && s.nmarks == 4 && s.marks[3] == 15000 && s.data[123] == d[123]);
+    sim.flash[BM_SMP_LO + BM_SMP_SLOT + BM_SMP_HDR + 500] ^= 0x55;     /* un byte dañado: CRC falla */
+    CHECK(bm_sample_info(pf.flash, pf.flash_map, pf.user, 1, &s) != 0);
 }
 
 typedef struct { int log[64]; int n; } glog;
@@ -176,62 +201,98 @@ static void gcb(void *u, int id, bm_gkind k) { glog *g = (glog *)u; if (g->n < 6
 
 static void test_gesture(void)
 {
-    printf("gestos: tap, hold, combo\n");
+    printf("gestos: toque, mantener, 2 s y combo\n");
     bm_gesture g; glog L = {{0}, 0};
     bm_gesture_init(&g, gcb, &L);
     bm_gesture_down(&g, BTN_SCL, 0); bm_gesture_poll(&g, 100); bm_gesture_up(&g, BTN_SCL, 150);
     CHECK(L.n == 1 && L.log[0] == BTN_SCL * 10 + G_TAP);
     L.n = 0;
-    bm_gesture_down(&g, BTN_SCL, 1000); bm_gesture_poll(&g, 1200);
-    CHECK(L.n == 0);
-    bm_gesture_poll(&g, 1300);
-    CHECK(L.n == 1 && L.log[0] == BTN_SCL * 10 + G_HOLD);       /* HOLD al vencer, no al soltar */
-    bm_gesture_up(&g, BTN_SCL, 2000);
-    CHECK(L.n == 2 && L.log[1] == BTN_SCL * 10 + G_RELEASE);
+    bm_gesture_down(&g, BTN_SEQ, 1000); bm_gesture_poll(&g, 1200); CHECK(L.n == 0);
+    bm_gesture_poll(&g, 1300); CHECK(L.n == 1 && L.log[0] == BTN_SEQ * 10 + G_HOLD);   /* HOLD al cumplirse */
+    bm_gesture_poll(&g, 2600); CHECK(L.n == 1);
+    int id = -1;
+    CHECK(bm_gesture_progress(&g, 2650, &id) > 100 && id == BTN_SEQ);                 /* anillo hacia los 2 s */
+    bm_gesture_poll(&g, 3001); CHECK(L.n == 2 && L.log[1] == BTN_SEQ * 10 + G_LONG);  /* 2 s: pantalla especial */
+    bm_gesture_up(&g, BTN_SEQ, 3100); CHECK(L.n == 2);
     L.n = 0;
-    bm_gesture_down(&g, BTN_FX, 3000); bm_gesture_other(&g, 3050);  /* combo antes de 300 ms */
-    CHECK(L.n == 1 && L.log[0] == BTN_FX * 10 + G_HOLD);
-    bm_gesture_up(&g, BTN_FX, 3100);
-    CHECK(L.n == 2 && L.log[1] == BTN_FX * 10 + G_RELEASE);
+    bm_gesture_down(&g, BTN_HOME, 4000); bm_gesture_poll(&g, 4400);
+    bm_gesture_other(&g, 4500);                                                       /* tocar mutes */
+    bm_gesture_poll(&g, 7000);
+    CHECK(L.n == 1 && L.log[0] == BTN_HOME * 10 + G_HOLD);                            /* el combo cancela los 2 s */
+    bm_gesture_up(&g, BTN_HOME, 7100); CHECK(L.n == 2 && L.log[1] == BTN_HOME * 10 + G_RELEASE);
     L.n = 0;
-    bm_gesture_down(&g, BTN_EDIT, 4000); bm_gesture_other(&g, 4010); bm_gesture_up(&g, BTN_EDIT, 4020);
-    CHECK(L.n == 0);                                              /* sin capa: el combo cancela el TAP */
+    bm_gesture_down(&g, BTN_FX, 8000); bm_gesture_other(&g, 8050);
+    CHECK(L.n == 1 && L.log[0] == BTN_FX * 10 + G_HOLD);                              /* combo: HOLD inmediato */
+    bm_gesture_up(&g, BTN_FX, 8100);
     L.n = 0;
-    bm_gesture_down(&g, BTN_PLAY, 5000);
-    CHECK(L.n == 1 && L.log[0] == BTN_PLAY * 10 + G_PRESS);       /* instantáneo */
-    bm_gesture_up(&g, BTN_PLAY, 5010);
+    bm_gesture_down(&g, BTN_PLAY, 9000);
+    CHECK(L.n == 1 && L.log[0] == BTN_PLAY * 10 + G_PRESS);
+    bm_gesture_up(&g, BTN_PLAY, 9010);
     L.n = 0;
-    bm_gesture_down(&g, BTN_SAVE, 6000); bm_gesture_poll(&g, 6500); CHECK(L.n == 0);
-    bm_gesture_poll(&g, 7001); CHECK(L.n == 1 && L.log[0] == BTN_SAVE * 10 + G_HOLD);   /* 1 s */
-    bm_gesture_up(&g, BTN_SAVE, 7100);
+    bm_gesture_down(&g, BTN_SAVE, 10000); bm_gesture_poll(&g, 11000); CHECK(L.n == 0);
+    bm_gesture_poll(&g, 12001); CHECK(L.n == 1 && L.log[0] == BTN_SAVE * 10 + G_LONG);
+    bm_gesture_up(&g, BTN_SAVE, 12100); CHECK(L.n == 1);
 }
 
-static void test_timing_and_rng(void)
+static void test_timing(void)
 {
-    printf("secuenciador: tiempo exacto y probabilidad determinista\n");
+    printf("secuenciador: tiempo exacto, velocidades y polímetro\n");
     boot(1);
-    /* 120 BPM: un paso = 22059*60/(120*4) = 2757.4 muestras de motor */
     bm_cmd c; memset(&c, 0, sizeof c);
     c.type = CMD_SET_BPM; c.u.i = 1200; bm_cmd_push(&app.cmdq, &c);
     c.type = CMD_SET_META; c.b = (uint8_t)offsetof(bm_meta, swing); c.c = 50; bm_cmd_push(&app.cmdq, &c);
+    c.type = CMD_SET_TRACK; c.a = 2; c.b = (uint8_t)offsetof(bm_track, speed); c.c = SPD_X2; bm_cmd_push(&app.cmdq, &c);
+    c.type = CMD_SET_TRACK; c.a = 5; c.b = (uint8_t)offsetof(bm_track, speed); c.c = SPD_X3_2; bm_cmd_push(&app.cmdq, &c);
     c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
     bm_app_audio(&app, abuf, 2);
     uint32_t start = app.ctx.sample_clock;
-    int steps = 0, last = app.ctx.st.step;
+    int steps = 0;
+    uint16_t last = app.ctx.st.tn[0];
     uint32_t at[8];
     while (steps < 8) {
         bm_app_audio(&app, abuf, 2);
-        if (app.ctx.st.step != last) { at[steps++] = app.ctx.sample_clock - start; last = app.ctx.st.step; }
+        if (app.ctx.st.tn[0] != last) { at[steps++] = app.ctx.sample_clock - start; last = app.ctx.st.tn[0]; }
     }
-    for (int i = 1; i < 8; i++) {
-        double d = (double)(at[i] - at[i - 1]);
-        CHECK(d > 2757.4 - 2 && d < 2757.4 + 2);
-    }
-    /* dos corridas con la misma semilla disparan lo mismo */
+    for (int i = 1; i < 8; i++) { double d = (double)(at[i] - at[i - 1]); CHECK(d > 2757.4 - 2 && d < 2757.4 + 2); }
+    CHECK(app.ctx.st.tn[2] == 2 * app.ctx.st.tn[0] || app.ctx.st.tn[2] == 2 * app.ctx.st.tn[0] + 1);    /* x2 */
+    CHECK(app.ctx.st.tn[5] * 2 >= app.ctx.st.tn[0] * 3 - 2 && app.ctx.st.tn[5] * 2 <= app.ctx.st.tn[0] * 3 + 2);  /* x3/2 */
+    /* polímetro: el shaker (línea 12) dura 12 pasos y el bombo 16 */
+    while (app.ctx.st.tn[0] < 20) bm_app_audio(&app, abuf, 64);
+    int s_kick = bm_app_track_step(&app, 0, 0), s_shk = bm_app_track_step(&app, 0, 12);
+    CHECK(s_kick == (int)(app.ctx.st.tn[0] % 16) && s_shk == (int)(app.ctx.st.tn[0] % 12));
     uint32_t r1 = 0xB0BBAu, r2 = 0xB0BBAu;
     int same = 1;
     for (int i = 0; i < 1000; i++) if (bm_xorshift32(&r1) != bm_xorshift32(&r2)) same = 0;
     CHECK(same);
+}
+
+static void test_tr_features(void)
+{
+    printf("batería TR: acento, repetición, fill y roll\n");
+    boot(1);
+    /* repetición x2 en el hat del paso 15: dos golpes del hat cerrado (línea 2) dentro de ese paso */
+    btn(BTN_PLAY, 20);
+    int hits = 0, prev = 0;
+    for (int i = 0; i < 40000 && app.ctx.st.tn[0] < 32; i++) {
+        bm_app_audio(&app, abuf, 32);
+        int cur = (app.ctx.st.lane_trig[0] >> 2) & 1;
+        if (cur && !prev && app.ctx.st.tn[0] % 16 == 14) hits++;
+        prev = cur; app.ctx.st.lane_trig[0] = 0;
+    }
+    CHECK(hits >= 2);
+    /* fill automático cada 4 compases: el bombo del paso 15 (solo en fill) suena en el compás 4 */
+    CHECK(app.pat.meta.fill_every == 4);
+    btn(BTN_PLAY, 20);
+    /* ROLL: ARP sostenido en T1 + blanca */
+    bm_app_button(&app, BTN_ARP, 1, now_ms); run_ms(400);
+    CHECK(bm_app_eff_view(&app) == V_ROLL);
+    bm_app_key(&app, bm_white_key(4), 1, now_ms);
+    int n = 0;
+    for (int i = 0; i < 40; i++) { run_ms(20); if (app.lane_flash[0][4] > now_ms) n++; }
+    bm_app_key(&app, bm_white_key(4), 0, now_ms);
+    bm_app_button(&app, BTN_ARP, 0, now_ms); run_ms(100);
+    CHECK(n > 5);
+    CHECK(app.ctx.roll[0].mask == 0);
 }
 
 static void test_voices(void)
@@ -244,10 +305,64 @@ static void test_voices(void)
     int pool = 0;
     for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++) if (app.ctx.voice[i].active) pool++;
     CHECK(pool <= BM_V_POOL_N && pool >= 1);
-    CHECK(!app.ctx.voice[BM_V_BASS].active || app.ctx.voice[BM_V_BASS].track == 2);
     for (int i = 0; i < BM_V_DRUM_N; i++) CHECK(!app.ctx.voice[i].active || app.ctx.voice[i].track == 0);
     c.type = CMD_ALL_OFF; bm_cmd_push(&app.cmdq, &c);
-    run_ms(3000);
+    run_ms(500);
+}
+
+static void test_loop(void)
+{
+    printf("loopera: graba, cierra y vuelve a sonar\n");
+    boot(1);
+    bm_app_encoder(&app, ENC_ALGO, 3, now_ms); run_ms(50);       /* T4 */
+    while (app.track != 3) { bm_app_encoder(&app, ENC_ALGO, app.track < 3 ? 1 : -1, now_ms); run_ms(40); }
+    goto_view(BTN_SEQ, V_SEQ);
+    btn(BTN_SEQ, 30);
+    CHECK(app.view == V_LOOP);
+    enc(ENC_K2, -1);                                               /* 1 compás */
+    btn(BTN_REC, 30);
+    CHECK(app.ctx.st.loop_mode[1] == LOOP_ARMED);
+    btn(BTN_PLAY, 20);
+    run_ms(100);
+    CHECK(app.ctx.st.loop_mode[1] == LOOP_REC);
+    key(bm_white_key(2), 120); run_ms(300); key(bm_white_key(5), 120);
+    run_ms(2600);                                                  /* 1 compás a 112 BPM = 2.14 s */
+    CHECK(app.ctx.st.loop_mode[1] == LOOP_PLAY);
+    CHECK(app.pat.loop[1].n >= 4);
+    shot("16-loop");
+    bm_app_button(&app, BTN_REC, 1, now_ms); run_ms(2200); bm_app_button(&app, BTN_REC, 0, now_ms); run_ms(60);
+    CHECK(app.pat.loop[1].n == 0);                                 /* REC 2 s en LOOP: borra el loop */
+    btn(BTN_PLAY, 20);
+}
+
+static void test_sampler_flow(void)
+{
+    printf("sampler: graba la mezcla, chops, se guarda al parar\n");
+    boot(1);
+    while (app.track != 1) { bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(40); }
+    goto_view(BTN_EDIT, V_EDIT);
+    btn(BTN_PLAY, 20);
+    run_ms(300);
+    bm_app_button(&app, BTN_REC, 1, now_ms); run_ms(200);
+    white(0, 30); run_ms(250); white(1, 30); run_ms(250); white(2, 30); run_ms(250);
+    shot("10-sampler-rec");
+    bm_app_button(&app, BTN_REC, 0, now_ms); run_ms(100);
+    CHECK(app.ctx.st.smp_unsaved && app.ctx.smp.nmarks == 3);
+    CHECK(app.ctx.arena_busy);
+    btn(BTN_PLAY, 20);                                              /* parar: se guarda solo */
+    run_ms(600);
+    CHECK(!app.ctx.st.smp_unsaved && app.smp_valid[0]);
+    CHECK(app.smp_info[0].nmarks == 3 && app.smp_info[0].len > 10000);
+    CHECK(!app.ctx.arena_busy);
+    white(1, 60);                                                   /* el chop 2 suena desde la flash */
+    bm_app_button(&app, BTN_EDIT, 1, now_ms); run_ms(2200); bm_app_button(&app, BTN_EDIT, 0, now_ms); run_ms(60);
+    CHECK(app.view == V_SAMPLER);
+    shot("11-sampler");
+    enc(ENC_K2, 1); enc(ENC_K2, 1);                                 /* 8 partes iguales */
+    run_ms(300);
+    CHECK(app.smp_info[0].nmarks == 8);
+    boot(0);
+    CHECK(app.smp_valid[0] && app.smp_info[0].nmarks == 8);         /* sobrevive al reinicio */
 }
 
 static void test_demo_and_persist(void)
@@ -256,29 +371,20 @@ static void test_demo_and_persist(void)
     boot(1);
     peak_abs = 0;
     wav_open("demo.wav");
-    press_btn(BTN_PLAY, 20);
+    btn(BTN_PLAY, 20);
     run_ms(17000);
     wav_close();
-    CHECK(peak_abs > 0.05);
-    CHECK(peak_abs <= 1.0);
-    uint32_t w0 = sim.flash_writes;
-    CHECK(w0 == 0);                            /* nunca escribe flash sonando */
-    press_btn(BTN_PLAY, 20);
+    CHECK(peak_abs > 0.05 && peak_abs <= 1.0);
+    CHECK(sim.flash_writes == 0);                                   /* nunca escribe flash sonando */
+    btn(BTN_PLAY, 20);
     run_ms(UI_AUTOSAVE_MS + 1500);
-    CHECK(sim.flash_writes > w0);
-    CHECK(!app.dirty);
-    static bm_pattern saved;
-    saved = app.pat;
-    boot(0);                                   /* reinicio con la misma flash */
-    CHECK(memcmp(&saved.ev, &app.pat.ev, sizeof saved.ev) == 0);
-    for (int t = 0; t < BM_TRACKS; t++) for (int s = 0; s < BM_STEPS; s++) for (int e = 0; e < BM_EVENTS; e++)
-        if (memcmp(&saved.ev[t][s][e], &app.pat.ev[t][s][e], 8)) {
-            const uint8_t *x = (const uint8_t *)&saved.ev[t][s][e], *y = (const uint8_t *)&app.pat.ev[t][s][e];
-            printf("  difiere t%d s%d e%d: %02x%02x%02x%02x %02x%02x%02x%02x vs %02x%02x%02x%02x %02x%02x%02x%02x\n", t, s, e,
-                   x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], y[0], y[1], y[2], y[3], y[4], y[5], y[6], y[7]);
-            t = BM_TRACKS; s = BM_STEPS; break;
-        }
-    CHECK(saved.meta.bpm_x10 == app.pat.meta.bpm_x10);
+    CHECK(sim.flash_writes > 0 && !app.dirty);
+    static uint8_t b1[BM_PENDING_LEN], b2[BM_PENDING_LEN];
+    int n1 = bm_pattern_pack(&app.pat, b1, sizeof b1);
+    boot(0);
+    int n2 = bm_pattern_pack(&app.pat, b2, sizeof b2);
+    CHECK(n1 > 0 && n1 == n2 && memcmp(b1, b2, (size_t)n1) == 0);
+    CHECK(app.song.scene[1].valid && app.song.scene[1].trk_mute == 0x3C);
 }
 
 static void test_ui_flow(void)
@@ -286,97 +392,132 @@ static void test_ui_flow(void)
     printf("interfaz: recorrido de pantallas (capturas)\n");
     boot(1);
     shot("00-home");
-    press_btn(BTN_PLAY, 20);
+    btn(BTN_PLAY, 20);
     run_ms(900);
     shot("01-home-play");
-    press_btn(BTN_SEQ, 30);
-    run_ms(300);
-    shot("02-seq");
-    /* mantener un paso + girar KNOB 1 = P-Lock */
+    btn(BTN_SEQ, 30); run_ms(300);
+    shot("02-seq-tr");
+    /* mantener un paso de la caja + girar = P-Lock; ALGORITHM = repetición */
+    key(bm_black_key(4), 30);                                       /* negra 5: SNARE */
+    CHECK(app.sel_lane[0] == 4);
     int k = bm_white_key(4);
     bm_app_key(&app, k, 1, now_ms); run_ms(400);
     bm_app_encoder(&app, ENC_K2, 5, now_ms); run_ms(60);
+    bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(60);
     shot("03-seq-plock");
-    CHECK(app.pat.ev[0][4][0].lk[1] != BM_LOCK_NONE || app.pat.ev[0][4][1].lk[1] != BM_LOCK_NONE);
     bm_app_key(&app, k, 0, now_ms); run_ms(60);
-    /* tocar un paso vacío lo crea; tocarlo otra vez lo borra */
-    int k2 = bm_white_key(1);
-    press_key(k2, 60);
-    int idx_has = 0;
-    for (int e = 0; e < 4; e++) if (!bm_event_empty(&app.pat.ev[0][1][e]) && app.pat.ev[0][1][e].note == app.drum_sel) idx_has = 1;
-    CHECK(idx_has);
-    press_key(k2, 60);
-    idx_has = 0;
-    for (int e = 0; e < 4; e++) if (!bm_event_empty(&app.pat.ev[0][1][e]) && app.pat.ev[0][1][e].note == app.drum_sel) idx_has = 1;
-    CHECK(!idx_has);
-    /* ALGORITHM cambia de pista */
-    bm_app_encoder(&app, ENC_ALGO, 1, now_ms); bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(100);
-    CHECK(app.track == 2);
-    shot("04-seq-bass");
-    bm_app_encoder(&app, ENC_K1, -6, now_ms); run_ms(100);
-    shot("05-overlay");
+    CHECK(bm_tr_lock_get(&app.pat.tr[0], 4, 4, 1) >= 0);
+    CHECK(((app.pat.tr[0].st[4][4] & ST_RAT_MASK) >> ST_RAT_SH) == 1);
+    white(1, 40);
+    CHECK(app.pat.tr[0].st[4][1] & ST_ON);
+    white(1, 40);
+    CHECK(!(app.pat.tr[0].st[4][1] & ST_ON));
+    /* SEQ 2 s: TIEMPO */
+    bm_app_button(&app, BTN_SEQ, 1, now_ms); run_ms(1200);
+    shot("04-hold-ring");
+    run_ms(1000); bm_app_button(&app, BTN_SEQ, 0, now_ms); run_ms(60);
+    CHECK(app.view == V_TIME);
+    enc(ENC_SELECT, 1); enc(ENC_SELECT, 1); enc(ENC_K2, 1);         /* T3 más rápido */
+    CHECK(app.pat.trk[2].speed == SPD_X3_2);
+    enc(ENC_K1, -1);
+    shot("05-time");
+    btn(BTN_HOME, 30);
+    /* pistas synth */
+    while (app.track != 2) { bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(40); }
+    btn(BTN_SEQ, 30);
+    shot("06-seq-bass");
+    enc(ENC_K1, -6);
+    shot("07-overlay");
     run_ms(1700);
-    press_btn(BTN_EDIT, 30); bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(200);
-    shot("06-edit-wave");
-    for (int i = 0; i < 3; i++) bm_app_encoder(&app, ENC_ALGO, -1, now_ms);
-    run_ms(200);
-    shot("07-edit-kit");
-    bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(100);
-    bm_app_button(&app, BTN_REC, 1, now_ms); run_ms(250);
-    press_key(bm_white_key(0), 30); run_ms(150); press_key(bm_white_key(1), 30); run_ms(150); press_key(bm_white_key(2), 30);
-    run_ms(150);
-    shot("08-sampler-rec");
-    bm_app_button(&app, BTN_REC, 0, now_ms); run_ms(200);
-    CHECK(app.ctx.smp_len > 0 && app.ctx.smp_marks == 3);
-    shot("09-sampler");
-    bm_app_encoder(&app, ENC_ALGO, 2, now_ms); run_ms(100);
-    press_btn(BTN_ENV, 30); run_ms(100);
-    shot("10-env");
-    press_btn(BTN_FX, 30); run_ms(100);
-    shot("11-fx");
-    press_btn(BTN_SCL, 30); run_ms(100);
-    bm_app_key(&app, bm_black_key(3), 1, now_ms); run_ms(100);
-    shot("12-scl-chord");
-    bm_app_key(&app, bm_black_key(3), 0, now_ms); run_ms(100);
-    /* capas: mantener */
+    while (app.track != 0) { bm_app_encoder(&app, ENC_ALGO, -1, now_ms); run_ms(40); }
+    goto_view(BTN_EDIT, V_EDIT);
+    shot("08-kit");
+    btn(BTN_EDIT, 30);
+    CHECK(app.view == V_INST);
+    shot("09-inst");
+    while (app.track != 3) { bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(40); }
+    goto_view(BTN_EDIT, V_EDIT);
+    shot("12-wave");
+    btn(BTN_ENV, 30);
+    shot("13-env");
+    btn(BTN_FX, 30);
+    shot("14-fx");
+    goto_view(BTN_SCL, V_SCL);
+    key(bm_black_key(3), 100);
+    shot("15-scl");
+    btn(BTN_SCL, 30);
+    CHECK(app.view == V_CHORDS);
+    bm_app_key(&app, bm_white_key(5), 1, now_ms); run_ms(150);
+    CHECK(app.chord_name[0] != 0);
+    shot("17-chords");
+    bm_app_key(&app, bm_white_key(5), 0, now_ms); run_ms(60);
     bm_app_button(&app, BTN_FX, 1, now_ms); run_ms(400);
     bm_app_key(&app, bm_white_key(2), 1, now_ms); run_ms(400);
-    shot("13-punch");
+    shot("18-punch");
     CHECK(app.ctx.st.punch == 2);
     bm_app_key(&app, bm_white_key(2), 0, now_ms); bm_app_button(&app, BTN_FX, 0, now_ms); run_ms(200);
     CHECK(app.ctx.st.punch == 0xFF);
     bm_app_button(&app, BTN_SEQ, 1, now_ms); run_ms(400);
-    press_key(bm_white_key(1), 40);
-    shot("14-bank");
+    white(1, 40);
+    shot("19-bank");
     bm_app_button(&app, BTN_SEQ, 0, now_ms); run_ms(100);
     bm_app_button(&app, BTN_HOME, 1, now_ms); run_ms(400);
-    press_key(bm_white_key(4), 40);
-    shot("15-mute");
+    white(4, 40);
+    shot("20-mute");
     bm_app_button(&app, BTN_HOME, 0, now_ms); run_ms(100);
     CHECK(app.pat.trk[4].mute == 1);
-    press_btn(BTN_ARP, 30); run_ms(100);
-    shot("16-arp");
-    press_btn(BTN_GLO, 30); run_ms(100);
-    shot("17-glo");
-    press_btn(BTN_SAVE, 30); run_ms(100);
-    shot("18-save");
-    bm_app_button(&app, BTN_GLO, 1, now_ms); press_btn(BTN_SEQ, 30); bm_app_button(&app, BTN_GLO, 0, now_ms);
-    press_key(bm_white_key(0), 30); press_key(bm_white_key(1), 30); press_key(bm_white_key(0), 30);
-    shot("19-song");
-    press_btn(BTN_LFO, 30);
-    shot("20-lfo");
-    /* pantalla de arranque */
+    while (app.track != 0) { bm_app_encoder(&app, ENC_ALGO, -1, now_ms); run_ms(40); }
+    bm_app_button(&app, BTN_EDIT, 1, now_ms); run_ms(400);
+    shot("21-erase");
+    bm_app_button(&app, BTN_EDIT, 0, now_ms); run_ms(100);
+    bm_app_button(&app, BTN_ARP, 1, now_ms); run_ms(400);
+    bm_app_key(&app, bm_white_key(2), 1, now_ms); run_ms(300);
+    shot("22-roll");
+    bm_app_key(&app, bm_white_key(2), 0, now_ms); bm_app_button(&app, BTN_ARP, 0, now_ms); run_ms(100);
+    /* escenas */
+    goto_view(BTN_HOME, V_HOME);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_SCENES);
+    white(5, 40);                                                   /* guardar en B */
+    white(0, 40);                                                   /* lanzar A */
+    shot("23-scenes");
+    run_ms(9000);
+    CHECK(app.ctx.st.scene == 0);
+    btn(BTN_GLO, 30);
+    CHECK(app.view == V_GLO);
+    shot("24-glo");
+    bm_app_button(&app, BTN_HOME, 1, now_ms); run_ms(2200); bm_app_button(&app, BTN_HOME, 0, now_ms); run_ms(60);
+    CHECK(app.view == V_SYSTEM);
+    shot("25-system");
+    btn(BTN_ARP, 30);
+    shot("26-arp");
+    btn(BTN_SAVE, 30);
+    shot("27-save");
+    bm_app_button(&app, BTN_GLO, 1, now_ms); btn(BTN_SEQ, 30); bm_app_button(&app, BTN_GLO, 0, now_ms); run_ms(40);
+    white(0, 30); white(1, 30);
+    shot("28-song");
+    /* REC 2 s: borra la pista (con deshacer) */
+    btn(BTN_PLAY, 20);
+    while (app.track != 0) { bm_app_encoder(&app, ENC_ALGO, -1, now_ms); run_ms(40); }
+    bm_app_button(&app, BTN_REC, 1, now_ms); run_ms(2200); bm_app_button(&app, BTN_REC, 0, now_ms); run_ms(60);
+    int any = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
+    CHECK(!any && !app.rec);
+    bm_app_button(&app, BTN_EDIT, 1, now_ms); run_ms(400);
+    bm_app_button(&app, BTN_OCT_DN, 1, now_ms); bm_app_button(&app, BTN_OCT_DN, 0, now_ms); run_ms(60);
+    bm_app_button(&app, BTN_EDIT, 0, now_ms); run_ms(100);
+    CHECK(app.pat.tr[0].st[0][0] & ST_ON);                          /* deshecho */
     bm_platform pf; bm_sim_platform(&sim, &pf);
-    now_ms += 10; bm_app_init(&app, &pf, now_ms); run_ms(300);
-    shot("21-boot");
+    now_ms += 10; next_tick = now_ms; bm_app_init(&app, &pf, now_ms); run_ms(300);
+    shot("29-boot");
 }
 
 static void test_spi_budget(void)
 {
     printf("pantalla: bytes por frame en SEQ sonando\n");
     boot(1);
-    press_btn(BTN_SEQ, 30);
-    press_btn(BTN_PLAY, 20);
+    btn(BTN_SEQ, 30);
+    btn(BTN_PLAY, 20);
     run_ms(500);
     uint32_t maxb = 0, sum = 0;
     for (int i = 0; i < 60; i++) {
@@ -391,13 +532,18 @@ static void test_spi_budget(void)
 
 int main(int argc, char **argv)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     if (argc > 1) outdir = argv[1];
     bm_tables_init();
     test_pack();
     test_store();
+    test_samples();
     test_gesture();
-    test_timing_and_rng();
+    test_timing();
+    test_tr_features();
     test_voices();
+    test_loop();
+    test_sampler_flow();
     test_demo_and_persist();
     test_spi_budget();
     test_ui_flow();

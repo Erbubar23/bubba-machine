@@ -116,8 +116,9 @@ static void drum_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t ve
     v->active = 1; v->track = 0; v->note = (uint8_t)snd; v->vel = vel;
     v->stage = ENV_DEC; v->gate = 0; v->fade = 0; v->pend = 0; v->age = ++c->age;
     v->sound = (uint8_t)snd; v->choke = d->choke;
-    int tune = eff(v, t, 1);
-    v->step = bm_semi_ratio[24 + ((tune - 64) * 12) / 64];
+    const bm_lane *ln = &c->pat->tr[0].lane[snd];
+    v->vel = (uint8_t)bm_clampi(vel * ln->level / 100, 1, 127);
+    v->step = bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)];
     v->start = (uint32_t)((uint64_t)d->len * eff(v, t, 3) / 254u);
     v->end = d->len;
     v->pos = 0; v->env = 1 << 30; v->lp = 0;
@@ -155,7 +156,7 @@ static bool drum_process(bm_engine *e, int32_t *buf, uint16_t frames)
         any = true;
         const bm_drum_sound *d = &bm_rom_kits[t->source % BM_KITS][v->sound];
         int32_t a = bm_onepole_a[eff(v, t, 0)];
-        uint32_t coef = bm_decay_coef[eff(v, t, 2)];
+        uint32_t coef = bm_decay_coef[eff(v, t, 2) * c->pat->tr[0].lane[v->sound].decay / 127];
         bool herm = t->interp != 0;
         for (uint16_t i = 0; i < frames && v->active; i++) {
             int32_t idx = (int32_t)(v->start + (v->pos >> 16));
@@ -183,19 +184,20 @@ const bm_engine_vt bm_eng_drum = {drum_init, drum_note_on, drum_note_off, common
 /* ------------------------------------------------------------ T2: sampler */
 static void slice_bounds(const bm_ctx *c, int i, uint32_t *s, uint32_t *e)
 {
-    if (c->smp_marks == 0) {
-        *s = c->smp_len * (uint32_t)i / BM_SLICES;
-        *e = c->smp_len * (uint32_t)(i + 1) / BM_SLICES;
+    const bm_smp_src *m = &c->smp;
+    if (m->nmarks == 0) {
+        *s = m->len * (uint32_t)i / BM_SLICES;
+        *e = m->len * (uint32_t)(i + 1) / BM_SLICES;
     } else {
-        *s = c->smp_mark[i];
-        *e = (i + 1 < c->smp_marks) ? c->smp_mark[i + 1] : c->smp_len;
+        *s = m->marks[i];
+        *e = (i + 1 < m->nmarks) ? m->marks[i + 1] : m->len;
     }
 }
 
 static int32_t smp_at(const bm_ctx *c, int32_t i)
 {
-    if (i < 0 || (uint32_t)i >= c->smp_len) return 0;
-    return (int32_t)c->smp[i] << 8;
+    if (i < 0 || (uint32_t)i >= c->smp.len) return 0;
+    return (int32_t)c->smp.data[i] << 8;
 }
 
 static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
@@ -210,8 +212,10 @@ static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel
     v->active = 1; v->track = 1; v->note = (uint8_t)sl; v->vel = vel;
     v->stage = ENV_DEC; v->gate = 1; v->fade = 0; v->pend = 0; v->age = ++c->age;
     v->sound = (uint8_t)sl;
-    int tune = eff(v, t, 1);
-    v->step = bm_semi_ratio[24 + ((tune - 64) * 12) / 64];
+    const bm_lane *ln = &c->pat->tr[1].lane[sl];
+    v->vel = (uint8_t)bm_clampi(vel * ln->level / 100, 1, 127);
+    uint32_t ratio = bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)];
+    v->step = (uint32_t)(((uint64_t)c->smp_base_inc * ratio) >> 16);
     v->start = s + (uint32_t)((uint64_t)(en - s) * eff(v, t, 3) / 254u);
     v->end = en; v->pos = 0; v->env = 1 << 30; v->lp = 0;
 }
@@ -223,8 +227,8 @@ static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel)
     uint8_t lk[4];
     take_locks(e, lk);
     e->legato_next = 0;
-    if (c->smp_len == 0 || c->smp_rec) return;
-    if (c->smp_marks && sl >= c->smp_marks) return;
+    if (c->smp.len == 0 || !c->smp.data || c->smp_rec) return;
+    if (c->smp.nmarks && sl >= c->smp.nmarks) return;
     bm_voice *v = bm_voice_get(c, 1, (uint8_t)sl, vel, lk, 0);
     if (v) smp_voice_start(e, v, (uint8_t)sl, vel, lk, 0);
 }
@@ -241,8 +245,9 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
         if (!v->active || v->track != 1) continue;
         any = true;
         int32_t a = bm_onepole_a[eff(v, t, 0)];
-        uint32_t coef = bm_decay_coef[eff(v, t, 2)];
+        uint32_t coef = bm_decay_coef[eff(v, t, 2) * c->pat->tr[1].lane[v->sound].decay / 127];
         bool herm = t->interp != 0;
+        if (!c->smp.data) { v->active = 0; continue; }
         for (uint16_t i = 0; i < frames && v->active; i++) {
             int32_t idx = (int32_t)(v->start + (v->pos >> 16));
             if ((uint32_t)idx >= v->end) { v->active = 0; v->pend = 0; break; }

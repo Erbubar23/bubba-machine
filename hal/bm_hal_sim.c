@@ -15,7 +15,7 @@ static int f_erase(uint32_t addr)
 {
     if ((addr & (BM_SECTOR - 1)) || addr + BM_SECTOR > BM_FLASH_SIZE) return -1;
     /* misma regla que el firmware: nunca fuera de las zonas escribibles (SPEC_V3 §4.4) */
-    if (!((addr >= BM_STORE_LO && addr < BM_STORE_HI) || (addr >= BM_GLOB_LO && addr < BM_GLOB_HI))) return -1;
+    if (!((addr >= BM_STORE_LO && addr < BM_SMP_LO + BM_SMP_SLOTS * BM_SMP_SLOT) || (addr >= BM_GLOB_LO && addr < BM_GLOB_HI))) return -1;
     memset(&g_sim->flash[addr], 0xFF, BM_SECTOR);
     g_sim->flash_writes++;
     return 0;

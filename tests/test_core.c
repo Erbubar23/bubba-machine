@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — pruebas del núcleo en PC.
  * Uso: test_core [carpeta_salida]  -> escribe demo.wav y capturas *.ppm */
 #include <stdio.h>
@@ -365,6 +367,30 @@ static void test_sampler_flow(void)
     CHECK(app.smp_valid[0] && app.smp_info[0].nmarks == 8);         /* sobrevive al reinicio */
 }
 
+static void test_factory_loop(void)
+{
+    printf("sampler: loop de fábrica en la ROM y dibujo por bandas\n");
+    boot(1);
+    CHECK(bm_rom_nloops >= 1 && bm_app_smp_src(&app) == BM_SMP_SLOTS);   /* el demo arranca con FAB 1 */
+    CHECK(app.ctx.smp.data == bm_rom_loops[0].data && app.ctx.smp.len == bm_rom_loops[0].len);
+    int lo = 0, hi = 0;
+    for (int x = 0; x < 232; x++) { lo += app.wave[0][x] > 200; hi += app.wave[2][x] > 200; }
+    CHECK(lo > 0 && hi > 0);                                         /* se ven golpes graves y agudos */
+    while (app.track != 1) { bm_app_encoder(&app, ENC_ALGO, 1, now_ms); run_ms(40); }
+    goto_view(BTN_EDIT, V_EDIT);
+    bm_app_key(&app, bm_white_key(4), 1, now_ms); run_ms(20);
+    int on = 0;
+    for (int i = 0; i < BM_VOICES; i++) on += app.ctx.voice[i].active && app.ctx.voice[i].track == 1;
+    CHECK(on == 1);                                                  /* el chop 5 suena desde la ROM */
+    bm_app_key(&app, bm_white_key(4), 0, now_ms); run_ms(40);
+    bm_app_button(&app, BTN_EDIT, 1, now_ms); run_ms(2200); bm_app_button(&app, BTN_EDIT, 0, now_ms); run_ms(60);
+    CHECK(app.view == V_SAMPLER);
+    shot("30-sampler-fab");
+    enc(ENC_K2, 1);                                                  /* chops: la fábrica es de solo lectura */
+    run_ms(300);
+    CHECK(bm_app_smp_src(&app) == BM_SMP_SLOTS && !app.smp_valid[0]);
+}
+
 static void test_demo_and_persist(void)
 {
     printf("demo: audio, autoguardado y recarga\n");
@@ -543,6 +569,7 @@ int main(int argc, char **argv)
     test_tr_features();
     test_voices();
     test_loop();
+    test_factory_loop();
     test_sampler_flow();
     test_demo_and_persist();
     test_spi_budget();

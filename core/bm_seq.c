@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — secuenciador (DISENO_0.2 §3-§8).
  *
  * Reloj de 96 PPQN calculado desde el contador de muestras. Cada pista avanza

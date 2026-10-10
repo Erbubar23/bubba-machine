@@ -1,80 +1,73 @@
 <p align="center"><img src="assets/logo/bubba-machine-logo.png" alt="Bubba Machine" width="460"></p>
 
-<p align="center"><b>Firmware de groovebox de 6 pistas para el M-VAVE FM-1.</b><br>
-Diseño propio, escrito desde cero en C99.</p>
+<p align="center"><b>Firmware libre de groovebox de 6 pistas para el M-VAVE FM-1.</b><br>
+Batería TR, sampler, bajo y 3 synths. Escrito desde cero en C99. Licencia GPL-3.0.</p>
+
+<p align="center">
+<a href="https://erbubar23.github.io/bubba-machine/">Sitio web</a> ·
+<a href="https://erbubar23.github.io/bubba-machine/emulador.html">Probar en el navegador</a> ·
+<a href="docs/MANUAL.md">Manual</a> ·
+<a href="CHANGELOG.md">Cambios</a> ·
+<a href="#in-english">English</a>
+</p>
 
 <p align="center">
 <img src="assets/screens/02-seq-tr.png" width="200" alt="Batería TR">
 <img src="assets/screens/17-chords.png" width="200" alt="Cuadrícula de acordes">
 <img src="assets/screens/05-time.png" width="200" alt="Tiempo por pista">
-<img src="assets/screens/11-sampler.png" width="200" alt="Sampler">
+<img src="assets/screens/30-sampler-fab.png" width="200" alt="Sampler con dibujo por frecuencias">
 </p>
 
 ---
 
-## Estado (0.2.0)
+> **Estado: 0.2.0, vista previa.** Todo el firmware corre y se prueba en PC y en el emulador web. **El port al FM-1 todavía no se ha probado en un aparato real y no hay instalador.** No intentes flashearlo aún. Ver [cómo instalar](docs/INSTALAR.md).
 
-| Parte | Estado |
+## Qué es
+
+Bubba Machine convierte el FM-1 en una groovebox de directo:
+
+- **T1 Batería estilo TR:** 16 instrumentos con su propia línea y su propio largo (polímetro), acento, repetición, flam, P-Locks y pasos que solo suenan en el fill. Roll y borrado estilo TR mientras suena.
+- **T2 Sampler:** graba la mezcla, marca los chops en vivo y los secuencia en la misma rejilla que la batería. Trae dos loops de fábrica sintetizados y dibuja el sample por frecuencias (graves, medios y agudos).
+- **T3 Bajo y T4-T6 synths** de wavetable con filtro, glide, arpegiador y loopera de notas por pista.
+- **Tiempo por pista:** cada pista tiene su largo (1-64) y su velocidad (×2 a ×1/4).
+- **Acordes en cuadrícula:** 16 acordes con su grado y su función por color.
+- **Directo:** 4 escenas con cadenas y grabación de la canción, fills automáticos, 16 efectos punch-in y mutes por pista e instrumento.
+- **Guardado seguro** en flash (CRC, commit al final, wear-leveling y autoguardado al parar), MIDI IN, reloj externo y Split Sync.
+
+## Pruébalo
+
+Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) en Chrome o Edge y pulsa *Encender*. Arranca con una demo; la barra espaciadora es PLAY. También funciona sin internet: abre `web/emulador.html` desde tu copia del repo.
+
+## Documentación
+
+| | |
 |---|---|
-| Núcleo (audio, secuenciador, UI, guardado) | **Completo y probado en PC**: 307 comprobaciones automáticas en verde |
-| Emulador web (WebAssembly) | **Funciona**: el mismo código C, probado en Chromium |
-| Port al FM-1 | **Esqueleto**: estructura, pines y escaneo de matriz probados; los drivers de registros están marcados `TODO(HW-VERIFY)`. **Aún no se ha flasheado ni probado en un FM-1.** Ver [`hal/fm1/README_PORT.md`](hal/fm1/README_PORT.md) |
+| [Manual](docs/MANUAL.md) | Cómo se toca, botón por botón |
+| [Instalar](docs/INSTALAR.md) | Estado del instalador y cómo será la instalación |
+| [Desarrollo](docs/DESARROLLO.md) | Compilar, probar, generar los sonidos y el sitio |
+| [Hoja de ruta](docs/HOJA_DE_RUTA.md) | Qué viene: el port al FM-1, el instalador y la interfaz 3.0 |
+| [Diseño 3.0](docs/DISENO_3.0.md) | La próxima interfaz: cuatro gestos por botón y HOME en todas partes |
+| [Especificación](docs/SPEC_V3.md) | Hardware, memoria, audio y decisiones técnicas |
+| [Cambios](CHANGELOG.md) | Qué trae cada versión |
+| [Contribuir](CONTRIBUTING.md) | Cómo ayudar y qué reglas seguimos |
+| [Créditos](CREDITOS.md) | Agradecimientos, terceros y marcas |
 
-## Pruébalo ahora
+## Licencia
 
-Abre **`web/index.html`** en Chrome o Edge (doble clic sirve) y pulsa *Encender*. Arranca con una demo. Dale PLAY con la barra espaciadora.
+Bubba Machine es **software libre** bajo la [GNU General Public License v3.0 o posterior](LICENSE) (`GPL-3.0-or-later`). Puedes usarlo, estudiarlo, modificarlo y compartirlo; si distribuyes una versión modificada, tiene que seguir siendo libre y con su código fuente.
 
-## Qué hace
+- **Todo el código es propio**, escrito desde cero. De la ingeniería inversa pública del FM-1 solo se usaron hechos de hardware (pines, tiempos, mapa de memoria). Ver [créditos](CREDITOS.md).
+- **Los sonidos también:** los kits, las ondas y los loops de fábrica se sintetizan en `tools/`. El firmware no lleva audio de terceros.
 
-- **Batería estilo TR** (T1): 16 instrumentos, cada uno con su línea, su largo (polímetro), acento, repetición ×2-×4, flam, P-Locks y pasos que solo suenan en el fill. **Roll** en vivo y **borrado** estilo TR mientras suena.
-- **Sampler** (T2): graba la mezcla, marca chops en vivo y los secuencia en la misma rejilla TR. 2 slots de 4 s en flash.
-- **Bajo y 3 synths** de wavetable con filtro, glide, arpegiador y **loopera** de notas por pista.
-- **Tiempo por pista:** largo 1-64 y velocidad ×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4. Largo maestro de 16 pasos a infinito.
-- **Acordes en cuadrícula** estilo Maschine: 16 acordes con su grado y su función coloreada (reposo, preparación, tensión), juegos de progresiones, voicing conducido y strum.
-- **Directo:** 4 escenas con cadenas y grabación de la canción, fills automáticos, 16 punch-in FX, mutes por pista y por instrumento.
-- **Guardado seguro** en flash (log con CRC y commit al final, wear-leveling, autoguardado en STOP), MIDI IN, reloj y Split Sync.
+M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afiliado a M-VAVE ni respaldado por ellos. Instalar firmware no oficial puede dejar tu aparato inservible: hazlo bajo tu propio riesgo y solo cuando exista una versión probada.
 
-## Cómo se toca, en corto
+---
 
-| Pulsación | Qué hace |
-|---|---|
-| **Toque** | Abre la pantalla del botón; otra vez, su página siguiente |
-| **Mantener** 300 ms | Capa en vivo: SEQ patrones · HOME mute · EDIT borrar · FX punch-in · SCL acordes · ARP arpegio/roll |
-| **Mantener 2 s** | Pantalla especial: SEQ tiempo · HOME sistema · EDIT sampler · REC borrar pista · SAVE guardado rápido |
-| **GLO +** algo | Global: KNOB 1-4 = BPM, swing, largo maestro, drive |
+## In English
 
-El manual completo está en [`docs/MANUAL.md`](docs/MANUAL.md), el diseño de la 0.2 en [`docs/DISENO_0.2.md`](docs/DISENO_0.2.md) y la especificación técnica en [`docs/SPEC_V3.md`](docs/SPEC_V3.md).
+**Bubba Machine** is a free (GPL-3.0-or-later) 6-track groovebox firmware for the M-VAVE FM-1: a TR-style drum machine, a sampler, a bass and three wavetable synths, written from scratch in C99.
 
-## Compilar y probar
-
-Todo corre en Docker (no hace falta compilador local). Requiere Python 3 con `numpy` y `Pillow` para los assets.
-
-```sh
-py -3 tools/build.py assets   # fuente, sonidos, ondas y logo
-py -3 tools/build.py test     # pruebas en PC + capturas en assets/screens/
-py -3 tools/build.py web      # emulador: web/bm.js
-py -3 tools/build.py all
-```
-
-## Estructura
-
-```
-core/        el firmware (C99 puro, sin hardware): audio, secuenciador, UI, guardado
-core/gen/    datos generados: fuente, kits, ondas, logo de arranque
-hal/         capas de hardware: sim (PC/web), web (WebAssembly), fm1 (port)
-web/         emulador en el navegador
-tests/       pruebas automáticas
-tools/       generadores de assets y build
-docs/        especificación, manual, presupuesto de memoria
-assets/      logo y capturas de pantalla
-```
-
-## Origen y licencias
-
-- **Todo el código es nuevo** y no contiene código de Felucca, SLOOP ni Bubba Box. De la ingeniería inversa pública del FM-1 solo se usaron **hechos de hardware** (pines, tiempos, mapa de memoria), documentados con su fuente en `docs/SPEC_V3.md` §11.
-- **Sonidos**: los dos kits se **sintetizan** en `tools/gen_assets.py` y las 16 ondas se generan por síntesis aditiva. No incluye samples de terceros. Se pueden cargar ondas AKWF (CC0) con `--akwf`.
-- **Fuentes de pantalla** dibujadas a mano en `tools/gen_font.py`.
-- **Logo**: el sol de Bubba Box, rediseñado para Machine (dientes de engranaje en vez de rayos).
-- **Licencia del proyecto: pendiente** (decisión 1b de la spec). Al no reutilizar código GPL, puede ser la que elijas.
-
-M-VAVE y FM-1 son marcas de sus dueños; este proyecto no está afiliado a ellos. Instalar firmware no oficial es bajo tu propio riesgo.
+- **Status:** 0.2.0 preview. It runs and is tested on PC and in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html). The FM-1 port has **not** been tested on real hardware yet and there is no installer. Please don't try to flash it yet.
+- **Docs** are in Spanish for now: the [manual](docs/MANUAL.md) and the [roadmap](docs/HOJA_DE_RUTA.md). Issues and pull requests in English are welcome.
+- **Clean room:** all code and all sounds are original. Only hardware facts from public FM-1 reverse engineering were used.
+- M-VAVE and FM-1 are trademarks of their respective owners. This project is not affiliated with or endorsed by M-VAVE.

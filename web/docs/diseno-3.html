@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/DISENO_3.0.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine 3.0: diseño de la interfaz · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html" aria-current="page">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="bubba-machine-30-diseño-de-la-interfaz">Bubba Machine 3.0: diseño de la interfaz</h1>
+<blockquote><p><strong>Estado: diseño, sin implementar.</strong> La versión actual (0.2) funciona como se describe en el <a href="manual.html">manual</a>. Este documento es la dirección para la 0.3.</p></blockquote>
+<h2 id="la-idea">La idea</h2>
+<p><strong>Cuatro gestos por botón, y significan lo mismo en todos. HOME en todas partes.</strong></p>
+<p>Las perillas grandes te llevan, las pequeñas ajustan y las teclas controlan. Se recupera lo mejor de 0.2 (tres pulsaciones, capas en vivo, anillo de 2 s) y se suma lo nuevo: perillas que navegan, HOME como controlador, pestañas y canales fijos y libres.</p>
+<div class="tbl"><table><thead><tr><th>Gesto</th><th>Cuándo</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>Toque</strong></td><td>menos de 300 ms</td><td>Abre su página en el canal donde estás. Otra vez: la siguiente página del mismo botón</td></tr><tr><td><strong>Mantener</strong></td><td>300 ms o más</td><td>Su <strong>capa en vivo</strong>: mientras sostienes, las teclas hacen esa función sobre lo que suena. La pantalla dibuja el teclado con lo que hace cada tecla. Al soltar, vuelves</td></tr><tr><td><strong>Mantener 2 s</strong></td><td>2 s sin tocar otra cosa</td><td>Su configuración o su acción peligrosa. Un anillo se llena arriba; si tocas otra cosa, se cancela. Solo en HOME, SEQ, EDIT, SAVE y REC</td></tr><tr><td><strong>HOME + botón</strong></td><td>con HOME sostenido</td><td>La <strong>versión global</strong> del botón: para todo el proyecto, no solo el canal</td></tr></tbody></table></div>
+<h2 id="las-perillas">Las perillas</h2>
+<div class="tbl"><table><thead><tr><th>Perilla</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>ALGORITHM</strong></td><td>El canal. En HOME, al girar aparece un recuadro con el canal destino y a los 400 ms entras (configurable: 0, 250, 400, 800 ms u OFF). Dentro de un canal cambia al instante y conserva la página. En una lista, ajusta el valor marcado. Con HOME sostenido, elige un canal desde cualquier pantalla y entras al soltar HOME</td></tr><tr><td><strong>SELECT</strong></td><td>La página o la fila. Con un paso sostenido, su acento</td></tr><tr><td><strong>PRESETS</strong></td><td>El sonido del canal. En HOME, el banco de patrones</td></tr><tr><td><strong>K1-K4</strong></td><td>Lo que dice la leyenda de abajo, siempre en el mismo color. Con HOME sostenido: BPM, swing, largo maestro y drive</td></tr></tbody></table></div>
+<p><strong>Prioridad de ALGORITHM:</strong> paso sostenido &gt; lista &gt; canal &gt; HOME. El pie de pantalla dice qué hace en cada momento.</p>
+<h2 id="los-14-botones">Los 14 botones</h2>
+<div class="tbl"><table><thead><tr><th>Botón</th><th>Toque</th><th>Otra vez</th><th>Mantener (capa)</th><th>2 s</th><th>HOME +</th></tr></thead><tbody><tr><td>HOME</td><td>HOME: los 6 canales</td><td>MEZCLA › ESCENAS › CANCIÓN</td><td>Controlador: blancas = patrón, negras = mute, K1-K4 = tempo y globales</td><td>SISTEMA</td><td>(es el modificador)</td></tr><tr><td>SEQ</td><td>Pasos del canal</td><td>Synth: LOOP · sampler: RETRIG</td><td>Largo y velocidad: blanca = largo, negras = velocidad</td><td>TIEMPO de las 6 pistas</td><td>CANCIÓN</td></tr><tr><td>EDIT</td><td>SONIDO</td><td>Batería: INSTR</td><td>BORRAR: borra al pasar; negras copiar, pegar, limpiar (sampler: 4 = capturar)</td><td>Sampler: slots · otros: sonido inicial</td><td>Copiar el canal a otro</td></tr><tr><td>ENV</td><td>ENV (notas) · INSTR (batería)</td><td>ENV página 2</td><td>ACENTO: pintar acentos</td><td>—</td><td>—</td></tr><tr><td>LFO</td><td>LFO del canal (futuro)</td><td>—</td><td>REPETIR (batería, sampler) · LIGAR (notas)</td><td>—</td><td>—</td></tr><tr><td>FX</td><td>MEZCLA del canal</td><td>—</td><td>PUNCH-IN: 16 efectos; negras 1-6 siguen muteando</td><td>—</td><td>Delay y sidechain globales</td></tr><tr><td>SCL</td><td>ESCALA del canal</td><td>ACORDES</td><td>Acordes en vivo</td><td>—</td><td>Escala de todo el proyecto</td></tr><tr><td>ARP</td><td>ARP del canal</td><td>—</td><td>Arpegio en vivo · batería: ROLL</td><td>—</td><td>—</td></tr><tr><td>SAVE</td><td>Menú de guardar</td><td>Ejecuta</td><td>COPIAR PATRÓN: blanca = pegar ahí</td><td>Guardado rápido</td><td>Guardar como</td></tr><tr><td>GLO</td><td>Lista global</td><td>Cierra</td><td>TONO: el teclado transpone todo; PLAY = TAP</td><td>—</td><td>—</td></tr><tr><td>REC</td><td>Grabar</td><td>Loopera: sobregrabar › play</td><td>Grabar solo mientras sostienes</td><td>Borrar la pista (pregunta)</td><td>SONG REC</td></tr><tr><td>PLAY</td><td>Play / stop</td><td>—</td><td>—</td><td>—</td><td>Volver al paso 1 sin parar</td></tr><tr><td>OCT − / +</td><td>Octava · página · en preguntas OCT+ = sí</td><td>—</td><td>—</td><td>—</td><td>Deshacer / rehacer</td></tr></tbody></table></div>
+<p>Una celda vacía es a propósito: ese gesto no hace nada en ese botón, para que no se dispare sin querer.</p>
+<h2 id="home-en-todas-partes">HOME en todas partes</h2>
+<p>El FM-1 no tiene SHIFT, así que HOME hace tres trabajos:</p>
+<ol><li>
+<strong>Pantalla de inicio:</strong> los 6 canales con su secuencia y el banco de patrones.
+</li><li>
+<strong>Controlador que te sigue:</strong> mantener HOME trae el controlador a cualquier pantalla. Editas el bajo y, sin salir, muteas o pones el siguiente patrón en cola.
+</li><li>
+<strong>Modificador:</strong> HOME + botón = su versión global.
+</li></ol>
+<p>Si se usó HOME como modificador, soltarlo <strong>no</strong> te lleva a la pantalla de inicio: HOME solo navega con un toque limpio.</p>
+<p><strong>Teclas en HOME:</strong> negras 1-6 mutean T1-T6 (mantener = solo), 7-10 lanzan las escenas A-D y 11 es FILL. Las blancas ponen en cola el patrón del banco; dos blancas encadenan del primero al segundo.</p>
+<h2 id="canales-3-fijos-y-3-libres">Canales: 3 fijos y 3 libres</h2>
+<div class="tbl"><table><thead><tr><th>Canal</th><th>Tipo</th><th>Qué es</th></tr></thead><tbody><tr><td>T1 BATERÍA</td><td>Fijo</td><td>Rejilla TR de 16 instrumentos</td></tr><tr><td>T2 SAMPLER</td><td>Fijo</td><td>Loop en 8 slices que un generador rearma</td></tr><tr><td>T3 BAJO</td><td>Fijo</td><td>Wavetable monofónico con glide</td></tr><tr><td>T4-T6</td><td>Libres</td><td>SYNTH, MONO, KIT o MIDI, elegido en la pestaña MAS</td></tr></tbody></table></div>
+<p>Cada canal muestra sus pestañas arriba: SELECT las recorre y los botones saltan directo. La última, <strong>MAS</strong>, es la lista con todo el canal.</p>
+<p><strong>Las negras siguen una sola gramática:</strong> 1-8 son los elementos del canal, 9 y 10 lo modifican, y <strong>11 rompe el patrón</strong> (FILL en las baterías, STUTTER en el sampler).</p>
+<h2 id="sampler-30">Sampler 3.0</h2>
+<p>La idea viene del BREAK de X0X (un loop en slices que un generador reordena) con una interfaz que deja ver lo que pasa:</p>
+<ul><li>
+<strong>Dos filas de pasos:</strong> TU (lo que programaste: hueco = el generador elige, lleno = slice fijo) y <strong>SUENA</strong> (el slice que eligió el generador en este compás).
+</li><li>
+<strong>Perillas con nombres claros:</strong> VARIAR, ANCLAR, REPETIR y ROMPER.
+</li><li>
+<strong>CAPTURAR:</strong> mantener EDIT + negra 4 deja fija la variación que está sonando.
+</li><li>
+<strong>Fijar slices tocando:</strong> con REC, las negras 1-8 se escriben como pasos fijos.
+</li><li>
+<strong>El tono a la vista:</strong> BPM original del loop y cuántos semitonos se movió.
+</li><li>
+<strong>Dibujo por frecuencias:</strong> graves, medios y agudos en carriles separados (ya funciona en 0.2).
+</li></ul>
+<h2 id="grabadora">Grabadora</h2>
+<p>Grabar, guardar y cortar son tres pantallas, una tarea cada una:</p>
+<ol><li>
+<strong>GRABAR:</strong> un número grande con los segundos que quedan, que es el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Rayas marcan cuántos compases caben.
+</li><li>
+<strong>TOMAS:</strong> biblioteca de grabaciones con su BPM y sus compases. Los loops de fábrica no gastan memoria.
+</li><li>
+<strong>CORTAR:</strong> después, con calma. Las blancas ponen cortes por corchea, la negra 9 los pone en los golpes y la 10 los reparte iguales.
+</li></ol>
+<p>La toma queda sin guardar hasta que paras el transporte, porque escribir la flash detiene el audio.</p>
+<h2 id="decisiones-pendientes">Decisiones pendientes</h2>
+<ul><li>
+<strong>Tiempo del recuadro de entrada:</strong> 400 ms propuesto, a probar.
+</li><li>
+<strong>Bancos de patrones:</strong> la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones.
+</li><li>
+<strong>Biblioteca de tomas:</strong> hoy son 2 slots fijos de 4 s; una biblioteca de largo libre necesita cambiar el formato de la flash.
+</li><li>
+<strong>Fantasma en la batería:</strong> el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato.
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_3.0.md">docs/DISENO_3.0.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

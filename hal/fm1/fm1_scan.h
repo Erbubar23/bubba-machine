@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — escaneo de la matriz del FM-1 (lógica portable).
  *
  * Hechos de hardware (SPEC_V3 §1.3): matriz con diodos de 11 columnas x 6 filas

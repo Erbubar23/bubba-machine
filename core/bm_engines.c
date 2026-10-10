@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — voces y motores de sonido (vtable común, SPEC_V3 §2, §3, §5). */
 #include <string.h>
 #include "bm_audio.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* GENERADO por tools/gen_assets.py: no editar a mano. */
 #include "../bm_rom.h"
 

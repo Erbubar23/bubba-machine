@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — almacenamiento en flash raw: log circular con commit al final (SPEC_V3 §4.5). */
 #ifndef BM_STORE_H
 #define BM_STORE_H

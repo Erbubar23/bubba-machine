@@ -1,3 +1,8 @@
 build/
 __pycache__/
 *.pyc
+
+# audio de pruebas y loops locales: pueden ser de terceros, nunca se suben
+assets/test-samples/
+assets/loops/local/
+assets/loops/loops.local.json

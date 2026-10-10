@@ -97,8 +97,12 @@ El **largo maestro** (GLO + K3: 16, 32, 48, 64, 128 o INF) reinicia todas las pi
 4. Al **parar**, el sample se guarda solo en su slot (A o B, hasta 4 s cada uno). Mientras no se guarda, el delay y los punch-in con buffer quedan en pausa, porque comparten la memoria.
 5. Los chops son los 16 instrumentos de la rejilla TR de T2.
 
+**Loop de fábrica:** además de los slots A y B, T2 trae loops de solo lectura en la ROM (F1, F2…). El demo arranca con F1. Si grabas con un loop de fábrica elegido, la grabación va al slot A. Los loops de fábrica se cortan siempre en 16 chops iguales y no se pueden borrar.
+
+**El dibujo del sample** muestra tres carriles por frecuencia: graves abajo (naranja), medios (gris) y agudos arriba (cian). En música muy comprimida la forma de onda es un bloque; por bandas se ven el bombo, el rumble y los hats.
+
 **SAMPLER (EDIT 2 s en T2):**
-- K1: slot A o B.
+- K1: fuente (slot A, slot B o un loop de fábrica).
 - K2: chops manuales o 4, 8 o 16 partes iguales.
 - Negra 11 dos veces: borra el slot.
 

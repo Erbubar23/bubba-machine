@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* GENERADO por tools/gen_font.py: no editar a mano. */
 #include "../bm_gfx.h"
 

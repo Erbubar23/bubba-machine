@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/DESARROLLO.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desarrollo · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html" aria-current="page">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="desarrollo">Desarrollo</h1>
+<h2 id="requisitos">Requisitos</h2>
+<ul><li>
+<strong>Python 3</strong> con <code>numpy</code> y <code>Pillow</code>: generan los sonidos, la fuente, el logo y el sitio.
+</li><li>
+<strong>Docker</strong>: compila y corre las pruebas (GCC) y el emulador (Emscripten). No hace falta compilador local.
+</li></ul>
+<p>En Windows el comando de Python es <code>py -3</code>; en Linux y macOS, <code>python3</code>.</p>
+<h2 id="comandos">Comandos</h2>
+<pre><code>py -3 tools/build.py assets   # fuente, kits, ondas, loops de fábrica y logo (core/gen/)
+py -3 tools/build.py test     # compila y corre las pruebas en PC; capturas en assets/screens/
+py -3 tools/build.py web      # emulador: web/bm.js
+py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/
+py -3 tools/build.py all      # todo lo anterior</code></pre>
+<p>Las pruebas (<code>tests/test_core.c</code>) recorren el firmware como lo haría una persona: arrancan, tocan botones, graban, guardan, apagan y vuelven a prender. También verifican el tiempo del secuenciador, el presupuesto de la pantalla y que nunca se escriba la flash mientras suena.</p>
+<h2 id="estructura">Estructura</h2>
+<pre><code>core/        el firmware, C99 sin hardware: audio, secuenciador, interfaz y guardado
+core/gen/    datos generados por tools/: fuente, kits, ondas, loops y logo
+hal/         capas de hardware: sim (PC y web), web (WebAssembly) y fm1 (port)
+web/         sitio: portada, emulador (emulador.html) y documentación (docs/)
+docs/        manual, especificación, diseño y guías (fuente del sitio)
+tests/       pruebas automáticas
+tools/       generadores y build
+assets/      logo, capturas, loops de fábrica</code></pre>
+<h2 id="reglas-del-núcleo">Reglas del núcleo</h2>
+<ul><li>
+<code>core/</code> no conoce el hardware: todo pasa por la plataforma (<code>bm_platform</code>) que da cada <code>hal/</code>.
+</li><li>
+Sin <code>malloc</code>. La RAM del FM-1 es de 96 KiB; el presupuesto está en <a href="memoria.html"><code>MEMORIA.md</code></a>.
+</li><li>
+El audio corre en su propio contexto: la interfaz le habla solo por la cola de comandos.
+</li><li>
+La flash <strong>solo se escribe con el transporte parado</strong>: escribir detiene el audio.
+</li></ul>
+<h2 id="sonidos-y-loops-de-fábrica">Sonidos y loops de fábrica</h2>
+<ul><li>
+Los kits y las ondas se sintetizan en <code>tools/gen_assets.py</code>.
+</li><li>
+Los loops de fábrica se definen en <code>assets/loops/loops.json</code> y se sintetizan en <code>tools/gen_loops.py</code>.
+</li><li>
+Para probar con tu propio audio, crea <code>assets/loops/loops.local.json</code> (está en <code>.gitignore</code>) y genera con:
+</li></ul>
+<pre><code>py -3 tools/gen_loops.py --local</code></pre>
+<p><strong>Un build hecho con <code>--local</code> no se puede publicar</strong>: ni <code>web/bm.js</code> ni binarios. Antes de subir cambios, vuelve a generar sin <code>--local</code>.</p>
+<h2 id="el-sitio">El sitio</h2>
+<ul><li>
+<code>web/index.html</code> es la portada y <code>web/emulador.html</code>, el emulador.
+</li><li>
+Las páginas de <code>web/docs/</code> se generan desde los <code>.md</code> con <code>tools/gen_site.py</code>: edita el <code>.md</code>, no el HTML.
+</li><li>
+GitHub Pages publica la carpeta <code>web/</code> con el flujo <code>.github/workflows/pages.yml</code>.
+</li></ul>
+<h2 id="integración-continua">Integración continua</h2>
+<p><code>.github/workflows/ci.yml</code> corre las pruebas en cada push y en cada pull request.</p>
+<h2 id="ramas">Ramas</h2>
+<div class="tbl"><table><thead><tr><th>Rama</th><th>Para qué</th></tr></thead><tbody><tr><td><code>dev</code></td><td>Trabajo diario. Los pull requests van aquí</td></tr><tr><td><code>qa</code></td><td>Lo que se va a publicar, en prueba: emulador y, cuando exista, el FM-1</td></tr><tr><td><code>main</code></td><td>Lo publicado. Cada versión sale de aquí y el sitio se publica desde aquí</td></tr></tbody></table></div>
+<p>Los cambios suben en un solo sentido: <code>dev</code> › <code>qa</code> › <code>main</code>.</p>
+<h2 id="versiones">Versiones</h2>
+<ul><li>
+El número de versión vive en <code>core/bm_config.h</code> (<code>BM_VERSION_STR</code>) y en <a href="cambios.html"><code>CHANGELOG.md</code></a>.
+</li><li>
+Cada versión pública es una etiqueta <code>vX.Y.Z</code> con su código fuente. La GPL exige que cualquier binario que se publique tenga su fuente correspondiente.
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DESARROLLO.md">docs/DESARROLLO.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

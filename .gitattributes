@@ -2,3 +2,5 @@
 *.png binary
 web/bm.js -diff linguist-generated
 core/gen/** linguist-generated
+*.wav binary
+web/docs/** linguist-generated

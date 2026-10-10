@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — aplicación: lógica de la interfaz (DISENO_0.2). */
 #include <string.h>
 #include <stdio.h>
@@ -295,7 +297,7 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
         return;
     }
     case V_SAMPLER:
-        L4(L, 0, "SLOT", a->pat.trk[1].source % 2 ? "B" : "A", (a->pat.trk[1].source % 2) * 255);
+        L4(L, 0, "FUENTE", bm_app_smp_name(bm_app_smp_src(a)), bm_app_smp_src(a) * 255 / (bm_app_smp_sources() - 1));
         if (a->chops_mode) snprintf(b, sizeof b, "%d", CHOPS[a->chops_mode]); else snprintf(b, sizeof b, "MANUAL");
         L4(L, 1, "CHOPS", b, a->chops_mode * 85);
         return;
@@ -358,22 +360,61 @@ static int app_swap(void *u, int from, int to, bm_pattern *p)
     return 0;
 }
 
+/* Energía del sample por columna en tres bandas: graves (< ~150 Hz), medios y agudos (> ~2 kHz),
+ * separadas con dos filtros de un polo. Un master actual es un bloque si se dibujan los picos;
+ * en bandas se ve dónde pega el bombo y dónde los hats. Dos pasadas: la primera busca el piso y
+ * el máximo de cada banda, y la segunda dibuja lo que sobresale del piso (un rumble constante
+ * no tapa los bombos) y estira cada banda a su máximo (los agudos se ven aunque tengan poca energía). */
 static void compute_wave(bm_app *a, const int8_t *d, uint32_t len)
 {
     memset(a->wave, 0, sizeof a->wave);
     if (!d || !len) return;
-    for (int x = 0; x < 232; x++) {
-        uint32_t s0 = len * (uint32_t)x / 232u, s1 = len * (uint32_t)(x + 1) / 232u;
-        int pk = 0;
-        for (uint32_t i = s0; i < s1; i += 4) { int v = d[i] < 0 ? -d[i] : d[i]; if (v > pk) pk = v; }
-        a->wave[x] = (uint8_t)pk;
+    uint32_t mx[3] = {0, 0, 0}, mn[3] = {UINT32_MAX, UINT32_MAX, UINT32_MAX};
+    for (int pass = 0; pass < 2; pass++) {
+        int32_t lo = 0, lp = 0;
+        uint32_t i = 0;
+        for (int x = 0; x < 232; x++) {
+            uint32_t s1 = len * (uint32_t)(x + 1) / 232u, sum[3] = {0, 0, 0}, n = 0;
+            for (; i < s1; i++, n++) {
+                int32_t v = (int32_t)d[i] * 256;
+                lo += ((v - lo) * 1875) >> 15;        /* ≈ 150 Hz a 16 kHz */
+                lp += ((v - lp) * 17833) >> 15;       /* ≈ 2 kHz */
+                int32_t b0 = lo, b1 = lp - lo, b2 = v - lp;
+                sum[0] += (uint32_t)(b0 < 0 ? -b0 : b0);
+                sum[1] += (uint32_t)(b1 < 0 ? -b1 : b1);
+                sum[2] += (uint32_t)(b2 < 0 ? -b2 : b2);
+            }
+            for (int k = 0; k < 3; k++) {
+                uint32_t m = n ? sum[k] / n : 0;
+                if (pass == 0) { if (n && m > mx[k]) mx[k] = m; if (n && m < mn[k]) mn[k] = m; }
+                else if (mx[k] > mn[k]) {
+                    uint32_t r = (m > mn[k] ? m - mn[k] : 0) * 255u / (mx[k] - mn[k]);
+                    a->wave[k][x] = (uint8_t)(r * r / 255u);    /* curva: los golpes resaltan sobre el relleno */
+                }
+            }
+        }
     }
+}
+
+int bm_app_smp_sources(void) { return BM_SMP_SLOTS + bm_rom_nloops; }
+int bm_app_smp_src(const bm_app *a) { return a->pat.trk[1].source % bm_app_smp_sources(); }
+bool bm_app_smp_is_rom(int src) { return src >= BM_SMP_SLOTS; }
+bool bm_app_smp_ready(const bm_app *a, int src) { return bm_app_smp_is_rom(src) || a->smp_valid[src]; }
+
+const char *bm_app_smp_name(int src)
+{
+    static const char *const SLOT[BM_SMP_SLOTS] = {"SLOT A", "SLOT B"};
+    return bm_app_smp_is_rom(src) ? bm_rom_loops[src - BM_SMP_SLOTS].name : SLOT[src];
 }
 
 static void send_smp_src(bm_app *a)
 {
-    int slot = a->pat.trk[1].source % BM_SMP_SLOTS;
-    if (a->smp_valid[slot]) a->smp_send = a->smp_info[slot]; else memset(&a->smp_send, 0, sizeof a->smp_send);
+    int src = bm_app_smp_src(a);
+    memset(&a->smp_send, 0, sizeof a->smp_send);
+    if (bm_app_smp_is_rom(src)) {                      /* loop de fábrica: sin marcas = 16 chops iguales */
+        a->smp_send.data = bm_rom_loops[src - BM_SMP_SLOTS].data;
+        a->smp_send.len = bm_rom_loops[src - BM_SMP_SLOTS].len;
+    } else if (a->smp_valid[src]) a->smp_send = a->smp_info[src];
     compute_wave(a, a->smp_send.data, a->smp_send.len);
     push_ptr(a, CMD_SMP_SRC, 0, &a->smp_send);
 }
@@ -527,6 +568,7 @@ static void demo_pattern(bm_pattern *p, bm_song *song)
         ev_set(p, 5, o + 0, 0, prog[pg][0] - 12, 60, 16, 100);
     }
     p->trk[3].level = 70; p->trk[4].level = 60; p->trk[5].level = 55;
+    if (bm_rom_nloops) p->trk[1].source = BM_SMP_SLOTS;                /* T2 arranca con el loop de fábrica */
     memset(song->scene, 0, sizeof song->scene);
     song->scene[0].valid = 1; song->scene[0].pattern = 0;                                  /* A: todo */
     song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x3C;  /* B: solo ritmo */
@@ -819,6 +861,12 @@ static void on_gesture(void *u, int id, bm_gkind k)
             a->rec_before = a->rec;
             if ((v == V_EDIT || v == V_SAMPLER) && a->track == 1) {
                 if (a->ctx.st.smp_unsaved && playing(a)) { toast(a, "PARA PARA GUARDAR EL SAMPLE"); return; }
+                if (bm_app_smp_is_rom(bm_app_smp_src(a))) {   /* la fábrica es de solo lectura: se graba en el slot A */
+                    set_track(a, 1, TRK_OFF(source), 0);
+                    a->pat.trk[1].source = 0;
+                    send_smp_src(a);
+                    toast(a, "GRABANDO EN SLOT A");
+                }
                 push(a, CMD_SMP_REC, 1, 0, 0); a->smp_was_rec = 1;
             } else if (v == V_LOOP) push(a, CMD_LOOP, a->track, 1, 0);
             else if (v == V_SCENES) { a->song_rec = !a->song_rec; a->song_rec_loops = a->ctx.st.loops; toast(a, a->song_rec ? "SONG REC ON" : "SONG REC OFF"); }
@@ -1271,7 +1319,8 @@ void bm_app_key(bm_app *a, int k, int down, uint32_t now)
         return;
     case V_SAMPLER:
         if (b == 10) {
-            int slot = a->pat.trk[1].source % 2;
+            int slot = bm_app_smp_src(a);
+            if (bm_app_smp_is_rom(slot)) { toast(a, "LOOP DE FABRICA: NO SE BORRA"); return; }
             if (a->erase_slot_armed) { job_push(a, JOB_SAMPLE_ERASE, slot); a->erase_slot_armed = 0; toast(a, "SLOT BORRADO"); }
             else { a->erase_slot_armed = 1; toast(a, "NEGRA 11 OTRA VEZ = BORRAR"); }
             return;
@@ -1446,13 +1495,13 @@ static bool enc_global(bm_app *a, int id, int d)
         return true;
     }
     case ENC_ALGO: {
-        int lim = t == 0 ? BM_KITS : t == 1 ? BM_SMP_SLOTS : BM_WAVES;
+        int lim = t == 0 ? BM_KITS : t == 1 ? bm_app_smp_sources() : BM_WAVES;
         if (t == 1 && a->ctx.st.smp_unsaved) { toast(a, "PRIMERO SE GUARDA EL SAMPLE"); return true; }
         int v = (a->pat.trk[t].source + (d > 0 ? 1 : lim - 1)) % lim;
         set_track(a, t, TRK_OFF(source), v);
         a->pat.trk[t].source = (uint8_t)v;       /* para mandar ya la fuente correcta */
         if (t == 1) send_smp_src(a);
-        const char *nm = t == 0 ? bm_rom_kit_names[v] : t == 1 ? (v ? "SLOT B" : "SLOT A") : bm_rom_wave_names[v];
+        const char *nm = t == 0 ? bm_rom_kit_names[v] : t == 1 ? bm_app_smp_name(v) : bm_rom_wave_names[v];
         overlay(a, -1, t == 0 ? "KIT" : t == 1 ? "SAMPLE" : "BANCO DE ONDAS", nm, "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
         return true;
     }
@@ -1640,12 +1689,15 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
     case V_SAMPLER:
         if (k == 0) {
             if (a->ctx.st.smp_unsaved) { toast(a, "PRIMERO SE GUARDA EL SAMPLE"); return; }
-            int v2 = !(a->pat.trk[1].source % 2);
+            int n = bm_app_smp_sources();
+            int v2 = (bm_app_smp_src(a) + (d > 0 ? 1 : n - 1)) % n;
             set_track(a, 1, TRK_OFF(source), v2);
             a->pat.trk[1].source = (uint8_t)v2;
             send_smp_src(a);
+            overlay(a, 0, "FUENTE", bm_app_smp_name(v2), "", v2 * 255 / (n > 1 ? n - 1 : 1), -1, bm_knob_color(0));
         } else if (k == 1) {
-            int slot = a->pat.trk[1].source % 2;
+            int slot = bm_app_smp_src(a);
+            if (bm_app_smp_is_rom(slot)) { toast(a, "FABRICA: 16 CHOPS FIJOS"); return; }
             if (!a->smp_valid[slot]) { toast(a, "SLOT VACIO"); return; }
             a->chops_mode = (uint8_t)bm_clampi(a->chops_mode + (d > 0 ? 1 : -1), 0, 3);
             if (a->chops_mode) { if (a->pend_obj >= 0) job_push(a, JOB_FLUSH_PEND, 0); job_push(a, JOB_SAMPLE_MARKS, slot); }

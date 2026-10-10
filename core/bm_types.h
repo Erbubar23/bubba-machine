@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — tipos e identificadores de controles. */
 #ifndef BM_TYPES_H
 #define BM_TYPES_H

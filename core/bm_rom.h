@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — ROM de sonidos (generada por tools/gen_assets.py). */
 #ifndef BM_ROM_H
 #define BM_ROM_H
@@ -23,5 +25,18 @@ extern const char bm_rom_kit_names[BM_KITS][8];
 extern const int16_t bm_ulaw_dec[256];
 extern const int16_t bm_rom_waves[BM_WAVES][BM_WAVE_LEVELS][BM_WAVE_LEN];
 extern const char bm_rom_wave_names[BM_WAVES][8];
+
+/* Loops de fábrica del sampler (generados por tools/gen_loops.py): 8 bit a BM_SMP_RATE,
+ * de solo lectura. T2 los ve como fuentes después de los slots de flash. */
+typedef struct {
+    const int8_t *data;
+    uint32_t len;
+    uint16_t bpm_x10;      /* tempo al que se grabó */
+    uint8_t bars;
+    char name[12];
+} bm_rom_loop;
+
+extern const bm_rom_loop bm_rom_loops[];
+extern const int bm_rom_nloops;
 
 #endif

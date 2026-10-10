@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: pruebas
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dependencias de los generadores
+        run: pip install numpy pillow
+
+      - name: Los loops de fábrica son los públicos (sin audio local)
+        run: |
+          grep '^  {loop' core/gen/bm_loops.c > /tmp/antes
+          python tools/gen_loops.py
+          grep '^  {loop' core/gen/bm_loops.c > /tmp/despues
+          diff /tmp/antes /tmp/despues
+
+      - name: La documentación del sitio está al día con los .md
+        run: |
+          python tools/gen_site.py
+          git diff --exit-code -- web/docs
+
+      - name: Pruebas del núcleo
+        run: python tools/build.py test

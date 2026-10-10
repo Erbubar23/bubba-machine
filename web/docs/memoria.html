@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/MEMORIA.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presupuesto de memoria · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html" aria-current="page">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="presupuesto-de-memoria">Presupuesto de memoria</h1>
+<h2 id="ram-96-kib-de-databss">RAM (96 KiB de <code>.data/.bss</code>)</h2>
+<p>Medido con <code>sizeof</code> en el build de PC (punteros de 8 bytes; en el FM-1 son de 4, así que será un poco menos).</p>
+<div class="tbl"><table><thead><tr><th>Bloque</th><th>Bytes</th><th>Notas</th></tr></thead><tbody><tr><td>Patrón activo (<code>bm_pattern</code>)</td><td>12 696</td><td>2 pistas TR (16 líneas × 64 pasos, 1 byte por paso + P-Locks) + 4 synths + 4 looperas</td></tr><tr><td>Arena compartida</td><td>49 152</td><td>Delay (32 KiB) + punch-in (16 KiB); durante una grabación de sample, toda la arena es el buffer (3 s a 16 kHz)</td></tr><tr><td>Caché de patrón sin guardar</td><td>8 192</td><td>para cambiar de patrón sonando; también sirve de buffer al reescribir los chops</td></tr><tr><td>Portapapeles, undo y redo</td><td>~6 200</td><td>una pista cada uno</td></tr><tr><td>Cola de comandos UI → audio</td><td>~2 048</td><td>128 comandos</td></tr><tr><td>Contexto de audio (voces, buffers, secuenciador)</td><td>~4 300</td><td></td></tr><tr><td>Resto de la app (UI, gestos, forma de onda)</td><td>~1 700</td><td></td></tr><tr><td><strong>Total <code>bm_app</code></strong></td><td><strong>84 312</strong></td><td></td></tr><tr><td>Franja de render + tile</td><td>4 800</td><td>240×8×2 + 60×8×2</td></tr><tr><td>Tabla mu-law, LEDs, MIDI</td><td>~1 100</td><td></td></tr><tr><td><strong>Total estático</strong></td><td><strong>~90 200</strong></td><td></td></tr><tr><td>Libre para pila e ISR</td><td>~8 100</td><td><code>VERIFICAR</code> con el mapa del linker del port</td></tr></tbody></table></div>
+<p>Si en el FM-1 falta RAM, lo primero que se achica es la arena (<code>BM_ARENA_LEN</code> en <code>core/bm_config.h</code>): menos delay y menos segundos de grabación.</p>
+<h2 id="flash-1-mib">Flash (1 MiB)</h2>
+<div class="tbl"><table><thead><tr><th>Zona</th><th>Tamaño</th><th>Contenido</th></tr></thead><tbody><tr><td>ROM de batería</td><td>170 938 B</td><td>2 kits × 16 sonidos, mu-law a 22 kHz (presupuesto: 192 KiB)</td></tr><tr><td>ROM de ondas</td><td>65 536 B</td><td>16 ondas × 8 niveles band-limited × 256 muestras</td></tr><tr><td>Logo de arranque</td><td>~19 KB</td><td>RLE con paleta de 48 colores</td></tr><tr><td>Fuentes</td><td>~1 KB</td><td>5×7 y 3×5</td></tr><tr><td>Código</td><td><code>VERIFICAR</code></td><td>Depende del toolchain de JieLi; el límite es ~340 KiB (SPEC §4.4)</td></tr><tr><td>Patrones</td><td>164 KiB</td><td>20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling</td></tr><tr><td>Samples</td><td>128 KiB</td><td>2 slots de 64 KiB (4 s a 16 kHz cada uno), se reproducen directo desde la flash</td></tr><tr><td>Globales</td><td>12 KiB</td><td>3 sectores en rotación</td></tr></tbody></table></div>
+<h2 id="pantalla">Pantalla</h2>
+<p>Presupuesto de SPI a 12 MHz: ~37 KB por frame a 30 FPS. Medido en las pruebas con la matriz TR sonando: <strong>6.8 KB de promedio por frame</strong> y 43 KB de pico al cambiar de pantalla (≈ 29 ms a 12 MHz, todavía dentro del frame de 33 ms), gracias al envío por tiles de 60×8 solo cuando cambian.</p>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MEMORIA.md">docs/MEMORIA.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — primitivas gráficas y render por tiles. */
 #include <string.h>
 #include "bm_gfx.h"

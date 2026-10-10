@@ -1,6 +1,6 @@
 # Bubba Machine 0.2 — Diseño
 
-Groovebox de directo: **batería TR**, **sampler con chops que se secuencian como la batería**, bajo y 3 synths. Cada pista tiene **su largo y su velocidad**. Toma de Bubba Box sus reglas (cada botón abre su pantalla, mantener = capa en vivo, colores fijos por perilla) y suma una **tercera pulsación de 2 segundos** para pantallas especiales.
+Groovebox de directo: **batería TR**, **sampler con chops que se secuencian como la batería**, bajo y 3 synths. Cada pista tiene **su largo y su velocidad**. Sus reglas: cada botón abre su pantalla, mantener = capa en vivo, colores fijos por perilla, y suma una **tercera pulsación de 2 segundos** para pantallas especiales.
 
 El hardware y las reglas técnicas (memoria, flash, audio) siguen siendo los de `SPEC_V3.md`.
 

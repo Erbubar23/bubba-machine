@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — patrón, formato disperso, P-Locks TR, escalas y cuadrícula de acordes. */
 #include <string.h>
 #include <stdio.h>

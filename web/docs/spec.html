@@ -1,0 +1,328 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/SPEC_V3.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine (FM-1 &quot;K.O. Edition&quot;) — Especificación Técnica V3.1 · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html" aria-current="page">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="bubba-machine-fm-1-ko-edition-especificación-técnica-v31">Bubba Machine (FM-1 "K.O. Edition") — Especificación Técnica V3.1</h1>
+<blockquote><p><strong>V3.1 (implementación 0.1.0):</strong> la sección 12 lista lo que se ajustó al escribir el código. Donde la sección 12 y el resto del documento no coinciden, manda la sección 12.  <strong>Qué cambió respecto a V2:</strong> V2 se escribió con un contexto de hardware desactualizado (OLED SSD1306, 25+2 teclas, 4 encoders, ADC de 12 bits, flash "de sobra"). V3 toma los datos del hardware real, sacados del código fuente público de Felucca (firmware custom para el FM-1). Cada dato lleva su fuente en la sección 11. Lo que nadie ha medido todavía está marcado como <strong><code>VERIFICAR</code></strong>. Las decisiones que el autor aún no ha tomado están en la sección 10.</p></blockquote>
+<hr>
+<h2 id="0-directivas-para-la-ia-que-escriba-el-código">0. Directivas para la IA que escriba el código</h2>
+<p>Actúa como arquitecto principal de software embebido y DSP. Escribes C99 para el M-VAVE FM-1.</p>
+<ol><li>
+<strong>Fuente de verdad:</strong> la sección 1 es el hardware. Si algo no está ahí, <strong>no lo supongas</strong>: escribe <code>// TODO(HW-VERIFY): ...</code> y sigue.
+</li><li>
+<strong>Decisiones abiertas:</strong> si una función depende de algo de la sección 10, implementa la opción marcada como <em>por defecto</em> detrás de un <code>#define</code> y deja <code>// TODO(DECISION-n)</code>.
+</li><li>
+<strong>Sin sistema de archivos:</strong> se escribe en direcciones raw de la flash, <strong>solo</strong> dentro de las particiones de la sección 4.4.
+</li><li>
+<strong>Sin memoria dinámica</strong> en la ISR de audio, en el secuenciador ni en la UI. Todo se reserva estáticamente al arrancar.
+</li><li>
+<strong>Sin código bloqueante</strong> en la UI (<code>while</code> de espera, <code>delay()</code>). Única excepción: las rutinas de escritura en flash (4.5), que por hardware bloquean.
+</li><li>
+<strong>No inventes funciones</strong> que no estén en este documento.
+</li><li>
+<strong>Diseño propio, no derivado de Felucca (DECISIÓN-1 resuelta):</strong> está <strong>prohibido copiar, traducir o parafrasear código de Felucca</strong> (GPL-3.0-only). De Felucca solo se toman <strong>hechos de hardware</strong> (pines, direcciones de registro, tiempos, IDs de la matriz), que no tienen copyright. Para drivers a nivel de registro, la referencia es el <strong>SDK de JieLi AC79 (Apache-2.0)</strong> y los datasheets (ST7789V, 74HC595, flash NOR). La arquitectura, los nombres, las estructuras de datos y la UI son propios de este documento.
+</li></ol>
+<hr>
+<h2 id="1-hardware-real-del-m-vave-fm-1">1. Hardware real del M-VAVE FM-1</h2>
+<h3 id="11-soc-memoria-y-arranque">1.1 SoC, memoria y arranque</h3>
+<div class="tbl"><table><thead><tr><th>Elemento</th><th>Valor</th><th>Notas</th></tr></thead><tbody><tr><td>SoC</td><td>JieLi familia AC79 (AC791N según la ingeniería inversa). En el SDK aparece como <code>cpu/wl82</code></td><td>Núcleo pi32v2</td></tr><tr><td>Toolchain</td><td>JieLi clang 4.0.1 para pi32v2</td><td><strong>No</strong> es <code>pi32v2-gcc</code> como decía V2</td></tr><tr><td>SDK</td><td><code>AC79NN_SDK_V1.2.1_2023-12-13</code> (Apache-2.0)</td><td>Solo se usan 3 archivos de boot para empaquetar</td></tr><tr><td>Reloj del CPU</td><td><code>VERIFICAR</code></td><td></td></tr><tr><td>RAM</td><td><strong>96 KiB</strong> de <code>.data/.bss</code> (+ 24 KiB de RAM ejecutable para rutinas de flash), según el mapa de memoria publicado de los firmwares custom</td><td>Por eso el sampler es de 1.1 s (5.2)</td></tr><tr><td>Flash</td><td><strong>1 MiB</strong> NOR SPI, ejecución XIP. Borrado por sector de 4 KiB (hasta ~400 ms), programación por página de 256 B (hasta ~3 ms)</td><td>Comparte espacio con el firmware</td></tr><tr><td>Formato de actualización</td><td><code>.fwsc</code> (app + loader + <code>uboot.boot</code>, <code>cfg_tool.bin</code>, <code>eq_cfg_hw.bin</code> del SDK)</td><td>Identidad de paquete <code>FM-1_910</code></td></tr><tr><td>Instalación</td><td>Por USB (el instalador de Felucca usa USB-MIDI)</td><td></td></tr><tr><td>Recuperación</td><td>Modo boot del chip: USB <code>WL80UBOOT</code> / mass storage <code>4C4A:8057</code>. Recuperación completa con <em>FM-1 Transporter</em> (RP2040)</td><td><strong>Respaldar la flash antes de la primera prueba</strong></td></tr></tbody></table></div>
+<h3 id="12-pantalla">1.2 Pantalla</h3>
+<div class="tbl"><table><thead><tr><th>Elemento</th><th>Valor</th></tr></thead><tbody><tr><td>Panel</td><td>TFT a color, controlador <strong>ST7789V</strong>, <strong>240×240</strong>, RGB565</td></tr><tr><td>Bus</td><td>SPI1 a 12 MHz (<code>BAUD 4</code>), con DMA. Pines: PC9 CLK, PC10 MOSI, PC7 CS, PC8 D/C</td></tr><tr><td>Backlight</td><td>PA2, activo en bajo. <strong>Esa línea también habilita botones y teclas</strong>: no apagarla para ahorrar energía si el teclado debe seguir vivo</td></tr><tr><td>Framebuffer</td><td><strong>No hay</strong> (240×240×2 = 115 200 B). Se dibuja por franjas o rectángulos desde buffers en RAM</td></tr><tr><td>Coste de un frame completo</td><td>115 200 B a 12 MHz ≈ <strong>77 ms</strong>, o sea ≈ 13 FPS como máximo redibujando todo</td></tr></tbody></table></div>
+<h3 id="13-controles-matriz-de-teclado">1.3 Controles (matriz de teclado)</h3>
+<p>Todo pasa por <strong>una matriz con diodos de 11 columnas × 6 filas</strong>, manejada por 2× 74HC595 y escaneada desde la ISR de TIMER5 a ~10 kHz (una columna por tick). Antirrebote: 2 frames para presionar y 8 para soltar. Sin ghosting.</p>
+<div class="tbl"><table><thead><tr><th>Grupo</th><th>Cantidad</th><th>Detalle</th></tr></thead><tbody><tr><td>Teclas de piano</td><td><strong>27</strong>, IDs 14–40</td><td><strong>F3 a G5</strong>: 16 blancas + 11 negras. Las negras van en grupos 3-2-3-2-1 (F#3 G#3 A#3 · C#4 D#4 · F#4 G#4 A#4 · C#5 D#5 · F#5)</td></tr><tr><td>Botones</td><td><strong>14</strong>, IDs 0–13</td><td>Serigrafía: <strong>OCT−, OCT+, FX, SCL, ENV, LFO, EDIT, GLO, HOME, SAVE, ARP, SEQ, PLAY, REC</strong>. Solo los IDs de PLAY y REC están medidos; el resto debe calibrarse. <strong>No hay botón SHIFT dedicado</strong></td></tr><tr><td>Encoders</td><td><strong>7</strong>, con detent</td><td>Serigrafía: <strong>SELECT, ALGORITHM, PRESETS</strong>, más <strong>KNOB 1–4</strong>. Se leen <strong>dentro de la matriz</strong> (no por interrupción GPIO), con decodificador de cuadratura por tabla: 1 detent = 4 transiciones, hasta ~300 clics/s. <strong>No tienen pulsador</strong> (no hay IDs libres en la matriz)</td></tr><tr><td>Pot MASTER</td><td>1</td><td>PB6, ADC canal 4, <strong>10 bits (0–1023)</strong>, sin filtrado por hardware</td></tr><tr><td>Batería (lectura)</td><td>ADC</td><td>PB1, ADC canal 3. <strong>PB1 a nivel bajo durante 8 s reinicia el chip</strong>: configurarlo solo como entrada analógica</td></tr><tr><td>LEDs</td><td>En <strong>botones y teclas</strong></td><td>Multiplexados en las columnas de la matriz (líneas PH6, PH9, PA9, PA10). Brillo por tiempo de encendido (apagado / tenue / encendido / respiración). Colores: <code>VERIFICAR</code></td></tr></tbody></table></div>
+<h3 id="14-audio-y-conectividad">1.4 Audio y conectividad</h3>
+<div class="tbl"><table><thead><tr><th>Elemento</th><th>Valor</th></tr></thead><tbody><tr><td>Salida</td><td>Codec externo por I2S (ALNK0), DMA de doble buffer, estéreo de 24 bits en palabras int32</td></tr><tr><td>Frecuencia de muestreo</td><td><strong>≈ 44 117.6 Hz</strong> (24 MHz / 544)</td></tr><tr><td>Bloque</td><td>Felucca usa 128 frames por medio buffer (2.9 ms) y renderiza <strong>dentro de la ISR</strong> de ALNK0</td></tr><tr><td>Altavoz</td><td>Integrado; se silencia por hardware al conectar el jack</td></tr><tr><td>Jack</td><td>3.5 mm TRS estéreo</td></tr><tr><td>USB-C</td><td>MIDI in/out <em>class-compliant</em>; audio USB (Felucca envía la mezcla al computador a 44.1/48 kHz); consola serie opcional</td></tr><tr><td>MIDI TRS</td><td><strong>Solo entrada</strong> (UART). No hay salida MIDI TRS</td></tr><tr><td>Bluetooth</td><td>El firmware de fábrica tiene MIDI y audio BT. <strong>Ningún firmware custom lo ha demostrado</strong> (ver DECISIÓN-4)</td></tr><tr><td>Batería</td><td>2000 mAh</td></tr></tbody></table></div>
+<hr>
+<h2 id="2-arquitectura-de-software">2. Arquitectura de software</h2>
+<ul><li>
+<strong><code>core/</code></strong>: C99 puro, sin includes de hardware. DSP, secuenciador, máquinas de estado, modelo de UI.
+</li><li>
+<strong><code>hal/</code></strong>: interfaces <code>hal_audio.h</code>, <code>hal_lcd.h</code>, <code>hal_input.h</code>, <code>hal_flash.h</code>, <code>hal_adc.h</code>, <code>hal_midi.h</code>, <code>hal_led.h</code>. Hay dos implementaciones: JieLi y simulador (WASM/PC).
+</li><li>
+<strong>Motores de sonido</strong> con vtable común:
+</li></ul>
+<pre><code>typedef struct SoundEngine SoundEngine;
+struct SoundEngine {
+    void (*init)(SoundEngine *self);
+    void (*note_on)(SoundEngine *self, uint8_t note, uint8_t vel);
+    void (*note_off)(SoundEngine *self, uint8_t note);
+    void (*set_macro)(SoundEngine *self, uint8_t param_id, uint8_t val);
+    bool (*process)(SoundEngine *self, int32_t *buf, uint16_t frames);
+};</code></pre>
+<ul><li>
+<strong>Hilos de ejecución</strong> (bare-metal):
+<ol><li>
+<strong>ISR de audio (ALNK0):</strong> renderiza un bloque; consume la cola de comandos UI→DSP y publica medidores/playhead en la cola DSP→UI.
+</li><li>
+<strong>ISR de escaneo (TIMER5, ~10 kHz):</strong> matriz, cuadratura y LEDs. Solo <strong>acumula</strong> (ver 6.1).
+</li><li>
+<strong>Bucle principal:</strong> UI a 30 Hz, dibujo, ADC, MIDI, escrituras en flash.
+</li></ol>
+</li><li>
+<strong>Comunicación:</strong> colas SPSC <em>lock-free</em> de tamaño fijo, una por dirección. El DSP nunca lee estructuras de la UI directamente.
+</li></ul>
+<hr>
+<h2 id="3-motor-de-audio">3. Motor de audio</h2>
+<h3 id="31-bus-y-frecuencia">3.1 Bus y frecuencia</h3>
+<ul><li>
+Bus sumador de 32 bits; salida a 24 bits.
+</li><li>
+<strong>Fs de salida = 44 117.6 Hz</strong>, fija por hardware. <em>(Cambio V3: V2 pedía 32 kHz, pero el codec y el audio USB trabajan a 44.1 kHz.)</em>
+</li><li>
+<strong>Carácter lo-fi:</strong> los motores pueden correr a Fs/2 (≈ 22 059 Hz) con sobremuestreo ×2 (por defecto, <em>zero-order hold</em>). Así se reduce el CPU a la mitad y se consigue el sonido "SP". Ver DECISIÓN-2.
+</li></ul>
+<h3 id="32-interpolación-de-muestras">3.2 Interpolación de muestras</h3>
+<ul><li>
+Modo por pista: <strong>DROP</strong> (sin interpolación, estilo SP-1200, <em>por defecto</em> en Drums) o <strong>HERMITE</strong> (cúbica, <em>por defecto</em> en Sampler).
+</li><li>
+<em>(Corrección V3: Hermite reduce el ruido de interpolación, pero no elimina el aliasing al subir el tono.)</em>
+</li><li>
+Wavetables: tablas <strong>band-limited por octava</strong> (mipmaps) generadas por el packer (8.1).
+</li></ul>
+<h3 id="33-salida-maestra-orden-de-la-cadena">3.3 Salida maestra (orden de la cadena)</h3>
+<p><code>suma 32-bit → soft-clipper (DRIVE) → volumen MASTER (pot) → DAC</code></p>
+<ul><li>
+El <strong>soft-clipper</strong> es un polinomio o una LUT, no <code>tanh()</code> por muestra. Su <code>DRIVE</code> se ajusta con GLO+KNOB4 y se guarda en los globales. <em>(Cambio V3: el pot ya no controla el clipper; si lo hiciera, el timbre cambiaría con el volumen.)</em>
+</li><li>
+<strong>Pot MASTER:</strong> ADC de 10 bits leído en el bucle principal, con media móvil de 4 lecturas + histéresis de ±4 cuentas + rampa de ganancia por bloque. <strong>Nunca se guarda.</strong>
+</li><li>
+<strong>Indicador de saturación:</strong> si el bus pasa del umbral en un bloque, el DSP levanta un flag y la UI dibuja un borde rojo de 2 px durante 200 ms.
+</li></ul>
+<h3 id="34-polifonía-y-robo-de-voces">3.4 Polifonía y robo de voces</h3>
+<ul><li>
+Objetivo: <strong>12 voces</strong>. <code>VERIFICAR</code> midiendo el CPU real; Felucca usa 8.
+</li><li>
+<strong>Reserva estática</strong> <em>(cambio V3)</em>: T1 Drums = 4 voces con choke groups · T3 Bass = 1 voz monofónica con glide · <strong>pool compartido de 7 voces</strong> para T2 y T4–T6.
+</li><li>
+Robo dentro del pool, de menor a mayor prioridad: (4) colas de release y voces de poca amplitud → (3) sustain de acordes/pads → (2) ataques nuevos. Se roba siempre la de menor prioridad con menor amplitud, con micro-fade de 2 ms (~88 muestras).
+</li><li>
+<strong>Protección de CPU:</strong> si dos bloques seguidos superan el 85 % del tiempo de bloque, se mata una voz del pool por bloque mientras dure la sobrecarga.
+</li></ul>
+<hr>
+<h2 id="4-secuenciador-y-almacenamiento">4. Secuenciador y almacenamiento</h2>
+<h3 id="41-stepevent-8-bytes-cambio-v3-antes-7">4.1 StepEvent: 8 bytes <em>(cambio V3: antes 7)</em></h3>
+<div class="tbl"><table><thead><tr><th>Byte</th><th>Campo</th><th>Rango / codificación</th></tr></thead><tbody><tr><td>0</td><td><code>note</code></td><td>0–127; <strong>0xFF = evento vacío</strong></td></tr><tr><td>1</td><td><code>vel</code></td><td>1–127</td></tr><tr><td>2</td><td><code>len</code></td><td>bits 0–6 = largo en pasos (1–127); bit 7 = <strong>TIE/GLIDE</strong></td></tr><tr><td>3</td><td><code>prob</code></td><td>0–100 (%)</td></tr><tr><td>4</td><td><code>p_cutoff</code></td><td>0–254; 0xFF = valor de la pista</td></tr><tr><td>5</td><td><code>p_res</code></td><td>ídem</td></tr><tr><td>6</td><td><code>p_decay</code></td><td>ídem</td></tr><tr><td>7</td><td><code>p_pos</code></td><td>posición de wavetable / inicio de sample; ídem</td></tr></tbody></table></div>
+<ul><li>
+Hasta 4 eventos por paso, 64 pasos (4 páginas de 16) y 6 pistas.
+</li><li>
+<strong>Probabilidad:</strong> PRNG <code>xorshift32</code> con semilla por patrón, que se reinicia al dar PLAY (cada vuelta suena distinta, pero dos corridas desde PLAY son idénticas). El simulador y el hardware deben dar el mismo resultado. <strong>No usar <code>rand()</code>.</strong>
+</li></ul>
+<h3 id="42-formato-de-patrón-en-flash-disperso">4.2 Formato de patrón en flash (disperso)</h3>
+<p><em>(Cambio V3: el formato denso ocuparía 12 KiB por patrón, y con 1 MiB de flash no caben.)</em></p>
+<pre><code>Header (16 B): magic &#x27;KOP3&#x27; | slot u8 | rsv u8 | len u16 | seq u32 | crc32 u32
+Meta   (64 B): bpm, swing, largo, delay, sidechain, kit, waves...
+Pistas (6 × 32 B): parámetros por pista (macros, nivel, pan, envío, duck, motor)
+Eventos: por pista → count u16 + count × [step u8 + StepEvent 8 B]</code></pre>
+<ul><li>
+<strong>Máximo 768 eventos por patrón.</strong> Tamaño máximo: 16 + 64 + 192 + 12 + 768 × 9 = <strong>7 196 B, que caben en 2 sectores (8 KiB)</strong>.
+</li><li>
+Si se llena, la UI muestra <code>PATRON LLENO</code> y no acepta más eventos.
+</li><li>
+Song mode: lista de <code>{patrón u8, repeticiones u8}</code>, con un máximo de 64 entradas.
+</li></ul>
+<h3 id="43-reloj">4.3 Reloj</h3>
+<ul><li>
+<strong>Resolución interna: 96 PPQN</strong>, calculada a partir del contador de muestras del audio (sin timer aparte, así no hay deriva). Los eventos se disparan con offset dentro del bloque, con precisión de muestra.
+</li><li>
+<code>INTERNAL</code>: el FM-1 es maestro y envía MIDI Clock (24 PPQN) <strong>solo por USB</strong>.
+</li><li>
+<code>EXTERNAL</code>: esclavo de MIDI Clock por <strong>USB o TRS</strong>. Entre ticks se interpola ×4 y hay un filtro de jitter.
+</li><li>
+<strong>Swing: 50–75 %</strong> (50 = recto) aplicado a los pasos pares. <em>(Cambio V3: antes 0–100 %.)</em>
+</li><li>
+El cambio de patrón siempre se <strong>cuantiza al final del patrón</strong>.
+</li></ul>
+<h3 id="44-mapa-de-flash-1-mib">4.4 Mapa de flash (1 MiB)</h3>
+<p>Tomado del mapa que usa Felucca. <strong><code>VERIFICAR</code> el tamaño final del binario antes de fijarlo.</strong></p>
+<div class="tbl"><table><thead><tr><th>Rango</th><th>Tamaño</th><th>Uso</th><th>Regla</th></tr></thead><tbody><tr><td><code>0x000000–0x096FFF</code></td><td>~604 KiB</td><td>Boot + firmware + <strong>ROM de sonidos</strong> (drums, AKWF)</td><td>Solo lo escribe el instalador</td></tr><tr><td><code>0x097000–0x0DFFFF</code></td><td>292 KiB</td><td><strong>Store de usuario</strong> (log de patrones, song, samples guardados)</td><td>Escribible</td></tr><tr><td><code>0x0E0000–0x0E4FFF</code></td><td>20 KiB</td><td>Staging del loader OTA</td><td>No tocar si se usa ese loader</td></tr><tr><td><code>0x0E5000–0x0E7FFF</code></td><td>12 KiB</td><td>Reservado</td><td>No tocar en V3</td></tr><tr><td><code>0x0E8000–0x0FBFFF</code></td><td>80 KiB</td><td>Respaldo VM del firmware de fábrica</td><td><strong>Nunca escribir</strong></td></tr><tr><td><code>0x0FC000–0x0FEFFF</code></td><td>12 KiB</td><td>Globales (A/B)</td><td>Escribible</td></tr><tr><td><code>0x0FF000–0x0FFFFF</code></td><td>4 KiB</td><td>Desconocido</td><td><code>VERIFICAR</code>; no tocar</td></tr></tbody></table></div>
+<p><strong>Presupuesto propuesto de la ROM de sonidos:</strong> Drums ≤ 192 KiB (16 bits a 22 kHz, o IMA-ADPCM 4:1) · AKWF: 64 ondas × 256 muestras × 16 bits = 32 KiB (≈ 64 KiB con mipmaps) · Código ≤ ~340 KiB.</p>
+<p><strong>Store de usuario:</strong> 292 KiB / 8 KiB = 36 slots. Por defecto: <strong>16 patrones + 1 song</strong>, y el resto queda como espacio libre para el wear-leveling (ver DECISIÓN-3 sobre guardar samples).</p>
+<h3 id="45-escritura-en-flash-wear-leveling-y-seguridad">4.5 Escritura en flash (wear-leveling y seguridad)</h3>
+<ul><li>
+<strong>Log circular</strong> de slots de 8 KiB: siempre se escribe en el siguiente slot libre, nunca encima del slot vigente.
+</li><li>
+<strong>Orden de commit:</strong> primero el cuerpo, al final el header con <code>seq</code> + <code>crc32</code>. Al arrancar se escanea y gana, por id, el <code>seq</code> más alto con CRC válido. Si se corta la batería a mitad, el patrón anterior sigue intacto.
+</li><li>
+Antes de borrar, comprobar batería (ADC) &gt; umbral (<code>VERIFICAR</code>).
+</li><li>
+<strong>Mientras se borra o programa, el XIP se apaga y las IRQ se desactivan</strong>: el código corre desde <code>.ram_text</code> y <strong>el audio se detiene</strong> (hasta ~400 ms por sector).
+<ul><li>
+<strong>Regla:</strong> solo se guarda con el <strong>transporte en STOP</strong>, con un fade-out de 5 ms antes de empezar. La pantalla muestra <code>GUARDANDO</code>.
+</li><li>
+Autosave: solo en STOP y tras 10 s sin cambios.
+</li></ul>
+</li></ul>
+<hr>
+<h2 id="5-pistas">5. Pistas</h2>
+<div class="tbl"><table><thead><tr><th>Pista</th><th>Motor</th><th>Detalle</th></tr></thead><tbody><tr><td>T1 Drums</td><td>ROMpler</td><td>Hits CC0 (estilo 808/909/Linn) desde la ROM. Choke: HH cerrado corta HH abierto. 4 voces reservadas. Modo DROP por defecto</td></tr><tr><td>T2 Sampler</td><td>RAM</td><td>Ver 5.2</td></tr><tr><td>T3 Bass</td><td>Wavetable mono</td><td>1 voz, glide cuando el evento tiene TIE, SVF paso-bajo de 2 polos</td></tr><tr><td>T4–T6 Synth</td><td>Wavetable poly</td><td>Pool compartido; ondas AKWF remuestreadas a 256 muestras; SVF de 2 polos</td></tr></tbody></table></div>
+<p><strong>Sidechain:</strong> cada NoteOn de T1 dispara una envolvente de atenuación (attack 0, release ajustable) que multiplica la ganancia de T3–T6. Profundidad <strong>por pista</strong> (0–100 %). Se calcula por bloque con interpolación lineal (es barato, pero no "gratis").</p>
+<h3 id="52-sampler">5.2 Sampler</h3>
+<ul><li>
+<strong>Fuente</strong> (ver DECISIÓN-4), por fases: 1) <strong>resample</strong> de la mezcla interna o de una pista (sin riesgo de hardware) → 2) audio USB entrante → 3) Bluetooth A2DP.
+</li><li>
+Formato: <strong>8 bits</strong> mono a Fs/2 (≈ 22 kHz) en un buffer de 24 KiB = <strong>1.11 s</strong> (la RAM es de 96 KiB).
+</li><li>
+<strong>Chop mode:</strong> durante la grabación, las teclas no suenan; cada pulsación guarda un marcador (offset de inicio). Máximo 16 marcadores. <strong>No se dibuja la forma de onda</strong>: se muestra el nivel de entrada, los segundos restantes y una línea de tiempo con los marcadores.
+</li><li>
+<strong>El sample es volátil por defecto:</strong> se pierde al apagar. La UI lo avisa con la etiqueta <code>VOLATIL</code> en T2.
+</li></ul>
+<hr>
+<h2 id="6-uiux">6. UI/UX</h2>
+<h3 id="61-entrada-asíncrona">6.1 Entrada asíncrona</h3>
+<ul><li>
+La ISR de escaneo <strong>acumula</strong> un contador <code>int16_t</code> por encoder (7) y un bitmap de teclas/botones con flancos. <strong>No se usa una FIFO de eventos</strong>, porque con ráfagas se desborda.
+</li><li>
+La UI (30 Hz) lee y pone a cero los contadores en una sección crítica corta y aplica aceleración (≥ 3 clics por tick → ×4).
+</li></ul>
+<h3 id="62-gramática-de-gestos">6.2 Gramática de gestos</h3>
+<div class="tbl"><table><thead><tr><th>Gesto</th><th>Regla</th></tr></thead><tbody><tr><td><strong>TAP</strong></td><td>Se suelta antes de <strong>300 ms</strong> → se ejecuta <strong>al soltar</strong>: abre la página del botón</td></tr><tr><td><strong>HOLD</strong></td><td>Pasan 300 ms sin soltar → se ejecuta <strong>al vencer el timer</strong> (no al soltar): modo live momentáneo. Al soltar, vuelve a la vista anterior</td></tr><tr><td><strong>COMBO</strong></td><td>Otra tecla o encoder antes de los 300 ms → se cancela el TAP y se entra al HOLD <strong>de inmediato</strong></td></tr><tr><td><strong>Instantáneos</strong></td><td>PLAY, teclas de nota, selección de pista y GLO (como modificador) actúan <strong>al presionar</strong>, sin esperar umbral</td></tr><tr><td><strong>Hold largo</strong></td><td>SAVE = 1 000 ms (porque escribe en flash)</td></tr></tbody></table></div>
+<p>Umbrales en <code>config.h</code>: <code>UI_HOLD_MS 300</code>, <code>UI_SAVE_HOLD_MS 1000</code>, <code>UI_OVERLAY_MS 1500</code>.</p>
+<h3 id="63-pantalla-240240">6.3 Pantalla 240×240</h3>
+<pre><code>y=0   ┌────────────────────────────┐
+      │ ESTADO (24 px, siempre fijo)│  ▶/■ · patrón · compás.tiempo · pista (color) · BPM · batería
+y=24  ├────────────────────────────┤
+      │ CONTEXTO (176 px)          │  vista del modo actual; los overlays solo tapan esta zona
+y=200 ├────────────────────────────┤
+      │ K1 │ K2 │ K3 │ K4  (40 px) │  leyenda de KNOB 1–4, en el mismo orden físico
+y=240 └────────────────────────────┘</code></pre>
+<ul><li>
+<em>(Cambio V3: antes era 50/50; con 50 % de estado se desperdician 120 px.)</em>
+</li><li>
+<strong>Presupuesto de dibujo:</strong> cada tick de 33 ms puede mandar como mucho ~37 KB por SPI (≈ 1/3 de la pantalla). Solo se redibujan rectángulos sucios. Buffer de franja: 240 × 16 × 2 = 7.5 KiB.
+</li><li>
+<strong>Overlay de parámetro:</strong> aparece al primer clic del encoder dentro de la zona de contexto, la celda de la leyenda se invierte, y se oculta 1 500 ms después del último clic.
+</li><li>
+<strong>Vista SEQ:</strong> las 4 páginas a la vez (grilla de 4 × 16 de la pista actual, celdas de 15 px), con la página editable resaltada, y debajo 6 mini-carriles con la actividad de cada pista.
+</li><li>
+<strong>Live Key-Map:</strong> dibujo 1:1 del teclado real F3–G5 (blancas de 15 px) con fuente de 3×5 px para los nombres. La nota o acorde que se está tocando aparece grande en la parte superior de la zona de contexto.
+</li></ul>
+<h3 id="64-leds-nuevo-en-v3-el-hardware-los-tiene">6.4 LEDs <em>(nuevo en V3: el hardware los tiene)</em></h3>
+<ul><li>
+<strong>Teclas en SEQ:</strong> blanca encendida = paso activo · tenue = vacío · parpadeo = playhead · respiración = paso con P-Lock.
+</li><li>
+<strong>Negras en SEQ:</strong> pista seleccionada encendida; pistas muteadas apagadas.
+</li><li>
+<strong>Botones:</strong> modo activo encendido; PLAY encendido mientras suena; REC encendido mientras graba.
+</li><li>
+<strong>En SCL live:</strong> las teclas que están en la escala, encendidas.
+</li></ul>
+<h3 id="65-mapa-de-controles">6.5 Mapa de controles</h3>
+<p><strong>Botones</strong> (GLO hace de modificador SHIFT):</p>
+<div class="tbl"><table><thead><tr><th>Botón</th><th>TAP</th><th>HOLD</th><th>GLO +</th></tr></thead><tbody><tr><td>PLAY</td><td>Play/Stop (al presionar)</td><td>—</td><td>Reinicia desde el paso 1</td></tr><tr><td>REC</td><td>Grabación en vivo on/off</td><td>—</td><td>—</td></tr><tr><td>SEQ</td><td>Vista de pasos</td><td>Banco de patrones en vivo (blanca = encolar)</td><td>Song mode</td></tr><tr><td>HOME</td><td>Vista general de las 6 pistas + mixer</td><td>Mute en vivo (blancas 1–6) y solo (9–14)</td><td>—</td></tr><tr><td>EDIT</td><td>Parámetros del motor de la pista (páginas con SELECT)</td><td>—</td><td>—</td></tr><tr><td>ENV</td><td>Envolvente de la pista</td><td>—</td><td>—</td></tr><tr><td>LFO</td><td>DECISIÓN-5</td><td></td><td></td></tr><tr><td>FX</td><td>Página de FX globales (delay, sidechain)</td><td><strong>Punch-in FX:</strong> blancas = 16 efectos</td><td>—</td></tr><tr><td>SCL</td><td>Página de escala y acordes</td><td><strong>Live Key-Map:</strong> tocar escala y acordes</td><td>—</td></tr><tr><td>ARP</td><td>Página del arpegiador</td><td>Arpegiador en vivo mientras se mantiene</td><td>—</td></tr><tr><td>SAVE</td><td>Menú de guardado</td><td>1 s = guardado rápido (solo en STOP)</td><td>—</td></tr><tr><td>GLO</td><td>Ajustes globales (reloj, sync, MIDI, fuente del sampler)</td><td>Modificador</td><td>—</td></tr><tr><td>OCT− / OCT+</td><td>Octava − / + · <strong>en SEQ: página − / +</strong></td><td>—</td><td>Transponer la pista ± semitono</td></tr></tbody></table></div>
+<p><strong>Encoders:</strong></p>
+<div class="tbl"><table><thead><tr><th>Encoder</th><th>Función</th><th>GLO +</th></tr></thead><tbody><tr><td>KNOB 1–4</td><td>Macros de la pista: CUTOFF · RESO · DECAY · POS (son los mismos 4 P-Locks)</td><td>BPM · SWING · LARGO · DRIVE</td></tr><tr><td>SELECT</td><td>Navegar páginas o filas de menú</td><td>—</td></tr><tr><td>ALGORITHM</td><td><strong>Selección de pista 1–6</strong> (la pantalla muestra el nombre real)</td><td>Motor o kit de la pista</td></tr><tr><td>PRESETS</td><td>Patrón A01–A16 (se encola al final si está sonando)</td><td>Onda AKWF / kit</td></tr><tr><td>MASTER (pot)</td><td>Volumen final, no se guarda</td><td>—</td></tr></tbody></table></div>
+<p><strong>Teclas en SEQ:</strong> blancas 1–16 = pasos de la página · mantener paso + KNOB = P-Lock · negras 1–6 = pista (GLO + negra = mute) · negra 7 = COPY · 8 = PASTE · 9 = CLEAR · 10 = FILL (mantener) · 11 = reservada. <strong>Teclas fuera de SEQ:</strong> tocan la pista seleccionada (en T1, cada tecla es un sonido del kit). <strong>SCL live:</strong> blancas = notas de la escala · negras 1–7 = acordes diatónicos · negras 8–11 = +7, +9, SUS2, SUS4.</p>
+<p><strong>Portapapeles:</strong> <code>struct { uint8_t type; union { StepEvent ev[4]; TrackData trk; PatternData pat; } }</code>. <strong>No usar <code>void*</code>.</strong> Undo de un nivel para la última edición (paso, CLEAR o PASTE).</p>
+<hr>
+<h2 id="7-conectividad">7. Conectividad</h2>
+<ul><li>
+<strong>Split Sync</strong> (en GLO): el canal L emite pulsos y el R lleva la mezcla en mono.
+<ul><li>
+PPQN configurable 1/2/4 (por defecto 2; <code>VERIFICAR</code> con un Pocket Operator o Volca real).
+</li><li>
+Pulso de 5 ms a escala completa, que <strong>no pasa por el clipper ni por el pot MASTER</strong>.
+</li><li>
+Compensación de latencia en ms ajustable.
+</li></ul>
+</li><li>
+<strong>MIDI:</strong> entrada por USB y TRS; salida solo por USB. Canales 1–6 = pistas.
+</li><li>
+<strong>Bluetooth:</strong> ver DECISIÓN-4.
+</li></ul>
+<hr>
+<h2 id="8-herramientas">8. Herramientas</h2>
+<ol><li>
+<strong>Packer (Python):</strong> WAV → 22 050 Hz mono (16 bits o IMA-ADPCM) con filtro antialiasing. AKWF (600 muestras) → 256 muestras + mipmaps por octava. Genera <code>rom_assets.c</code> (<code>const</code>) + índice. Comprueba que se respete el presupuesto de 4.4.
+</li><li>
+<strong>CMake</strong> con 3 targets: <code>sim</code> (PC, miniaudio + SDL2), <code>wasm</code> (emcc) y <code>fm1</code> (JieLi clang 4.0.1 pi32v2 + empaquetado <code>.fwsc</code>).
+</li><li>
+<strong>Companion web:</strong> Web MIDI + SysEx para volcar o cargar patrones, con 7 bits por byte (8 bytes → 7 de datos).
+</li><li>
+<strong>Instalador propio:</strong> escrito desde cero (no se reutiliza <code>fm1_install.py</code>). Instala por USB-MIDI y, antes de instalar, verifica que existe un respaldo completo de la flash. Mientras no exista, la primera prueba se hace con un método de recuperación ya probado a mano (modo boot <code>WL80UBOOT</code> o el Transporter RP2040). <strong>Usarlos como herramientas externas no copia código dentro del firmware.</strong>
+</li></ol>
+<hr>
+<h2 id="9-seguridad-del-dispositivo">9. Seguridad del dispositivo</h2>
+<ul><li>
+No escribir nunca fuera de las particiones escribibles de 4.4.
+</li><li>
+Combinación de arranque (OCT− + OCT+ al encender) = modo seguro: firmware sin cargar el store, por si un patrón corrupto provoca un crash.
+</li><li>
+Documentar la vuelta al firmware de fábrica (actualizador de M-VAVE) y la recuperación con FM-1 Transporter.
+</li></ul>
+<hr>
+<h2 id="10-decisiones-abiertas">10. Decisiones abiertas</h2>
+<div class="tbl"><table><thead><tr><th>#</th><th>Decisión</th><th>Opciones</th><th>Por defecto</th></tr></thead><tbody><tr><td>1</td><td><del>Licencia y base de código</del></td><td><strong>RESUELTA:</strong> firmware propio desde cero, sin código de Felucca. La licencia del proyecto la elige el autor</td><td>—</td></tr><tr><td>1b</td><td><del>Licencia del proyecto</del></td><td><strong>RESUELTA (2026-10-10): GPL-3.0-or-later.</strong> Compatible con usar el SDK de JieLi (Apache-2.0): sus binarios se distribuyen con su licencia</td><td>—</td></tr><tr><td>2</td><td>Frecuencia de los motores</td><td>Fs completa (44.1k) vs Fs/2 (22k, lo-fi, mitad de CPU)</td><td>Fs/2</td></tr><tr><td>3</td><td>¿Guardar samples?</td><td>Volátil · 1 slot de ~2 s (≈ 88 KiB, quitando 11 slots de patrón)</td><td>Volátil</td></tr><tr><td>4</td><td>Fuente del sampler</td><td>Resample → USB audio → BT (cada fase depende de la anterior)</td><td>Resample</td></tr><tr><td>5</td><td>Botón LFO</td><td>LFO por pista (función nueva) · asignarlo al mixer · reservado</td><td>Reservado (pantalla "RESERVADO" en 0.1.0)</td></tr><tr><td>6</td><td>Polifonía final</td><td>12 si el CPU lo permite, si no 8</td><td>Medir</td></tr></tbody></table></div>
+<hr>
+<h2 id="11-fuentes">11. Fuentes</h2>
+<ul><li>
+Código y wiki de Felucca (hugelton/Felucca): <code>firmware/hal/fm1_input.h</code> (matriz, IDs, encoders, LEDs), <code>fm1_lcd_hw.h</code> y <code>src/lcd.c</code> (ST7789V 240×240, SPI1 12 MHz), <code>fm1_adc.h</code> (MASTER PB6 ch4 y batería PB1 ch3, 10 bits), <code>fm1_audio.h</code> y <code>src/audio.c</code> (I2S, 24 bits, 44 117.6 Hz), <code>fm1_flash.h</code> (1 MiB, sectores, mapa, XIP desactivado durante la escritura), <code>src/panel.c</code> (nombres de botones y encoders), <code>BUILDING.md</code> y <code>LICENSING.md</code>.
+</li><li>
+Reseñas: Synth Anatomy (TFT a color, batería de 2000 mAh, BT MIDI + audio, entrada MIDI TRS), Elektronauts (4 encoders + rejilla de 6×2 botones).
+</li></ul>
+<hr>
+<h2 id="12-ajustes-hechos-al-implementar-v31-firmware-010">12. Ajustes hechos al implementar (V3.1, firmware 0.1.0)</h2>
+<div class="tbl"><table><thead><tr><th>Tema</th><th>V3</th><th>Implementado</th><th>Por qué</th></tr></thead><tbody><tr><td>RAM</td><td><code>VERIFICAR</code></td><td>96 KiB; la app completa usa ~81 KiB estáticos + ~6 KiB de gráficos</td><td>Ver <code>docs/MEMORIA.md</code></td></tr><tr><td>Sampler</td><td>16 bits, RAM libre</td><td>8 bits, 24 KiB = 1.11 s, volátil</td><td>Cabe en la RAM</td></tr><tr><td>Delay</td><td>sin detalle</td><td>Mono, 16 bits, a Fs/4 efectivos (escribe una de cada dos muestras del motor): 8192 muestras = 0.74 s. Tiempos 1/16, 1/8, 3/16, 1/4</td><td>Repeticiones oscuras, carácter lo-fi y poca RAM</td></tr><tr><td>Buffer de punch-in</td><td>sin detalle</td><td>8 KiB mu-law = 0.37 s; si 1/4 no cabe, usa la mitad</td><td>RAM</td></tr><tr><td>Punch-in FX (16)</td><td>STUT, REV, TAPE STOP/START...</td><td>STUT 1/4·1/8·1/16·1/32, REV 1/8·1/4, TAPE STOP, GATE 1/16, LPF SWEEP, HPF SWEEP, BITCRUSH, SR DOWN, DLY THROW, ECHO FREEZE, KILL LOW, KILL HIGH</td><td>TAPE START necesita leer el futuro: se cambió por GATE</td></tr><tr><td>Nombres de las 4 macros</td><td>CUTOFF RESO DECAY POS</td><td>Synth: CUTOFF RESO DECAY WAVE · Drums/Sampler: TONE TUNE DECAY START</td><td>Mismos 4 bytes de P-Lock, nombre según el motor</td></tr><tr><td>HOME</td><td>vista general</td><td>Vista general + mixer: K1 NIVEL, K2 PAN, K3 ENVÍO, K4 DUCK</td><td>El mixer necesita un lugar sin botón propio</td></tr><tr><td>ENV</td><td>envolvente</td><td>Página 1: ATTACK DECAY SUSTAIN RELEASE · ENV otra vez = página 2: ENV&gt;FILTRO, GLIDE</td><td>Regla "el mismo botón pasa páginas"</td></tr><tr><td>FX (tap)</td><td>FX globales</td><td>K1 tiempo de delay, K2 feedback, K3 mix, K4 release del sidechain</td><td>—</td></tr><tr><td>SCL</td><td>escala y acordes</td><td>K1 tónica, K2 escala (9), K3 acorde base (tríada/+7/+9/SUS2/SUS4), K4 LOCK (teclado siempre en escala)</td><td>—</td></tr><tr><td>ARP</td><td>arpegiador</td><td>K1 modo (OFF/UP/DOWN/UP-DN/RAND), K2 rate (1/8 1/16 1/32), K3 octavas (1-3), K4 gate</td><td>Solo pistas synth</td></tr><tr><td>Negra 11 en SEQ</td><td>reservada</td><td><strong>UNDO</strong> (un nivel)</td><td>El undo existía pero no tenía tecla</td></tr><tr><td>GLO + ALGORITHM</td><td>motor o kit</td><td>T1: kit (KO-808 / KO-909) · T2: interpolación (DROP/HERMITE) · T3-T6: banco de ondas</td><td>—</td></tr><tr><td>GLO + PRESETS</td><td>onda / kit</td><td>Sin uso</td><td>Quedó cubierto por GLO + ALGORITHM</td></tr><tr><td>Paso mantenido</td><td>P-Lock con KNOBs</td><td>Además: SELECT = nota/sonido, ALGORITHM = probabilidad (pasos de 5 %), PRESETS = largo 1-16 o TIE</td><td>Los 7 encoders tienen trabajo</td></tr><tr><td>Formato disperso</td><td>paso u8</td><td>Byte de posición = paso (bits 0-5) + slot (bits 6-7)</td><td>Conservar el slot de cada evento al recargar</td></tr><tr><td>Ganancia del bus</td><td>sin detalle</td><td>Nivel 100 = -12 dB de headroom; DRIVE por defecto 25 (≈ x1.35)</td><td>Medido con la demo: satura en ~0.5 % de los bloques</td></tr><tr><td>Primer arranque</td><td>sin detalle</td><td>Si la flash está vacía, se carga una demo (Am-F-C-G, 112 BPM)</td><td>Para que PLAY suene de inmediato</td></tr><tr><td>Sobremuestreo x2</td><td>ZOH (escalón)</td><td>Interpolación lineal</td><td>El ZOH dejaba -22 dB de imágenes arriba de 11 kHz; lineal baja a -27 dB por casi el mismo costo</td></tr><tr><td>Botones sin capa</td><td>TAP al soltar antes de 300 ms</td><td>EDIT, ENV y LFO hacen TAP al soltar aunque se hayan mantenido (salvo combo)</td><td>Más tolerante, sin función que perder</td></tr></tbody></table></div>
+<hr>
+<h2 id="13-versión-02">13. Versión 0.2</h2>
+<p>El diseño de la 0.2 está en <a href="diseno-0-2.html"><code>DISENO_0.2.md</code></a> y reemplaza a las secciones 4.1, 5, 6.2 y 6.5 donde no coinciden:</p>
+<ul><li>
+<strong>Pistas TR</strong> (T1 y T2): un byte por paso y por instrumento (on, acento, repetición, flam, condición de fill, P-Lock) en lugar de eventos de 8 bytes.
+</li><li>
+<strong>Tiempo por pista:</strong> largo y velocidad por pista; largo por instrumento TR; largo maestro.
+</li><li>
+<strong>Tercera pulsación de 2 s</strong> para pantallas especiales, que se cancela si se toca otro control.
+</li><li>
+<strong>Sampler:</strong> 2 slots de 64 KiB en flash (4 s a 16 kHz) y grabación de hasta 3 s en una arena de 48 KiB compartida con el delay y el punch-in. Decisión 3 resuelta: el sample se guarda.
+</li><li>
+<strong>Flash:</strong> el log de patrones baja a 20 slots (<code>0x097000-0x0BFFFF</code>) y los samples ocupan <code>0x0C0000-0x0DFFFF</code>.
+</li><li>
+<strong>Escenas</strong> A-D, <strong>loopera</strong> por synth, <strong>roll</strong>, <strong>strum</strong> y <strong>cuadrícula de acordes</strong>.
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/SPEC_V3.md">docs/SPEC_V3.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

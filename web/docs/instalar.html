@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/INSTALAR.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instalar Bubba Machine · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html" aria-current="page">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html" aria-current="page">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="instalar-bubba-machine">Instalar Bubba Machine</h1>
+<h2 id="estado-actual-todavía-no-se-puede-instalar">Estado actual: todavía no se puede instalar</h2>
+<p><strong>No hay instalador ni binario para el FM-1.</strong> El firmware funciona completo en el <a href="https://erbubar23.github.io/bubba-machine/emulador.html">emulador web</a> y en las pruebas de PC, pero el port al hardware es un esqueleto que <strong>nunca se ha compilado con el toolchain de JieLi ni probado en un FM-1</strong>. El avance está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a>.</p>
+<p>No intentes flashear nada de este repositorio en tu aparato.</p>
+<h2 id="mientras-tanto-el-emulador">Mientras tanto: el emulador</h2>
+<ol><li>
+Abre el <a href="https://erbubar23.github.io/bubba-machine/emulador.html">emulador</a> en Chrome o Edge.
+</li><li>
+Pulsa <strong>Encender</strong>. Arranca con una demo.
+</li><li>
+Con el teclado de la computadora:
+<ul><li>
+<strong>Espacio</strong> es PLAY, <strong>Enter</strong> es REC y <strong>Shift</strong> es GLO.
+</li><li>
+Los números <strong>1-8</strong> son HOME, SEQ, EDIT, ENV, FX, SCL, ARP y SAVE, y las <strong>flechas</strong> son OCT− y OCT+.
+</li><li>
+Las filas <strong>Z-/</strong> y <strong>Q-P</strong> tocan las teclas del FM-1.
+</li><li>
+La <strong>rueda del mouse</strong> sobre una perilla la gira.
+</li></ul>
+</li><li>
+En <strong>Sampler y memoria</strong> puedes cargar un WAV de hasta 4 s al slot A.
+</li></ol>
+<p>El emulador corre exactamente el mismo código C que irá en el aparato.</p>
+<h2 id="cómo-será-la-instalación">Cómo será la instalación</h2>
+<p>Cuando exista una versión probada en hardware:</p>
+<ol><li>
+<strong>Respaldo primero.</strong> El instalador se va a negar a instalar si no hay un respaldo completo de la flash (1 MiB) de tu FM-1.
+</li><li>
+<strong>Instalación por USB-C</strong>, desde el navegador (Web MIDI), sin programas extra.
+</li><li>
+<strong>Vuelta atrás:</strong> siempre se podrá volver al firmware de fábrica con el actualizador oficial de M-VAVE o, si algo sale mal, restaurar el respaldo con el modo de arranque del chip o con el <em>FM-1 Transporter</em> (RP2040).
+</li><li>
+<strong>Modo seguro:</strong> mantener OCT− y OCT+ al encender arranca sin cargar los patrones, por si alguno estuviera dañado.
+</li></ol>
+<p>Bubba Machine solo escribe en las zonas de la flash reservadas para patrones, samples y ajustes. Nunca toca el cargador ni el respaldo del firmware de fábrica.</p>
+<h2 id="seguridad">Seguridad</h2>
+<p>Instalar firmware no oficial <strong>puede dejar tu FM-1 inservible</strong> y probablemente anula la garantía. Este software se entrega sin garantía (ver <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">licencia</a>, secciones 15 y 16). Instala solo versiones marcadas como <strong>probadas en hardware</strong> en el <a href="cambios.html">registro de cambios</a>.</p>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/INSTALAR.md">docs/INSTALAR.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

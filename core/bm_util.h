@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — utilidades: PRNG, CRC32 y tablas de DSP calculadas al arrancar. */
 #ifndef BM_UTIL_H
 #define BM_UTIL_H

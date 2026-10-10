@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — almacenamiento en flash.
  *
  * Cada objeto se escribe SIEMPRE en un slot nuevo del log (nunca encima del

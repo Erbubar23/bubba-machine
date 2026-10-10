@@ -1,0 +1,75 @@
+# Desarrollo
+
+## Requisitos
+
+- **Python 3** con `numpy` y `Pillow`: generan los sonidos, la fuente, el logo y el sitio.
+- **Docker**: compila y corre las pruebas (GCC) y el emulador (Emscripten). No hace falta compilador local.
+
+En Windows el comando de Python es `py -3`; en Linux y macOS, `python3`.
+
+## Comandos
+
+```sh
+py -3 tools/build.py assets   # fuente, kits, ondas, loops de fábrica y logo (core/gen/)
+py -3 tools/build.py test     # compila y corre las pruebas en PC; capturas en assets/screens/
+py -3 tools/build.py web      # emulador: web/bm.js
+py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/
+py -3 tools/build.py all      # todo lo anterior
+```
+
+Las pruebas (`tests/test_core.c`) recorren el firmware como lo haría una persona: arrancan, tocan botones, graban, guardan, apagan y vuelven a prender. También verifican el tiempo del secuenciador, el presupuesto de la pantalla y que nunca se escriba la flash mientras suena.
+
+## Estructura
+
+```
+core/        el firmware, C99 sin hardware: audio, secuenciador, interfaz y guardado
+core/gen/    datos generados por tools/: fuente, kits, ondas, loops y logo
+hal/         capas de hardware: sim (PC y web), web (WebAssembly) y fm1 (port)
+web/         sitio: portada, emulador (emulador.html) y documentación (docs/)
+docs/        manual, especificación, diseño y guías (fuente del sitio)
+tests/       pruebas automáticas
+tools/       generadores y build
+assets/      logo, capturas, loops de fábrica
+```
+
+## Reglas del núcleo
+
+- `core/` no conoce el hardware: todo pasa por la plataforma (`bm_platform`) que da cada `hal/`.
+- Sin `malloc`. La RAM del FM-1 es de 96 KiB; el presupuesto está en [`MEMORIA.md`](MEMORIA.md).
+- El audio corre en su propio contexto: la interfaz le habla solo por la cola de comandos.
+- La flash **solo se escribe con el transporte parado**: escribir detiene el audio.
+
+## Sonidos y loops de fábrica
+
+- Los kits y las ondas se sintetizan en `tools/gen_assets.py`.
+- Los loops de fábrica se definen en `assets/loops/loops.json` y se sintetizan en `tools/gen_loops.py`.
+- Para probar con tu propio audio, crea `assets/loops/loops.local.json` (está en `.gitignore`) y genera con:
+  ```sh
+  py -3 tools/gen_loops.py --local
+  ```
+  **Un build hecho con `--local` no se puede publicar**: ni `web/bm.js` ni binarios. Antes de subir cambios, vuelve a generar sin `--local`.
+
+## El sitio
+
+- `web/index.html` es la portada y `web/emulador.html`, el emulador.
+- Las páginas de `web/docs/` se generan desde los `.md` con `tools/gen_site.py`: edita el `.md`, no el HTML.
+- GitHub Pages publica la carpeta `web/` con el flujo `.github/workflows/pages.yml`.
+
+## Integración continua
+
+`.github/workflows/ci.yml` corre las pruebas en cada push y en cada pull request.
+
+## Ramas
+
+| Rama | Para qué |
+|---|---|
+| `dev` | Trabajo diario. Los pull requests van aquí |
+| `qa` | Lo que se va a publicar, en prueba: emulador y, cuando exista, el FM-1 |
+| `main` | Lo publicado. Cada versión sale de aquí y el sitio se publica desde aquí |
+
+Los cambios suben en un solo sentido: `dev` › `qa` › `main`.
+
+## Versiones
+
+- El número de versión vive en `core/bm_config.h` (`BM_VERSION_STR`) y en [`CHANGELOG.md`](../CHANGELOG.md).
+- Cada versión pública es una etiqueta `vX.Y.Z` con su código fuente. La GPL exige que cualquier binario que se publique tenga su fuente correspondiente.

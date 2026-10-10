@@ -311,7 +311,7 @@ y=240 └───────────────────────�
 | # | Decisión | Opciones | Por defecto |
 |---|---|---|---|
 | 1 | ~~Licencia y base de código~~ | **RESUELTA:** firmware propio desde cero, sin código de Felucca. La licencia del proyecto la elige el autor | — |
-| 1b | Licencia del proyecto | MIT / Apache-2.0 / GPL / cerrada (cualquiera es compatible con usar el SDK Apache-2.0, incluyendo sus textos de licencia) | Pendiente |
+| 1b | ~~Licencia del proyecto~~ | **RESUELTA (2026-10-10): GPL-3.0-or-later.** Compatible con usar el SDK de JieLi (Apache-2.0): sus binarios se distribuyen con su licencia | — |
 | 2 | Frecuencia de los motores | Fs completa (44.1k) vs Fs/2 (22k, lo-fi, mitad de CPU) | Fs/2 |
 | 3 | ¿Guardar samples? | Volátil · 1 slot de ~2 s (≈ 88 KiB, quitando 11 slots de patrón) | Volátil |
 | 4 | Fuente del sampler | Resample → USB audio → BT (cada fase depende de la anterior) | Resample |

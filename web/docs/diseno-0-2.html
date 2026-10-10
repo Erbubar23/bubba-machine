@@ -1,0 +1,130 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/DISENO_0.2.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine 0.2 — Diseño · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html" aria-current="page">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="bubba-machine-02-diseño">Bubba Machine 0.2 — Diseño</h1>
+<p>Groovebox de directo: <strong>batería TR</strong>, <strong>sampler con chops que se secuencian como la batería</strong>, bajo y 3 synths. Cada pista tiene <strong>su largo y su velocidad</strong>. Sus reglas: cada botón abre su pantalla, mantener = capa en vivo, colores fijos por perilla, y suma una <strong>tercera pulsación de 2 segundos</strong> para pantallas especiales.</p>
+<p>El hardware y las reglas técnicas (memoria, flash, audio) siguen siendo los de <code>SPEC_V3.md</code>.</p>
+<hr>
+<h2 id="1-tres-pulsaciones-por-botón">1. Tres pulsaciones por botón</h2>
+<div class="tbl"><table><thead><tr><th>Pulsación</th><th>Qué hace</th><th>Cuándo se dispara</th></tr></thead><tbody><tr><td><strong>Toque</strong> (&lt; 300 ms)</td><td>Abre la pantalla del botón; otra vez, su página siguiente</td><td>Al soltar</td></tr><tr><td><strong>Mantener</strong> (≥ 300 ms)</td><td>Abre su <strong>capa en vivo</strong> mientras lo sostienes</td><td>Al cumplir 300 ms</td></tr><tr><td><strong>Mantener 2 s</strong></td><td><strong>Pantalla especial</strong> o acción que conviene no hacer sin querer</td><td>Al cumplir 2 s, <strong>solo si no tocaste nada más</strong></td></tr></tbody></table></div>
+<p>Mientras sostienes, un <strong>anillo</strong> en la barra de estado se llena hasta los 2 s. Si tocas una tecla o giras una perilla, la capa sigue abierta y los 2 s se cancelan: tocar mutes durante un minuto nunca abre otra pantalla por accidente.</p>
+<h2 id="2-mapa-de-botones">2. Mapa de botones</h2>
+<div class="tbl"><table><thead><tr><th>Botón</th><th>Toque</th><th>Otra vez</th><th>Mantener (capa)</th><th>Mantener 2 s</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>Pistas + mezclador</td><td><strong>ESCENAS</strong></td><td>MUTE: blancas 1-6 mute, 9-14 solo</td><td><strong>SISTEMA</strong> (reloj, sync, MIDI, LEDs, memoria)</td></tr><tr><td><strong>SEQ</strong></td><td>Rejilla (TR o pasos)</td><td>Synth: <strong>LOOP</strong></td><td>PATRONES (blanca = patrón en cola)</td><td><strong>TIEMPO</strong>: largo y velocidad de las 6 pistas</td></tr><tr><td><strong>EDIT</strong></td><td>Sonido (KIT / SAMPLE / onda)</td><td>Instrumento (TR)</td><td>BORRAR (estilo TR) + herramientas</td><td>T2: <strong>SAMPLER</strong> · otras: INIT del sonido</td></tr><tr><td><strong>ENV</strong></td><td>Envolvente</td><td>Página 2</td><td>—</td><td>—</td></tr><tr><td><strong>LFO</strong></td><td>Reservado</td><td>—</td><td>—</td><td>—</td></tr><tr><td><strong>FX</strong></td><td>Delay y sidechain</td><td>—</td><td>PUNCH-IN (16 efectos)</td><td>—</td></tr><tr><td><strong>SCL</strong></td><td>Escala (teclado)</td><td><strong>ACORDES</strong> (cuadrícula)</td><td>Cuadrícula de acordes en vivo</td><td>—</td></tr><tr><td><strong>ARP</strong></td><td>Arpegiador</td><td>—</td><td>Synth: arpegio · TR: <strong>ROLL</strong></td><td>—</td></tr><tr><td><strong>SAVE</strong></td><td>Menú de guardado</td><td>Ejecuta</td><td>—</td><td><strong>Guardado rápido</strong></td></tr><tr><td><strong>GLO</strong></td><td>Global: BPM, swing, largo maestro, drive, fills</td><td>—</td><td>Modificador (GLO + algo)</td><td>—</td></tr><tr><td><strong>REC</strong></td><td>Grabar en vivo / loopera / sampler</td><td>—</td><td>—</td><td><strong>Borrar la pista</strong> (con undo)</td></tr><tr><td><strong>PLAY</strong></td><td>Play/stop al presionar</td><td>—</td><td>—</td><td>—</td></tr><tr><td><strong>OCT − / +</strong></td><td>Octava · en SEQ: página</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div>
+<h2 id="3-tiempo-por-pista-polímetro">3. Tiempo por pista (polímetro)</h2>
+<ul><li>
+Cada pista: <strong>largo</strong> 1-64 pasos y <strong>velocidad</strong> ×2, ×3/2 (tresillo), ×1, ×3/4, ×1/2, ×1/4.
+</li><li>
+En batería y sampler cada <strong>instrumento</strong> además tiene su largo: un hi-hat de 12 contra un bombo de 16.
+</li><li>
+<strong>Largo maestro</strong> (GLO): 16, 32, 48, 64, 128 o ∞ pasos. Al cumplirse, todas las pistas vuelven al paso 1 y ahí cambian patrones y escenas. En ∞ las pistas corren libres y los cambios caen en el siguiente compás.
+</li><li>
+Pantalla <strong>TIEMPO</strong> (SEQ 2 s): las 6 pistas como barras de su largo, con el cabezal de cada una, para ver el polímetro de un vistazo. SELECT elige la pista, K1 largo, K2 velocidad, K3 largo del instrumento (TR).
+</li></ul>
+<h2 id="4-batería-tr-t1-y-sampler-t2">4. Batería TR (T1) y sampler (T2)</h2>
+<p>Cada una tiene <strong>16 instrumentos</strong>, cada uno con su línea de 64 pasos.</p>
+<p><strong>En SEQ:</strong></p>
+<div class="tbl"><table><thead><tr><th>Control</th><th>Hace</th></tr></thead><tbody><tr><td>Blancas</td><td>Los 16 pasos del instrumento elegido (página actual)</td></tr><tr><td>Negras 1-8</td><td>Eligen y tocan un instrumento de la sección</td></tr><tr><td>Negra 9</td><td>Cambia de sección (1-8 / 9-16)</td></tr><tr><td>Negra 10</td><td>FILL mientras la sostienes</td></tr><tr><td>Negra 11</td><td>Toque: mute del instrumento · mantener: pantalla de mutes</td></tr><tr><td>OCT − / +</td><td>Página</td></tr><tr><td>SELECT</td><td>Instrumento</td></tr></tbody></table></div>
+<p><strong>Paso mantenido + perilla:</strong> K1-K4 P-Lock (TONE · TUNE · DECAY · START) · SELECT acento (normal / acento) · ALGORITHM repetición (×1 ×2 ×3 ×4 FLAM) · PRESETS condición (SIEMPRE / SOLO FILL / SIN FILL).</p>
+<p><strong>La pantalla</strong> es una matriz de 16 instrumentos × 16 pasos, con el instrumento elegido resaltado, el largo de cada línea y el cabezal de cada una (pueden ir desfasados).</p>
+<p><strong>EDIT, página 2 (INSTRUMENTO):</strong> K1 NIVEL · K2 AFINACIÓN · K3 DECAY · K4 LARGO de la línea.</p>
+<p><strong>Capa BORRAR (EDIT mantenido, estilo TR):</strong> sonando, mantener una blanca borra el instrumento en cada paso por donde pasa el cabezal; parado, lo borra entero. Negras 1-3: COPIAR, PEGAR, BORRAR pista. OCT − / +: deshacer / rehacer.</p>
+<p><strong>ROLL (ARP mantenido + tecla):</strong> repite el instrumento a 1/8, 1/16, 1/32 o tresillos (K1). Con REC, se graba como pasos con repetición.</p>
+<p><strong>Fills:</strong> pasos con condición SOLO FILL / SIN FILL. El fill suena mientras sostienes la negra 10, o solo cada 2, 4 u 8 compases (GLO).</p>
+<h2 id="5-sampler-t2">5. Sampler (T2)</h2>
+<ul><li>
+<strong>2 slots</strong> (A y B) de hasta <strong>4 s</strong> a 16 kHz, guardados en flash. La pista T2 elige el slot (GLO + ALGORITHM).
+</li><li>
+<strong>Grabar:</strong> EDIT en T2 → mantener REC. Graba la mezcla (resample) hasta 3 s. Mientras grabas, cada blanca marca un chop. El delay y el punch-in se pausan mientras haya un sample sin guardar (comparten la memoria).
+</li><li>
+<strong>Guardar:</strong> al parar, el sample se guarda solo en su slot (no se escribe flash sonando).
+</li><li>
+<strong>SAMPLER (EDIT 2 s en T2):</strong> slot, cortar en 4, 8 o 16 partes iguales o dejar los chops manuales, y borrar el slot.
+</li><li>
+Los 16 chops son los 16 instrumentos de la rejilla TR de T2: <strong>se secuencian igual que la batería</strong> y se guardan con el patrón.
+</li></ul>
+<h2 id="6-synths-t3-bajo-t4-t6">6. Synths (T3 bajo, T4-T6)</h2>
+<ul><li>
+SEQ: pasos con notas y acordes (4 eventos por paso), como en 0.1.
+</li><li>
+<strong>LOOP (SEQ otra vez):</strong> loopera de notas estilo RC, sin cuantizar. K1 ON/OFF · K2 COMPASES 1/2/4. REC: graba (desde el siguiente compás) → al cerrar el loop pasa a PLAY → REC: sobregraba → REC: PLAY. REC 2 s borra el loop. Se guarda con el patrón.
+</li></ul>
+<h2 id="7-acordes-cuadrícula-estilo-maschine">7. Acordes: cuadrícula estilo Maschine</h2>
+<p><strong>SCL otra vez</strong> abre la cuadrícula. <strong>SCL mantenido</strong> la activa en las teclas desde cualquier pantalla.</p>
+<ul><li>
+Las <strong>16 blancas son 16 acordes</strong>, dibujados como una cuadrícula de 4×4 (fila 1 = blancas 1-4…).
+</li><li>
+Cada pad muestra el <strong>grado</strong> (I, ii, V7…) y el <strong>nombre</strong> (Am, G7). Se colorea según su <strong>función</strong>: azul = reposo (I, iii, vi), verde = preparación (ii, IV), naranja = tensión (V, vii). Así la pantalla enseña qué va con qué.
+</li><li>
+<strong>Juegos de acordes</strong> (K1):
+<ul><li>
+<strong>DIATÓNICO:</strong> fila 1-2 tríadas I-VII + octava, fila 3-4 con séptima.
+</li><li>
+<strong>PROGRESIONES:</strong> cada fila es una progresión clásica que se toca de izquierda a derecha (I-V-vi-IV · vi-IV-I-V · ii-V-I-vi · I-vi-IV-V).
+</li><li>
+<strong>NEO SOUL:</strong> acordes de 7ª y 9ª.
+</li></ul>
+</li><li>
+K2 VOICING (cerrado / abierto / conducción de voces: cada acorde en la inversión más cercana al anterior) · K3 OCTAVA · K4 STRUM.
+</li><li>
+Negras 1-4 modifican mientras las sostienes: +7, +9, SUS2, SUS4.
+</li></ul>
+<h2 id="8-escenas-home-otra-vez">8. Escenas (HOME otra vez)</h2>
+<ul><li>
+Una escena = <strong>patrón + mutes</strong> (pistas e instrumentos). Hay 4: A-D.
+</li><li>
+Blancas 1-4 lanzan en el siguiente ciclo maestro (parado: al instante). Blancas 5-8 guardan lo que suena.
+</li><li>
+Mantener una de 1-4 y tocar otras = <strong>cadena</strong> en bucle.
+</li><li>
+<strong>REC = SONG REC:</strong> cada escena que lances queda escrita en la canción.
+</li></ul>
+<h2 id="9-memoria">9. Memoria</h2>
+<div class="tbl"><table><thead><tr><th></th><th>RAM</th><th>Flash</th></tr></thead><tbody><tr><td>Patrón (6 pistas, TR en bytes por paso)</td><td>~12.7 KiB</td><td>≤ 8 KiB disperso</td></tr><tr><td>Sample en grabación</td><td>48 KiB compartidos con el delay y el punch-in</td><td>2 slots × 64 KiB</td></tr><tr><td>Patrones</td><td>—</td><td>20 slots de 8 KiB: 16 patrones + song/escenas + 3 libres para el wear-leveling</td></tr></tbody></table></div>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_0.2.md">docs/DISENO_0.2.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

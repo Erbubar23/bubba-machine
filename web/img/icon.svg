@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Bubba Machine">
+<rect width="240" height="240" fill="#000"/>
+<polygon points="130.50,46.00 128.00,18.00 112.00,18.00 109.50,46.00" fill="#287CFF"/>
+<polygon points="166.09,61.16 177.93,35.67 164.07,27.67 147.91,50.66" fill="#1ECC70"/>
+<polygon points="189.34,92.09 212.33,75.93 204.33,62.07 178.84,73.91" fill="#FFC618"/>
+<polygon points="194.00,130.50 222.00,128.00 222.00,112.00 194.00,109.50" fill="#FF621A"/>
+<polygon points="178.84,166.09 204.33,177.93 212.33,164.07 189.34,147.91" fill="#287CFF"/>
+<polygon points="147.91,189.34 164.07,212.33 177.93,204.33 166.09,178.84" fill="#1ECC70"/>
+<polygon points="109.50,194.00 112.00,222.00 128.00,222.00 130.50,194.00" fill="#FFC618"/>
+<polygon points="73.91,178.84 62.07,204.33 75.93,212.33 92.09,189.34" fill="#FF621A"/>
+<polygon points="50.66,147.91 27.67,164.07 35.67,177.93 61.16,166.09" fill="#287CFF"/>
+<polygon points="46.00,109.50 18.00,112.00 18.00,128.00 46.00,130.50" fill="#1ECC70"/>
+<polygon points="61.16,73.91 35.67,62.07 27.67,75.93 50.66,92.09" fill="#FFC618"/>
+<polygon points="92.09,50.66 75.93,27.67 62.07,35.67 73.91,61.16" fill="#FF621A"/>
+<circle cx="120.00" cy="120.00" r="66.00" fill="#FFC618"/>
+<rect x="62.00" y="100.00" width="51.00" height="30.00" rx="11.00" fill="#000000"/>
+<rect x="127.00" y="100.00" width="51.00" height="30.00" rx="11.00" fill="#000000"/>
+<polyline points="73.00,108.00 81.00,116.00" fill="none" stroke="#F2F2F2" stroke-width="4.00" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="138.00,108.00 146.00,116.00" fill="none" stroke="#F2F2F2" stroke-width="4.00" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="111.00,108.00 129.00,108.00" fill="none" stroke="#000000" stroke-width="6.00" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="64.00,106.00 56.00,100.00" fill="none" stroke="#000000" stroke-width="6.00" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="176.00,106.00 184.00,100.00" fill="none" stroke="#000000" stroke-width="6.00" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="144.63,145.46 144.43,145.80 144.19,146.14 143.90,146.48 143.58,146.81 143.22,147.13 142.81,147.44 142.37,147.75 141.89,148.04 141.38,148.32 140.83,148.60 140.25,148.86 139.64,149.11 139.00,149.34 138.33,149.57 137.63,149.77 136.91,149.97 136.16,150.15 135.40,150.31 134.61,150.45 133.81,150.58 133.00,150.70 132.17,150.79 131.33,150.87 130.48,150.93 129.63,150.97 128.77,151.00 127.91,151.01 127.05,150.99 126.19,150.97 125.34,150.92 124.49,150.85 123.65,150.77 122.83,150.67 122.02,150.56 121.22,150.42 120.44,150.27 119.68,150.11 118.94,149.93 118.22,149.73 117.53,149.52" fill="none" stroke="#000000" stroke-width="6.00" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

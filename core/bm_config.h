@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — constantes del sistema (SPEC_V3). Un solo lugar para los números. */
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H

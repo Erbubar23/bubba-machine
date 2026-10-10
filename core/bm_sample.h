@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — slots de sample en flash (DISENO_0.2 §5).
  * 2 slots de 64 KiB: cabecera de 128 B (largo, chops, CRC) + hasta 65408 muestras
  * de 8 bit a 16 kHz (≈ 4 s). Se reproducen directo desde la flash (XIP), sin RAM.

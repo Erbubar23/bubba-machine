@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — modelo de patrón (SPEC_V3 §4, DISENO_0.2 §3-§6).
  *
  * Un patrón tiene 6 pistas:

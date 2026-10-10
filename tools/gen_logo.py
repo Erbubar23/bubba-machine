@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Erbubar23
 """Logo de Bubba Machine: el sol con lentes oscuros, sonriente.
 
-Rediseño respecto a Bubba Box: los 8 rayos redondos ahora son 12 dientes de
+El sol tiene 12 dientes de
 engranaje (el sol es una "máquina"), y debajo de "bubba" dice "machine".
 
 Genera (una sola geometría para todo):
@@ -98,7 +100,7 @@ def sun_icon():
 
 
 def word_bubba():
-    """'bubba' en el espacio del logo de 760x260 (misma geometría que Bubba Box)."""
+    """'bubba' en el espacio del logo de 760x260 (geometría base del logo)."""
     W, w = WHITE, 12.0
     pr = [('ring', 306, 132, 30, W, w), L([(276, 70), (276, 162)], W, w),
           L(svg_arc_pts(426, 132, 30, 30, 0, 1, 366, 132), W, w),
@@ -236,7 +238,7 @@ def rle_c(img):
             rle += [n, c]
             x += n
     cols = [rgb565(tuple(pal[i * 3:i * 3 + 3])) for i in range(48)]
-    out = ['/* GENERADO por tools/gen_logo.py: no editar a mano. */', '#include "../bm_gfx.h"', '',
+    out = ['/* SPDX-License-Identifier: GPL-3.0-or-later */', '/* GENERADO por tools/gen_logo.py: no editar a mano. */', '#include "../bm_gfx.h"', '',
            'const uint16_t bm_logo_pal[48] = {%s};' % ','.join('0x%04X' % c for c in cols),
            'const uint16_t bm_logo_row[240] = {%s};' % ','.join(str(r) for r in rows),
            'const uint8_t bm_logo_rle[%d] = {' % len(rle)]

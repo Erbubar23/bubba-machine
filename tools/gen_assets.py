@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Erbubar23
 """Genera core/gen/bm_rom.c: kits de batería y wavetables de Bubba Machine.
 
 - Batería: 2 kits x 16 sonidos SINTETIZADOS aquí (sin samples de terceros),
@@ -305,7 +307,7 @@ def main():
     dst = os.path.join(root, 'core', 'gen', 'bm_rom.c')
     os.makedirs(os.path.dirname(dst), exist_ok=True)
 
-    out = ['/* GENERADO por tools/gen_assets.py: no editar a mano. */',
+    out = ['/* SPDX-License-Identifier: GPL-3.0-or-later */', '/* GENERADO por tools/gen_assets.py: no editar a mano. */',
            '#include "../bm_rom.h"', '']
     kits = [('KO-808', kit_808()), ('KO-909', kit_909())]
     total_drum = 0

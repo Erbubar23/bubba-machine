@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — gráficos para la TFT de 240x240 RGB565 sin framebuffer.
  *
  * Se dibuja en modo inmediato por franjas de BM_STRIP_H filas: toda la escena

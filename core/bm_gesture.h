@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — gramática de gestos (SPEC_V3 §6.2, DISENO_0.2 §1).
  *
  *  TAP      soltar antes de 300 ms (o botón sin capa) y sin combo -> al soltar

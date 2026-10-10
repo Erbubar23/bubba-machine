@@ -1,10 +1,12 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — punto de entrada en el FM-1 (ESQUELETO DE PORT).
  *
  * Estado: estructura completa del firmware en el equipo, con cada acceso a
  * registros marcado como TODO(HW-VERIFY). No se ha compilado con el toolchain
  * de JieLi ni probado en un FM-1. El orden de bring-up está en README_PORT.md.
  *
- * Diseño propio: aquí no hay código de Felucca ni de Bubba Box. Los datos de
+ * Diseño propio: aquí no hay código de otros firmwares. Los datos de
  * pines vienen de SPEC_V3 §1 (hechos de hardware). */
 #include <string.h>
 #include "../../core/bm_app.h"

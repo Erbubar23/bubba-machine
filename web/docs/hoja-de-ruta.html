@@ -1,0 +1,101 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/HOJA_DE_RUTA.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoja de ruta · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html" aria-current="page">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html" aria-current="page">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="hoja-de-ruta">Hoja de ruta</h1>
+<p>Lo que viene para Bubba Machine, en el orden en que importa. Las fechas dependen de tener el hardware funcionando.</p>
+<h2 id="ahora-02x-vista-previa-pública">Ahora: 0.2.x, vista previa pública</h2>
+<ul><li>
+Firmware completo en el emulador web.
+</li><li>
+Documentación, licencia GPL-3.0 y sitio.
+</li><li>
+Recibir reportes y opiniones sobre la forma de tocar.
+</li></ul>
+<h2 id="port-al-fm-1">Port al FM-1</h2>
+<p>El paso más importante: que corra en el aparato. El plan está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a>:</p>
+<ol><li>
+Respaldo completo de la flash y vuelta al firmware de fábrica comprobada.
+</li><li>
+Arranque, reloj, pantalla y matriz de botones.
+</li><li>
+Audio por I2S, flash y USB-MIDI.
+</li><li>
+Medir CPU, RAM y voces reales, y ajustar.
+</li></ol>
+<h2 id="instalador-web">Instalador web</h2>
+<ul><li>
+Instalación por USB-C desde el navegador, con Web MIDI.
+</li><li>
+Respaldo obligatorio antes de instalar y vuelta atrás en un clic.
+</li></ul>
+<h2 id="03-la-interfaz-30">0.3: la interfaz 3.0</h2>
+<p>La nueva forma de tocar, ya diseñada en <a href="diseno-3.html"><code>DISENO_3.0.md</code></a>:</p>
+<ul><li>
+Cuatro gestos por botón que significan lo mismo en todos: toque, mantener, mantener 2 s y HOME + botón.
+</li><li>
+HOME en todas partes: controlador de la secuencia y modificador global.
+</li><li>
+ALGORITHM navega entre canales, con un recuadro que confirma a dónde entras.
+</li><li>
+3 canales fijos (batería, sampler y bajo) y 3 libres (SYNTH, MONO, KIT o MIDI).
+</li><li>
+Sampler 3.0: un break que el generador rearma, con la fila SUENA para ver lo que eligió.
+</li><li>
+Grabadora propia con biblioteca de tomas y un editor para cortar después.
+</li></ul>
+<h2 id="más-adelante">Más adelante</h2>
+<ul><li>
+<strong>Editor web:</strong> cargar y bajar patrones, samples y loops por USB.
+</li><li>
+<strong>Packs de loops y kits libres</strong> (CC0 o GPL), hechos por la comunidad.
+</li><li>
+<strong>Bluetooth MIDI</strong>, si el hardware y el CPU lo permiten.
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/HOJA_DE_RUTA.md">docs/HOJA_DE_RUTA.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

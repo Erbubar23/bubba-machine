@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — escaneo de matriz: antirrebote y cuadratura (portable, probado en PC). */
 #include <string.h>
 #include "fm1_scan.h"

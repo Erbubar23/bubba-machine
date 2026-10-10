@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde CONTRIBUTING.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contribuir a Bubba Machine · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html" aria-current="page">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html" aria-current="page">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="contribuir-a-bubba-machine">Contribuir a Bubba Machine</h1>
+<p>Gracias por querer ayudar. Bubba Machine es firmware libre para el M-VAVE FM-1 y cualquier ayuda suma: probar en el emulador, reportar errores, mejorar el manual, diseñar sonidos o escribir código.</p>
+<p>Se puede escribir en <strong>español o en inglés</strong>.</p>
+<h2 id="formas-de-ayudar">Formas de ayudar</h2>
+<ul><li>
+<strong>Probar y reportar.</strong> Usa el emulador web y abre un <em>issue</em> con lo que pasó, lo que esperabas y cómo repetirlo. Las capturas ayudan mucho.
+</li><li>
+<strong>Ideas de interfaz.</strong> Abre un <em>issue</em> de tipo idea. La dirección actual está en <a href="diseno-3.html"><code>docs/DISENO_3.0.md</code></a>.
+</li><li>
+<strong>Documentación.</strong> El manual vive en <a href="manual.html"><code>docs/MANUAL.md</code></a>; el sitio se genera a partir de los <code>.md</code>.
+</li><li>
+<strong>Código.</strong> Lee <a href="desarrollo.html"><code>docs/DESARROLLO.md</code></a> para compilar y probar.
+</li><li>
+<strong>Hardware.</strong> Si tienes un FM-1 y experiencia con el SDK de JieLi, el port en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/</code></a> es lo que más ayuda necesita.
+</li></ul>
+<h2 id="reglas-del-código">Reglas del código</h2>
+<ol><li>
+<strong>Todo el código es propio.</strong> No copies, traduzcas ni parafrasees código de otros firmwares para el FM-1 (incluido Felucca). Los hechos de hardware (pines, tiempos, registros documentados) sí se pueden usar, citando la fuente en <a href="spec.html"><code>docs/SPEC_V3.md</code></a>.
+</li><li>
+<strong>Código de terceros solo con licencia compatible</strong> con la GPL-3.0, y anotado en <a href="creditos.html"><code>CREDITOS.md</code></a>.
+</li><li>
+<strong>Sonidos:</strong> solo sintetizados en <code>tools/</code>, de tu autoría o con licencia libre compatible (CC0, CC-BY o GPL). Nada de samples de discos o de packs comerciales. Para probar con audio de terceros usa <code>assets/loops/loops.local.json</code>, que nunca se sube.
+</li><li>
+<strong>C99 sin dependencias</strong> en <code>core/</code>: nada de <code>malloc</code>, nada de punto flotante en el camino del audio y nada que dependa del hardware. Todo lo del hardware va en <code>hal/</code>.
+</li><li>
+<strong>Cada archivo nuevo</strong> empieza con el identificador de licencia:
+</li></ol>
+<pre><code>/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Tu Nombre */</code></pre>
+<h2 id="antes-de-abrir-un-pull-request">Antes de abrir un pull request</h2>
+<p>Los pull requests van a la rama <strong><code>dev</code></strong>. De ahí los cambios pasan a <code>qa</code> para probarlos y luego a <code>main</code>, que es lo publicado (ver <a href="desarrollo.html#ramas">ramas</a>).</p>
+<ul><li>
+&#9744; <code>py -3 tools/build.py test</code> pasa sin fallos.
+</li><li>
+&#9744; Si cambiaste la interfaz, se actualizaron las capturas (<code>assets/screens/</code>) y el manual.
+</li><li>
+&#9744; Si cambiaste el formato de los patrones o de la flash, está explicado en el PR y en el <a href="cambios.html">registro de cambios</a>.
+</li><li>
+&#9744; Si agregaste algo de terceros, está en <a href="creditos.html"><code>CREDITOS.md</code></a>.
+</li></ul>
+<h2 id="licencia-de-las-contribuciones">Licencia de las contribuciones</h2>
+<p>Al enviar una contribución aceptas que se publique bajo la misma licencia del proyecto, <strong>GPL-3.0-or-later</strong>. Se recomienda firmar los commits con <code>git commit -s</code> (<a href="https://developercertificate.org/">Developer Certificate of Origin</a>) para dejar constancia de que tienes derecho a aportar ese código.</p>
+<h2 id="convivencia">Convivencia</h2>
+<p>Este proyecto sigue un <a href="conducta.html">código de conducta</a>.</p>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

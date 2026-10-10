@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Erbubar23
 """Genera core/gen/bm_font.c: fuente 5x7 (UI) y 3x5 (etiquetas del teclado).
 
 Los glifos se dibujan aquí como arte ASCII ('#' = píxel encendido) para que
@@ -131,7 +133,7 @@ def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     dst = os.path.join(root, 'core', 'gen', 'bm_font.c')
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    lines = ['/* GENERADO por tools/gen_font.py: no editar a mano. */',
+    lines = ['/* SPDX-License-Identifier: GPL-3.0-or-later */', '/* GENERADO por tools/gen_font.py: no editar a mano. */',
              '#include "../bm_gfx.h"', '',
              '/* 5x7, ASCII 32..127; fila 0 arriba, bit 4 = columna izquierda */',
              'const uint8_t bm_font5x7[96][7] = {']

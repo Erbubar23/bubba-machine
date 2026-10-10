@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — HAL simulada compartida por el emulador web y las pruebas de PC.
  * Emula la flash NOR de 1 MiB (borrado a 0xFF, programación solo baja bits),
  * la pantalla (framebuffer 240x240) y los LEDs. */

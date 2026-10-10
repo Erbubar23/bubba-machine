@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — contexto de audio (todo lo que corre en la ISR de audio).
  *
  * Hilos (SPEC_V3 §2):

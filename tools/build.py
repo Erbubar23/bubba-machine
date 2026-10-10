@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Erbubar23
 """Bubba Machine — build y pruebas (todo corre en Docker; no hace falta compilador local).
 
   py -3 tools/build.py assets   regenera fuente, sonidos, ondas y logo (Python + numpy + Pillow)
   py -3 tools/build.py test     compila y corre las pruebas en PC (gcc) y guarda capturas
   py -3 tools/build.py web      compila el emulador a WebAssembly (web/bm.js)
+  py -3 tools/build.py site     genera la documentación del sitio (web/docs/) desde los .md
   py -3 tools/build.py all      todo lo anterior
 """
 import glob, os, subprocess, sys
@@ -24,7 +27,7 @@ def docker(image, cmd):
 
 
 def assets():
-    for t in ('gen_font.py', 'gen_assets.py', 'gen_logo.py'):
+    for t in ('gen_font.py', 'gen_assets.py', 'gen_loops.py', 'gen_logo.py'):
         r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', t)])
         if r.returncode:
             sys.exit(r.returncode)
@@ -52,7 +55,13 @@ def web():
            f'emcc -O2 -std=c99 -Wno-format-truncation {SRC} hal/web/hal_web.c -o web/bm.js '
            '-sMODULARIZE=1 -sEXPORT_NAME=BubbaMachine -sENVIRONMENT=web -sSINGLE_FILE=1 '
            '-sINITIAL_MEMORY=33554432 -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU16,HEAP8,HEAPF32')
-    print('emulador listo: abre web/index.html')
+    print('emulador listo: abre web/emulador.html')
+
+
+def site():
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'gen_site.py')])
+    if r.returncode:
+        sys.exit(r.returncode)
 
 
 def main():
@@ -63,6 +72,8 @@ def main():
         test()
     if what in ('web', 'all'):
         web()
+    if what in ('site', 'all'):
+        site()
 
 
 if __name__ == '__main__':

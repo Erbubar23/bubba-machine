@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — pantallas (SPEC_V3 §6.3, DISENO_0.2).
  *   y 0..23    estado (siempre igual; anillo de la pulsación de 2 s)
  *   y 24..199  contexto (vista del modo; overlays solo aquí)
@@ -94,7 +96,7 @@ static int src_name(const bm_app *a, int t, char *b, int cap)
 {
     const bm_track *tr = &a->pat.trk[t];
     if (t == 0) return snprintf(b, (size_t)cap, "%s", bm_rom_kit_names[tr->source % BM_KITS]);
-    if (t == 1) return snprintf(b, (size_t)cap, "SLOT %c %s", 'A' + tr->source % 2, a->smp_valid[tr->source % 2] ? "" : "VACIO");
+    if (t == 1) return snprintf(b, (size_t)cap, "%s%s", bm_app_smp_name(bm_app_smp_src(a)), bm_app_smp_ready(a, bm_app_smp_src(a)) ? "" : " VACIO");
     return snprintf(b, (size_t)cap, "%s", bm_rom_wave_names[tr->source % BM_WAVES]);
 }
 
@@ -375,9 +377,16 @@ static void draw_sample_box(bm_gfx *g, const bm_app *a, int y, int h)
         gfx_fill(g, 5, y + 1, fill, h - 2, dim(col));
         gfx_vline(g, 5 + fill, y, h, C_RED);
     } else if (len) {
+        /* tres carriles, de abajo arriba: graves, medios, agudos. Separados para que el relleno
+         * de graves y medios no tape el patrón de los hats */
+        static const uint16_t BAND[3] = {C_ORANGE, C_GREY, C_CYAN};
+        int lane = (h - 4) / 3;
         for (int x = 0; x < 230; x++) {
-            int pk = a->wave[x * 232 / 230] * (h / 2 - 2) / 128;
-            gfx_vline(g, 5 + x, y + h / 2 - pk, pk * 2 + 1, col);
+            int c = x * 232 / 230;
+            for (int k = 0; k < 3; k++) {
+                int yb = y + h - 2 - k * lane, bh = a->wave[k][c] * (lane - 1) / 255;
+                if (bh > 0) gfx_vline(g, 5 + x, yb - bh, bh, BAND[k]);
+            }
         }
     }
     uint32_t L = a->ctx.st.smp_rec ? BM_SMP_MAX : (len ? len : 1);
@@ -402,7 +411,7 @@ static void draw_edit(bm_gfx *g, const bm_app *a)
         return;
     }
     if (t == 1) {
-        snprintf(b, sizeof b, "SLOT %c", 'A' + tr->source % 2);
+        snprintf(b, sizeof b, "%s", bm_app_smp_name(bm_app_smp_src(a)));
         header(g, "SAMPLE", b, bm_track_color(1));
         draw_sample_box(g, a, 52, 54);
         lane_pads(g, a, 1, 112, 0);
@@ -777,25 +786,30 @@ static void draw_time(bm_gfx *g, const bm_app *a)
 static void draw_sampler(bm_gfx *g, const bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
-    int slot = a->pat.trk[1].source % 2;
+    int slot = bm_app_smp_src(a), n = bm_app_smp_sources();
+    bool rom = bm_app_smp_is_rom(slot);
     char b[30];
     if (gfx_strip_hit(g, 26, 22)) {
         gfx_text(g, 6, 30, "SAMPLER", bm_track_color(1), 2);
-        for (int s = 0; s < 2; s++) {
-            int x = 168 + s * 34;
-            gfx_fill(g, x, 28, 30, 16, s == slot ? bm_track_color(1) : C_DDGREY);
-            snprintf(b, sizeof b, "%c", 'A' + s);
-            gfx_text_c(g, x + 15, 32, b, s == slot ? C_BLACK : (a->smp_valid[s] ? C_WHITE : C_GREY), 1);
+        int step = n > 3 ? 24 : 34;
+        for (int s = 0; s < n; s++) {
+            int x = 236 - (n - s) * step;
+            gfx_fill(g, x, 28, step - 4, 16, s == slot ? bm_track_color(1) : C_DDGREY);
+            if (bm_app_smp_is_rom(s)) snprintf(b, sizeof b, "F%d", s - BM_SMP_SLOTS + 1); else snprintf(b, sizeof b, "%c", 'A' + s);
+            gfx_text_c(g, x + (step - 4) / 2, 32, b, s == slot ? C_BLACK : (bm_app_smp_ready(a, s) ? C_WHITE : C_GREY), 1);
         }
     }
-    const char *state = st->smp_rec ? "GRABANDO" : st->smp_unsaved ? "SIN GUARDAR" : a->smp_valid[slot] ? "LISTO" : "VACIO";
+    const char *state = st->smp_rec ? "GRABANDO" : st->smp_unsaved ? "SIN GUARDAR" : rom ? "FABRICA" : a->smp_valid[slot] ? "LISTO" : "VACIO";
     gfx_text(g, 6, 52, state, st->smp_rec ? C_RED : st->smp_unsaved ? C_ORANGE : C_WHITE, 2);
     uint32_t len = st->smp_rec ? a->ctx.smp_rec_pos : a->ctx.smp.len;
     unsigned ms = (unsigned)(len * 1000u / BM_SMP_RATE), mx = (unsigned)(BM_SMP_MAX * 1000u / BM_SMP_RATE);
     snprintf(b, sizeof b, "%u.%02u / %u.%02u S", ms / 1000, ms % 1000 / 10, mx / 1000, mx % 1000 / 10);
     gfx_text_r(g, 234, 56, b, C_WHITE, 1);
     draw_sample_box(g, a, 74, 62);
-    snprintf(b, sizeof b, "%d CHOPS  16 KHZ 8 BIT", a->ctx.smp.nmarks ? a->ctx.smp.nmarks : 16);
+    if (rom && !st->smp_rec && !st->smp_unsaved) {
+        const bm_rom_loop *l = &bm_rom_loops[slot - BM_SMP_SLOTS];
+        snprintf(b, sizeof b, "%s  %d BPM  %d COMP", l->name, l->bpm_x10 / 10, l->bars);
+    } else snprintf(b, sizeof b, "%d CHOPS  16 KHZ 8 BIT", a->ctx.smp.nmarks ? a->ctx.smp.nmarks : 16);
     gfx_text(g, 6, 142, b, C_GREY, 1);
     hint(g, 156, "MANTEN REC: GRABA (MAX 3 S)");
     hint(g, 168, "BLANCAS AL GRABAR: CHOPS");

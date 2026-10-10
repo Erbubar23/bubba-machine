@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — mezcla, sidechain, delay, punch-in FX, soft-clipper y salida
  * (SPEC_V3 §3.3, §4.3, §7). Cadena: pistas → delay → punch FX → clipper(DRIVE)
  * → MASTER → DAC. El pulso de Split Sync no pasa por clipper ni MASTER. */

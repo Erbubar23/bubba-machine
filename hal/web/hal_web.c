@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — emulador web (Emscripten). La interfaz JS está en web/emu.js. */
 #include <emscripten/emscripten.h>
 #include <string.h>

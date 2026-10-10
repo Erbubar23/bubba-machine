@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — aplicación (bucle principal): vistas, controles, guardado. */
 #ifndef BM_APP_H
 #define BM_APP_H
@@ -72,7 +74,7 @@ typedef struct bm_app {
     uint8_t smp_valid[BM_SMP_SLOTS];
     bm_smp_src smp_send;          /* copia estable que lee el audio */
     uint8_t chops_mode;           /* 0 manual, 1: 4, 2: 8, 3: 16 */
-    uint8_t wave[232];            /* picos de la forma de onda del sample (para dibujar) */
+    uint8_t wave[3][232];         /* energía del sample por columna: graves, medios, agudos (para dibujar) */
     uint8_t wave_was_rec;
 
     /* portapapeles, undo y redo (una pista) */
@@ -139,6 +141,13 @@ void bm_app_midi_in(bm_app *a, uint8_t byte);
 void bm_app_tick(bm_app *a, uint32_t now);
 void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);
 void bm_app_samples_reload(bm_app *a);   /* tras escribir un sample desde fuera (editor/emulador) */
+
+/* Fuentes de T2: 0..BM_SMP_SLOTS-1 son slots de flash, las siguientes son loops de fábrica. */
+int  bm_app_smp_sources(void);
+int  bm_app_smp_src(const bm_app *a);
+bool bm_app_smp_is_rom(int src);
+bool bm_app_smp_ready(const bm_app *a, int src);
+const char *bm_app_smp_name(int src);
 
 /* para el dibujo */
 int  bm_app_eff_view(const bm_app *a);

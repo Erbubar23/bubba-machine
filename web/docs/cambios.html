@@ -1,0 +1,93 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde CHANGELOG.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cambios · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html" aria-current="page">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="cambios">Cambios</h1>
+<p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
+<h2 id="020---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0">0.2.0</a> - 2026-10-10</h2>
+<p>Primera versión pública. Corre en PC y en el emulador web; el port al FM-1 aún no se ha probado en hardware.</p>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+<strong>Batería TR</strong> (T1) y <strong>sampler</strong> (T2) con 16 instrumentos, cada uno con su línea y su largo (polímetro), acento, repetición ×2-×4, flam, P-Locks y pasos que solo suenan (o callan) en el fill. Roll en vivo y borrado estilo TR.
+</li><li>
+<strong>Tiempo por pista:</strong> largo 1-64 y velocidad ×2 a ×1/4; largo maestro de 16 pasos a infinito.
+</li><li>
+<strong>Sampler:</strong> graba la mezcla con chops en vivo; 2 slots de 4 s en flash que se reproducen directo (XIP).
+</li><li>
+<strong>Loops de fábrica</strong> en la ROM (BUBBA 160 y BUBBA 128), sintetizados por <code>tools/gen_loops.py</code>. El demo arranca con uno.
+</li><li>
+<strong>Dibujo del sample por frecuencias:</strong> tres carriles (graves, medios y agudos) en lugar de la forma de onda, que en música muy comprimida es un bloque.
+</li><li>
+<strong>Loopera</strong> de notas por pista en los synths (REC › PLAY › OVERDUB).
+</li><li>
+<strong>Acordes en cuadrícula</strong> 4×4 con grado, nombre y función por color; juegos de progresiones, voicing conducido y strum.
+</li><li>
+<strong>Escenas</strong> A-D con cadenas y SONG REC; fills automáticos.
+</li><li>
+<strong>Tercera pulsación de 2 s</strong> (TIEMPO, SISTEMA, SAMPLER, borrar pista, guardado rápido) con anillo de progreso.
+</li><li>
+Licencia <strong>GPL-3.0-or-later</strong>, documentación, sitio web y CI.
+</li></ul>
+<h3 id="cambiado">Cambiado</h3>
+<ul><li>
+El proyecto se publica como <strong>Bubba Machine</strong>, independiente de cualquier firmware anterior.
+</li></ul>
+<h2 id="010---2026-10-09"><a href="https://github.com/Erbubar23/bubba-machine/commit/3118530">0.1.0</a> - 2026-10-09</h2>
+<p>Primera versión interna.</p>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+Núcleo completo en C99: audio, secuenciador de 6 pistas, interfaz de 240×240, guardado en flash con CRC y wear-leveling.
+</li><li>
+Batería sintetizada (2 kits), bajo y 3 synths de wavetable con filtro, arpegiador y escalas.
+</li><li>
+Simulador de PC con pruebas automáticas y emulador web en WebAssembly.
+</li><li>
+Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/CHANGELOG.md">CHANGELOG.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+</body>
+</html>

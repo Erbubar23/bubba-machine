@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — contexto de audio: cola de comandos, MIDI de entrada y render. */
 #include <string.h>
 #include "bm_audio.h"

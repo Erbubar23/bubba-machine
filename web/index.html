@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine · emulador</title>
+<link rel="icon" href="icon.png">
+<style>
+:root {
+  --bg: #0b0c0e; --body: #1a1c20; --body2: #22252a; --line: #2f3339;
+  --txt: #e9ecef; --mut: #9aa1a8; --dim: #5a626b;
+  --blue: #287cff; --green: #1ecc70; --yellow: #ffc618; --orange: #ff621a; --red: #ff4040;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+a { color: var(--yellow); }
+header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header img { height: 46px; }
+header .sub { color: var(--mut); font-size: 13px; }
+main { display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+.device { background: var(--body); border: 1px solid var(--line); border-radius: 22px; padding: 22px; width: 1010px; max-width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+.top { display: flex; gap: 26px; flex-wrap: wrap; }
+.screen { width: 492px; height: 492px; background: #000; border-radius: 10px; padding: 6px; border: 1px solid #000; box-shadow: inset 0 0 0 2px #2a2d33; flex: none; }
+.screen canvas { width: 480px; height: 480px; image-rendering: pixelated; display: block; }
+.controls { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 18px; }
+.row { display: flex; gap: 14px; justify-content: space-between; align-items: flex-end; }
+.enc { display: flex; flex-direction: column; align-items: center; gap: 6px; user-select: none; touch-action: none; cursor: ns-resize; }
+.enc .knob { width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #3a3e45, #24272c 70%); border: 2px solid #3d4249; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.enc .knob::after { content: ""; position: absolute; left: 50%; top: 5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--c, #e9ecef); }
+.enc .knob .ring { position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--c, transparent); opacity: .85; pointer-events: none; }
+.enc label { font-size: 11px; letter-spacing: .08em; color: var(--mut); font-weight: 600; }
+.enc.small .knob { width: 48px; height: 48px; }
+.master { display: flex; flex-direction: column; gap: 6px; }
+.master label { font-size: 11px; letter-spacing: .08em; color: var(--mut); font-weight: 600; }
+.master input { width: 100%; accent-color: var(--txt); }
+.btns { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
+.btn { height: 54px; border-radius: 10px; background: #2a2d33; border: 1px solid #3a3e45; color: var(--mut); font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; cursor: pointer; user-select: none; touch-action: none; }
+.btn .led { width: 7px; height: 7px; border-radius: 50%; background: #3a3e45; }
+.btn.down { background: #3a3e45; transform: translateY(1px); }
+.btn.latched { outline: 2px dashed var(--orange); }
+.kbwrap { margin-top: 20px; display: flex; gap: 12px; align-items: stretch; }
+.oct { display: flex; flex-direction: column; gap: 9px; width: 70px; }
+.oct .btn { height: auto; flex: 1; }
+.kb { position: relative; flex: 1; height: 170px; user-select: none; touch-action: none; }
+.key { position: absolute; top: 0; border-radius: 0 0 7px 7px; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; font: 600 10px/1 ui-sans-serif, system-ui, sans-serif; }
+.key.w { background: #e7e9ec; color: #50565d; height: 170px; border: 1px solid #0b0c0e; z-index: 1; }
+.key.b { background: #1b1d21; color: #8a9199; height: 104px; z-index: 2; border: 1px solid #000; }
+.key.down.w { background: #b9bfc5; }
+.key.down.b { background: #3a3e45; }
+.key .kled { position: absolute; top: 8px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: transparent; }
+.key.latched { outline: 2px dashed var(--orange); outline-offset: -4px; }
+aside { width: 360px; max-width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--body); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.card h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--mut); font-weight: 700; text-transform: uppercase; }
+.card p, .card li { color: #c9ced3; font-size: 13px; }
+.card ul { margin: 6px 0 0; padding-left: 18px; }
+kbd { background: #2a2d33; border: 1px solid #3a3e45; border-radius: 4px; padding: 0 5px; font-size: 12px; color: var(--txt); }
+.meter { height: 8px; border-radius: 4px; background: #2a2d33; overflow: hidden; margin-top: 6px; }
+.meter div { height: 100%; width: 0; background: var(--green); }
+.stat { display: flex; justify-content: space-between; font-size: 12px; color: var(--mut); margin-top: 6px; }
+button.act { background: #2a2d33; border: 1px solid #3a3e45; color: var(--txt); border-radius: 8px; padding: 8px 12px; font: 600 12px ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+button.act:hover { background: #33373d; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+#power { position: fixed; inset: 0; background: rgba(5,6,8,.86); display: flex; align-items: center; justify-content: center; z-index: 10; }
+#power button { font: 700 18px ui-sans-serif, system-ui, sans-serif; padding: 18px 34px; border-radius: 14px; border: 0; background: var(--yellow); color: #111; cursor: pointer; }
+#power .pw { display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; color: var(--mut); }
+#power img { width: 340px; max-width: 80vw; }
+@media (max-width: 1100px) { .device { transform-origin: top center; } }
+</style>
+</head>
+<body>
+<div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button">Encender</button><span>El audio arranca al pulsar (regla del navegador).</span></div></div>
+<header>
+  <img src="logo.svg" alt="Bubba Machine">
+  <div><b>Emulador del firmware</b><div class="sub">El mismo código C99 que corre en el FM-1, compilado a WebAssembly.</div></div>
+</header>
+<main>
+  <section class="device" id="device">
+    <div class="top">
+      <div class="screen"><canvas id="lcd" width="240" height="240" aria-label="Pantalla 240x240"></canvas></div>
+      <div class="controls">
+        <div class="row">
+          <div class="enc small" data-enc="0"><div class="knob"><div class="ring"></div></div><label>SELECT</label></div>
+          <div class="enc small" data-enc="1"><div class="knob"><div class="ring"></div></div><label>ALGORITHM</label></div>
+          <div class="enc small" data-enc="6"><div class="knob"><div class="ring"></div></div><label>PRESETS</label></div>
+          <div class="master"><label for="master">MASTER</label><input id="master" type="range" min="0" max="1023" value="820"></div>
+        </div>
+        <div class="row">
+          <div class="enc" data-enc="2" style="--c:var(--blue)"><div class="knob"><div class="ring"></div></div><label>KNOB 1</label></div>
+          <div class="enc" data-enc="3" style="--c:var(--green)"><div class="knob"><div class="ring"></div></div><label>KNOB 2</label></div>
+          <div class="enc" data-enc="4" style="--c:var(--yellow)"><div class="knob"><div class="ring"></div></div><label>KNOB 3</label></div>
+          <div class="enc" data-enc="5" style="--c:var(--orange)"><div class="knob"><div class="ring"></div></div><label>KNOB 4</label></div>
+        </div>
+        <div class="btns" id="btns"></div>
+      </div>
+    </div>
+    <div class="kbwrap">
+      <div class="oct" id="oct"></div>
+      <div class="kb" id="kb"></div>
+    </div>
+  </section>
+  <aside>
+    <div class="card">
+      <h2>Cómo se toca</h2>
+      <ul>
+        <li><b>Toque corto</b> en un botón abre su pantalla. <b>Mantener</b> (300 ms) activa su capa en vivo: SEQ = patrones, HOME = mute, FX = punch-in, SCL = acordes, ARP = arpegio.</li>
+        <li><b>GLO</b> es el modificador: GLO + KNOB 1-4 = BPM, swing, largo, drive. GLO + SEQ = song.</li>
+        <li><b>SEQ</b>: las blancas son los pasos. Mantén un paso y gira un knob = P-Lock. SELECT = nota, ALGORITHM = probabilidad, PRESETS = largo/TIE.</li>
+        <li><b>ALGORITHM</b> cambia de pista. <b>PRESETS</b> cambia de patrón.</li>
+        <li>Clic derecho en un botón o tecla la deja <b>presionada</b> (para combos con ratón).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Teclado de la PC</h2>
+      <p><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob.</p>
+    </div>
+    <div class="card">
+      <h2>Hardware simulado</h2>
+      <div class="stat"><span>SPI a la pantalla (por frame)</span><span id="spiv">0 B</span></div>
+      <div class="meter"><div id="spi"></div></div>
+      <div class="stat"><span>Presupuesto a 12 MHz</span><span>~37 KB</span></div>
+      <div class="stat"><span>Escrituras en flash</span><span id="fw">0</span></div>
+    </div>
+    <div class="card">
+      <h2>Sampler y memoria</h2>
+      <p>En el FM-1 el sampler graba la mezcla (REC en EDIT de T2). Aquí además puedes cargar un WAV corto (máx. 1.1 s).</p>
+      <div class="acts">
+        <button class="act" id="wavbtn" type="button">Cargar WAV en T2</button>
+        <input type="file" id="wav" accept="audio/*" hidden>
+        <button class="act" id="midibtn" type="button">Activar MIDI IN</button>
+        <button class="act" id="wipe" type="button">Borrar memoria</button>
+      </div>
+      <p id="msg" style="color:var(--yellow)"></p>
+    </div>
+  </aside>
+</main>
+<script src="bm.js"></script>
+<script>
+(async () => {
+  const M = await BubbaMachine();
+  const now = () => Math.floor(performance.now());
+  const BTN = { OCT_DN: 0, OCT_UP: 1, FX: 2, SCL: 3, ENV: 4, LFO: 5, EDIT: 6, GLO: 7, HOME: 8, SAVE: 9, ARP: 10, SEQ: 11, PLAY: 12, REC: 13 };
+  const LAYOUT = [['FX', 'SCL', 'ENV', 'LFO', 'EDIT', 'GLO'], ['HOME', 'SAVE', 'ARP', 'SEQ', 'PLAY', 'REC']];
+  const msg = (t) => { document.getElementById('msg').textContent = t; };
+
+  /* ---------------- flash persistente (solo las zonas escribibles) ---------------- */
+  const REG = [[0x097000, 0x0E0000], [0x0FC000, 0x0FF000]];
+  const KEY = 'bubba-machine-flash-v1';
+  const flashPtr = M._bm_web_flash();
+  M._bm_web_flash_blank();
+  const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved) REG.forEach(([lo], i) => M.HEAPU8.set(unb64(saved[i]), flashPtr + lo));
+  } catch (e) { /* sin almacenamiento: arranca vacío */ }
+  let lastWrites = 0;
+  const persist = () => {
+    const w = M._bm_web_flash_writes();
+    document.getElementById('fw').textContent = w;
+    if (w === lastWrites) return;
+    lastWrites = w;
+    try { localStorage.setItem(KEY, JSON.stringify(REG.map(([lo, hi]) => b64(M.HEAPU8.subarray(flashPtr + lo, flashPtr + hi))))); } catch (e) {}
+  };
+  M._bm_web_init(now());
+
+  /* ---------------- botones ---------------- */
+  const btnEls = [];
+  const mkBtn = (name, parent) => {
+    const el = document.createElement('div');
+    el.className = 'btn'; el.innerHTML = '<span class="led"></span><span>' + name.replace('_', '') + '</span>';
+    el.setAttribute('role', 'button'); el.setAttribute('aria-label', name);
+    const id = BTN[name]; btnEls[id] = el;
+    bindPress(el, (d) => M._bm_web_button(id, d, now()));
+    parent.appendChild(el);
+  };
+  function bindPress(el, fn) {
+    let down = false, latched = false;
+    el.addEventListener('pointerdown', (e) => { if (e.button === 2) return; e.preventDefault(); el.setPointerCapture(e.pointerId); if (latched) { latched = false; el.classList.remove('latched'); } if (!down) { down = true; el.classList.add('down'); fn(1); } });
+    const up = () => { if (down && !latched) { down = false; el.classList.remove('down'); fn(0); } };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!latched) { latched = true; el.classList.add('latched', 'down'); if (!down) { down = true; fn(1); } }
+      else { latched = false; el.classList.remove('latched', 'down'); down = false; fn(0); }
+    });
+    el._set = (d) => { if (d && !down) { down = true; el.classList.add('down'); fn(1); } else if (!d && down && !latched) { down = false; el.classList.remove('down'); fn(0); } };
+  }
+  const bw = document.getElementById('btns');
+  LAYOUT.flat().forEach(n => mkBtn(n, bw));
+  const ow = document.getElementById('oct');
+  mkBtn('OCT_UP', ow); mkBtn('OCT_DN', ow);
+  btnEls[BTN.OCT_UP].querySelector('span:last-child').textContent = 'OCT +';
+  btnEls[BTN.OCT_DN].querySelector('span:last-child').textContent = 'OCT −';
+
+  /* ---------------- teclado F3..G5 ---------------- */
+  const kb = document.getElementById('kb');
+  const NAMES = ['F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E'];
+  const isBlack = (k) => [1, 3, 5, 8, 10].includes(k % 12);
+  const keyEls = [];
+  const layoutKeys = () => {
+    const W = kb.clientWidth, ww = W / 16;
+    let wi = 0;
+    for (let k = 0; k < 27; k++) {
+      const el = keyEls[k];
+      if (!isBlack(k)) { el.style.left = (wi * ww) + 'px'; el.style.width = (ww - 2) + 'px'; wi++; }
+      else { el.style.left = (wi * ww - ww * 0.32) + 'px'; el.style.width = (ww * 0.62) + 'px'; }
+    }
+  };
+  for (let k = 0; k < 27; k++) {
+    const el = document.createElement('div');
+    el.className = 'key ' + (isBlack(k) ? 'b' : 'w');
+    const oct = 3 + Math.floor((k + 5) / 12);
+    el.innerHTML = '<span class="kled"></span>' + (isBlack(k) ? '' : NAMES[k % 12] + oct);
+    bindPress(el, (d) => M._bm_web_key(k, d, now()));
+    keyEls[k] = el; kb.appendChild(el);
+  }
+  layoutKeys(); addEventListener('resize', layoutKeys);
+
+  /* ---------------- encoders ---------------- */
+  document.querySelectorAll('.enc').forEach(el => {
+    const id = +el.dataset.enc, knob = el.querySelector('.knob');
+    let ang = 0, acc = 0, lastY = null;
+    const turn = (d) => { ang += d * 18; knob.style.transform = 'rotate(' + ang + 'deg)'; M._bm_web_encoder(id, d, now()); };
+    el.addEventListener('wheel', (e) => { e.preventDefault(); turn(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); lastY = e.clientY; acc = 0; });
+    el.addEventListener('pointermove', (e) => {
+      if (lastY === null) return;
+      acc += lastY - e.clientY; lastY = e.clientY;
+      const steps = Math.trunc(acc / 6);
+      if (steps) { acc -= steps * 6; turn(Math.max(-8, Math.min(8, steps))); }
+    });
+    const end = () => { lastY = null; };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  });
+  const master = document.getElementById('master');
+  const sendMaster = () => { for (let i = 0; i < 4; i++) M._bm_web_master(+master.value); };
+  master.addEventListener('input', sendMaster); sendMaster();
+
+  /* ---------------- teclado de la PC ---------------- */
+  const PCKEYS = 'zsxdcfvbhnjm,l.;/qwertyuiop';
+  const BTNKEYS = { ' ': 'PLAY', 'Enter': 'REC', 'Shift': 'GLO', 'ArrowLeft': 'OCT_DN', 'ArrowRight': 'OCT_UP',
+    '1': 'HOME', '2': 'SEQ', '3': 'EDIT', '4': 'ENV', '5': 'FX', '6': 'SCL', '7': 'ARP', '8': 'SAVE' };
+  const pk = (e, d) => {
+    if (e.target.tagName === 'INPUT' || e.repeat) return;
+    const i = PCKEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { keyEls[i]._set(d); e.preventDefault(); return; }
+    const b = BTNKEYS[e.key];
+    if (b) { btnEls[BTN[b]]._set(d); e.preventDefault(); }
+  };
+  addEventListener('keydown', (e) => pk(e, 1)); addEventListener('keyup', (e) => pk(e, 0));
+
+  /* ---------------- pantalla y LEDs ---------------- */
+  const cv = document.getElementById('lcd'), cx = cv.getContext('2d');
+  const img = cx.createImageData(240, 240), px = img.data;
+  const level = (l, t) => l === 0 ? 0 : l === 1 ? 0.18 : l === 2 ? 1 : l === 3 ? ((t % 400) < 200 ? 1 : 0.15) : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t / 180));
+  const spiEl = document.getElementById('spi'), spiV = document.getElementById('spiv');
+  let frame = 0;
+  setInterval(() => {
+    const t = now();
+    const spi = M._bm_web_tick(t);
+    const fb = new Uint16Array(M.HEAPU16.buffer, M._bm_web_fb(), 240 * 240);
+    for (let i = 0, j = 0; i < 57600; i++, j += 4) {
+      const c = fb[i];
+      px[j] = ((c >> 11) & 31) * 255 / 31; px[j + 1] = ((c >> 5) & 63) * 255 / 63; px[j + 2] = (c & 31) * 255 / 31; px[j + 3] = 255;
+    }
+    cx.putImageData(img, 0, 0);
+    const leds = new Uint8Array(M.HEAPU8.buffer, M._bm_web_leds(), 41);
+    for (let i = 0; i < 14; i++) {
+      const a = level(leds[i], t), el = btnEls[i];
+      if (!el) continue;
+      const col = i === BTN.PLAY ? '30,204,112' : i === BTN.REC ? '255,64,64' : '255,198,24';
+      el.querySelector('.led').style.background = a ? 'rgba(' + col + ',' + a + ')' : '#3a3e45';
+      el.style.color = leds[i] >= 2 ? '#f2f4f5' : '';
+    }
+    for (let k = 0; k < 27; k++) {
+      const a = level(leds[14 + k], t);
+      keyEls[k].querySelector('.kled').style.background = a ? 'rgba(255,198,24,' + a + ')' : 'transparent';
+    }
+    spiEl.style.width = Math.min(100, spi / 37000 * 100) + '%';
+    spiEl.style.background = spi > 37000 ? 'var(--red)' : 'var(--green)';
+    spiV.textContent = spi.toLocaleString() + ' B';
+    if (++frame % 60 === 0) persist();
+  }, 33);
+
+  /* ---------------- audio ---------------- */
+  let ac = null;
+  document.getElementById('on').addEventListener('click', async () => {
+    document.getElementById('power').remove();
+    ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    const sp = ac.createScriptProcessor(1024, 0, 2);
+    sp.onaudioprocess = (e) => {
+      const n = e.outputBuffer.length;
+      const p = M._bm_web_render(n);
+      const f = new Float32Array(M.HEAPF32.buffer, p, n * 2);
+      e.outputBuffer.getChannelData(0).set(f.subarray(0, n));
+      e.outputBuffer.getChannelData(1).set(f.subarray(n, 2 * n));
+    };
+    sp.connect(ac.destination);
+    await ac.resume();
+  });
+
+  /* ---------------- WAV al sampler ---------------- */
+  const wav = document.getElementById('wav');
+  document.getElementById('wavbtn').addEventListener('click', () => wav.click());
+  wav.addEventListener('change', async () => {
+    const f = wav.files[0]; if (!f) return;
+    try {
+      const buf = await f.arrayBuffer();
+      const tmp = new OfflineAudioContext(1, 1, 22059);
+      const dec = await tmp.decodeAudioData(buf);
+      const cap = M._bm_web_sampler_cap();
+      const len = Math.min(cap, Math.floor(dec.duration * 22059));
+      const off = new OfflineAudioContext(1, len, 22059);
+      const src = off.createBufferSource(); src.buffer = dec; src.connect(off.destination); src.start();
+      const out = (await off.startRendering()).getChannelData(0);
+      let pk = 0; for (const v of out) pk = Math.max(pk, Math.abs(v));
+      const g = pk ? 0.95 / pk : 1;
+      const i8 = new Int8Array(len); for (let i = 0; i < len; i++) i8[i] = Math.max(-128, Math.min(127, Math.round(out[i] * g * 127)));
+      M.HEAP8.set(i8, M._bm_web_sampler());
+      M._bm_web_sampler_set(len);
+      msg('WAV cargado: ' + (len / 22059).toFixed(2) + ' s en 16 partes. Elige T2 (ALGORITHM) y toca las blancas.');
+    } catch (e) { msg('No se pudo leer ese archivo de audio.'); }
+    wav.value = '';
+  });
+
+  /* ---------------- MIDI ---------------- */
+  document.getElementById('midibtn').addEventListener('click', async () => {
+    if (!navigator.requestMIDIAccess) { msg('Este navegador no tiene Web MIDI (usa Chrome o Edge).'); return; }
+    try {
+      const acc = await navigator.requestMIDIAccess();
+      let n = 0;
+      acc.inputs.forEach(inp => { n++; inp.onmidimessage = (e) => e.data.forEach(b => M._bm_web_midi(b)); });
+      msg(n ? 'MIDI IN activo: canales 1-6 = pistas, reloj si GLO > RELOJ = EXTERNO.' : 'No hay entradas MIDI conectadas.');
+    } catch (e) { msg('Permiso de MIDI denegado.'); }
+  });
+
+  document.getElementById('wipe').addEventListener('click', () => {
+    if (!confirm('¿Borrar patrones, song y ajustes guardados en este navegador?')) return;
+    localStorage.removeItem(KEY);
+    M._bm_web_flash_blank();
+    M._bm_web_init(now());
+    msg('Memoria borrada: vuelve la demo.');
+  });
+})();
+</script>
+</body>
+</html>

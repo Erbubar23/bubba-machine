@@ -1,0 +1,105 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/ROADMAP.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/hoja-de-ruta.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/roadmap.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html">Install</a>
+      <a href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="contributing.html">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/hoja-de-ruta.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html">Install</a>
+    <a href="changelog.html">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html" aria-current="page">Roadmap</a>
+    <a href="contributing.html">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="roadmap">Roadmap</h1>
+<p>What is coming for Bubba Machine, in order of importance. Dates depend on getting the hardware working.</p>
+<h2 id="now-02x-public-preview">Now: 0.2.x, public preview</h2>
+<ul><li>
+The full firmware in the web emulator.
+</li><li>
+Documentation, GPL-3.0 license and website.
+</li><li>
+Collecting reports and opinions about how it plays.
+</li></ul>
+<h2 id="porting-to-the-fm-1">Porting to the FM-1</h2>
+<p>The most important step: making it run on the device. The plan is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish):</p>
+<ol><li>
+A full flash backup and a proven way back to the factory firmware.
+</li><li>
+Boot, clock, screen and button matrix.
+</li><li>
+Audio over I2S, flash and USB-MIDI.
+</li><li>
+Measure real CPU, RAM and voices, and adjust.
+</li></ol>
+<h2 id="web-installer">Web installer</h2>
+<ul><li>
+Install over USB-C from the browser, with Web MIDI.
+</li><li>
+Mandatory backup before installing and one-click rollback.
+</li></ul>
+<h2 id="03-the-30-interface">0.3: the 3.0 interface</h2>
+<p>The new way to play, already designed in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>:</p>
+<ul><li>
+Four gestures per button that mean the same thing on every button: tap, hold, hold 2 s and HOME + button.
+</li><li>
+HOME everywhere: sequence controller and global modifier.
+</li><li>
+ALGORITHM moves between tracks, with a box that confirms where you are going.
+</li><li>
+3 fixed tracks (drums, sampler and bass) and 3 free ones (SYNTH, MONO, KIT or MIDI).
+</li><li>
+Sampler 3.0: a break the generator rearranges, with a PLAYS row to see what it picked.
+</li><li>
+A dedicated recorder with a take library and an editor to slice later.
+</li></ul>
+<h2 id="later">Later</h2>
+<ul><li>
+<strong>Web editor:</strong> upload and download patterns, samples and loops over USB.
+</li><li>
+<strong>Free loop and kit packs</strong> (CC0 or GPL), made by the community.
+</li><li>
+<strong>Bluetooth MIDI</strong>, if the hardware and the CPU allow it.
+</li></ul>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/ROADMAP.md">docs/en/ROADMAP.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

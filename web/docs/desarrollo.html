@@ -5,6 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Desarrollo · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/desarrollo.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/development.html">
 <link rel="icon" href="../icon.png">
 <link rel="stylesheet" href="../site.css">
 </head>
@@ -13,12 +15,13 @@
   <div class="in">
     <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
     <nav aria-label="Sitio">
-      <a href="../emulador.html">Emulador</a>
+      <a href="../emulador.html?lang=es">Emulador</a>
       <a href="manual.html">Manual</a>
       <a href="instalar.html">Instalar</a>
       <a href="hoja-de-ruta.html">Hoja de ruta</a>
       <a href="contribuir.html">Contribuir</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+      <a class="lang" href="../en/docs/development.html" hreflang="en" lang="en" data-lang="en">English</a>
     </nav>
   </div>
 </header>
@@ -51,15 +54,15 @@
 <pre><code>py -3 tools/build.py assets   # fuente, kits, ondas, loops de fábrica y logo (core/gen/)
 py -3 tools/build.py test     # compila y corre las pruebas en PC; capturas en assets/screens/
 py -3 tools/build.py web      # emulador: web/bm.js
-py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/
+py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/ y web/en/docs/
 py -3 tools/build.py all      # todo lo anterior</code></pre>
 <p>Las pruebas (<code>tests/test_core.c</code>) recorren el firmware como lo haría una persona: arrancan, tocan botones, graban, guardan, apagan y vuelven a prender. También verifican el tiempo del secuenciador, el presupuesto de la pantalla y que nunca se escriba la flash mientras suena.</p>
 <h2 id="estructura">Estructura</h2>
 <pre><code>core/        el firmware, C99 sin hardware: audio, secuenciador, interfaz y guardado
 core/gen/    datos generados por tools/: fuente, kits, ondas, loops y logo
 hal/         capas de hardware: sim (PC y web), web (WebAssembly) y fm1 (port)
-web/         sitio: portada, emulador (emulador.html) y documentación (docs/)
-docs/        manual, especificación, diseño y guías (fuente del sitio)
+web/         sitio: portada, emulador (emulador.html) y documentación (docs/, en/)
+docs/        manual, especificación, diseño y guías (fuente del sitio); docs/en/ en inglés
 tests/       pruebas automáticas
 tools/       generadores y build
 assets/      logo, capturas, loops de fábrica</code></pre>
@@ -85,9 +88,9 @@ Para probar con tu propio audio, crea <code>assets/loops/loops.local.json</code>
 <p><strong>Un build hecho con <code>--local</code> no se puede publicar</strong>: ni <code>web/bm.js</code> ni binarios. Antes de subir cambios, vuelve a generar sin <code>--local</code>.</p>
 <h2 id="el-sitio">El sitio</h2>
 <ul><li>
-<code>web/index.html</code> es la portada y <code>web/emulador.html</code>, el emulador.
+<code>web/index.html</code> es la portada en español, <code>web/en/index.html</code> la de inglés y <code>web/emulador.html</code> el emulador (en los dos idiomas: <code>?lang=es</code> o <code>?lang=en</code>).
 </li><li>
-Las páginas de <code>web/docs/</code> se generan desde los <code>.md</code> con <code>tools/gen_site.py</code>: edita el <code>.md</code>, no el HTML.
+Las páginas de <code>web/docs/</code> y <code>web/en/docs/</code> se generan desde los <code>.md</code> con <code>tools/gen_site.py</code>: edita el <code>.md</code>, no el HTML. Las fuentes en inglés están en <code>docs/en/</code>; si cambias una guía, actualiza las dos.
 </li><li>
 GitHub Pages publica la carpeta <code>web/</code> con el flujo <code>.github/workflows/pages.yml</code>.
 </li></ul>
@@ -110,5 +113,6 @@ Cada versión pública es una etiqueta <code>vX.Y.Z</code> con su código fuente
     <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
 </body>
 </html>

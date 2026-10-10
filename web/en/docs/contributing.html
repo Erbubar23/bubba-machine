@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/CONTRIBUTING.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contributing to Bubba Machine · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/contribuir.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/contributing.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html">Install</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="contributing.html" aria-current="page">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/contribuir.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html">Install</a>
+    <a href="changelog.html">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="contributing.html" aria-current="page">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="contributing-to-bubba-machine">Contributing to Bubba Machine</h1>
+<p>Thanks for wanting to help. Bubba Machine is free firmware for the M-VAVE FM-1 and every bit of help counts: testing in the emulator, reporting bugs, improving the manual, designing sounds or writing code.</p>
+<p>You can write in <strong>English or Spanish</strong>.</p>
+<h2 id="ways-to-help">Ways to help</h2>
+<ul><li>
+<strong>Test and report.</strong> Use the web emulator and open an <em>issue</em> with what happened, what you expected and how to reproduce it. Screenshots help a lot.
+</li><li>
+<strong>Interface ideas.</strong> Open an <em>idea</em> issue. The current direction is in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>.
+</li><li>
+<strong>Documentation.</strong> The manual lives in <a href="manual.html"><code>docs/en/MANUAL.md</code></a> (and the Spanish one in <code>docs/MANUAL.md</code>); the website is generated from the <code>.md</code> files.
+</li><li>
+<strong>Code.</strong> Read <a href="development.html"><code>DEVELOPMENT.md</code></a> to build and test.
+</li><li>
+<strong>Hardware.</strong> If you have an FM-1 and experience with the JieLi SDK, the port in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/</code></a> is what needs help the most.
+</li></ul>
+<h2 id="code-rules">Code rules</h2>
+<ol><li>
+<strong>All code is our own.</strong> Do not copy, translate or paraphrase code from other FM-1 firmwares (including Felucca). Hardware facts (pins, timings, documented registers) can be used, citing the source in <code>docs/SPEC_V3.md</code>.
+</li><li>
+<strong>Third-party code only with a GPL-3.0-compatible license</strong>, and listed in the <a href="credits.html">credits</a>.
+</li><li>
+<strong>Sounds:</strong> only synthesized in <code>tools/</code>, made by you, or under a free compatible license (CC0, CC-BY or GPL). No samples from records or commercial packs. To test with third-party audio use <code>assets/loops/loops.local.json</code>, which is never pushed.
+</li><li>
+<strong>Dependency-free C99</strong> in <code>core/</code>: no <code>malloc</code>, no floating point in the audio path and nothing that depends on the hardware. Everything hardware-related goes in <code>hal/</code>.
+</li><li>
+<strong>Every new file</strong> starts with the license identifier:
+</li></ol>
+<pre><code>/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Your Name */</code></pre>
+<h2 id="before-opening-a-pull-request">Before opening a pull request</h2>
+<p>Pull requests go to the <strong><code>dev</code></strong> branch. From there changes move to <code>qa</code> to be tested and then to <code>main</code>, which is what is released (see <a href="development.html#branches">branches</a>).</p>
+<ul><li>
+&#9744; <code>py -3 tools/build.py test</code> passes with no failures.
+</li><li>
+&#9744; If you changed the interface, the screenshots (<code>assets/screens/</code>) and the manual are updated.
+</li><li>
+&#9744; If you changed the pattern or flash format, it is explained in the PR and in the <a href="changelog.html">changelog</a>.
+</li><li>
+&#9744; If you added anything third-party, it is in the <a href="credits.html">credits</a>.
+</li></ul>
+<h2 id="license-of-contributions">License of contributions</h2>
+<p>By submitting a contribution you agree that it is published under the project's license, <strong>GPL-3.0-or-later</strong>. We recommend signing your commits with <code>git commit -s</code> (<a href="https://developercertificate.org/">Developer Certificate of Origin</a>) to record that you have the right to contribute that code.</p>
+<h2 id="conduct">Conduct</h2>
+<p>This project follows a <a href="conduct.html">code of conduct</a>.</p>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/CONTRIBUTING.md">docs/en/CONTRIBUTING.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

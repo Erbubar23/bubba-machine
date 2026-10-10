@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/CHANGELOG.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/cambios.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/changelog.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html">Install</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="contributing.html">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/cambios.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html">Install</a>
+    <a href="changelog.html" aria-current="page">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="contributing.html">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="changelog">Changelog</h1>
+<p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="unreleased">[Unreleased]</h2>
+<h3 id="added">Added</h3>
+<ul><li>
+Website and documentation in English too, with a language switch on every page (emulator included).
+</li></ul>
+<h2 id="020---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0">0.2.0</a> - 2026-10-10</h2>
+<p>First public version. Runs on PC and in the web emulator; the FM-1 port has not been tested on hardware yet.</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>TR drums</strong> (T1) and <strong>sampler</strong> (T2) with 16 instruments, each with its own line and length (polymeter), accent, ×2-×4 repeats, flam, P-Locks and steps that only play (or stay silent) in the fill. Live roll and TR-style erase.
+</li><li>
+<strong>Per-track time:</strong> length 1-64 and speed ×2 to ×1/4; master length from 16 steps to infinite.
+</li><li>
+<strong>Sampler:</strong> records the mix with live chops; 2 slots of 4 s in flash, played directly (XIP).
+</li><li>
+<strong>Factory loops</strong> in ROM (BUBBA 160 and BUBBA 128), synthesized by <code>tools/gen_loops.py</code>. The demo starts with one.
+</li><li>
+<strong>Sample drawing by frequency:</strong> three lanes (lows, mids and highs) instead of the waveform, which is a solid block with heavily compressed music.
+</li><li>
+Per-track note <strong>looper</strong> on the synths (REC › PLAY › OVERDUB).
+</li><li>
+<strong>Chord grid</strong> 4×4 with degree, name and function by color; progression sets, voice leading and strum.
+</li><li>
+<strong>Scenes</strong> A-D with chains and SONG REC; automatic fills.
+</li><li>
+<strong>Third press of 2 s</strong> (TIME, SYSTEM, SAMPLER, clear track, quick save) with a progress ring.
+</li><li>
+<strong>GPL-3.0-or-later</strong> license, documentation, website and CI.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+The project is released as <strong>Bubba Machine</strong>, independent from any earlier firmware.
+</li></ul>
+<h2 id="010---2026-10-09"><a href="https://github.com/Erbubar23/bubba-machine/commits/main">0.1.0</a> - 2026-10-09</h2>
+<p>First internal version.</p>
+<h3 id="added">Added</h3>
+<ul><li>
+Full C99 core: audio, 6-track sequencer, 240×240 interface, flash storage with CRC and wear leveling.
+</li><li>
+Synthesized drums (2 kits), bass and 3 wavetable synths with filter, arpeggiator and scales.
+</li><li>
+PC simulator with automated tests and a WebAssembly web emulator.
+</li><li>
+FM-1 port skeleton (structure, pins and matrix scanning).
+</li></ul>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/CHANGELOG.md">docs/en/CHANGELOG.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

@@ -5,6 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cambios · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/cambios.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/changelog.html">
 <link rel="icon" href="../icon.png">
 <link rel="stylesheet" href="../site.css">
 </head>
@@ -13,12 +15,13 @@
   <div class="in">
     <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
     <nav aria-label="Sitio">
-      <a href="../emulador.html">Emulador</a>
+      <a href="../emulador.html?lang=es">Emulador</a>
       <a href="manual.html">Manual</a>
       <a href="instalar.html">Instalar</a>
       <a href="hoja-de-ruta.html">Hoja de ruta</a>
       <a href="contribuir.html">Contribuir</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+      <a class="lang" href="../en/docs/changelog.html" hreflang="en" lang="en" data-lang="en">English</a>
     </nav>
   </div>
 </header>
@@ -41,6 +44,11 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
+<h2 id="sin-publicar">[Sin publicar]</h2>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+Sitio y documentación también en inglés, con selector de idioma en cada página (el emulador incluido).
+</li></ul>
 <h2 id="020---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0">0.2.0</a> - 2026-10-10</h2>
 <p>Primera versión pública. Corre en PC y en el emulador web; el port al FM-1 aún no se ha probado en hardware.</p>
 <h3 id="agregado">Agregado</h3>
@@ -89,5 +97,6 @@ Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
     <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
 </body>
 </html>

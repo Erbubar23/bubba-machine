@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Erbubar23
-"""Genera las páginas de documentación del sitio (web/docs/*.html) a partir de los .md.
+"""Genera la documentación del sitio en español (web/docs/) e inglés (web/en/docs/) desde los .md.
 
-Edita los .md: el HTML se regenera. También copia a web/img/ las capturas y el logo que usa
-el sitio. Sin dependencias: trae un convertidor de Markdown pequeño, suficiente para nuestros
-documentos (títulos, párrafos, listas, tablas, código, citas, enlaces, negritas).
+Edita los .md: el HTML se regenera. Las fuentes en inglés viven en docs/en/. Las páginas
+técnicas que solo existen en español aparecen en el menú en inglés marcadas con (ES).
+También copia a web/img/ las capturas y el logo que usa el sitio. Sin dependencias: trae un
+convertidor de Markdown pequeño, suficiente para nuestros documentos.
 
 Uso: py -3 tools/gen_site.py
 """
@@ -14,41 +15,81 @@ import html, os, re, shutil
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, 'web')
 REPO = 'https://github.com/Erbubar23/bubba-machine/blob/main/'
+SITE = 'https://erbubar23.github.io/bubba-machine/'
 VERSION = '0.2.0'
 
-# (archivo de salida, título del menú, fuente, grupo)
+LANGS = {'es': 'docs', 'en': 'en/docs'}          # carpeta de salida dentro de web/
+
+# clave, grupo, {idioma: (archivo, título del menú, fuente)}
 PAGES = [
-    ('manual', 'Manual', 'docs/MANUAL.md', 'Usar'),
-    ('instalar', 'Instalar', 'docs/INSTALAR.md', 'Usar'),
-    ('cambios', 'Cambios', 'CHANGELOG.md', 'Usar'),
-    ('diseno-3', 'Diseño 3.0', 'docs/DISENO_3.0.md', 'Proyecto'),
-    ('hoja-de-ruta', 'Hoja de ruta', 'docs/HOJA_DE_RUTA.md', 'Proyecto'),
-    ('contribuir', 'Contribuir', 'CONTRIBUTING.md', 'Proyecto'),
-    ('conducta', 'Código de conducta', 'CODE_OF_CONDUCT.md', 'Proyecto'),
-    ('creditos', 'Créditos', 'CREDITOS.md', 'Proyecto'),
-    ('desarrollo', 'Desarrollo', 'docs/DESARROLLO.md', 'Técnico'),
-    ('spec', 'Especificación', 'docs/SPEC_V3.md', 'Técnico'),
-    ('memoria', 'Memoria', 'docs/MEMORIA.md', 'Técnico'),
-    ('diseno-0-2', 'Diseño 0.2', 'docs/DISENO_0.2.md', 'Técnico'),
+    ('manual', 'use', {'es': ('manual', 'Manual', 'docs/MANUAL.md'),
+                       'en': ('manual', 'Manual', 'docs/en/MANUAL.md')}),
+    ('install', 'use', {'es': ('instalar', 'Instalar', 'docs/INSTALAR.md'),
+                        'en': ('install', 'Install', 'docs/en/INSTALL.md')}),
+    ('changes', 'use', {'es': ('cambios', 'Cambios', 'CHANGELOG.md'),
+                        'en': ('changelog', 'Changelog', 'docs/en/CHANGELOG.md')}),
+    ('design3', 'project', {'es': ('diseno-3', 'Diseño 3.0', 'docs/DISENO_3.0.md'),
+                            'en': ('design-3', 'Design 3.0', 'docs/en/DESIGN_3.0.md')}),
+    ('roadmap', 'project', {'es': ('hoja-de-ruta', 'Hoja de ruta', 'docs/HOJA_DE_RUTA.md'),
+                            'en': ('roadmap', 'Roadmap', 'docs/en/ROADMAP.md')}),
+    ('contrib', 'project', {'es': ('contribuir', 'Contribuir', 'CONTRIBUTING.md'),
+                            'en': ('contributing', 'Contributing', 'docs/en/CONTRIBUTING.md')}),
+    ('conduct', 'project', {'es': ('conducta', 'Código de conducta', 'CODE_OF_CONDUCT.md'),
+                            'en': ('conduct', 'Code of conduct', 'docs/en/CODE_OF_CONDUCT.md')}),
+    ('credits', 'project', {'es': ('creditos', 'Créditos', 'CREDITOS.md'),
+                            'en': ('credits', 'Credits', 'docs/en/CREDITS.md')}),
+    ('dev', 'tech', {'es': ('desarrollo', 'Desarrollo', 'docs/DESARROLLO.md'),
+                     'en': ('development', 'Development', 'docs/en/DEVELOPMENT.md')}),
+    ('spec', 'tech', {'es': ('spec', 'Especificación', 'docs/SPEC_V3.md')}),
+    ('memory', 'tech', {'es': ('memoria', 'Memoria', 'docs/MEMORIA.md')}),
+    ('design02', 'tech', {'es': ('diseno-0-2', 'Diseño 0.2', 'docs/DISENO_0.2.md')}),
 ]
+ES_ONLY_EN = {'spec': 'Specification (ES)', 'memory': 'Memory budget (ES)', 'design02': 'Design 0.2 (ES)'}
+
+TXT = {
+    'es': {
+        'groups': {'use': 'Usar', 'project': 'Proyecto', 'tech': 'Técnico'},
+        'nav': [('emu', 'Emulador'), ('manual', 'Manual'), ('install', 'Instalar'), ('roadmap', 'Hoja de ruta'), ('contrib', 'Contribuir')],
+        'code': 'Código', 'site': 'Sitio', 'docs': 'Documentación', 'other': ('en', 'English'),
+        'src': 'Esta página se genera desde <a href="%s">%s</a>. ¿Ves un error? Edita el archivo y manda un pull request.',
+        'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.',
+    },
+    'en': {
+        'groups': {'use': 'Use', 'project': 'Project', 'tech': 'Technical'},
+        'nav': [('emu', 'Emulator'), ('manual', 'Manual'), ('install', 'Install'), ('roadmap', 'Roadmap'), ('contrib', 'Contribute')],
+        'code': 'Code', 'site': 'Site', 'docs': 'Documentation', 'other': ('es', 'Español'),
+        'src': 'This page is generated from <a href="%s">%s</a>. Spotted a mistake? Edit the file and send a pull request.',
+        'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.',
+    },
+}
 IMAGES = ['00-home', '02-seq-tr', '05-time', '17-chords', '30-sampler-fab']
 
-BY_SRC = {os.path.normpath(src): slug for slug, _, src, _ in PAGES}
+BY_SRC = {os.path.normpath(p[2]): (lang, p[0]) for _, _, d in PAGES for lang, p in d.items()}
+
+
+def out_file(lang, slug):
+    return os.path.join(WEB, LANGS[lang], slug + '.html')
+
+
+def rel(target, cur_dir):
+    return os.path.relpath(target, cur_dir).replace(os.sep, '/')
 
 
 # ------------------------------------------------------------ enlaces
-def resolve_link(url, src):
+def resolve_link(url, src, cur_dir):
     if re.match(r'^[a-z]+:', url) or url.startswith('#'):
         return url
     path, _, frag = url.partition('#')
     full = os.path.normpath(os.path.join(os.path.dirname(src), path))
+    tail = '#' + frag if frag else ''
     if full in BY_SRC:
-        return BY_SRC[full] + '.html' + ('#' + frag if frag else '')
-    return REPO + full.replace(os.sep, '/') + ('#' + frag if frag else '')
+        return rel(out_file(*BY_SRC[full]), cur_dir) + tail
+    return REPO + full.replace(os.sep, '/') + tail
 
 
 # ------------------------------------------------------------ Markdown en línea
-def inline(text, src, refs):
+def inline(text, ctx):
+    src, cur_dir, refs = ctx
     codes = []
 
     def keep_code(m):
@@ -58,8 +99,7 @@ def inline(text, src, refs):
     text = html.escape(text, quote=False)
 
     def link(m):
-        label, url = m.group(1), m.group(2)
-        return '<a href="%s">%s</a>' % (html.escape(resolve_link(url, src)), label)
+        return '<a href="%s">%s</a>' % (html.escape(resolve_link(m.group(2), src, cur_dir)), m.group(1))
     text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', '', text)
     text = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)', link, text)
 
@@ -81,15 +121,15 @@ def slugify(text):
 
 
 # ------------------------------------------------------------ Markdown en bloques
-def markdown(md, src):
-    refs = {}
-    lines = []
+def markdown(md, src, cur_dir):
+    refs, lines = {}, []
     for ln in md.splitlines():
         m = re.match(r'^\[([^\]]+)\]:\s*(\S+)\s*$', ln)
         if m:
             refs[m.group(1)] = m.group(2)
         else:
             lines.append(ln.rstrip())
+    ctx = (src, cur_dir, refs)
     out, i, title = [], 0, None
     lists = []                       # pila de ('ul'|'ol', sangría)
 
@@ -117,7 +157,7 @@ def markdown(md, src):
         m = re.match(r'^(#{1,4})\s+(.*)$', s)
         if m:
             close_lists()
-            lvl, txt = len(m.group(1)), inline(m.group(2), src, refs)
+            lvl, txt = len(m.group(1)), inline(m.group(2), ctx)
             if lvl == 1 and title is None:
                 title = re.sub(r'<[^>]+>', '', txt)
             out.append('<h%d id="%s">%s</h%d>' % (lvl, slugify(txt), txt, lvl))
@@ -136,10 +176,10 @@ def markdown(md, src):
                 i += 1
             head, body = rows[0], [r for r in rows[1:] if not all(re.match(r'^:?-+:?$', c) for c in r if c)]
             t = ['<div class="tbl"><table><thead><tr>']
-            t += ['<th>%s</th>' % inline(c, src, refs) for c in head]
+            t += ['<th>%s</th>' % inline(c, ctx) for c in head]
             t.append('</tr></thead><tbody>')
             for r in body:
-                t.append('<tr>' + ''.join('<td>%s</td>' % inline(c, src, refs) for c in r) + '</tr>')
+                t.append('<tr>' + ''.join('<td>%s</td>' % inline(c, ctx) for c in r) + '</tr>')
             t.append('</tbody></table></div>')
             out.append(''.join(t))
             continue
@@ -149,7 +189,7 @@ def markdown(md, src):
             while i < len(lines) and lines[i].strip().startswith('>'):
                 q.append(lines[i].strip()[1:].strip())
                 i += 1
-            out.append('<blockquote><p>%s</p></blockquote>' % inline(' '.join(q), src, refs))
+            out.append('<blockquote><p>%s</p></blockquote>' % inline(' '.join(q), ctx))
             continue
         m = re.match(r'^(\s*)([-*]|\d+\.)\s+(.*)$', ln)
         if m:
@@ -168,7 +208,7 @@ def markdown(md, src):
                     and not lines[i].strip().startswith(('```', '|', '#', '>')) and (len(lines[i]) - len(lines[i].lstrip())) > ind:
                 txt += ' ' + lines[i].strip()
                 i += 1
-            out.append(inline(txt, src, refs))
+            out.append(inline(txt, ctx))
             continue
         close_lists()
         para = [s]
@@ -176,81 +216,114 @@ def markdown(md, src):
         while i < len(lines) and lines[i].strip() and not re.match(r'^(#{1,4}\s|```|\||>|\s*([-*]|\d+\.)\s|-{3,}$)', lines[i].strip()):
             para.append(lines[i].strip())
             i += 1
-        out.append('<p>%s</p>' % inline(' '.join(para), src, refs))
+        out.append('<p>%s</p>' % inline(' '.join(para), ctx))
     close_lists()
     return title, '\n'.join(out)
 
 
 # ------------------------------------------------------------ página
-def page(slug, title, body, src):
-    groups, nav = [], []
-    for s, label, _, grp in PAGES:
-        if grp not in groups:
-            groups.append(grp)
-            nav.append('<div class="grp">%s</div>' % grp)
-        cur = ' aria-current="page"' if s == slug else ''
-        nav.append('<a href="%s.html"%s>%s</a>' % (s, cur, label))
+def page(lang, key, title, body, src):
+    T = TXT[lang]
+    cur_dir = os.path.join(WEB, LANGS[lang])
+    up = rel(WEB, cur_dir)                                      # '..' o '../..'
+    by_key = {k: d for k, _, d in PAGES}
+
+    def href(k):
+        d = by_key[k]
+        return rel(out_file(lang, d[lang][0]), cur_dir) if lang in d else rel(out_file('es', d['es'][0]), cur_dir)
+
+    def cur(k):
+        return ' aria-current="page"' if k == key else ''
+
+    # menú lateral
+    side, seen = [], []
+    for k, grp, d in PAGES:
+        if lang not in d and lang != 'en':
+            continue
+        if grp not in seen:
+            seen.append(grp)
+            side.append('<div class="grp">%s</div>' % T['groups'][grp])
+        label = d[lang][1] if lang in d else ES_ONLY_EN[k]
+        side.append('<a href="%s"%s>%s</a>' % (href(k), cur(k), html.escape(label)))
+
+    # barra superior
+    nav = []
+    for k, label in T['nav']:
+        if k == 'emu':
+            nav.append('<a href="%s/emulador.html?lang=%s">%s</a>' % (up, lang, label))
+        else:
+            nav.append('<a href="%s"%s>%s</a>' % (href(k), cur(k), label))
+    nav.append('<a href="https://github.com/Erbubar23/bubba-machine">%s</a>' % T['code'])
+
+    # el otro idioma: la misma página si existe; si no, su portada
+    olang, olabel = T['other']
+    d = by_key[key]
+    if olang in d:
+        other = rel(out_file(olang, d[olang][0]), cur_dir)
+    else:
+        other = rel(os.path.join(WEB, 'en' if olang == 'en' else '', 'index.html'), cur_dir)
+    nav.append('<a class="lang" href="%s" hreflang="%s" lang="%s" data-lang="%s">%s</a>' % (other, olang, olang, olang, olabel))
+
+    alt = ''
+    if len(d) == 2:
+        alt = ''.join('<link rel="alternate" hreflang="%s" href="%s%s/%s.html">\n' % (l, SITE, LANGS[l], d[l][0]) for l in ('es', 'en'))
+
     return '''<!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde %(src)s: no editar a mano. -->
-<html lang="es">
+<html lang="%(lang)s">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s · Bubba Machine</title>
-<link rel="icon" href="../icon.png">
-<link rel="stylesheet" href="../site.css">
+%(alt)s<link rel="icon" href="%(up)s/icon.png">
+<link rel="stylesheet" href="%(up)s/site.css">
 </head>
 <body>
 <header class="top">
   <div class="in">
-    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
-    <nav aria-label="Sitio">
-      <a href="../emulador.html">Emulador</a>
-      <a href="manual.html"%(m)s>Manual</a>
-      <a href="instalar.html"%(i)s>Instalar</a>
-      <a href="hoja-de-ruta.html"%(h)s>Hoja de ruta</a>
-      <a href="contribuir.html"%(c)s>Contribuir</a>
-      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+    <a class="brand" href="../index.html"><img src="%(up)s/img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="%(sitel)s">
+      %(nav)s
     </nav>
   </div>
 </header>
 <div class="docs">
-  <aside aria-label="Documentación">%(nav)s</aside>
+  <aside aria-label="%(docsl)s">%(side)s</aside>
   <main class="doc">
 %(body)s
-    <p class="src">Esta página se genera desde <a href="%(srcurl)s">%(src)s</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+    <p class="src">%(srcnote)s</p>
   </main>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine %(ver)s · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>%(foot)s</p>
   </div>
 </footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
 </body>
 </html>
-''' % {'title': html.escape(title), 'nav': '\n    '.join(nav), 'body': body, 'src': src, 'srcurl': REPO + src,
-       'ver': VERSION, 'm': cur_attr(slug, 'manual'), 'i': cur_attr(slug, 'instalar'),
-       'h': cur_attr(slug, 'hoja-de-ruta'), 'c': cur_attr(slug, 'contribuir')}
-
-
-def cur_attr(slug, name):
-    return ' aria-current="page"' if slug == name else ''
+''' % {'lang': lang, 'title': html.escape(title), 'alt': alt, 'up': up, 'sitel': T['site'], 'docsl': T['docs'],
+       'nav': '\n      '.join(nav), 'side': '\n    '.join(side), 'body': body, 'src': src,
+       'srcnote': T['src'] % (REPO + src, src), 'foot': T['foot'] % VERSION}
 
 
 def main():
-    os.makedirs(os.path.join(WEB, 'docs'), exist_ok=True)
+    for lang, sub in LANGS.items():
+        os.makedirs(os.path.join(WEB, sub), exist_ok=True)
     os.makedirs(os.path.join(WEB, 'img'), exist_ok=True)
-    for slug, label, src, _ in PAGES:
-        with open(os.path.join(ROOT, src), encoding='utf-8') as f:
-            title, body = markdown(f.read(), src)
-        with open(os.path.join(WEB, 'docs', slug + '.html'), 'w', encoding='utf-8', newline='\n') as f:
-            f.write(page(slug, title or label, body, src))
-        print('web/docs/%s.html  <-  %s' % (slug, src))
+    for key, _, d in PAGES:
+        for lang, (slug, label, src) in d.items():
+            cur_dir = os.path.join(WEB, LANGS[lang])
+            with open(os.path.join(ROOT, src), encoding='utf-8') as f:
+                title, body = markdown(f.read(), src, cur_dir)
+            with open(out_file(lang, slug), 'w', encoding='utf-8', newline='\n') as f:
+                f.write(page(lang, key, title or label, body, src))
+            print('web/%s/%s.html  <-  %s' % (LANGS[lang], slug, src))
     for name in IMAGES:
         shutil.copyfile(os.path.join(ROOT, 'assets', 'screens', name + '.png'), os.path.join(WEB, 'img', name + '.png'))
     shutil.copyfile(os.path.join(ROOT, 'assets', 'logo', 'bubba-machine-logo.png'), os.path.join(WEB, 'img', 'logo.png'))
     shutil.copyfile(os.path.join(ROOT, 'assets', 'logo', 'bubba-machine-icon.svg'), os.path.join(WEB, 'img', 'icon.svg'))
-    print('imágenes en web/img/')
+    print('imagenes en web/img/')
 
 
 if __name__ == '__main__':

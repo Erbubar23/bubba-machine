@@ -21,6 +21,7 @@ header .sub { color: var(--mut); font-size: 13px; }
 .sitenav { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; }
 .sitenav a { color: var(--mut); text-decoration: none; font-weight: 600; font-size: 13px; }
 .sitenav a:hover { color: var(--txt); }
+.sitenav a.lang { color: var(--yellow); }
 main { display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
 .device { background: var(--body); border: 1px solid var(--line); border-radius: 22px; padding: 22px; width: 1010px; max-width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
 .top { display: flex; gap: 26px; flex-wrap: wrap; }
@@ -73,11 +74,11 @@ button.act:hover { background: #33373d; }
 </style>
 </head>
 <body>
-<div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button">Encender</button><span>El audio arranca al pulsar (regla del navegador).</span></div></div>
+<div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button" data-i18n="on">Encender</button><span data-i18n="onnote">El audio arranca al pulsar (regla del navegador).</span></div></div>
 <header>
-  <a href="index.html"><img src="logo.svg" alt="Bubba Machine: inicio"></a>
-  <div><b>Emulador del firmware 0.2.0</b><div class="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
-  <nav class="sitenav" aria-label="Sitio"><a href="index.html">Inicio</a><a href="docs/manual.html">Manual</a><a href="docs/instalar.html">Instalar</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a></nav>
+  <a id="homelink" href="index.html"><img src="logo.svg" alt="Bubba Machine"></a>
+  <div><b data-i18n="title">Emulador del firmware 0.2.0</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
+  <nav class="sitenav" aria-label="Sitio" data-i18n="nav"><a href="index.html">Inicio</a><a href="docs/manual.html">Manual</a><a href="docs/instalar.html">Instalar</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" data-lang="en" lang="en" class="lang">English</a></nav>
 </header>
 <main>
   <section class="device" id="device">
@@ -106,8 +107,8 @@ button.act:hover { background: #33373d; }
   </section>
   <aside>
     <div class="card">
-      <h2>Cómo se toca</h2>
-      <ul>
+      <h2 data-i18n="h.play">Cómo se toca</h2>
+      <ul data-i18n="play">
         <li><b>Toque</b>: abre la pantalla del botón (otra vez: su página siguiente). <b>Mantener</b> 300 ms: su capa en vivo. <b>Mantener 2 s</b> sin tocar nada más: pantalla especial (el anillo amarillo arriba se llena).</li>
         <li><b>Capas</b>: SEQ = patrones · HOME = mute · EDIT = borrar estilo TR · FX = punch-in · SCL = acordes · ARP = arpegio (synths) o roll (batería).</li>
         <li><b>2 s</b>: SEQ = TIEMPO (largo y velocidad por pista) · HOME = SISTEMA · EDIT en T2 = SAMPLER · REC = borrar pista · SAVE = guardado rápido.</li>
@@ -118,30 +119,102 @@ button.act:hover { background: #33373d; }
       </ul>
     </div>
     <div class="card">
-      <h2>Teclado de la PC</h2>
-      <p><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob. Mantén <kbd>2</kbd> dos segundos para la pantalla TIEMPO.</p>
+      <h2 data-i18n="h.kbd">Teclado de la PC</h2>
+      <p data-i18n="kbd"><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob. Mantén <kbd>2</kbd> dos segundos para la pantalla TIEMPO.</p>
     </div>
     <div class="card">
-      <h2>Hardware simulado</h2>
-      <div class="stat"><span>SPI a la pantalla (por frame)</span><span id="spiv">0 B</span></div>
+      <h2 data-i18n="h.hw">Hardware simulado</h2>
+      <div class="stat"><span data-i18n="hw.spi">SPI a la pantalla (por frame)</span><span id="spiv">0 B</span></div>
       <div class="meter"><div id="spi"></div></div>
-      <div class="stat"><span>Presupuesto a 12 MHz</span><span>~37 KB</span></div>
-      <div class="stat"><span>Escrituras en flash</span><span id="fw">0</span></div>
+      <div class="stat"><span data-i18n="hw.budget">Presupuesto a 12 MHz</span><span>~37 KB</span></div>
+      <div class="stat"><span data-i18n="hw.writes">Escrituras en flash</span><span id="fw">0</span></div>
     </div>
     <div class="card">
-      <h2>Sampler y memoria</h2>
-      <p>En el FM-1 el sampler graba la mezcla (mantén REC en EDIT de T2). Aquí además puedes cargar un audio en un slot (hasta 4 s, 16 kHz). Se corta en 16 chops que se secuencian como la batería. T2 ya trae un loop de fábrica (F1): elígelo con K1 en la pantalla SAMPLER (EDIT 2 s en T2).</p>
+      <h2 data-i18n="h.smp">Sampler y memoria</h2>
+      <p data-i18n="smp">En el FM-1 el sampler graba la mezcla (mantén REC en EDIT de T2). Aquí además puedes cargar un audio en un slot (hasta 4 s, 16 kHz). Se corta en 16 chops que se secuencian como la batería. T2 ya trae un loop de fábrica (F1): elígelo con K1 en la pantalla SAMPLER (EDIT 2 s en T2).</p>
       <div class="acts">
-        <button class="act" id="wavbtn" type="button">WAV al slot A</button>
-        <button class="act" id="wavbtnb" type="button">WAV al slot B</button>
+        <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV al slot A</button>
+        <button class="act" id="wavbtnb" type="button" data-i18n="b.wavb">WAV al slot B</button>
         <input type="file" id="wav" accept="audio/*" hidden>
-        <button class="act" id="midibtn" type="button">Activar MIDI IN</button>
-        <button class="act" id="wipe" type="button">Borrar memoria</button>
+        <button class="act" id="midibtn" type="button" data-i18n="b.midi">Activar MIDI IN</button>
+        <button class="act" id="wipe" type="button" data-i18n="b.wipe">Borrar memoria</button>
       </div>
       <p id="msg" style="color:var(--yellow)"></p>
     </div>
   </aside>
 </main>
+<script>
+/* Idioma del emulador: ?lang=es|en, si no la preferencia guardada, si no el idioma del navegador. */
+(function () {
+  var q = new URLSearchParams(location.search).get('lang'), saved = null;
+  try { saved = localStorage.getItem('bm-lang'); } catch (e) {}
+  var lang = q || saved || ((navigator.language || 'es').toLowerCase().indexOf('es') === 0 ? 'es' : 'en');
+  if (lang !== 'en') lang = 'es';
+  if (q) { try { localStorage.setItem('bm-lang', lang); } catch (e) {} }
+  var ES = {
+    'e.slot': 'No se pudo guardar en el slot.',
+    'ok.slot': function (s, t) { return 'Slot ' + s + ': ' + t + ' s en 16 chops. Elige T2 con ALGORITHM (GLO + ALGORITHM cambia de slot) y toca las blancas.'; },
+    'e.read': 'No se pudo leer ese archivo de audio.',
+    'e.midi': 'Este navegador no tiene Web MIDI (usa Chrome o Edge).',
+    'ok.midi': 'MIDI IN activo: canales 1-6 = pistas, reloj si GLO > RELOJ = EXTERNO.',
+    'e.nomidi': 'No hay entradas MIDI conectadas.',
+    'e.perm': 'Permiso de MIDI denegado.',
+    'q.wipe': '¿Borrar patrones, song y ajustes guardados en este navegador?',
+    'ok.wipe': 'Memoria borrada: vuelve la demo.'
+  };
+  var EN = {
+    title: 'Firmware emulator 0.2.0',
+    sub: 'The same C99 code that will run on the FM-1, compiled to WebAssembly. The firmware screens are in Spanish for now.',
+    nav: '<a href="en/index.html">Home</a><a href="en/docs/manual.html">Manual</a><a href="en/docs/install.html">Install</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="?lang=es" data-lang="es" lang="es" class="lang">Español</a>',
+    on: 'Power on',
+    onnote: 'Audio starts when you press it (browser rule).',
+    'h.play': 'How to play',
+    play: '<li><b>Tap</b>: opens the button\'s screen (again: its next page). <b>Hold</b> 300 ms: its live layer. <b>Hold 2 s</b> without touching anything else: special screen (the yellow ring at the top fills).</li>' +
+          '<li><b>Layers</b>: SEQ = patterns · HOME = mute · EDIT = TR-style erase · FX = punch-in · SCL = chords · ARP = arpeggio (synths) or roll (drums).</li>' +
+          '<li><b>2 s</b>: SEQ = TIEMPO (length and speed per track) · HOME = SISTEMA (system) · EDIT on T2 = SAMPLER · REC = clear track · SAVE = quick save.</li>' +
+          '<li><b>TR drums</b> (SEQ on T1): black keys 1-8 select the instrument, 9 switches section, 10 FILL, 11 mute. Hold a step and turn: KNOB = P-Lock, SELECT = accent, ALGORITHM = repeat/flam, PRESETS = fill condition.</li>' +
+          '<li><b>HOME again</b> = scenes. <b>SCL again</b> = chord grid. <b>SEQ again</b> on a synth = looper.</li>' +
+          '<li><b>ALGORITHM</b> changes track, <b>PRESETS</b> the pattern, <b>GLO</b> is the modifier.</li>' +
+          '<li>Right-click a button or key to keep it <b>held</b> (for mouse combos).</li>',
+    'h.kbd': 'Computer keyboard',
+    kbd: '<kbd>Z</kbd>…<kbd>/</kbd> and <kbd>Q</kbd>…<kbd>P</kbd> = keys · <kbd>Space</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · mouse wheel over a knob. Hold <kbd>2</kbd> for two seconds for the TIEMPO (time) screen.',
+    'h.hw': 'Simulated hardware',
+    'hw.spi': 'SPI to the screen (per frame)',
+    'hw.budget': 'Budget at 12 MHz',
+    'hw.writes': 'Flash writes',
+    'h.smp': 'Sampler and memory',
+    smp: 'On the FM-1 the sampler records the mix (hold REC in EDIT on T2). Here you can also load audio into a slot (up to 4 s, 16 kHz). It is cut into 16 chops that are sequenced like the drums. T2 already has factory loops (F1, F2): pick one with K1 on the SAMPLER screen (EDIT 2 s on T2).',
+    'b.wava': 'WAV to slot A',
+    'b.wavb': 'WAV to slot B',
+    'b.midi': 'Enable MIDI IN',
+    'b.wipe': 'Erase memory',
+    'e.slot': 'Could not save to the slot.',
+    'ok.slot': function (s, t) { return 'Slot ' + s + ': ' + t + ' s in 16 chops. Select T2 with ALGORITHM (GLO + ALGORITHM switches slot) and play the white keys.'; },
+    'e.read': 'Could not read that audio file.',
+    'e.midi': 'This browser has no Web MIDI (use Chrome or Edge).',
+    'ok.midi': 'MIDI IN on: channels 1-6 = tracks, clock if GLO > RELOJ = EXTERNO.',
+    'e.nomidi': 'No MIDI inputs connected.',
+    'e.perm': 'MIDI permission denied.',
+    'q.wipe': 'Erase the patterns, song and settings saved in this browser?',
+    'ok.wipe': 'Memory erased: the demo is back.'
+  };
+  var D = lang === 'en' ? EN : ES;
+  window.T = function (k) { return k in D ? D[k] : ES[k]; };
+  document.documentElement.lang = lang;
+  if (lang === 'en') {
+    document.title = 'Bubba Machine · emulator';
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var v = EN[el.getAttribute('data-i18n')];
+      if (typeof v === 'string') el.innerHTML = v;
+    });
+    var home = document.getElementById('homelink');
+    if (home) home.href = 'en/index.html';
+  }
+  document.querySelectorAll('[data-lang]').forEach(function (a) {
+    a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} });
+  });
+})();
+</script>
 <script src="bm.js"></script>
 <script>
 (async () => {
@@ -328,30 +401,30 @@ button.act:hover { background: #33373d; }
       const g = pk ? 0.95 / pk : 1;
       const i8 = new Int8Array(len); for (let i = 0; i < len; i++) i8[i] = Math.max(-128, Math.min(127, Math.round(out[i] * g * 127)));
       M.HEAP8.set(i8, M._bm_web_sampler());
-      if (M._bm_web_sampler_set(len, wavSlot) !== 0) { msg('No se pudo guardar en el slot.'); return; }
+      if (M._bm_web_sampler_set(len, wavSlot) !== 0) { msg(T('e.slot')); return; }
       persist();
-      msg('Slot ' + 'AB'[wavSlot] + ': ' + (len / 16000).toFixed(2) + ' s en 16 chops. Elige T2 con ALGORITHM (GLO + ALGORITHM cambia de slot) y toca las blancas.');
-    } catch (e) { msg('No se pudo leer ese archivo de audio.'); }
+      msg(T('ok.slot')('AB'[wavSlot], (len / 16000).toFixed(2)));
+    } catch (e) { msg(T('e.read')); }
     wav.value = '';
   });
 
   /* ---------------- MIDI ---------------- */
   document.getElementById('midibtn').addEventListener('click', async () => {
-    if (!navigator.requestMIDIAccess) { msg('Este navegador no tiene Web MIDI (usa Chrome o Edge).'); return; }
+    if (!navigator.requestMIDIAccess) { msg(T('e.midi')); return; }
     try {
       const acc = await navigator.requestMIDIAccess();
       let n = 0;
       acc.inputs.forEach(inp => { n++; inp.onmidimessage = (e) => e.data.forEach(b => M._bm_web_midi(b)); });
-      msg(n ? 'MIDI IN activo: canales 1-6 = pistas, reloj si GLO > RELOJ = EXTERNO.' : 'No hay entradas MIDI conectadas.');
-    } catch (e) { msg('Permiso de MIDI denegado.'); }
+      msg(n ? T('ok.midi') : T('e.nomidi'));
+    } catch (e) { msg(T('e.perm')); }
   });
 
   document.getElementById('wipe').addEventListener('click', () => {
-    if (!confirm('¿Borrar patrones, song y ajustes guardados en este navegador?')) return;
+    if (!confirm(T('q.wipe'))) return;
     localStorage.removeItem(KEY);
     M._bm_web_flash_blank();
     M._bm_web_init(now());
-    msg('Memoria borrada: vuelve la demo.');
+    msg(T('ok.wipe'));
   });
 })();
 </script>

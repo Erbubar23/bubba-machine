@@ -13,7 +13,7 @@ En Windows el comando de Python es `py -3`; en Linux y macOS, `python3`.
 py -3 tools/build.py assets   # fuente, kits, ondas, loops de fábrica y logo (core/gen/)
 py -3 tools/build.py test     # compila y corre las pruebas en PC; capturas en assets/screens/
 py -3 tools/build.py web      # emulador: web/bm.js
-py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/
+py -3 tools/build.py site     # páginas de documentación del sitio: web/docs/ y web/en/docs/
 py -3 tools/build.py all      # todo lo anterior
 ```
 
@@ -25,8 +25,8 @@ Las pruebas (`tests/test_core.c`) recorren el firmware como lo haría una person
 core/        el firmware, C99 sin hardware: audio, secuenciador, interfaz y guardado
 core/gen/    datos generados por tools/: fuente, kits, ondas, loops y logo
 hal/         capas de hardware: sim (PC y web), web (WebAssembly) y fm1 (port)
-web/         sitio: portada, emulador (emulador.html) y documentación (docs/)
-docs/        manual, especificación, diseño y guías (fuente del sitio)
+web/         sitio: portada, emulador (emulador.html) y documentación (docs/, en/)
+docs/        manual, especificación, diseño y guías (fuente del sitio); docs/en/ en inglés
 tests/       pruebas automáticas
 tools/       generadores y build
 assets/      logo, capturas, loops de fábrica
@@ -51,8 +51,8 @@ assets/      logo, capturas, loops de fábrica
 
 ## El sitio
 
-- `web/index.html` es la portada y `web/emulador.html`, el emulador.
-- Las páginas de `web/docs/` se generan desde los `.md` con `tools/gen_site.py`: edita el `.md`, no el HTML.
+- `web/index.html` es la portada en español, `web/en/index.html` la de inglés y `web/emulador.html` el emulador (en los dos idiomas: `?lang=es` o `?lang=en`).
+- Las páginas de `web/docs/` y `web/en/docs/` se generan desde los `.md` con `tools/gen_site.py`: edita el `.md`, no el HTML. Las fuentes en inglés están en `docs/en/`; si cambias una guía, actualiza las dos.
 - GitHub Pages publica la carpeta `web/` con el flujo `.github/workflows/pages.yml`.
 
 ## Integración continua

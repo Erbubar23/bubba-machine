@@ -5,6 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Créditos y terceros · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/creditos.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/credits.html">
 <link rel="icon" href="../icon.png">
 <link rel="stylesheet" href="../site.css">
 </head>
@@ -13,12 +15,13 @@
   <div class="in">
     <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
     <nav aria-label="Sitio">
-      <a href="../emulador.html">Emulador</a>
+      <a href="../emulador.html?lang=es">Emulador</a>
       <a href="manual.html">Manual</a>
       <a href="instalar.html">Instalar</a>
       <a href="hoja-de-ruta.html">Hoja de ruta</a>
       <a href="contribuir.html">Contribuir</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+      <a class="lang" href="../en/docs/credits.html" hreflang="en" lang="en" data-lang="en">English</a>
     </nav>
   </div>
 </header>
@@ -64,5 +67,6 @@
     <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
 </body>
 </html>

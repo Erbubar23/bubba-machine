@@ -1,0 +1,93 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/INSTALL.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installing Bubba Machine · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/instalar.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/install.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html" aria-current="page">Install</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="contributing.html">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/instalar.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html" aria-current="page">Install</a>
+    <a href="changelog.html">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="contributing.html">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="installing-bubba-machine">Installing Bubba Machine</h1>
+<h2 id="current-status-it-cannot-be-installed-yet">Current status: it cannot be installed yet</h2>
+<p><strong>There is no installer and no binary for the FM-1.</strong> The firmware runs in full in the <a href="https://erbubar23.github.io/bubba-machine/emulador.html?lang=en">web emulator</a> and in the PC tests, but the hardware port is a skeleton that <strong>has never been built with the JieLi toolchain or tested on an FM-1</strong>. Progress is tracked in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
+<p>Do not try to flash anything from this repository onto your device.</p>
+<h2 id="meanwhile-the-emulator">Meanwhile: the emulator</h2>
+<ol><li>
+Open the <a href="https://erbubar23.github.io/bubba-machine/emulador.html?lang=en">emulator</a> in Chrome or Edge.
+</li><li>
+Press <strong>Power on</strong>. It starts with a demo.
+</li><li>
+With the computer keyboard:
+<ul><li>
+<strong>Space</strong> is PLAY, <strong>Enter</strong> is REC and <strong>Shift</strong> is GLO.
+</li><li>
+Numbers <strong>1-8</strong> are HOME, SEQ, EDIT, ENV, FX, SCL, ARP and SAVE, and the <strong>arrows</strong> are OCT− and OCT+.
+</li><li>
+The <strong>Z-/</strong> and <strong>Q-P</strong> rows play the FM-1 keys.
+</li><li>
+The <strong>mouse wheel</strong> over a knob turns it.
+</li></ul>
+</li><li>
+In <strong>Sampler and memory</strong> you can load a WAV of up to 4 s into slot A.
+</li></ol>
+<p>The emulator runs exactly the same C code that will run on the device.</p>
+<h2 id="how-installing-will-work">How installing will work</h2>
+<p>Once there is a version tested on hardware:</p>
+<ol><li>
+<strong>Backup first.</strong> The installer will refuse to install unless there is a full backup of your FM-1's flash (1 MiB).
+</li><li>
+<strong>Install over USB-C</strong>, from the browser (Web MIDI), with no extra programs.
+</li><li>
+<strong>Going back:</strong> you will always be able to return to the factory firmware with M-VAVE's official updater or, if something goes wrong, restore the backup with the chip's boot mode or with the <em>FM-1 Transporter</em> (RP2040).
+</li><li>
+<strong>Safe mode:</strong> holding OCT− and OCT+ at power-on boots without loading the patterns, in case one of them were damaged.
+</li></ol>
+<p>Bubba Machine only writes to the flash areas reserved for patterns, samples and settings. It never touches the bootloader or the factory firmware backup.</p>
+<h2 id="safety">Safety</h2>
+<p>Installing unofficial firmware <strong>can brick your FM-1</strong> and will probably void the warranty. This software comes with no warranty (see the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">license</a>, sections 15 and 16). Only install versions marked as <strong>tested on hardware</strong> in the <a href="changelog.html">changelog</a>.</p>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/INSTALL.md">docs/en/INSTALL.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

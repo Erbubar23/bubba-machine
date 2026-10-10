@@ -25,6 +25,8 @@ img { max-width: 100%; }
 .top nav { margin-left: auto; display: flex; gap: 6px 20px; flex-wrap: wrap; }
 .top nav a { color: var(--mut); text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 0; }
 .top nav a:hover, .top nav a[aria-current="page"] { color: var(--txt); }
+.top nav a.lang { color: var(--yellow); border: 1px solid #5a4a12; border-radius: 8px; padding: 5px 10px; }
+.top nav a.lang:hover { background: #1d1906; }
 
 /* ---------- portada ---------- */
 .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px; }

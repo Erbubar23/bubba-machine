@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/CREDITS.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credits and third parties · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/creditos.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/credits.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html">Install</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="contributing.html">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/creditos.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html">Install</a>
+    <a href="changelog.html">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="contributing.html">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html" aria-current="page">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="credits-and-third-parties">Credits and third parties</h1>
+<h2 id="authorship">Authorship</h2>
+<p>Bubba Machine is a new project by <a href="https://github.com/Erbubar23">Erbubar23</a>, released under <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">GPL-3.0-or-later</a>. All code, factory sounds, screen fonts and the logo are original to the project.</p>
+<h2 id="hardware-knowledge">Hardware knowledge</h2>
+<ul><li>
+<strong>Felucca</strong> (<a href="https://github.com/hugelton/Felucca">hugelton/Felucca</a>, GPL-3.0-only), by Leo Kuroshita and Hügelton Instruments. Its public reverse engineering documented the FM-1 hardware. Bubba Machine <strong>does not use its code</strong>: only hardware facts (pins, timings, memory map), cited with their source in <code>docs/SPEC_V3.md</code> §11.
+</li><li>
+<strong>JieLi AC79 SDK</strong> (Apache-2.0): register reference for the port. When the port uses SDK binaries (bootloader, configuration), they will be distributed under their Apache-2.0 license, which is compatible with GPL-3.0.
+</li></ul>
+<h2 id="what-ships-with-the-firmware-or-the-emulator">What ships with the firmware or the emulator</h2>
+<div class="tbl"><table><thead><tr><th>Component</th><th>Where</th><th>License</th></tr></thead><tbody><tr><td>Emscripten runtime</td><td>inside <code>web/bm.js</code></td><td>MIT / University of Illinois</td></tr><tr><td>AKWF waves (optional, only if you build with <code>--akwf</code>)</td><td><code>core/gen/bm_rom.c</code></td><td>CC0</td></tr></tbody></table></div>
+<h2 id="tools">Tools</h2>
+<p>Python, NumPy, Pillow, Docker, GCC and Emscripten are used to build and generate data, but they are not distributed with the firmware.</p>
+<h2 id="trademarks">Trademarks</h2>
+<p>M-VAVE and FM-1 are trademarks of their respective owners. Bubba Machine is not affiliated with or endorsed by M-VAVE. The names are used only to state which device it is compatible with.</p>
+<h2 id="no-warranty">No warranty</h2>
+<p>As the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">license</a> says (sections 15 and 16), this software comes <strong>with no warranty</strong>. Installing unofficial firmware can brick the device. Do it at your own risk, with a backup, and only with a version that says it is tested on hardware.</p>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/CREDITS.md">docs/en/CREDITS.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

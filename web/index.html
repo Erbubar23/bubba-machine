@@ -9,8 +9,17 @@
 <meta property="og:title" content="Bubba Machine">
 <meta property="og:description" content="Firmware libre de groovebox para el M-VAVE FM-1. Pruébalo en el navegador.">
 <meta property="og:image" content="img/logo.png">
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="site.css">
+<script>
+/* Inglés si lo elegiste antes o si tu navegador no está en español. */
+try {
+  var p = localStorage.getItem('bm-lang'), nl = (navigator.language || 'es').toLowerCase();
+  if (p === 'en' || (!p && nl.indexOf('es') !== 0)) location.replace('en/index.html');
+} catch (e) {}
+</script>
 </head>
 <body>
 
@@ -18,12 +27,13 @@
   <div class="in">
     <a class="brand" href="index.html"><img src="img/icon.svg" alt="">Bubba Machine</a>
     <nav aria-label="Sitio">
-      <a href="emulador.html">Emulador</a>
+      <a href="emulador.html?lang=es">Emulador</a>
       <a href="docs/manual.html">Manual</a>
       <a href="docs/instalar.html">Instalar</a>
       <a href="docs/hoja-de-ruta.html">Hoja de ruta</a>
       <a href="docs/contribuir.html">Contribuir</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+      <a class="lang" href="en/index.html" hreflang="en" lang="en" data-lang="en">English</a>
     </nav>
   </div>
 </header>
@@ -36,7 +46,7 @@
       <h1>Firmware libre para tu M-VAVE FM-1</h1>
       <p class="lead">Convierte el FM-1 en una groovebox de directo de seis pistas: batería TR, sampler, bajo y tres synths, cada una con su propio largo y su propia velocidad. Código y sonidos propios, con licencia GPL-3.0.</p>
       <div class="cta">
-        <a class="btn primary" href="emulador.html">Probar en el navegador</a>
+        <a class="btn primary" href="emulador.html?lang=es">Probar en el navegador</a>
         <a class="btn" href="docs/manual.html">Leer el manual</a>
         <a class="btn" href="https://github.com/Erbubar23/bubba-machine">Ver el código</a>
       </div>
@@ -80,7 +90,7 @@
     <h2 class="big">Todo lo que rodea al firmware</h2>
     <p class="sub">Bubba Machine no es solo un archivo para flashear. Esto es lo que ya existe y lo que viene.</p>
     <div class="cards">
-      <div class="card"><span class="pill ok">Disponible</span><h3>Emulador web</h3><p>El firmware completo en el navegador, compilado a WebAssembly. Sin instalar nada.</p><a class="more" href="emulador.html">Abrir el emulador</a></div>
+      <div class="card"><span class="pill ok">Disponible</span><h3>Emulador web</h3><p>El firmware completo en el navegador, compilado a WebAssembly. Sin instalar nada.</p><a class="more" href="emulador.html?lang=es">Abrir el emulador</a></div>
       <div class="card"><span class="pill ok">Disponible</span><h3>Manual</h3><p>Cómo se toca, botón por botón, con las tres formas de apretar cada uno.</p><a class="more" href="docs/manual.html">Leer el manual</a></div>
       <div class="card"><span class="pill dev">En desarrollo</span><h3>Firmware para el FM-1</h3><p>El núcleo está completo y probado en PC. Falta el port al hardware: pantalla, botones, audio y flash.</p><a class="more" href="docs/hoja-de-ruta.html">Ver el plan</a></div>
       <div class="card"><span class="pill plan">Planeado</span><h3>Instalador web</h3><p>Instalar por USB-C desde el navegador, con respaldo obligatorio y vuelta atrás en un clic.</p><a class="more" href="docs/instalar.html">Cómo será</a></div>
@@ -123,5 +133,6 @@
   </div>
 </footer>
 
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
 </body>
 </html>

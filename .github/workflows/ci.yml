@@ -28,7 +28,7 @@ jobs:
       - name: La documentación del sitio está al día con los .md
         run: |
           python tools/gen_site.py
-          git diff --exit-code -- web/docs
+          git diff --exit-code -- web/docs web/en/docs
 
       - name: Pruebas del núcleo
         run: python tools/build.py test

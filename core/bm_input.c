@@ -443,7 +443,7 @@ static void map_home(const bm_app *a, bm_keyfn *K)
     char b[6];
     for (int w = 0; w < 16; w++) {
         bool has = bm_store_has(&a->store, (uint8_t)w) || w == st->pattern || a->pend_obj == w;
-        uint8_t led = w == st->pattern ? LED_ON : (w == st->queued ? LED_BLINK : (has ? LED_DIM : LED_OFF));
+        uint8_t led = w == st->pattern ? LED_ON : (w == st->queued ? LED_BLINK : (has ? LED_MID : LED_OFF));
         snprintf(b, sizeof b, "%02d", w + 1);
         KW(K, w, b, led, w == st->pattern ? C_WHITE : w == st->queued ? C_CYAN : 0);
     }
@@ -453,7 +453,7 @@ static void map_home(const bm_app *a, bm_keyfn *K)
     }
     for (int s = 0; s < 4; s++) {
         snprintf(b, sizeof b, "%c", 'A' + s);
-        KB(K, 6 + s, b, st->scene == s ? LED_ON : (st->scene_q == s ? LED_BLINK : (a->song.scene[s].valid ? LED_DIM : LED_OFF)), C_CYAN);
+        KB(K, 6 + s, b, st->scene == s ? LED_ON : (st->scene_q == s ? LED_BLINK : (a->song.scene[s].valid ? LED_MID : LED_OFF)), C_CYAN);
     }
     KB(K, 10, "F", a->fill ? LED_ON : LED_DIM, C_ORANGE);
 }
@@ -471,9 +471,9 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
             int idx[4], n = syn_step_events(a, t, s, idx);
             if (n) {
                 const bm_event *e = bm_evc(&a->pat, t, s, idx[0]);
-                if (mode == 0) { l = e->vel >= BM_VEL_ACC ? "A" : e->vel <= BM_VEL_GHOST ? "G" : ""; led = e->vel >= BM_VEL_ACC ? LED_ON : LED_DIM; }
-                else if (mode == 1) { l = (e->len & BM_LEN_TIE) ? "LIG" : ""; led = (e->len & BM_LEN_TIE) ? LED_ON : LED_DIM; }
-                else { l = "X"; led = LED_DIM; }
+                if (mode == 0) { l = e->vel >= BM_VEL_ACC ? "A" : e->vel <= BM_VEL_GHOST ? "G" : ""; led = e->vel >= BM_VEL_ACC ? LED_ON : LED_MID; }
+                else if (mode == 1) { l = (e->len & BM_LEN_TIE) ? "LIG" : ""; led = (e->len & BM_LEN_TIE) ? LED_ON : LED_MID; }
+                else { l = "X"; led = LED_MID; }
             }
         } else {
             const bm_tr *tr = bm_trk_trc(&a->pat, t);
@@ -483,9 +483,9 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
             int on = t == 1 ? bm_brk_step(tr, s, &v) >= 0 : ((v = tr->st[lane][s]) & ST_ON) != 0;
             if (on) {
                 int rat = (v & ST_FLAM) ? 4 : (v & ST_RAT_MASK) >> ST_RAT_SH;
-                if (mode == 0) { l = (v & ST_ACC) ? "A" : ""; led = (v & ST_ACC) ? LED_ON : LED_DIM; }
-                else if (mode == 1) { l = RAT_NAMES[rat]; if (!rat) l = ""; led = rat ? LED_ON : LED_DIM; }
-                else { l = "X"; led = LED_DIM; }
+                if (mode == 0) { l = (v & ST_ACC) ? "A" : ""; led = (v & ST_ACC) ? LED_ON : LED_MID; }
+                else if (mode == 1) { l = RAT_NAMES[rat]; if (!rat) l = ""; led = rat ? LED_ON : LED_MID; }
+                else { l = "X"; led = LED_MID; }
             }
         }
         if (s == bm_app_track_step(a, t, t == 1 ? 0 : (kind == KIND_NOTE ? -1 : tr_lane(a)))) led = LED_BLINK;
@@ -500,7 +500,7 @@ static void map_lanes(const bm_app *a, bm_keyfn *K, int t, uint16_t act)
         char b[6];
         if (t == 1) { if (w >= BM_SLICES) { KW(K, w, "", LED_OFF, 0); continue; } snprintf(b, sizeof b, "S%d", w + 1); }
         else snprintf(b, sizeof b, "%.4s", bm_lane_name(a, t, w));
-        uint8_t led = (act >> w) & 1 ? LED_ON : ((tr->mute >> w) & 1 ? LED_OFF : LED_DIM);
+        uint8_t led = (act >> w) & 1 ? LED_ON : ((tr->mute >> w) & 1 ? LED_OFF : LED_MID);
         KW(K, w, b, led, bm_track_color(t));
     }
 }
@@ -620,7 +620,7 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         *h2 = "SI EL DESTINO TIENE NOTAS: OCT+ SI, HOME NO";
         for (int w = 0; w < 16; w++) {
             snprintf(b, sizeof b, "%02d", w + 1);
-            KW(K, w, b, w == a->ctx.st.pattern ? LED_ON : (bm_store_has(&a->store, (uint8_t)w) ? LED_DIM : LED_OFF), C_YELLOW);
+            KW(K, w, b, w == a->ctx.st.pattern ? LED_ON : (bm_store_has(&a->store, (uint8_t)w) ? LED_MID : LED_OFF), C_YELLOW);
         }
         for (int i = 0; i < BM_TRACKS; i++) {
             snprintf(b, sizeof b, "T%d", i + 1);
@@ -2636,6 +2636,20 @@ static int page_button(int page)
     }
 }
 
+/* un carril de batería: el elegido al 100 %, con pasos al 50 %, con pasos pero muteado tenue,
+ * sin pasos apagado */
+static uint8_t lane_led(const bm_tr *tr, int ln, int sel)
+{
+    if (ln == sel)
+        return LED_ON;
+    if (ln < 0 || ln >= BM_LANES)
+        return LED_OFF;
+    for (int s = 0; s < tr->lane[ln].len && s < BM_STEPS; s++)
+        if (tr->st[ln][s] & ST_ON)
+            return ((tr->mute >> ln) & 1) ? LED_DIM : LED_MID;
+    return LED_OFF;
+}
+
 void app_leds(bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
@@ -2683,7 +2697,7 @@ void app_leds(bm_app *a)
                 if (w >= 0) {
                     int s = a->step_page * 16 + w, idx[4];
                     if (s < a->pat.trk[t].length) {
-                        l = syn_step_events(a, t, s, idx) ? LED_ON : LED_DIM;
+                        l = syn_step_events(a, t, s, idx) ? LED_ON : LED_OFF;
                         if (s == bm_app_track_step(a, t, -1)) l = LED_BLINK;
                     }
                 } else l = b < 8 ? LED_DIM : LED_OFF;
@@ -2693,10 +2707,10 @@ void app_leds(bm_app *a)
                     int s = a->step_page * 16 + w;
                     if (s < tr->lane[0].len) {
                         int p = bm_brk_step(tr, s, NULL);
-                        l = p > 0 ? LED_ON : p == 0 ? LED_BREATH : LED_DIM;
+                        l = p > 0 ? LED_ON : p == 0 ? LED_BREATH : LED_OFF;
                         if (s == bm_app_track_step(a, 1, 0)) l = LED_BLINK;
                     }
-                } else if (b < BM_SLICES) l = st->brk_slice == b && st->playing ? LED_ON : LED_DIM;
+                } else if (b < BM_SLICES) l = st->brk_slice == b && st->playing ? LED_ON : LED_MID;
                 else l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM;
             } else {
                 const bm_tr *tr = bm_trk_trc(&a->pat, t);
@@ -2705,16 +2719,15 @@ void app_leds(bm_app *a)
                     int s = a->step_page * 16 + w, len = tr->lane[lane].len;
                     if (s < len) {
                         uint8_t bb = tr->st[lane][s];
-                        l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_DIM;
+                        l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_OFF;
                         if (s == bm_app_track_step(a, t, lane)) l = LED_BLINK;
                     }
                 } else if (b < 8) {
-                    int ln = (lane / 8) * 8 + b;
-                    l = ln == lane ? LED_ON : (((tr->mute >> ln) & 1) ? LED_OFF : LED_DIM);
+                    l = lane_led(tr, (lane / 8) * 8 + b, lane);
                 } else l = (b == 8 && lane >= 8) ? LED_ON : LED_DIM;
             }
         } else if (a->view == V_SCENES) {
-            if (w >= 0 && w < 4) l = w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_DIM : LED_OFF));
+            if (w >= 0 && w < 4) l = w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_MID : LED_OFF));
             else if (w >= 4 && w < 8) l = LED_DIM;
             else if (b >= 0 && b < 6) l = a->pat.trk[b].mute ? LED_OFF : LED_ON;
         } else if (a->view == V_CH && a->page == PG_CUT) {
@@ -2722,11 +2735,11 @@ void app_leds(bm_app *a)
             if (w >= 0 && tk->valid) {
                 uint32_t bpm = tk->bpm_x10 ? tk->bpm_x10 : a->pat.meta.bpm_x10, e8 = (uint32_t)BM_SMP_RATE * 300u / bpm;
                 uint32_t pos = (uint32_t)w * e8;
-                l = pos < tk->len ? LED_DIM : LED_OFF;
+                l = pos < tk->len ? LED_MID : LED_OFF;
                 for (int i = 0; i < tk->nmarks; i++) if ((tk->marks[i] > pos ? tk->marks[i] - pos : pos - tk->marks[i]) < e8 / 2) l = LED_ON;
             } else if (b >= 0 && b < 10) l = LED_DIM;
         } else if (kind == KIND_TR && w >= 0) {
-            l = w == tr_lane(a) ? LED_ON : LED_DIM;
+            l = lane_led(bm_trk_trc(&a->pat, t), w, tr_lane(a));
         } else if (kind == KIND_NOTE && (a->pat.meta.scale_lock || (a->view == V_CH && a->page == PG_SCL))) {
             int root, sc = app_scale(a, t, &root);
             (void)root;

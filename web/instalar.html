@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · Copyright (C) 2026 Erbubar23 -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine · instalar</title>
+<link rel="icon" href="icon.png">
+<style>
+:root {
+  --bg: #0b0c0e; --body: #1a1c20; --body2: #22252a; --line: #2f3339;
+  --txt: #e9ecef; --mut: #9aa1a8; --dim: #5a626b;
+  --blue: #287cff; --green: #1ecc70; --yellow: #ffc618; --orange: #ff621a; --red: #ff4040;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.5 ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+a { color: var(--yellow); }
+header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header img { height: 46px; }
+header .sub { color: var(--mut); font-size: 13px; }
+.sitenav { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; }
+.sitenav a { color: var(--mut); text-decoration: none; font-weight: 600; font-size: 13px; }
+.sitenav a:hover { color: var(--txt); }
+.sitenav a.lang { color: var(--yellow); }
+main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+section { background: var(--body); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; }
+h1 { font-size: 22px; margin: 8px 0 4px; }
+h2 { font-size: 17px; margin: 0 0 8px; }
+p, li { color: #cfd4d9; }
+.small { font-size: 13px; color: var(--mut); }
+.warn { border-color: #5a2a1a; background: #22150f; }
+.warn h2 { color: var(--orange); }
+button { font: inherit; font-weight: 700; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--body2); color: var(--txt); cursor: pointer; }
+button.go { background: var(--yellow); color: #111; border-color: var(--yellow); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=file] { font: inherit; font-size: 13px; color: var(--mut); max-width: 100%; }
+label.check { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; }
+label.check input { margin-top: 4px; }
+.dev { font-family: ui-monospace, Consolas, monospace; font-size: 14px; padding: 8px 10px; border-radius: 8px; background: var(--body2); margin: 8px 0; }
+.ok { color: var(--green); } .bad { color: var(--red); } .info { color: var(--mut); }
+progress { width: 100%; height: 14px; accent-color: var(--yellow); }
+#estado { font-weight: 600; margin: 8px 0; min-height: 1.5em; }
+pre#log { background: #000; color: #9aa1a8; font-size: 12px; padding: 10px; border-radius: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; }
+ol { padding-left: 22px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.svg" alt="Bubba Machine">
+  <div><b data-t="title">Instalador para el FM-1</b><div class="sub" data-t="sub">Por USB-C, desde Chrome o Edge (Web MIDI).</div></div>
+  <nav class="sitenav" data-t="nav"><a href="index.html">Inicio</a><a href="emulador.html">Emulador</a><a href="docs/instalar.html">Guía</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" class="lang">English</a></nav>
+</header>
+<main>
+<h1 data-t="h1">Instalar Bubba Machine en el M-VAVE FM-1</h1>
+
+<section class="warn">
+  <h2 data-t="riskh">Antes de empezar</h2>
+  <ul data-t="risk">
+    <li>Es firmware no oficial y está en <b>pruebas</b>. Puede fallar, y en el peor caso dejar el FM-1 sin arrancar hasta rescatarlo con una computadora. Úsalo bajo tu propio riesgo; no hay garantía (licencia GPL-3.0, secciones 15 y 16).</li>
+    <li>Se escribe con el <b>cargador de actualización oficial de M-VAVE</b>, el mismo que usa su actualizador. El arranque del chip y la zona de datos del aparato no se tocan.</li>
+    <li>Lo guardado en el firmware que tienes ahora (patrones de X0X, por ejemplo) se puede perder.</li>
+    <li>Siempre puedes volver al firmware de fábrica desde esta misma página (abajo).</li>
+    <li>No desconectes el cable ni cierres la página mientras escribe. Si se corta, usa «Continuar».</li>
+  </ul>
+  <label class="check"><input type="checkbox" id="acepto"> <span data-t="acepto">Entiendo los riesgos y quiero continuar.</span></label>
+</section>
+
+<section>
+  <h2 data-t="h_dev">1. Conecta el FM-1</h2>
+  <p class="small" data-t="devwhy">Conéctalo por USB con un cable de datos y préndelo. Cierra cualquier otro programa que use su MIDI (DAW, M-UPGRADE, otras pestañas). El navegador pedirá permiso para MIDI con SysEx.</p>
+  <div class="row"><button id="buscar" data-t="buscar">Buscar el FM-1</button></div>
+  <div class="dev" id="dev" data-t="nodev">Sin buscar todavía.</div>
+</section>
+
+<section>
+  <h2 data-t="h_pkg">2. Elige qué instalar</h2>
+  <p><b data-t="bubba">Bubba Machine</b> · <span class="small" data-t="bubbawhy">el archivo .fwsc de la versión que quieres probar.</span><br>
+  <input type="file" id="fbubba" accept=".fwsc"></p>
+  <p><b data-t="stock">Firmware de fábrica (M-VAVE FM-1 V15)</b> · <span class="small" data-t="stockwhy">para volver atrás. Descárgalo de M-VAVE y elígelo aquí; se comprueba que sea exactamente ese archivo.</span>
+  <a href="https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc">FM-1.fwsc</a><br>
+  <input type="file" id="fstock" accept=".fwsc"></p>
+  <div class="dev" id="pkg" data-t="nopkg">Ningún archivo elegido.</div>
+</section>
+
+<section>
+  <h2 data-t="h_go">3. Instalar</h2>
+  <div class="row">
+    <button class="go" id="instalar" disabled data-t="instalar">Instalar</button>
+    <button id="continuar" disabled data-t="continuar">Continuar una instalación cortada</button>
+  </div>
+  <div id="estado"></div>
+  <progress id="bar" max="100" value="0"></progress>
+  <pre id="log"></pre>
+</section>
+
+<section>
+  <h2 data-t="h_help">Si algo sale mal</h2>
+  <ul data-t="help">
+    <li><b>Se quedó en modo actualización</b> (en la lista de MIDI aparece como «ota-FM-1»): vuelve a conectar, elige el mismo archivo y pulsa «Continuar». Se queda en ese modo hasta terminar.</li>
+    <li><b>Bubba Machine no arranca:</b> después de dos arranques fallidos entra en <b>modo seguro</b> (pantalla con el aviso, sin sonido, USB activo): desde aquí puedes reinstalar o volver al de fábrica.</li>
+    <li><b>Ni siquiera el modo seguro arranca:</b> el FM-1 pasa al modo de actualización del chip y se rescata con la computadora (guía de instalación, sección Rescate).</li>
+  </ul>
+</section>
+</main>
+
+<script type="module">
+import { Actualizador, revisarPaquete, FalloFM1 } from "./fm1_update.js";
+
+const EN = new URLSearchParams(location.search).get("lang") === "en";
+const T = {
+  es: {
+    pidiendo: "Pidiendo permiso para MIDI…", nomidi: "Este navegador no tiene Web MIDI: usa Chrome o Edge en una computadora.",
+    sinperm: "Sin permiso para MIDI con SysEx: el instalador no puede hablar con el FM-1.",
+    buscando: "Buscando…", nohay: "No aparece un FM-1. Revisa el cable (de datos), que esté prendido y que ningún otro programa use su MIDI.",
+    hay: (t) => `Conectado: ${t}`, otaq: (t) => `Conectado en modo actualización: ${t}. Elige el archivo y pulsa «Continuar».`,
+    revisando: "Revisando el archivo…", pkgok: (i, s) => `${i} · listo para instalar · sha256 ${s.slice(0, 16)}…`,
+    stockok: "FM-1 V15 de M-VAVE, comprobado.", nostock: "Ese no es el FM-1 V15 de M-VAVE: descarga el del enlace.",
+    pasos: { inicio: "Empezando…", revisa: "Paso 1 de 2: el FM-1 revisa el paquete…", cargador: "Esperando al cargador de actualización…", escribe: "Paso 2 de 2: escribiendo. No desconectes.", reinicio: "Reiniciando…", listo: "Listo." },
+    hecho: (t) => `Listo: el FM-1 arrancó con ${t}.`, distinto: (t, p) => `Se escribió, pero el FM-1 dice ${t} en vez de ${p}.`,
+    seguro: "¿Instalar ahora? No desconectes el cable hasta que diga «Listo».",
+  },
+  en: {
+    pidiendo: "Asking for MIDI permission…", nomidi: "This browser has no Web MIDI: use Chrome or Edge on a computer.",
+    sinperm: "No MIDI SysEx permission: the installer can't talk to the FM-1.",
+    buscando: "Searching…", nohay: "No FM-1 found. Check the (data) cable, that it is switched on and that no other app uses its MIDI.",
+    hay: (t) => `Connected: ${t}`, otaq: (t) => `Connected in update mode: ${t}. Choose the file and press "Resume".`,
+    revisando: "Checking the file…", pkgok: (i, s) => `${i} · ready to install · sha256 ${s.slice(0, 16)}…`,
+    stockok: "M-VAVE's FM-1 V15, verified.", nostock: "That is not M-VAVE's FM-1 V15: download the one from the link.",
+    pasos: { inicio: "Starting…", revisa: "Step 1 of 2: the FM-1 checks the package…", cargador: "Waiting for the update loader…", escribe: "Step 2 of 2: writing. Don't unplug.", reinicio: "Restarting…", listo: "Done." },
+    hecho: (t) => `Done: the FM-1 started with ${t}.`, distinto: (t, p) => `Written, but the FM-1 reports ${t} instead of ${p}.`,
+    seguro: "Install now? Don't unplug the cable until it says \"Done\".",
+  },
+}[EN ? "en" : "es"];
+
+if (EN) {
+  document.documentElement.lang = "en";
+  const tx = {
+    title: "Installer for the FM-1", sub: "Over USB-C, from Chrome or Edge (Web MIDI).",
+    nav: '<a href="en/index.html">Home</a><a href="emulador.html?lang=en">Emulator</a><a href="en/docs/install.html">Guide</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="instalar.html" class="lang">Español</a>',
+    h1: "Install Bubba Machine on the M-VAVE FM-1", riskh: "Before you start",
+    risk: "<li>This is unofficial firmware, in <b>testing</b>. It may fail and, in the worst case, leave the FM-1 unable to start until it is rescued from a computer. Use it at your own risk; there is no warranty (GPL-3.0, sections 15 and 16).</li><li>It is written by <b>M-VAVE's official update loader</b>, the same one their updater uses. The chip's boot area and the device data are not touched.</li><li>What the current firmware saved (X0X patterns, for example) may be lost.</li><li>You can always go back to the factory firmware from this same page (below).</li><li>Don't unplug the cable or close the page while it writes. If it is interrupted, use \"Resume\".</li>",
+    acepto: "I understand the risks and want to continue.", h_dev: "1. Connect the FM-1",
+    devwhy: "Connect it with a USB data cable and switch it on. Close any other app using its MIDI (DAW, M-UPGRADE, other tabs). The browser will ask for MIDI with SysEx.",
+    buscar: "Find the FM-1", nodev: "Not searched yet.", h_pkg: "2. Choose what to install", bubba: "Bubba Machine",
+    bubbawhy: "the .fwsc file of the version you want to try.", stock: "Factory firmware (M-VAVE FM-1 V15)",
+    stockwhy: "to go back. Download it from M-VAVE and choose it here; it is checked to be exactly that file.",
+    nopkg: "No file chosen.", h_go: "3. Install", instalar: "Install", continuar: "Resume an interrupted install", h_help: "If something goes wrong",
+    help: "<li><b>Stuck in update mode</b> (it shows as \"ota-FM-1\" in the MIDI list): reconnect, choose the same file and press \"Resume\". It stays in that mode until finished.</li><li><b>Bubba Machine doesn't start:</b> after two failed starts it enters <b>safe mode</b> (a notice on screen, no sound, USB on): reinstall or go back to the factory firmware from here.</li><li><b>Not even safe mode starts:</b> the FM-1 drops into the chip's own update mode and is rescued from a computer (install guide, Rescue section).</li>",
+  };
+  for (const el of document.querySelectorAll("[data-t]")) if (tx[el.dataset.t] !== undefined) el.innerHTML = tx[el.dataset.t];
+}
+
+const $ = (id) => document.getElementById(id);
+const say = (t, cls = "") => { $("estado").textContent = t; $("estado").className = cls; };
+const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
+let up = null, dev = null, pkg = null, writing = false;
+
+function refresh() {
+  const a = $("acepto").checked && !writing && pkg;
+  $("instalar").disabled = !(a && dev && !dev.ota);
+  $("continuar").disabled = !(a && dev && dev.ota);
+  $("buscar").disabled = writing;
+  $("fbubba").disabled = $("fstock").disabled = writing;
+}
+$("acepto").addEventListener("change", refresh);
+
+async function midi() {
+  if (up) return up;
+  if (!navigator.requestMIDIAccess) { say(T.nomidi, "bad"); return null; }
+  say(T.pidiendo, "info");
+  try {
+    const acc = await navigator.requestMIDIAccess({ sysex: true });
+    up = new Actualizador(acc, log);
+    say("");
+    return up;
+  } catch (_) { say(T.sinperm, "bad"); return null; }
+}
+
+$("buscar").addEventListener("click", async () => {
+  if (!(await midi())) return;
+  $("dev").textContent = T.buscando; $("dev").className = "dev info";
+  dev = await up.conectado();
+  if (!dev) { $("dev").textContent = T.nohay; $("dev").className = "dev bad"; }
+  else if (dev.ota) { $("dev").textContent = T.otaq(dev.text); $("dev").className = "dev ok"; }
+  else { $("dev").textContent = T.hay(dev.text); $("dev").className = "dev ok"; }
+  refresh();
+});
+
+async function elegir(file, stock) {
+  pkg = null; refresh();
+  if (!file) return;
+  $("pkg").textContent = T.revisando; $("pkg").className = "dev info";
+  try {
+    const p = await revisarPaquete(new Uint8Array(await file.arrayBuffer()));
+    if (stock && !p.stock) throw new FalloFM1("paquete", T.nostock);
+    pkg = p;
+    $("pkg").textContent = p.stock ? T.stockok : T.pkgok(p.ident, p.sha);
+    $("pkg").className = "dev ok";
+  } catch (e) { $("pkg").textContent = e.message; $("pkg").className = "dev bad"; }
+  refresh();
+}
+$("fbubba").addEventListener("change", (e) => { $("fstock").value = ""; elegir(e.target.files[0], false); });
+$("fstock").addEventListener("change", (e) => { $("fbubba").value = ""; elegir(e.target.files[0], true); });
+
+const guard = (e) => { e.preventDefault(); e.returnValue = ""; };
+async function correr(fn) {
+  if (!pkg || !confirm(T.seguro)) return;
+  writing = true; refresh();
+  window.addEventListener("beforeunload", guard);
+  $("bar").value = 0;
+  const total = Math.ceil(pkg.image.length / 512);
+  const paso = (k, n) => {
+    if (T.pasos[k]) say(T.pasos[k], k === "listo" ? "ok" : "info");
+    if (k === "revisa") $("bar").value = Math.min(10, n / 5);
+    if (k === "escribe") $("bar").value = 10 + Math.min(88, (n / total) * 88);
+  };
+  try {
+    const fin = await fn(pkg, paso);
+    $("bar").value = 100;
+    if (fin === pkg.ident) say(T.hecho(fin), "ok"); else say(T.distinto(fin, pkg.ident), "bad");
+    dev = { text: fin, ota: false };
+    $("dev").textContent = T.hay(fin);
+  } catch (e) {
+    say(e.message, "bad");
+    log("ERROR " + (e.code || "") + ": " + e.message);
+  } finally {
+    writing = false;
+    window.removeEventListener("beforeunload", guard);
+    refresh();
+  }
+}
+$("instalar").addEventListener("click", async () => { if (await midi()) correr((p, s) => up.instalar(p, s)); });
+$("continuar").addEventListener("click", async () => { if (await midi()) correr((p, s) => up.continuar(p, s)); });
+</script>
+</body>
+</html>

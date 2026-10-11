@@ -23,7 +23,7 @@ typedef enum {
     CMD_SET_EVENT,      /* a=pista synth b=paso c=slot ev */
     CMD_SET_TRSTEP,     /* a=canal de rejilla b=línea c=paso i=valor */
     CMD_TR_LOCK,        /* a=canal de rejilla b=línea c=paso i=param<<8|val (bit 16 = borrar) */
-    CMD_SET_LANE,       /* a=canal de rejilla b=línea c=campo(0 len,1 level,2 tune,3 decay) i=valor */
+    CMD_SET_LANE,       /* a=canal de rejilla b=línea c=campo LN_* (bm_params.h) i=valor */
     CMD_LANE_MUTE,      /* a=canal de rejilla i=máscara */
     CMD_SET_TRACK,      /* a=pista b=offset c=valor */
     CMD_SET_META,       /* b=offset c=valor */
@@ -59,7 +59,9 @@ typedef enum {
     CMD_LOOP,           /* a=pista synth b=acción (1 REC, 2 borrar, 3 on/off, 4 compases=c) */
     CMD_STRUM,          /* a=pista b=n c=vel i=notas empaquetadas (4 x 8 bit) */
     CMD_ALL_OFF,
-    CMD_FADE            /* a=0 subir, 1 bajar (antes de escribir flash) */
+    CMD_FADE,           /* a=0 subir, 1 bajar (antes de escribir flash) */
+    CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
+    CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
 } bm_cmd_type;
 
 typedef struct {
@@ -177,13 +179,11 @@ struct bm_engine {
     uint8_t legato_next;
 };
 
-extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_midi, bm_eng_acid, bm_eng_fm;
+extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_analog, bm_eng_midi, bm_eng_acid, bm_eng_fm;
 /* FM: lo que hacen las macros sobre el patch (para la pantalla) */
 int bm_fm_alg_of(const bm_track *t, int m4);          /* algoritmo 1..32 */
 int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
 void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p);   /* patch con las macros (v NULL = las del canal) */
-#define BM_VA_TIMBRES 6
-extern const char *const bm_va_names[BM_VA_TIMBRES];   /* timbres de ANALOG (PRESETS) */
 extern const char *const bm_acid_names[2];             /* sierra o cuadrada */
 const bm_engine_vt *bm_engine_vt_for(int engine);
 

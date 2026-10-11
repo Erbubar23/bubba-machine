@@ -8,6 +8,7 @@
 #include "bm_app_int.h"
 #include "bm_util.h"
 #include "bm_rom.h"
+#include "bm_params.h"
 
 static const char *const TRACK_NAMES[3] = {"BATERIA", "SAMPLER", "BAJO"};
 static const uint16_t TRACK_COLORS[BM_TRACKS] = {C_ORANGE, C_YELLOW, C_GREEN, C_BLUE, C_VIOLET, C_PINK};
@@ -23,15 +24,14 @@ const char *bm_track_name(const bm_app *a, int t)
     return t < BM_FREE0 ? TRACK_NAMES[t] : bm_engine_names[a->pat.trk[t].engine % ENG_COUNT];
 }
 uint16_t bm_track_color(int t) { return TRACK_COLORS[t % BM_TRACKS]; }
-const char *bm_kit_name(int kit) { return kit % BM_KITS_ALL == BM_KIT_SYN ? "SINTE" : bm_rom_kit_names[kit % BM_KITS]; }
+const char *bm_kit_name(int kit) { return bm_kits[(kit % BM_KITS_N + BM_KITS_N) % BM_KITS_N].name; }
 
 int bm_sound_count(const bm_app *a, int t)
 {
-    if (bm_is_tr(&a->pat, t)) return BM_KITS_ALL;
+    if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
     if (a->pat.trk[t].engine == ENG_ACID) return 2;
-    if (a->pat.trk[t].engine == ENG_VA) return BM_VA_TIMBRES;
     if (a->pat.trk[t].engine == ENG_FM) return BM_FM_PATCHES;
-    return BM_WAVES;
+    return bm_an_npresets;
 }
 
 const char *bm_sound_name(const bm_app *a, int t)
@@ -39,9 +39,8 @@ const char *bm_sound_name(const bm_app *a, int t)
     int s = a->pat.trk[t].source % bm_sound_count(a, t);
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
     if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
-    if (a->pat.trk[t].engine == ENG_VA) return bm_va_names[s];
     if (a->pat.trk[t].engine == ENG_FM) return bm_fm_names[s];
-    return bm_rom_wave_names[s];
+    return bm_an_presets[s].name;
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
 int bm_app_layer(const bm_app *a) { return a->layer; }
@@ -122,7 +121,7 @@ const char *bm_lane_name(const bm_app *a, int t, int lane)
 {
     static char buf[2][8];
     static int k;
-    if (bm_is_tr(&a->pat, t)) return bm_rom_kits[a->pat.trk[t].source % BM_KITS][lane & 15].name;
+    if (bm_is_tr(&a->pat, t)) return bm_lane_label(bm_trk_trc(&a->pat, t), a->pat.trk[t].source, lane);
     k ^= 1;
     if (t == 1) snprintf(buf[k], sizeof buf[k], lane ? "SLICE %d" : "GEN", lane);
     else snprintf(buf[k], sizeof buf[k], "%d", lane + 1);
@@ -557,7 +556,6 @@ static void demo_pattern(bm_pattern *p, bm_song *song)
     static const int prog[4][3] = {{57, 60, 64}, {53, 57, 60}, {48, 52, 55}, {55, 59, 62}};   /* Am F C G */
     static const int bass[4] = {45, 41, 36, 43};
     for (int t = 2; t < BM_TRACKS; t++) p->trk[t].length = 64;
-    p->trk[4].engine = ENG_MONO;                                        /* T5: una línea mono */
     for (int pg = 0; pg < 4; pg++) {
         int o = pg * 16, bn = bass[pg];
         ev_set(p, 2, o + 0, 0, bn, 110, 2, 100);
@@ -629,7 +627,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
         for (int i = 0; i < BM_PATTERNS && !has_glob; i++) {     /* sin ajustes: se mira el formato de los patrones */
             int len = 0;
             const uint8_t *p = store_ptr(a, i, &len);
-            if (p && len > (int)offsetof(bm_meta, fmt) && p[offsetof(bm_meta, fmt)] != BM_FMT) old = 1;
+            if (p && len > (int)offsetof(bm_meta, fmt) && p[offsetof(bm_meta, fmt)] != 3 && p[offsetof(bm_meta, fmt)] != BM_PAT_FMT) old = 1;
         }
         if (old) {                                 /* datos de 0.2: la 0.3 no los lee, se empieza de cero */
             bm_store_format(&a->store, pf->flash);
@@ -681,6 +679,7 @@ void bm_app_master(bm_app *a, uint16_t adc)
 static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE};
 static const uint8_t TABS_BRK[] = {PG_SEQ, PG_SOUND, PG_RETRIG, PG_TAKES, PG_MIX, PG_MORE};
 static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_SOUND, PG_ENV, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
+static const uint8_t TABS_AN[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};   /* ENV y LFO están en SONIDO */
 static const uint8_t TABS_MIDI[] = {PG_SEQ, PG_MIDI, PG_ARP, PG_MORE};
 
 int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
@@ -689,6 +688,7 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
     if (app_kind(a, t) == KIND_TR) { s = TABS_TR; n = (int)sizeof TABS_TR; }
     else if (app_kind(a, t) == KIND_BRK) { s = TABS_BRK; n = (int)sizeof TABS_BRK; }
     else if (app_midi(a, t)) { s = TABS_MIDI; n = (int)sizeof TABS_MIDI; }
+    else if (a->pat.trk[t].engine == ENG_ANALOG) { s = TABS_AN; n = (int)sizeof TABS_AN; }
     else { s = TABS_NOTE; n = (int)sizeof TABS_NOTE; }
     memcpy(out, s, (size_t)n);
     return n;

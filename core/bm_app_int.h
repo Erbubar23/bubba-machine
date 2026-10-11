@@ -29,6 +29,7 @@ void app_ask(bm_app *a, int kind, int arg, int arg2, const char *l1, const char 
 static inline int app_playing(const bm_app *a) { return a->ctx.st.playing; }
 static inline int app_kind(const bm_app *a, int t) { return bm_kind(&a->pat, t); }
 static inline int app_midi(const bm_app *a, int t) { return a->pat.trk[t].engine == ENG_MIDI; }
+static inline int app_engine(const bm_app *a, int t) { return a->pat.trk[t].engine; }
 int  app_scale(const bm_app *a, int t, int *root);   /* escala del canal (o la del proyecto) */
 void app_set_view(bm_app *a, int v);
 void app_enter(bm_app *a, int t, int page);           /* entra a un canal y a una página */

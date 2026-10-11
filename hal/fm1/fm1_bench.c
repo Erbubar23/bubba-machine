@@ -9,6 +9,7 @@
  *    flash y desde la RAM, lectura de datos de la flash (por la caché) contra la RAM, coma
  *    flotante contra enteros, uno contra dos núcleos y la pantalla a distintas velocidades del
  *    SPI. Los resultados van al registro de texto (consola: log). */
+#include <stdint.h>
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -18,6 +19,7 @@
 #include "bm_prof.h"
 #include "bm_rom.h"
 #include "bm_fm.h"
+#include "bm_app.h"
 
 void fm1_log(const char *s);
 
@@ -153,24 +155,26 @@ static void bench_codigo(void)
     log_mil("biquad int64, codigo en RAM  ", ns(d, R * KN), "ns/muestra");
 }
 
-/* 22: lectura de datos: flash por la caché (los samples de los kits) contra RAM */
+/* 22: lectura de datos: flash por la caché contra RAM. Desde 0.4 no hay samples de kits en la
+ * flash: se leen 170 KiB seguidos del programa (también está en la flash, por la misma caché). */
 static uint8_t rbuf[32768];
+#define FLASH_SPAN (170u * 1024u)
+static const uint8_t *flash_base(void) { return (const uint8_t *)(uintptr_t)&bm_app_init; }
 
 static void bench_datos(void)
 {
     volatile uint32_t sum = 0;
     uint32_t bytes = 0, t0, tf, tr;
-    /* secuencial: todos los samples de los dos kits (~170 KiB) */
+    /* secuencial: 170 KiB de flash */
     t0 = fm1_scan_now_ticks();
-    for (int k = 0; k < BM_KITS; k++)
-        for (int s = 0; s < BM_KIT_SOUNDS; s++) {
-            const uint8_t *d = bm_rom_kits[k][s].data;
-            uint32_t n = bm_rom_kits[k][s].len, acc = 0;
-            for (uint32_t i = 0; i < n; i++)
-                acc += d[i];
-            sum += acc;
-            bytes += n;
-        }
+    {
+        const uint8_t *d = flash_base();
+        uint32_t acc = 0;
+        for (uint32_t i = 0; i < FLASH_SPAN; i++)
+            acc += d[i];
+        sum += acc;
+        bytes = FLASH_SPAN;
+    }
     tf = fm1_scan_now_ticks() - t0;
     for (uint32_t i = 0; i < sizeof rbuf; i++)
         rbuf[i] = (uint8_t)i;
@@ -186,10 +190,8 @@ static void bench_datos(void)
     log_mil("lectura secuencial flash (cache)", ns(tf, bytes), "ns/byte");
     log_mil("lectura secuencial RAM          ", ns(tr, vueltas * (uint32_t)sizeof rbuf), "ns/byte");
     /* al azar: 20000 lecturas en ~85 KiB de flash contra 32 KiB de RAM */
-    const uint8_t *base = bm_rom_kits[0][0].data;
-    uint32_t span = 0;
-    for (int s = 0; s < BM_KIT_SOUNDS; s++)
-        span += bm_rom_kits[0][s].len;
+    const uint8_t *base = flash_base();
+    uint32_t span = 85u * 1024u;
     uint32_t x = 12345u;
     t0 = fm1_scan_now_ticks();
     for (int i = 0; i < 20000; i++) {
@@ -213,7 +215,7 @@ static void bench_datos(void)
 static void bench_cache(void)
 {
     static const uint32_t KB[] = {2, 4, 8, 12, 16, 24, 32, 48, 64};
-    const uint8_t *base = bm_rom_kits[0][0].data;          /* ~85 KiB seguidos de samples en la flash */
+    const uint8_t *base = flash_base();                    /* programa: cientos de KiB seguidos en la flash */
     volatile uint32_t sum = 0;
     uint32_t x = 777u;
     for (unsigned k = 0; k < sizeof KB / sizeof KB[0]; k++) {

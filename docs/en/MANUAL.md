@@ -1,6 +1,6 @@
 # Bubba Machine 0.3 — Manual
 
-Bubba Machine turns the FM-1 into a 6-track live groovebox: **3 fixed tracks** (drums, sampler and bass) and **3 free ones** (SYNTH, MONO, KIT or MIDI). Every track has its own length and its own speed.
+Bubba Machine turns the FM-1 into a 6-track live groovebox: **3 fixed tracks** (drums, sampler and bass) and **3 free ones** (ANALOG, FM, ACID, KIT or MIDI). Every track has its own length and its own speed.
 
 Interface 3.0 fits in one sentence: **four gestures per button, and they mean the same thing on every button. HOME everywhere.**
 
@@ -27,7 +27,7 @@ There are never two layers at once: with a layer open, holding another button do
 |---|---|
 | **ALGORITHM** | The track. On HOME a **box** shows the target track and you enter after 400 ms. Inside a track it switches right away and keeps the page. On a list, it changes the highlighted value. With **HOME held**, it picks a track from any screen and you enter when you let go of HOME |
 | **SELECT** | The page (the tabs at the top) or the row of a list. With a step held, its accent |
-| **PRESETS** | The track's sound (kit, loop A or wave bank). On HOME, the pattern |
+| **PRESETS** | The track's sound (kit, loop A or engine preset). On HOME, the pattern |
 | **K1-K4** | Whatever the legend at the bottom says, always in the same color. With HOME held: BPM, swing, master length and drive |
 
 **ALGORITHM priority:** held step > list > track > HOME. The box time is set in GLO or SISTEMA (system): ENTRADA AUTO (auto enter) 0, 250, 400, 800 ms or OFF.
@@ -80,12 +80,12 @@ If you used HOME as a modifier, letting go does **not** take you to the home scr
 
 | Track | Type | What it is | Tabs |
 |---|---|---|---|
-| **T1 BATERIA** (drums) | Fixed | TR grid of 16 instruments: recorded kits KO-808 and KO-909, or **SINTE** (computed live) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
+| **T1 BATERIA** (drums) | Fixed | TR grid of 16 **modeled** instruments (computed live): kits 808, 909 and SINTE | SEQ · SONIDO · INSTR · MEZCLA · MAS |
 | **T2 SAMPLER** | Fixed | A loop in 8 slices that a generator rearranges | SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS |
-| **T3 BAJO** (bass) | Fixed | **BAJO** (monophonic wavetable with glide) or **ACID** | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
-| **T4-T6** | Free | **SYNTH** (polyphonic wavetable), **MONO**, **ANALOG**, **ACID**, **KIT** (another drum machine) or **MIDI** (sends notes over MIDI) | depends on the engine |
+| **T3 BAJO** (bass) | Fixed | **ANALOG** (one voice, with glide), **ACID** or **FM** | SEQ · SONIDO · MEZCLA · ARP · LOOP · MAS |
+| **T4-T6** | Free | **ANALOG**, **FM**, **ACID**, **KIT** (another drum machine) or **MIDI** (sends notes over MIDI) | depends on the engine |
 
-A free track's engine (and T3's: BAJO or ACID) is picked in **MAS › MOTOR** (more › engine) with ALGORITHM. Between note engines (SYNTH, MONO, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.
+A free track's engine (and T3's: ANALOG, ACID or FM) is picked in **MAS › MOTOR** (more › engine) with ALGORITHM. Between note engines (ANALOG, FM, ACID, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.
 
 **MAS** (more) is the list with everything about the track: engine, accent, length, speed, transpose, MIDI channel and initial sound (on the sampler also: use the loop's BPM, and interpolation). SELECT picks the row and ALGORITHM changes it.
 
@@ -95,14 +95,16 @@ A free track's engine (and T3's: BAJO or ACID) is picked in **MAS › MOTOR** (m
 
 | Engine | What it is | K1-K4 on SEQ | PRESETS |
 |---|---|---|---|
-| **SYNTH** · **MONO** · **BAJO** | Wavetable with SVF filter and ADSR (MONO and BAJO: one voice with glide) | CUTOFF · RESO · DECAY · ONDA (wave) | Wave bank |
-| **ACID** | 303-style monophonic: oscillator, 4-pole ladder filter with resonance and saturation, short envelope. The **accent** opens the filter further and plays louder; **LIGA** (tie) slides | CUTOFF · RESO · DECAY · ENV MOD | SIERRA (saw) or CUADRADA (square) |
-| **ANALOG** | Polyphonic with two oscillators detuned against each other, SVF filter and ADSR | CUTOFF · RESO · DECAY · DETUNE | Saw, saw+sub, square, pulse, saw+square, noise |
-| **SINTE kit** | Drums computed live: the same 16 instruments in the same order as the recorded kits. TONE, TUNE and DECAY really change them (not just filter the sound) | TONE · TUNE · DECAY · START | On drums: KO-808, KO-909 or SINTE |
+| **ANALOG** | Virtual analog: two variable-shape oscillators (SAW, SQUARE with pulse width, TRIANGLE, folded SINE, 3 SAWS), sync, ring, sub and noise; LP 24/12, BP or HP filter with resonance and drive; filter and amp ADSR, LFO and POLY, MONO or LEGATO with glide | CORTE (cutoff) · RESO · ENVOLV (filter env) · FORMA (shape) | 16 presets |
+| **FM** | 6 operators, DX7-compatible (msfa, the core of Dexed) | BRILLO · REALIM · DECAY · ALGORITMO | 16 original patches |
+| **ACID** | 303-style mono: 4-pole ladder filter, accent opens the filter, slide with LIGA (tie) | CUTOFF · RESO · DECAY · ENV MOD | Saw or square |
+| **Drums** | 16 modeled instruments, each with its own **model**: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL (hats and cymbals), clap, TOM (and congas), cowbell, RESON (rim, clave, block), noise (maracas) or FM (zaps, metal) | TONO · AFINA · DECAY · COLOR | Kits 808, 909 and SINTE |
 
-The **KO-808 and KO-909** kits are still there: they are recorded sounds in the ROM, for when you want that familiar hit.
+Since 0.4 everything is computed live: no recorded sounds are left (only the sampler's factory loops). Kicks, snares and hats are the **Plaits** models (Mutable Instruments).
 
-The ACID and ANALOG oscillators are built so the highs stay clean (no aliasing).
+**Editing ANALOG:** SONIDO is a paged editor (OSC 1, OSC 2, CRUCE, FILTRO, FILTRO +, ENV FILTRO, ENV NIVEL, LFO, VOZ). K1-K4 change the 4 settings of the page, SELECT changes page (at the edges it moves to the next tab), EDIT again = next page, ENV jumps to the envelopes and LFO to the LFO. PRESETS loads a whole preset.
+
+**Editing a drum instrument:** INSTR has two pages: GOLPE (TUNE, DECAY, TONE and COLOR, named after what it does in that model) and INSTRUMENTO (MODEL, LEVEL, choke group and line LENGTH).
 
 ## Drums (T1 and KIT tracks)
 
@@ -113,7 +115,7 @@ The SEQ screen is a matrix: 16 instruments × the 16 steps of the page. Each lin
 | **White keys** | Steps of the selected instrument: tap = set or clear |
 | **Black 1-8** | Select (and play) an instrument of the section |
 | **Black 9** | Switch section (1-8 / 9-16) |
-| **Black 10** | Tap: mute the instrument · hold: mutes for all of them (white keys) |
+| **Black 10** | Hold: instrument mutes (the white keys mute them; a message shows it and the name turns red) |
 | **Black 11** | FILL while held |
 | **OCT − / +** | Page |
 
@@ -164,13 +166,13 @@ Recording, keeping and slicing are three screens, one job each.
 
 3. **CORTAR** (slice; EDIT on a take): **white keys** set or remove a cut on that eighth note, **black 9** puts the cuts on the hits and **black 10** goes back to 8 equal parts. Black 1-8 play each slice. SELECT or K1 pick the cut, K2 moves it, K3 = zoom, K4 = snap to 1/16 or 1/8. It is saved when you leave.
 
-## Note tracks (T3 and SYNTH, MONO, MIDI)
+## Note tracks (T3, ANALOG, FM, ACID, MIDI)
 
 - **SEQ:** the page is only about this track. On top, the page's 16 steps as a **piano roll**: each note at its pitch and with its length; white keys are those steps (up to 4 notes per step). Below, the track's bars and the **dotted tempo follower**. **Hold a step** and play **black 1-8** to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
 - **Free recording, like a looper:** on an **empty** note track, REC records with no fixed length (the screen says REC LIBRE and counts the bars). REC again closes it: the track keeps the whole bars you played (1 to 4) and **every note keeps how long you held it** (up to 4 bars). If the track already has notes, REC records over it with its length.
 - **Length in bars:** SEQ held + black 7-10 = 1, 2, 3 or 4 bars.
 - **Held step + knobs:** K1-K4 = P-Lock · SELECT = hit (NORMAL › ACENTO = accent › FANTASMA = ghost) · ALGORITHM = probability or fill · PRESETS = length or LIGA (tie, glide).
-- **SONIDO** (sound): K1 = wave position, K2-K3 = filter, K4 = accent. PRESETS = wave bank.
+- **SONIDO** (sound): on ANALOG, the paged editor (above). On FM and ACID, K1-K3 = the engine macros and K4 = accent; their envelopes are in ENV.
 - **LOOP (SEQ again):** unquantized looper. K1 ON/OFF · K2 bars (1, 2 or 4). **REC** arms (starts at the bar) › when the loop closes it goes to PLAY › REC again: OVERDUB › REC: PLAY. **REC 2 s** erases the loop.
 - **MIDI:** the MIDI engine makes no sound inside: it sends its notes over MIDI on its channel. Its page has channel, program and two CCs (1 and 74).
 

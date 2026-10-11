@@ -5,7 +5,9 @@
 #define BM_CONFIG_H
 
 #define BM_VERSION_STR "0.3.0"
-#define BM_FMT           3        /* formato de patrones, ajustes y tomas (0.3 no lee los de 0.2) */
+#define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
+#define BM_PAT_FMT       4        /* formato de patrones: 0.4 lee también los de 0.3 (formato 3) y los convierte */
+#define BM_PRM           32       /* parámetros de sonido por canal, además de las 4 macros */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
 #define BM_FS_OUT        44118u   /* ≈ 24 MHz / 544, fijo por hardware */
@@ -34,11 +36,11 @@
 #define BM_BAR_TICKS     (BM_PPQN * 4)
 
 /* ---- Voces (§3.4) ---- */
-#define BM_VOICES        12
-#define BM_V_DRUM0       0        /* 0..3 reservadas a T1 */
-#define BM_V_DRUM_N      4
-#define BM_V_BASS        4        /* 4 reservada a T3 (mono) */
-#define BM_V_POOL0       5        /* 5..11 pool compartido T2, T4-T6 */
+#define BM_VOICES        14
+#define BM_V_DRUM0       0        /* 0..5 reservadas a T1 */
+#define BM_V_DRUM_N      6
+#define BM_V_BASS        6        /* 6 reservada a T3 (mono) */
+#define BM_V_POOL0       7        /* 7..13 pool compartido T2, T4-T6 */
 #define BM_V_POOL_N      7
 #define BM_STEAL_FADE    88       /* 2 ms a BM_FS */
 

@@ -28,7 +28,7 @@ Bubba Machine convierte el FM-1 en una groovebox de directo con **cuatro gestos 
 
 - **T1 Batería estilo TR:** 16 instrumentos con su propia línea y su propio largo (polímetro), acento, repetición, flam, P-Locks y pasos que solo suenan en el fill. Roll y borrado estilo TR mientras suena.
 - **T2 Sampler 3.0:** un loop en 8 slices que un generador rearma compás a compás. La fila TU es lo que programas y la fila SUENA, lo que eligió. Grabadora propia, biblioteca de tomas y editor para cortar. Dibuja el sample por frecuencias (graves, medios y agudos).
-- **T3 Bajo** de wavetable con glide, y **T4-T6 libres:** SYNTH, MONO, KIT (otra batería) o MIDI. Arpegiador, loopera y escala propia por canal.
+- **T3 Bajo** (ANALOG con glide, ACID o FM) y **T4-T6 libres:** ANALOG, FM, ACID, KIT (otra batería) o MIDI. Arpegiador, loopera y escala propia por canal.
 - **Tiempo por pista:** cada pista tiene su largo (1-64) y su velocidad (×2 a ×1/4).
 - **Acordes en cuadrícula:** 16 acordes con su grado y su función por color.
 - **Directo:** 4 escenas con cadenas y grabación de la canción, fills automáticos, 16 efectos punch-in y mutes por pista e instrumento.
@@ -57,7 +57,7 @@ Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) 
 Bubba Machine es **software libre** bajo la [GNU General Public License v3.0 o posterior](LICENSE) (`GPL-3.0-or-later`). Puedes usarlo, estudiarlo, modificarlo y compartirlo; si distribuyes una versión modificada, tiene que seguir siendo libre y con su código fuente.
 
 - **Todo el código es propio**, escrito desde cero. De la ingeniería inversa pública del FM-1 solo se usaron hechos de hardware (pines, tiempos, mapa de memoria). Ver [créditos](CREDITOS.md).
-- **Los sonidos también:** los kits, las ondas y los loops de fábrica se sintetizan en `tools/`. El firmware no lleva audio de terceros.
+- **Los sonidos también:** la batería y los sintetizadores se calculan en vivo (Plaits, msfa y modelos propios) y los loops de fábrica se sintetizan en `tools/`. El firmware no lleva audio de terceros.
 
 M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afiliado a M-VAVE ni respaldado por ellos. Instalar firmware no oficial puede dejar tu aparato inservible: hazlo bajo tu propio riesgo y solo cuando exista una versión probada.
 
@@ -65,7 +65,7 @@ M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afil
 
 ## In English
 
-**Bubba Machine** is a free (GPL-3.0-or-later) 6-track groovebox firmware for the M-VAVE FM-1: a TR-style drum machine, a sampler, a bass and three wavetable synths, written from scratch in C99.
+**Bubba Machine** is a free (GPL-3.0-or-later) 6-track groovebox firmware for the M-VAVE FM-1: a TR-style drum machine with modeled drums, a sampler, a bass and three synths (virtual analog, FM, acid), written from scratch in C99.
 
 - **Status:** 0.3.0 preview, with the new 3.0 interface (four gestures per button, HOME everywhere, fixed and free tracks, sampler 3.0 with a recorder). It runs and is tested on PC and in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html). The FM-1 port has **not** been tested on real hardware yet and there is no installer. Please don't try to flash it yet.
 - **Website and docs in English:** [erbubar23.github.io/bubba-machine/en](https://erbubar23.github.io/bubba-machine/en/), with the [manual](docs/en/MANUAL.md), [install status](docs/en/INSTALL.md) and [roadmap](docs/en/ROADMAP.md). The firmware screens are in Spanish for now. Issues and pull requests in English are welcome.

@@ -44,7 +44,8 @@ typedef struct {
 #define ST_COND_MASK 0x60u
 #define ST_LOCK     0x80u      /* el paso tiene P-Locks en la lista */
 
-typedef struct { uint8_t len, level, tune, decay; } bm_lane;      /* 4 bytes */
+/* Un instrumento de la rejilla. Batería: modelo y su golpe (core/bm_drums.h, core/bm_params.h). */
+typedef struct { uint8_t len, level, tune, decay, model, tone, color, choke; } bm_lane;   /* 8 bytes */
 typedef struct { uint8_t step, lane, param, val; } bm_lock;       /* 4 bytes; lane 0xFF = libre */
 
 typedef struct {
@@ -67,7 +68,8 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-enum { ENG_DRUM, ENG_BREAK, ENG_BASS, ENG_SYNTH, ENG_MONO, ENG_KIT, ENG_MIDI, ENG_ACID, ENG_VA, ENG_FM, ENG_COUNT };
+/* 0.4: ANALOG reemplaza a BAJO, SYNTH, MONO y el ANALOG viejo; CUERDA y MODAL aún no se eligen. */
+enum { ENG_DRUM, ENG_BREAK, ENG_ANALOG, ENG_FM, ENG_ACID, ENG_CUERDA, ENG_MODAL, ENG_KIT, ENG_MIDI, ENG_COUNT };
 enum { KIND_TR, KIND_BRK, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];
 #define BM_FREE0   3           /* T4: primer canal libre */
@@ -127,6 +129,7 @@ typedef struct {
     bm_tr    tr[BM_TR_TRACKS];                       /* T1, T2 */
     bm_notes nt[BM_SYN_TRACKS];                      /* T3..T6 */
     bm_loop  loop[BM_SYN_TRACKS];
+    uint8_t  prm[BM_TRACKS][BM_PRM];                 /* parámetros del motor de cada canal (bm_params.h) */
 } bm_pattern;
 
 /* Escenas y canción. Una escena = patrón + mutes. */

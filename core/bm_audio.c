@@ -7,6 +7,9 @@
 #include "bm_prof.h"
 #include "bm_util.h"
 #include "bm_fm.h"
+#include "bm_drums.h"
+#include "bm_analog.h"
+#include "bm_params.h"
 
 bool bm_cmd_push(bm_cmdq *q, const bm_cmd *c)
 {
@@ -34,6 +37,8 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     memset(mem, 0, sizeof *mem);
     c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
     bm_fm_init((float)BM_FS);
+    bm_drm_init((float)BM_FS);
+    bm_an_init((float)BM_FS);
     c->scene_q = -1;
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;
@@ -166,7 +171,16 @@ static void apply(bm_ctx *c, const bm_cmd *k)
             bm_tr_lock_set(bm_trk_tr(c->pat, k->a), k->c, k->b, (k->u.i >> 8) & 0xFF, (k->u.i & 0x10000) ? -1 : (k->u.i & 0xFF));
         break;
     case CMD_SET_LANE:
-        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < 4) ((uint8_t *)&bm_trk_tr(c->pat, k->a)->lane[k->b])[k->c] = (uint8_t)k->u.i;
+        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < sizeof(bm_lane)) ((uint8_t *)&bm_trk_tr(c->pat, k->a)->lane[k->b])[k->c] = (uint8_t)k->u.i;
+        break;
+    case CMD_SET_PRM:
+        if (k->a < BM_TRACKS && k->b < BM_PRM) c->pat->prm[k->a][k->b] = k->c;
+        break;
+    case CMD_PRESET:
+        if (k->a >= BM_TRACKS) break;
+        if (bm_is_tr(c->pat, k->a)) bm_kit_apply(bm_trk_tr(c->pat, k->a), k->b);
+        else bm_preset_apply(c->pat, k->a, k->b);
+        c->pat->trk[k->a].source = k->b;
         break;
     case CMD_LANE_MUTE:
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;

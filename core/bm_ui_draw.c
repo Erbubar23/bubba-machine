@@ -11,10 +11,14 @@
 #include "bm_rom.h"
 #include "bm_util.h"
 #include "bm_fm.h"
+#include "bm_drums.h"
+#include "bm_params.h"
+#include <math.h>
 
 #define PY 40   /* primera fila útil de una página de canal (debajo de las pestañas) */
 
 static uint16_t dim(uint16_t c) { return (uint16_t)((c >> 1) & 0x7BEF); }
+static float bm_clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
 /* ------------------------------------------------------------ estado */
 static void draw_ring(bm_gfx *g, int cx, int cy, int p, uint16_t c)
@@ -143,7 +147,7 @@ static void lane_pads(bm_gfx *g, const bm_app *a, int t, int y0, int rowh)
         gfx_fill(g, x, y, 56, rowh - 3, bg);
         uint16_t fg = fl ? C_BLACK : (muted ? C_GREY : C_WHITE);
         gfx_text(g, x + 4, y + 4, bm_lane_name(a, t, i), fg, 1);
-        char b[6]; snprintf(b, sizeof b, "%d", i + 1);
+        char b[12]; snprintf(b, sizeof b, "%d %s", i + 1, bm_drm_short[bm_trk_trc(&a->pat, t)->lane[i].model % DRM_COUNT]);
         gfx_small(g, x + 4, y + rowh - 11, b, fg);
         if (muted) gfx_text(g, x + 40, y + rowh - 13, "M", C_RED, 1);
     }
@@ -275,7 +279,7 @@ static void draw_seq_tr(bm_gfx *g, const bm_app *a)
         int ps = bm_app_track_step(a, t, l);
         if (l == sel) gfx_fill(g, 0, y, 240, 9, C_DDGREY);
         char nm[5]; snprintf(nm, sizeof nm, "%s", bm_lane_name(a, t, l));
-        gfx_small(g, 1, y + 2, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_DGREY : (l == sel ? C_WHITE : C_GREY)));
+        gfx_small(g, 1, y + 2, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_RED : (l == sel ? C_WHITE : C_GREY)));
         for (int s = 0; s < 16; s++) {
             int ab = a->step_page * 16 + s, x = 20 + s * 13 + (s / 4);
             if (ab >= len) { gfx_fill(g, x + 5, y + 3, 2, 2, C_DDGREY); continue; }
@@ -542,30 +546,13 @@ static void draw_seq_syn(bm_gfx *g, const bm_app *a)
 }
 
 /* ------------------------------------------------------------ SONIDO */
-static void draw_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
-{
-    const bm_track *tr = &a->pat.trk[t];
-    int p = tr->macro[3] * 3 * 256 / 127;
-    int w0 = (tr->source + (p >> 8)) % BM_WAVES, w1 = (w0 + 1) % BM_WAVES, mf = p & 255;
-    gfx_rect(g, x0, y0, w, h, C_DGREY);
-    gfx_hline(g, x0 + 1, y0 + h / 2, w - 2, C_DDGREY);
-    int py = -1;
-    for (int x = 0; x < w - 4; x++) {
-        int i = x * 256 / (w - 4);
-        int s = bm_rom_waves[w0][2][i] + ((bm_rom_waves[w1][2][i] - bm_rom_waves[w0][2][i]) * mf >> 8);
-        int y = y0 + h / 2 - s * (h / 2 - 4) / 32768;
-        if (py >= 0) gfx_line(g, x0 + 1 + x, py, x0 + 2 + x, y, bm_track_color(t));
-        py = y;
-    }
-}
-
-/* ACID y ANALOG: dos ciclos de la forma de onda del oscilador, y el filtro como una curva. */
+/* ACID: dos ciclos de la forma de onda del oscilador, y el filtro como una curva. */
 static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
 {
     const bm_track *tr = &a->pat.trk[t];
     gfx_rect(g, x0, y0, w, h, C_DGREY);
     gfx_hline(g, x0 + 1, y0 + h / 2, w - 2, C_DDGREY);
-    int timbre = tr->engine == ENG_ACID ? (tr->source & 1) * 2 : tr->source % BM_VA_TIMBRES;
+    int timbre = (tr->source & 1) * 2;
     int py = -1, cw = (w - 4) / 2;
     for (int x = 0; x < w - 4; x++) {
         int ph = (x % cw) * 256 / cw, s;
@@ -680,6 +667,208 @@ static void draw_sound_brk(bm_gfx *g, const bm_app *a)
     }
 }
 
+/* ------------------------------------------------------------ editor de sonido por páginas
+ * Arriba el preset (o el instrumento) y la página; en el medio un dibujo de lo que hace la página;
+ * los 4 valores están en la leyenda de las perillas. */
+static float ed_osc(int w, float forma, float p)          /* una forma de onda de ANALOG, p 0..1 */
+{
+    float saw = 1.0f - 2.0f * p;
+    switch (w) {
+    case AN_WAVE_SQR: return p < 0.5f - 0.45f * forma ? 1.0f : -1.0f;
+    case AN_WAVE_TRI: { float tri = p < 0.5f ? 4.0f * p - 1.0f : 3.0f - 4.0f * p; return tri * (1.0f - forma) + saw * forma; }
+    case AN_WAVE_SIN: {
+        float s = sinf(6.2831853f * p);
+        return forma > 0.0f ? sinf(6.2831853f * 0.25f * (1.0f + 4.0f * forma) * s) : s;
+    }
+    case AN_WAVE_SUPER: return (saw + 0.75f * (1.0f - 2.0f * fmodf(p * 1.02f + 0.3f, 1.0f)) + 0.75f * (1.0f - 2.0f * fmodf(p * 0.98f + 0.6f, 1.0f))) * 0.4f;
+    default: return saw * (1.0f - forma) + (p < 0.5f ? 1.0f : -1.0f) * forma;
+    }
+}
+
+static void ed_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h, int page)
+{
+    const uint8_t *q = a->pat.prm[t];
+    float forma = a->pat.trk[t].macro[3] / 127.0f;
+    int w1 = q[AN_W1] % AN_WAVES, w2 = q[AN_W2] % 4;
+    float r2 = exp2f((float)(((int)q[AN_SEMI2] - 64) * 24 / 63) / 12.0f);
+    float m2 = q[AN_MIX2] / 127.0f, ring = q[AN_RING] / 127.0f, sub = q[AN_SUB] / 127.0f;
+    int py = -1, py2 = -1, mid = y0 + h / 2;
+    uint16_t col = bm_track_color(t);
+    gfx_hline(g, x0, mid, w, C_DDGREY);
+    for (int x = 0; x < w; x++) {
+        float p = (float)x * 2.0f / (float)w, ph = p - (float)(int)p;
+        float s1 = ed_osc(w1, forma, ph);
+        float p2 = q[AN_SYNC] ? ph * r2 : p * r2;
+        float s2 = ed_osc(w2, 0.0f, p2 - (float)(int)p2);
+        float y;
+        if (page == AN_PG_OSC1) y = s1 + sub * (p < 1.0f ? 0.5f : -0.5f);
+        else if (page == AN_PG_OSC2) y = s2;
+        else y = (s1 + m2 * s2 + ring * s1 * s2 + sub * (p < 1.0f ? 0.5f : -0.5f)) / (1.0f + m2 + ring * 0.5f + sub * 0.5f);
+        int yy = mid - (int)(bm_clampf(y, -1.2f, 1.2f) * (float)(h / 2 - 3));
+        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, yy, col);
+        py = yy;
+        if (page == AN_PG_OSC2) {                                  /* la onda 1 de fondo */
+            int y1 = mid - (int)(s1 * (float)(h / 2 - 3));
+            if (py2 >= 0) gfx_line(g, x0 + x - 1, py2, x0 + x, y1, C_DGREY);
+            py2 = y1;
+        }
+    }
+    if (page == AN_PG_OSC1 && q[AN_NOISE]) gfx_small(g, x0 + w - 40, y0 + 2, "+ RUIDO", C_GREY);
+}
+
+static float ed_filter_db(int type, float w, float qv)    /* respuesta del SVF, w = f / corte */
+{
+    float w2 = w * w;
+    float d1 = sqrtf((1.0f - w2) * (1.0f - w2) + w2 / (qv * qv));
+    float qb = 0.5f + 0.02f * qv, d2 = sqrtf((1.0f - w2) * (1.0f - w2) + w2 / (qb * qb));
+    float m;
+    switch (type) {
+    case AN_F_LP12: m = 1.0f / d1; break;
+    case AN_F_BP: m = (w / qv) / d1 * 1.5f; break;
+    case AN_F_HP: m = w2 / d1; break;
+    default: m = 1.0f / (d1 * d2); break;
+    }
+    return 20.0f * log10f(m > 1e-6f ? m : 1e-6f);
+}
+
+static void ed_filter(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
+{
+    const bm_track *tk = &a->pat.trk[t];
+    const uint8_t *q = a->pat.prm[t];
+    float fc = bm_cut_hz(tk->macro[0]), qv = bm_reso_q(tk->macro[1]);
+    int type = q[AN_FTYPE] % AN_FILTERS;
+    uint16_t col = bm_track_color(t);
+    float env = (float)((int)tk->macro[2] - 64) * (84.0f / 63.0f);       /* semitonos que barre la envolvente */
+    if (env != 0.0f) {                                                     /* hasta dónde llega la envolvente */
+        float fe = fc * exp2f(env / 12.0f);
+        int xa = x0 + (int)((log2f(bm_clampf(fc, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
+        int xb = x0 + (int)((log2f(bm_clampf(fe, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
+        gfx_fill(g, xa < xb ? xa : xb, y0 + h - 4, (xa < xb ? xb - xa : xa - xb) + 1, 3, C_YELLOW);
+    }
+    int y0db = y0 + h * 18 / 54;                                           /* 0 dB: arriba +18, abajo -36 */
+    gfx_hline(g, x0, y0db, w, C_DDGREY);
+    int py = -1;
+    for (int x = 0; x < w; x++) {
+        float f = 20.0f * exp2f((float)x * 10.0f / (float)w);
+        float db = bm_clampf(ed_filter_db(type, f / fc, qv), -36.0f, 18.0f);
+        int y = y0 + (int)((18.0f - db) / 54.0f * (float)(h - 6));
+        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, y, col);
+        py = y;
+    }
+    for (int k = 0; k < 4; k++) {                                          /* 100 Hz, 1 k, 10 k */
+        static const float F[3] = {100.0f, 1000.0f, 10000.0f};
+        static const char *const N[3] = {"100", "1K", "10K"};
+        if (k == 3) break;
+        int x = x0 + (int)(log2f(F[k] / 20.0f) / 10.0f * (float)w);
+        gfx_vline(g, x, y0 + h - 8, 3, C_DGREY);
+        gfx_small(g, x - 4, y0 + h - 4 - 8, N[k], C_DGREY);
+    }
+}
+
+static void ed_adsr(bm_gfx *g, int x0, int y0, int w, int h, int A, int D, int S, int R, uint16_t col)
+{
+    /* tiempos en escala logarítmica, como las perillas */
+    int a = 2 + A * (w / 4) / 127, d = 2 + D * (w / 4) / 127, r = 2 + R * (w / 4) / 127, s = w - a - d - r - 4;
+    int yb = y0 + h - 2, sy = yb - S * (h - 4) / 127;
+    int x1 = x0 + a, x2 = x1 + d, x3 = x2 + (s > 8 ? s : 8), x4 = x3 + r;
+    for (int o = 0; o < 2; o++) {
+        gfx_line(g, x0, yb + o, x1, y0 + 2 + o, bm_knob_color(0));
+        gfx_line(g, x1, y0 + 2 + o, x2, sy + o, bm_knob_color(1));
+        gfx_line(g, x2, sy + o, x3, sy + o, bm_knob_color(2));
+        gfx_line(g, x3, sy + o, x4, yb + o, bm_knob_color(3));
+    }
+    (void)col;
+}
+
+static void ed_lfo(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
+{
+    const uint8_t *q = a->pat.prm[t];
+    int shape = q[AN_LSHAPE] % AN_LSHAPES, amt = q[AN_LAMT];
+    int mid = y0 + h / 2, py = -1;
+    uint32_t rng = 12345;
+    float sh = 0.0f;
+    gfx_hline(g, x0, mid, w, C_DDGREY);
+    for (int x = 0; x < w; x++) {
+        float p = (float)x * 3.0f / (float)w, ph = p - (float)(int)p, y;
+        switch (shape) {
+        case AN_L_SIN: y = sinf(6.2831853f * ph); break;
+        case AN_L_TRI: y = 4.0f * fabsf(ph - 0.5f) - 1.0f; break;
+        case AN_L_SAW: y = 1.0f - 2.0f * ph; break;
+        case AN_L_SQR: y = ph < 0.5f ? 1.0f : -1.0f; break;
+        default:
+            if (x == 0 || (int)((float)(x - 1) * 3.0f / (float)w * 2.0f) != (int)(p * 2.0f)) sh = (float)(int32_t)(rng = rng * 1664525u + 1013904223u) / 2147483648.0f;
+            y = sh;
+            break;
+        }
+        int yy = mid - (int)(y * (float)(h / 2 - 3) * (0.25f + 0.75f * (float)amt / 127.0f));
+        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, yy, amt ? bm_track_color(t) : C_DGREY);
+        py = yy;
+    }
+}
+
+static void draw_editor(bm_gfx *g, const bm_app *a)
+{
+    int t = a->track, n;
+    const bm_ppage *pg = bm_app_ed_pages(a, t, &n);
+    if (!pg || !n) return;
+    int cur = a->ed_page[t] % n, tr = bm_is_tr(&a->pat, t);
+    const bm_ppage *P = &pg[cur];
+    uint16_t col = bm_track_color(t);
+    char b[32];
+    if (gfx_strip_hit(g, PY, 9)) {
+        if (tr) {
+            const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[a->sel_lane[t] & 15];
+            snprintf(b, sizeof b, "%s - %s", bm_lane_name(a, t, a->sel_lane[t] & 15), bm_drm_names[ln->model % DRM_COUNT]);
+        } else snprintf(b, sizeof b, "%s", bm_sound_name(a, t));
+        gfx_text(g, 4, PY, b, C_WHITE, 1);
+        gfx_small(g, 168, PY + 1, "PRESETS = OTRO", C_GREY);
+    }
+    if (gfx_strip_hit(g, PY + 12, 16)) {
+        gfx_text(g, 4, PY + 12, P->name, col, 2);
+        for (int i = 0; i < n; i++) {                                   /* una marca por página */
+            int x = 236 - (n - i) * 9;
+            if (i == cur) gfx_fill(g, x, PY + 16, 7, 7, col); else gfx_rect(g, x, PY + 16, 7, 7, C_DGREY);
+        }
+    }
+    int x0 = 6, y0 = PY + 32, w = 228, h = 92;
+    if (gfx_strip_hit(g, y0, h)) {
+        gfx_rect(g, x0 - 2, y0 - 2, w + 4, h + 4, C_DDGREY);
+        if (tr) {
+            const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[a->sel_lane[t] & 15];
+            /* golpe: caída según DECAY y el tono base del modelo, con AFINA */
+            int dec = 6 + ln->decay * (w - 12) / 127, mid = y0 + h / 2;
+            gfx_hline(g, x0, mid, w, C_DDGREY);
+            int py = -1, pyn = -1;
+            for (int x = 0; x < dec && x < w; x++) {
+                float e = expf(-4.0f * (float)x / (float)dec);
+                float hz = (float)bm_drm_base_hz[ln->model % DRM_COUNT] * exp2f((float)(ln->tune - 64) * 0.375f / 12.0f);
+                float cyc = hz / 300.0f;
+                float s = sinf((float)x * 0.12f * cyc) * e;
+                int yy = mid - (int)(s * (float)(h / 2 - 4)), yn = mid + (int)(s * (float)(h / 2 - 4));
+                if (py >= 0) { gfx_line(g, x0 + x - 1, py, x0 + x, yy, col); gfx_line(g, x0 + x - 1, pyn, x0 + x, yn, dim(col)); }
+                py = yy; pyn = yn;
+            }
+            float hz = (float)bm_drm_base_hz[ln->model % DRM_COUNT] * exp2f((float)(ln->tune - 64) * 0.375f / 12.0f);
+            snprintf(b, sizeof b, "%d HZ", (int)(hz + 0.5f));
+            gfx_small(g, x0 + w - gfx_small_w(b) - 2, y0 + 2, b, C_GREY);
+        } else if (cur == AN_PG_OSC1 || cur == AN_PG_OSC2 || cur == AN_PG_CROSS) ed_wave(g, a, t, x0, y0, w, h, cur);
+        else if (cur == AN_PG_FILTER || cur == AN_PG_FILTER2) ed_filter(g, a, t, x0, y0, w, h);
+        else if (cur == AN_PG_FILT || cur == AN_PG_AMP) {
+            const uint8_t *q = a->pat.prm[t];
+            int o = cur == AN_PG_FILT ? AN_FA : AN_AA;
+            ed_adsr(g, x0, y0, w, h, q[o], q[o + 1], q[o + 2], q[o + 3], col);
+        } else if (cur == AN_PG_LFO) ed_lfo(g, a, t, x0, y0, w, h);
+        else {
+            const uint8_t *q = a->pat.prm[t];
+            static const char *const M[AN_MODES] = {"POLI: HASTA 7 VOCES", "MONO: UNA VOZ, REDISPARA", "LEGATO: UNA VOZ, LIGA"};
+            gfx_text_c(g, 120, y0 + 30, M[q[AN_MODE] % AN_MODES], C_WHITE, 1);
+            if (t == 2) gfx_text_c(g, 120, y0 + 44, "(T3 SIEMPRE ES DE UNA VOZ)", C_GREY, 1);
+        }
+    }
+    hint_s(g, PY + 130, tr ? "SELECT = PAGINA - NEGRAS 1-8 + 9 = INSTRUMENTO" : "SELECT = PAGINA - EDIT = SIGUIENTE");
+    hint_s(g, PY + 138, tr ? "EDIT = SIGUIENTE PAGINA - BLANCAS = TOCAR" : "ENV = ENVOLVENTES - LFO = LFO - TECLAS = TOCAR");
+}
+
 static void draw_sound(bm_gfx *g, const bm_app *a)
 {
     int t = a->track;
@@ -689,7 +878,7 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
     if (bm_is_tr(&a->pat, t)) {
         if (gfx_strip_hit(g, PY, 9)) {
             gfx_text(g, 4, PY, "KIT", C_GREY, 1); gfx_text(g, 28, PY, bm_sound_name(a, t), C_WHITE, 1);
-            gfx_small(g, 100, PY + 1, tr->source % BM_KITS_ALL == BM_KIT_SYN ? "EN VIVO" : "GRABADO", C_YELLOW);
+            gfx_small(g, 80, PY + 1, "MODELADO", C_YELLOW);
             gfx_small(g, 150, PY + 1, "PRESETS = OTRO KIT", C_GREY);
         }
         lane_pads(g, a, t, PY + 12, 37);
@@ -712,68 +901,26 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
         hint(g, 176, t == 2 ? "MONO + GLIDE (LIGA)" : "POLIFONICO (POOL 7 VOCES)");
         return;
     }
-    int synth = tr->engine == ENG_ACID || tr->engine == ENG_VA;
+    if (tr->engine == ENG_ANALOG) { draw_editor(g, a); return; }
     if (gfx_strip_hit(g, PY, 9)) {
-        gfx_text(g, 4, PY, synth ? bm_track_name(a, t) : "ONDAS", C_GREY, 1);
-        gfx_text(g, synth ? 52 : 44, PY, bm_sound_name(a, t), C_WHITE, 1);
-        gfx_small(g, 150, PY + 1, synth ? "PRESETS = TIMBRE" : "PRESETS = BANCO", C_GREY);
+        gfx_text(g, 4, PY, bm_track_name(a, t), C_GREY, 1);
+        gfx_text(g, 52, PY, bm_sound_name(a, t), C_WHITE, 1);
+        gfx_small(g, 150, PY + 1, "PRESETS = TIMBRE", C_GREY);
     }
-    if (synth) {
-        if (gfx_strip_hit(g, PY + 12, 92)) draw_synth(g, a, t, 4, PY + 12, 232, 90);
-        char c0[12], c1[12];
-        bm_fmt_macro(a, t, 0, tr->macro[0], c0, sizeof c0);
-        snprintf(b, sizeof b, "%s %s  RES %d%%", tr->engine == ENG_ACID ? "LP 4 POLOS" : "SVF LP", c0, tr->macro[1] * 100 / 127);
-        hint(g, 150, b);
-        bm_fmt_macro(a, t, 3, tr->macro[3], c1, sizeof c1);
-        snprintf(b, sizeof b, "%s %s", bm_macro_name(a, t, 3), c1);
-        hint(g, 162, b);
-        hint(g, 176, tr->engine == ENG_ACID ? "ACENTO ABRE EL FILTRO - LIGA = SLIDE" : "2 OSCILADORES - POLIFONICO");
-        return;
-    }
-    if (gfx_strip_hit(g, PY + 12, 92)) draw_wave(g, a, t, 4, PY + 12, 232, 90);
-    char c1[12], c2[12];
-    bm_fmt_macro(a, t, 0, tr->macro[0], c1, sizeof c1);
-    bm_fmt_macro(a, t, 3, tr->macro[3], c2, sizeof c2);
-    snprintf(b, sizeof b, "SVF LP %s  RES %d%%", c1, tr->macro[1] * 100 / 127);
+    if (gfx_strip_hit(g, PY + 12, 92)) draw_synth(g, a, t, 4, PY + 12, 232, 90);
+    char c0[12], c1[12];
+    bm_fmt_macro(a, t, 0, tr->macro[0], c0, sizeof c0);
+    snprintf(b, sizeof b, "LP 4 POLOS %s  RES %d%%", c0, tr->macro[1] * 100 / 127);
     hint(g, 150, b);
-    snprintf(b, sizeof b, "ONDA: %s", c2);
+    bm_fmt_macro(a, t, 3, tr->macro[3], c1, sizeof c1);
+    snprintf(b, sizeof b, "%s %s", bm_macro_name(a, t, 3), c1);
     hint(g, 162, b);
-    hint(g, 176, t == 2 || tr->engine == ENG_MONO ? "MONO + GLIDE (LIGA)" : "POLIFONICO (POOL 7 VOCES)");
+    hint(g, 176, "ACENTO ABRE EL FILTRO - LIGA = SLIDE");
 }
 
 static void draw_inst(bm_gfx *g, const bm_app *a)
 {
-    int t = a->track, l = a->sel_lane[t];
-    const bm_tr *tr = bm_trk_trc(&a->pat, t);
-    const bm_lane *ln = &tr->lane[l];
-    char b[24];
-    if (gfx_strip_hit(g, PY, 16)) {
-        gfx_text(g, 4, PY, bm_lane_name(a, t, l), bm_track_color(t), 2);
-        snprintf(b, sizeof b, "INSTRUMENTO %d", l + 1);
-        gfx_text_r(g, 236, PY + 4, b, C_GREY, 1);
-    }
-    static const char *const NM[4] = {"NIVEL", "AFINA", "DECAY", "LARGO"};
-    const int val[4] = {ln->level, ln->tune, ln->decay, ln->len * 2};
-    for (int i = 0; i < 4; i++) {
-        int x = 6 + i * 58;
-        if (!gfx_strip_hit(g, PY + 22, 70)) break;
-        gfx_text(g, x, PY + 22, NM[i], bm_knob_color(i), 1);
-        gfx_fill(g, x + 10, PY + 34, 20, 56, C_DDGREY);
-        int h = val[i] * 56 / 128;
-        gfx_fill(g, x + 10, PY + 90 - h, 20, h, bm_knob_color(i));
-    }
-    int y = PY + 98;
-    if (gfx_strip_hit(g, y, 16)) {
-        int ps = bm_app_track_step(a, t, l);
-        for (int s = 0; s < 64; s++) {
-            int x = 6 + s * 3 + (s / 16) * 4;
-            uint16_t c = s >= ln->len ? C_BLACK : ((tr->st[l][s] & ST_ON) ? bm_track_color(t) : C_DGREY);
-            if (s == ps) c = C_WHITE;
-            gfx_fill(g, x, y, 2, 14, c);
-        }
-    }
-    hint(g, 162, "BLANCAS: TOCAR Y ELEGIR");
-    hint(g, 174, "NEGRAS 1-8 + 9: INSTRUMENTO");
+    draw_editor(g, a);
 }
 
 static void draw_ch_mix(bm_gfx *g, const bm_app *a)

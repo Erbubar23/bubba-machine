@@ -9,6 +9,8 @@
 #include "../core/bm_app_int.h"
 #include "../core/bm_util.h"
 #include "../core/bm_rom.h"
+#include "../core/bm_drums.h"
+#include <stddef.h>
 
 static int fails, checks;
 #define CHECK(c) do { checks++; if (!(c)) { fails++; printf("  FALLO %s:%d  %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -370,8 +372,8 @@ static void test_navigation(void)
     enc(ENC_ALGO, 1);                                         /* dentro de un canal: cambia y conserva la página */
     CHECK(app.track == 3 && app.page == PG_SOUND && app.view == V_CH);
     shot("12-wave");
-    enc(ENC_SELECT, 1);                                       /* SELECT recorre las pestañas */
-    CHECK(app.page == PG_ENV);
+    enc(ENC_SELECT, 1);                                       /* SELECT: las páginas de SONIDO y después las pestañas */
+    CHECK(app.page == PG_SOUND && app.ed_page[3] == 1);
     enc(ENC_SELECT, -1); enc(ENC_SELECT, -1); enc(ENC_SELECT, -1);
     CHECK(app.page == PG_MORE);                               /* la última: MAS */
     shot("45-more");
@@ -547,9 +549,9 @@ static void test_free_engines(void)
     ch(3);
     enc(ENC_SELECT, -1);
     CHECK(app.page == PG_MORE && app.more_row == 0);
-    enc(ENC_ALGO, 1);                                         /* SYNTH > MONO: notas a notas, sin preguntar */
-    CHECK(app.pat.trk[3].engine == ENG_MONO && app.ask == ASK_NONE);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);     /* > ANALOG > FM > ACID */
+    enc(ENC_ALGO, 1);                                         /* ANALOG > FM: notas a notas, sin preguntar */
+    CHECK(app.pat.trk[3].engine == ENG_FM && app.ask == ASK_NONE);
+    enc(ENC_ALGO, 1);                                         /* > ACID */
     CHECK(app.pat.trk[3].engine == ENG_ACID && app.ask == ASK_NONE);
     enc(ENC_ALGO, 1);                                         /* ACID > KIT: pregunta */
     CHECK(app.ask == ASK_ENGINE);
@@ -568,7 +570,7 @@ static void test_free_engines(void)
     /* T6 a MIDI: manda notas por MIDI */
     ch(5);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, -1);                                         /* SYNTH < MIDI: las notas se quedan */
+    enc(ENC_ALGO, -1);                                         /* ANALOG < MIDI: las notas se quedan */
     CHECK(app.pat.trk[5].engine == ENG_MIDI && app.page == PG_MORE && app.ask == ASK_NONE);
     page(BTN_EDIT, PG_MIDI);
     shot("48-midi");
@@ -583,7 +585,7 @@ static void test_free_engines(void)
     enc(ENC_SELECT, -1);
     const char *nm; char v[24];
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
-    CHECK(strcmp(nm, "MOTOR") == 0 && strcmp(v, "BAJO") == 0);
+    CHECK(strcmp(nm, "MOTOR") == 0 && strcmp(v, "ANALOG") == 0);
     ch(0);
     enc(ENC_SELECT, -1);
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
@@ -820,7 +822,7 @@ static void test_fm(void)
     boot(1);
     ch(3);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);       /* SYNTH > MONO > ANALOG > FM */
+    enc(ENC_ALGO, 1);                                           /* ANALOG > FM */
     CHECK(app.pat.trk[3].engine == ENG_FM && app.ask == ASK_NONE);
     page(BTN_EDIT, PG_SOUND);
     shot("56-fm");
@@ -842,7 +844,7 @@ static void test_fm(void)
     /* T3 en FM: mono */
     ch(2);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                         /* BAJO > ACID > FM */
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                         /* ANALOG > ACID > FM */
     CHECK(app.pat.trk[2].engine == ENG_FM);
     static const uint8_t bass[2] = {36, 43};
     CHECK(solo_peak(2, bass, 2, 100, 250) > 0.03);
@@ -850,56 +852,153 @@ static void test_fm(void)
 
 static void test_engines(void)
 {
-    printf("motores: ACID, ANALOG y el kit SINTE\n");
+    printf("motores 0.4: ANALOG (presets y editor), ACID y la batería modelada\n");
     boot(1);
     static const uint8_t bass[4] = {36, 43, 48, 39};
+    CHECK(app.pat.trk[2].engine == ENG_ANALOG && app.pat.prm[2][AN_MODE] == AN_M_MONO);
     double p_bass = solo_peak(2, bass, 4, 100, 250);
     ch(2);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1);                                            /* T3: BAJO > ACID, sin preguntar */
+    enc(ENC_ALGO, 1);                                            /* T3: ANALOG > ACID, sin preguntar */
     CHECK(app.pat.trk[2].engine == ENG_ACID && app.ask == ASK_NONE);
     page(BTN_EDIT, PG_SOUND);
     shot("53-acid");
     double p_acid = solo_peak(2, bass, 4, 100, 250);
     double p_acc = solo_peak(2, bass, 4, 127, 250);
-    printf("  pico BAJO %.2f · ACID %.2f · ACID con acento %.2f\n", p_bass, p_acid, p_acc);
+    printf("  pico ANALOG %.2f · ACID %.2f · ACID con acento %.2f\n", p_bass, p_acid, p_acc);
+    CHECK(p_bass > 0.05 && p_bass < 1.0);
     CHECK(p_acid > 0.05 && p_acid < 1.0 && p_acc >= p_acid);
     enc(ENC_PRESETS, 1);                                         /* cuadrada */
     CHECK(app.pat.trk[2].source == 1);
-    double p_sq = solo_peak(2, bass, 2, 100, 250);
-    CHECK(p_sq > 0.05);
-    /* ANALOG en T4 */
+    CHECK(solo_peak(2, bass, 2, 100, 250) > 0.05);
+
+    /* ANALOG en T4: los presets suenan sin saturar */
     ch(3);
-    enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                          /* SYNTH > MONO > ANALOG */
-    CHECK(app.pat.trk[3].engine == ENG_VA);
     page(BTN_EDIT, PG_SOUND);
+    CHECK(app.pat.trk[3].engine == ENG_ANALOG && bm_app_ed_on(&app));
     shot("54-analog");
     static const uint8_t chord[3] = {57, 60, 64};
-    for (int tb = 0; tb < BM_VA_TIMBRES; tb++) {
-        app.pat.trk[3].source = (uint8_t)tb;
-        double p = solo_peak(3, chord, 3, 100, 200);
-        CHECK(p > 0.03 && p < 1.0);
+    wav_open("analog.wav");
+    int ok = 0;
+    for (int pr = 0; pr < bm_an_npresets; pr++) {
+        while (app.pat.trk[3].source != pr) { enc(ENC_PRESETS, 1); run_ms(20); }
+        double pk = solo_peak(3, chord, 3, 100, 600);
+        printf("  %-9s pico %.2f\n", bm_an_presets[pr].name, pk);
+        if (pk > 0.03 && pk < 1.0) ok++;
     }
-    /* kit SINTE en T1: los 16 instrumentos suenan */
+    run_ms(3000);
+    wav_close();
+    CHECK(ok == bm_an_npresets);
+    /* editor: SELECT recorre las páginas, K1 cambia el ajuste de la página, EDIT pasa a la siguiente */
+    app.ed_page[3] = 0;
+    enc(ENC_SELECT, 1); enc(ENC_SELECT, 1); enc(ENC_SELECT, 1);   /* OSC 1 > OSC 2 > CRUCE > FILTRO */
+    CHECK(app.page == PG_SOUND && app.ed_page[3] == AN_PG_FILTER);
+    shot("57-analog-filtro");
+    int ft = app.pat.prm[3][AN_FTYPE];
+    enc(ENC_K1, 1); run_ms(20);                                  /* TIPO: LP 24 > LP 12 */
+    CHECK(app.pat.prm[3][AN_FTYPE] == ft + 1);
+    int cut = app.pat.trk[3].macro[0];
+    enc(ENC_K2, -2); run_ms(20);                                 /* CORTE es la macro 1 */
+    CHECK(app.pat.trk[3].macro[0] == cut - 2);
+    btn(BTN_ENV, 20); run_ms(20);                                /* ENV: la envolvente de nivel */
+    CHECK(app.page == PG_SOUND && app.ed_page[3] == AN_PG_AMP);
+    shot("58-analog-env");
+    btn(BTN_ENV, 20); run_ms(20);                                /* otra vez: la de filtro */
+    CHECK(app.ed_page[3] == AN_PG_FILT);
+    btn(BTN_LFO, 20); run_ms(20);
+    CHECK(app.ed_page[3] == AN_PG_LFO);
+    shot("59-analog-lfo");
+    app.ed_page[3] = BM_AN_PAGES - 1;
+    enc(ENC_SELECT, 1);                                          /* desde la última página, a la pestaña siguiente */
+    CHECK(app.page != PG_SOUND);
+
+    /* batería modelada: los 3 kits, los 16 instrumentos de cada uno suenan */
     ch(0);
     page(BTN_EDIT, PG_SOUND);
-    enc(ENC_PRESETS, 1); enc(ENC_PRESETS, 1);                    /* KO-808 > KO-909 > SINTE */
-    CHECK(app.pat.trk[0].source == BM_KIT_SYN);
-    shot("55-kit-sinte");
-    int ok = 0;
-    for (int l = 0; l < BM_KIT_SOUNDS; l++) {
-        uint8_t n = (uint8_t)l;
-        double p = solo_peak(0, &n, 1, 110, 250);
-        if (p > 0.02 && p < 1.0) ok++; else printf("  instrumento %d: pico %.3f\n", l, p);
+    shot("55-bateria");
+    wav_open("bateria.wav");
+    for (int k = 0; k < BM_KITS_N; k++) {
+        while (app.pat.trk[0].source != k) { enc(ENC_PRESETS, 1); run_ms(20); }
+        ok = 0;
+        for (int l = 0; l < BM_LANES; l++) {
+            uint8_t n = (uint8_t)l;
+            double pk = solo_peak(0, &n, 1, 110, 300);
+            printf(" %.2f", pk);
+            if (pk > 0.02 && pk < 1.0) ok++; else printf("  kit %s, %s: pico %.3f\n", bm_kits[k].name, bm_kits[k].lane[l].name, pk);
+        }
+        printf("  kit %-5s %d/16\n", bm_kits[k].name, ok);
+        CHECK(ok == BM_LANES);
     }
-    CHECK(ok == BM_KIT_SOUNDS);
+    wav_close();
+    /* INSTR: el instrumento elegido con su modelo */
+    page(BTN_EDIT, PG_INST);
+    CHECK(app.ed_page[0] == 0 && bm_app_ed_on(&app));
+    shot("60-instrumento");
+    int tune = app.pat.tr[0].lane[app.sel_lane[0]].tune;
+    enc(ENC_K1, 2); run_ms(20);
+    CHECK(app.pat.tr[0].lane[app.sel_lane[0]].tune == tune + 2);
+    btn(BTN_EDIT, 20); run_ms(20);                               /* página INSTRUMENTO: el modelo */
+    CHECK(app.page == PG_INST && app.ed_page[0] == 1);
+    int model = app.pat.tr[0].lane[app.sel_lane[0]].model;
+    enc(ENC_K1, 1); run_ms(20);
+    CHECK(app.pat.tr[0].lane[app.sel_lane[0]].model == (model + 1) % DRM_COUNT || model == DRM_COUNT - 1);
+    shot("61-instrumento-modelo");
+
     for (int i = 0; i < BM_TRACKS; i++) app.pat.trk[i].mute = 0;
     peak_abs = 0;
     wav_open("motores.wav");                                    /* la demo con los motores nuevos */
     btn(BTN_PLAY, 20); run_ms(8000); btn(BTN_PLAY, 20);
     wav_close();
     CHECK(peak_abs > 0.05 && peak_abs <= 1.0);
+}
+
+/* Un patrón de 0.3 (formato 3) se lee y se convierte: BAJO, SYNTH y MONO pasan a ANALOG, KIT y la
+ * batería toman el kit modelado del mismo nombre, y los pasos se quedan. */
+static void test_migrate(void)
+{
+    printf("patrones de 0.3: se convierten al formato 4\n");
+    static uint8_t b[4096];
+    bm_pattern p;
+    bm_pattern_init(&p);
+    memset(b, 0, sizeof b);
+    memcpy(b, &p.meta, 64);
+    b[0] = 1200 & 0xFF; b[1] = 1200 >> 8;
+    b[offsetof(bm_meta, fmt)] = 3;
+    int o = 64;
+    static const uint8_t ENG3[6] = {0, 1, 2, 3, 4, 5};             /* DRUM BREAK BASS SYNTH MONO KIT */
+    for (int t = 0; t < BM_TRACKS; t++) {
+        bm_track tk = p.trk[t];
+        tk.engine = ENG3[t];
+        tk.source = t == 0 ? 1 : 0;                                  /* T1 con KO-909 */
+        tk.attack = 64; tk.release = 64; tk.sustain = 90;
+        memcpy(b + o, &tk, 48); o += 48;
+    }
+    for (int t = 0; t < BM_TRACKS; t++) {
+        if (t < 2 || t == 5) {                                       /* rejilla: líneas de 4 bytes */
+            for (int l = 0; l < 16; l++) { b[o++] = 16; b[o++] = 100; b[o++] = 64; b[o++] = 127; }
+            b[o++] = 0; b[o++] = 0;                                  /* mute */
+            b[o++] = 1; b[o++] = 0;                                  /* un paso: línea 0, paso 4 */
+            b[o++] = 4; b[o++] = 0; b[o++] = ST_ON;
+            b[o++] = 0;                                              /* sin P-Locks */
+        } else { b[o++] = 0; b[o++] = 0; }                           /* notas: ninguna */
+    }
+    for (int i = 0; i < 4; i++) { b[o++] = 0; b[o++] = 2; b[o++] = 0; }
+    bm_pattern q;
+    CHECK(bm_pattern_unpack(&q, b, o) == o);
+    CHECK(q.trk[0].engine == ENG_DRUM && q.trk[0].source == 1 && q.tr[0].lane[0].model == bm_kits[1].lane[0].model);
+    CHECK(q.tr[0].st[0][4] == ST_ON && q.tr[0].lane[0].decay == bm_kits[1].lane[0].decay);
+    CHECK(q.trk[2].engine == ENG_ANALOG && q.prm[2][AN_MODE] == AN_M_MONO);
+    CHECK(q.trk[3].engine == ENG_ANALOG && q.trk[4].engine == ENG_ANALOG);
+    CHECK(q.trk[5].engine == ENG_KIT && bm_trk_trc(&q, 5)->st[0][4] == ST_ON && bm_trk_trc(&q, 5)->lane[2].model == bm_kits[0].lane[2].model);
+    CHECK(q.prm[3][AN_AS] == 90 && q.prm[3][AN_AA] > 20);
+    CHECK(q.meta.fmt == BM_PAT_FMT);
+    /* y vuelve a salir igual en formato 4 */
+    static uint8_t c1[BM_PENDING_LEN], c2[BM_PENDING_LEN];
+    int n1 = bm_pattern_pack(&q, c1, sizeof c1);
+    bm_pattern r;
+    CHECK(n1 > 0 && bm_pattern_unpack(&r, c1, n1) == n1);
+    int n2 = bm_pattern_pack(&r, c2, sizeof c2);
+    CHECK(n1 == n2 && memcmp(c1, c2, (size_t)n1) == 0);
 }
 
 static void test_loop(void)
@@ -980,7 +1079,7 @@ static void test_demo_and_persist(void)
     int n2 = bm_pattern_pack(&app.pat, b2, sizeof b2);
     CHECK(n1 > 0 && n1 == n2 && memcmp(b1, b2, (size_t)n1) == 0);
     CHECK(app.song.scene[1].valid && app.song.scene[1].trk_mute == 0x3C);
-    CHECK(app.pat.trk[4].engine == ENG_MONO);
+    CHECK(app.pat.trk[4].engine == ENG_ANALOG && app.pat.prm[4][AN_MODE] == AN_M_LEGATO);
 }
 
 static void test_old_version(void)
@@ -1130,6 +1229,7 @@ int main(int argc, char **argv)
     test_notes();
     test_free_rec();
     test_engines();
+    test_migrate();
     test_fm();
     test_demo_and_persist();
     test_old_version();

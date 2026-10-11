@@ -7,12 +7,13 @@
 #include "bm_app_int.h"
 #include "bm_util.h"
 #include "bm_rom.h"
+#include "bm_params.h"
+#include "bm_drums.h"
 
-static const char *const MAC_SYN[4] = {"CUTOFF", "RESO", "DECAY", "ONDA"};
+static const char *const MAC_AN[4] = {"CORTE", "RESO", "ENVOLV", "FORMA"};
 static const char *const MAC_ACID[4] = {"CUTOFF", "RESO", "DECAY", "ENV MOD"};
-static const char *const MAC_VA[4] = {"CUTOFF", "RESO", "DECAY", "DETUNE"};
 static const char *const MAC_FM[4] = {"BRILLO", "REALIM", "DECAY", "ALGORITMO"};
-static const char *const MAC_TR[4] = {"TONE", "TUNE", "DECAY", "START"};
+static const char *const MAC_TR[4] = {"TONO", "AFINA", "DECAY", "COLOR"};
 static const char *const GEN_NAMES[4] = {"VARIAR", "ANCLAR", "REPETIR", "ROMPER"};
 static const char *const RT_NAMES[4] = {"2X", "3X", "4X", "8X"};
 static const char *const DLY_NAMES[4] = {"1/16", "1/8", "3/16", "1/4"};
@@ -32,9 +33,8 @@ const char *bm_macro_name(const bm_app *a, int t, int i)
     if (t == 1) return GEN_NAMES[i & 3];
     if (bm_is_tr(&a->pat, t)) return MAC_TR[i & 3];
     if (a->pat.trk[t].engine == ENG_ACID) return MAC_ACID[i & 3];
-    if (a->pat.trk[t].engine == ENG_VA) return MAC_VA[i & 3];
     if (a->pat.trk[t].engine == ENG_FM) return MAC_FM[i & 3];
-    return MAC_SYN[i & 3];
+    return MAC_AN[i & 3];
 }
 
 /* ------------------------------------------------------------ formato */
@@ -69,9 +69,15 @@ static void fmt_semi(int v, char *b, int cap) { snprintf(b, (size_t)cap, "%+d ST
 
 void bm_fmt_macro(const bm_app *a, int t, int i, int v, char *b, int cap)
 {
-    if (t == 1 || bm_is_tr(&a->pat, t)) {
-        if (t != 1 && i == 1) snprintf(b, (size_t)cap, "%+d ST", ((v - 64) * 12) / 64);
-        else fmt_pct(v, b, cap);
+    if (t == 1) { fmt_pct(v, b, cap); return; }
+    if (bm_is_tr(&a->pat, t)) {                                  /* batería: 64 = el kit tal cual */
+        if (i == 1) snprintf(b, (size_t)cap, "%+d ST", ((v - 64) * 3) / 8);
+        else snprintf(b, (size_t)cap, "%+d", v - 64);
+        return;
+    }
+    if (a->pat.trk[t].engine == ENG_ANALOG) {
+        static const uint8_t PG[4] = {3, 3, 4, 0}, K[4] = {1, 2, 0, 1};   /* dónde está cada macro en bm_an_pages */
+        bm_prm_fmt(&bm_an_pages[PG[i & 3]].p[K[i & 3]], v, b, cap);
         return;
     }
     if (a->pat.trk[t].engine == ENG_FM) {
@@ -86,13 +92,7 @@ void bm_fmt_macro(const bm_app *a, int t, int i, int v, char *b, int cap)
     case 0: fmt_hz(bm_cutoff_hz(v), b, cap); break;
     case 1: fmt_pct(v, b, cap); break;
     case 2: fmt_ms(bm_decay_ms(v), b, cap); break;
-    default: {
-        int e = a->pat.trk[t].engine;
-        if (e == ENG_ACID || e == ENG_VA) { fmt_pct(v, b, cap); break; }
-        int p = v * 3 * 256 / 127;
-        int w = (a->pat.trk[t].source + (p >> 8)) % BM_WAVES;
-        snprintf(b, (size_t)cap, "%s", bm_rom_wave_names[w]);
-    }
+    default: fmt_pct(v, b, cap); break;
     }
 }
 
@@ -244,6 +244,90 @@ uint8_t bm_app_takes_sel(const bm_app *a)
     return list[a->takes_row % n];
 }
 
+/* ------------------------------------------------------------ editor de sonido por páginas
+ * ANALOG: los ajustes del motor (bm_an_pages) en SONIDO. Batería: el instrumento elegido
+ * (bm_lane_pages) en INSTR. K1-K4 = los 4 de la página; SELECT recorre las páginas y sigue a la
+ * pestaña de al lado al llegar al borde; el botón de la página otra vez = la siguiente. */
+const bm_ppage *bm_app_ed_pages(const bm_app *a, int t, int *n)
+{
+    if (bm_is_tr(&a->pat, t)) { *n = BM_LANE_PAGES; return bm_lane_pages; }
+    return bm_engine_pages(a->pat.trk[t].engine, n);
+}
+
+int bm_app_ed_on(const bm_app *a)
+{
+    int n, t = a->track;
+    if (a->view != V_CH || !bm_app_ed_pages(a, t, &n)) return 0;
+    return bm_is_tr(&a->pat, t) ? a->page == PG_INST : a->page == PG_SOUND;
+}
+
+int bm_app_ed_value(const bm_app *a, int t, const bm_pdef *d)
+{
+    if (bm_is_tr(&a->pat, t)) return ((const uint8_t *)&bm_trk_trc(&a->pat, t)->lane[tr_lane(a)])[d->slot & 7];
+    return bm_prm_get(&a->pat, t, d);
+}
+
+const char *bm_app_ed_name(const bm_app *a, int t, const bm_pdef *d)
+{
+    if (bm_is_tr(&a->pat, t) && d->slot == LN_COLOR)                 /* COLOR dice qué hace en ese modelo */
+        return bm_drm_color[bm_trk_trc(&a->pat, t)->lane[tr_lane(a)].model % DRM_COUNT];
+    return d->name;
+}
+
+static void ed_set(bm_app *a, int t, const bm_pdef *d, int v)
+{
+    if (bm_is_tr(&a->pat, t)) { app_push_i(a, CMD_SET_LANE, (uint8_t)t, (uint8_t)tr_lane(a), d->slot & 7, v); app_edited(a); return; }
+    if (d->slot & PS_M0) { app_set_track(a, t, d->slot & 3, v); return; }
+    app_push(a, CMD_SET_PRM, (uint8_t)t, d->slot, (uint8_t)v);
+    app_edited(a);
+}
+
+static void ed_turn(bm_app *a, int t, int k, int d)
+{
+    int n;
+    const bm_ppage *pg = bm_app_ed_pages(a, t, &n);
+    if (!pg || !n) return;
+    const bm_ppage *P = &pg[a->ed_page[t] % n];
+    if (k >= P->n) return;
+    const bm_pdef *def = &P->p[k];
+    int cur = bm_app_ed_value(a, t, def);
+    int step = def->max <= 16 ? (d > 0 ? 1 : -1) : d;                /* listas: de a una */
+    int lo = bm_is_tr(&a->pat, t) && def->slot == LN_LEN ? 1 : 0;
+    int nv = bm_clampi(cur + step, lo, def->max);
+    if (nv == cur) return;
+    ed_set(a, t, def, nv);
+    char b[12], ti[22];
+    bm_prm_fmt(def, nv, b, sizeof b);
+    if (bm_is_tr(&a->pat, t)) snprintf(ti, sizeof ti, "%s %s", bm_lane_name(a, t, tr_lane(a)), bm_app_ed_name(a, t, def));
+    else snprintf(ti, sizeof ti, "%s %s", P->name, def->name);
+    app_overlay(a, k, ti, b, "", nv * 255 / (def->max ? def->max : 1), def->fmt == PF_BIP || def->fmt == PF_SEMI || def->fmt == PF_DSEMI || def->fmt == PF_CENT ? 128 : -1, bm_knob_color(k));
+}
+
+/* SELECT en el editor: página por página; en el borde, la pestaña de al lado. Devuelve 0 si salió. */
+static int ed_select(bm_app *a, int d)
+{
+    int n, t = a->track;
+    if (!bm_app_ed_on(a) || !bm_app_ed_pages(a, t, &n)) return 0;
+    int p = a->ed_page[t] % n + (d > 0 ? 1 : -1);
+    if (p < 0 || p >= n) return 0;
+    a->ed_page[t] = (uint8_t)p;
+    return 1;
+}
+
+static void legend_editor(const bm_app *a, int t, bm_legend *L)
+{
+    int n;
+    const bm_ppage *pg = bm_app_ed_pages(a, t, &n);
+    if (!pg || !n) return;
+    const bm_ppage *P = &pg[a->ed_page[t] % n];
+    char b[12];
+    for (int k = 0; k < P->n; k++) {
+        int v = bm_app_ed_value(a, t, &P->p[k]);
+        bm_prm_fmt(&P->p[k], v, b, sizeof b);
+        L4(L, k, bm_app_ed_name(a, t, &P->p[k]), b, v * 255 / (P->p[k].max ? P->p[k].max : 1));
+    }
+}
+
 void bm_app_legend(const bm_app *a, bm_legend L[4])
 {
     memset(L, 0, sizeof(bm_legend) * 4);
@@ -341,26 +425,18 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
             bm_app_src_name(a, tr->loop_b, n2, sizeof n2); L4(L, 1, "LOOP B", tr->loop_b == BM_SRC_NONE ? "-" : n2, 0);
             snprintf(b, sizeof b, "%d%%", tr->chance_b); L4(L, 2, "CHANCE B", b, tr->chance_b * 255 / 100);
             snprintf(b, sizeof b, "%+.1f ST", (double)bm_app_brk_semis(a)); L4(L, 3, "PITCH", b, tr->pitch * 5);
-        } else if (kind == KIND_TR) {
-            for (int i = 0; i < 3; i++) { bm_fmt_macro(a, t, i, tr->macro[i], b, sizeof b); L4(L, i, MAC_TR[i], b, tr->macro[i] * 2); }
-            fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
-        } else {
+        } else if (kind == KIND_TR) legend_macros(a, t, L);
+        else if (tr->engine == ENG_ANALOG) legend_editor(a, t, L);
+        else {
             bm_fmt_macro(a, t, 3, tr->macro[3], b, sizeof b);
-            L4(L, 0, tr->engine == ENG_ACID || tr->engine == ENG_VA || tr->engine == ENG_FM ? bm_macro_name(a, t, 3) : "POS ONDA", b, tr->macro[3] * 2);
+            L4(L, 0, bm_macro_name(a, t, 3), b, tr->macro[3] * 2);
             bm_fmt_macro(a, t, 0, tr->macro[0], b, sizeof b); L4(L, 1, bm_macro_name(a, t, 0), b, tr->macro[0] * 2);
             if (tr->engine == ENG_FM) bm_fmt_macro(a, t, 1, tr->macro[1], b, sizeof b); else fmt_pct(tr->macro[1], b, sizeof b);
             L4(L, 2, bm_macro_name(a, t, 1), b, tr->macro[1] * 2);
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
         }
         return;
-    case PG_INST: {
-        const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[tr_lane(a)];
-        snprintf(b, sizeof b, "%d", ln->level); L4(L, 0, "NIVEL", b, ln->level * 2);
-        snprintf(b, sizeof b, "%+d ST", ((ln->tune - 64) * 12) / 64); L4(L, 1, "AFINA", b, ln->tune * 2);
-        snprintf(b, sizeof b, "%d%%", ln->decay * 100 / 127); L4(L, 2, "DECAY", b, ln->decay * 2);
-        snprintf(b, sizeof b, "%d", ln->len); L4(L, 3, "LARGO", b, ln->len * 4);
-        return;
-    }
+    case PG_INST: legend_editor(a, t, L); return;
     case PG_MIX: legend_mix(a, t, L); return;
     case PG_MORE: {
         bm_legend tmp[4];
@@ -1169,6 +1245,8 @@ static void toggle_lane_mute(bm_app *a, int t, int lane)
     uint16_t m = (uint16_t)(bm_trk_trc(&a->pat, t)->mute ^ (1u << lane));
     app_push_i(a, CMD_LANE_MUTE, (uint8_t)t, 0, 0, m);
     app_edited(a);
+    char b[24]; snprintf(b, sizeof b, "%s %s", bm_lane_name(a, t, lane), (m >> lane) & 1 ? "MUTE" : "SUENA");
+    app_toast(a, b);
 }
 
 static void scene_store(bm_app *a, int s)
@@ -1257,7 +1335,7 @@ static void key_release(bm_app *a, int k, int w, int b)
         break;
     case ROLE_LMUTE:
         if (a->layer == L_LANEMUTE) a->layer = L_NONE;
-        else if (a->now - a->key_t0[k] < UI_HOLD_MS) toggle_lane_mute(a, a->track, tr_lane(a));
+        else app_toast(a, "MANTEN LA NEGRA 10 PARA MUTEAR");   /* un toque no mutea: era fácil sin querer */
         break;
     default: break;
     }
@@ -1560,16 +1638,28 @@ static void button_page(bm_app *a, int id)
             open_cut(a, a->pat.trk[1].source); return;
         }
         if (midi) pg = PG_MIDI;
-        else if (cur == PG_SOUND && kind == KIND_TR) pg = PG_INST;
-        else pg = PG_SOUND;
+        else if (kind == KIND_TR) {                              /* SONIDO > INSTR (2 páginas) > SONIDO */
+            if (cur == PG_SOUND) { pg = PG_INST; a->ed_page[t] = 0; }
+            else if (cur == PG_INST && a->ed_page[t] + 1 < BM_LANE_PAGES) { pg = PG_INST; a->ed_page[t]++; }
+            else pg = PG_SOUND;
+        } else if (app_engine(a, t) == ENG_ANALOG) {             /* SONIDO: la página siguiente */
+            if (cur == PG_SOUND) a->ed_page[t] = (uint8_t)((a->ed_page[t] + 1) % BM_AN_PAGES);
+            pg = PG_SOUND;
+        } else pg = PG_SOUND;
         break;
     case BTN_ENV:
-        if (kind == KIND_TR) pg = PG_INST;
+        if (kind == KIND_TR) { pg = PG_INST; if (cur != PG_INST) a->ed_page[t] = 0; }
         else if (kind == KIND_BRK) pg = PG_SOUND;
         else if (midi) pg = PG_MIDI;
-        else { if (cur == PG_ENV) a->env_page ^= 1; else a->env_page = 0; pg = PG_ENV; }
+        else if (app_engine(a, t) == ENG_ANALOG) {               /* ENV NIVEL, otra vez ENV FILTRO */
+            a->ed_page[t] = (uint8_t)(cur == PG_SOUND && a->ed_page[t] == AN_PG_AMP ? AN_PG_FILT : AN_PG_AMP);
+            pg = PG_SOUND;
+        } else { if (cur == PG_ENV) a->env_page ^= 1; else a->env_page = 0; pg = PG_ENV; }
         break;
-    case BTN_LFO: pg = PG_LFO; break;
+    case BTN_LFO:
+        if (kind == KIND_NOTE && !midi && app_engine(a, t) == ENG_ANALOG) { a->ed_page[t] = AN_PG_LFO; pg = PG_SOUND; }
+        else pg = PG_LFO;
+        break;
     case BTN_FX:
         if (midi) { app_toast(a, "MIDI: SIN MEZCLA"); pg = PG_MIDI; } else pg = PG_MIX;
         break;
@@ -1615,7 +1705,7 @@ static void copy_channel(bm_app *a)
     int ks = app_kind(a, s);
     app_undo_snapshot(a, d);
     if (bm_is_free(d)) {
-        int want = ks == KIND_TR ? ENG_KIT : (a->pat.trk[s].engine == ENG_BASS ? ENG_MONO : a->pat.trk[s].engine);
+        int want = ks == KIND_TR ? ENG_KIT : a->pat.trk[s].engine;
         if (a->pat.trk[d].engine != want) {
             app_push(a, CMD_ENGINE, (uint8_t)d, (uint8_t)want, 0);
         }
@@ -2087,10 +2177,11 @@ static void enc_source(bm_app *a, int t, int d)
     }
     int lim = bm_sound_count(a, t), e = a->pat.trk[t].engine;
     int v = (a->pat.trk[t].source % lim + (d > 0 ? 1 : lim - 1)) % lim;
-    app_set_track(a, t, TRK_OFF(source), v);
+    if (kind == KIND_TR || e == ENG_ANALOG) { app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0); app_edited(a); }
+    else app_set_track(a, t, TRK_OFF(source), v);
     a->pat.trk[t].source = (uint8_t)v;
-    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "ONDA ACID" : e == ENG_VA ? "TIMBRE ANALOG" : e == ENG_FM ? "PATCH FM" : "BANCO DE ONDAS",
-                bm_sound_name(a, t), "", v * 255 / (lim - 1), -1, bm_track_color(t));
+    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "ONDA ACID" : e == ENG_FM ? "PATCH FM" : "PRESET ANALOG",
+                bm_sound_name(a, t), "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
 }
 
 static void cycle_src(bm_app *a, uint8_t off, uint8_t cur, int d, int allow_none, const char *title)
@@ -2116,8 +2207,8 @@ static void more_change(bm_app *a, int d)
     char b[30];
     switch (rows[a->more_row]) {
     case ROW_ENGINE: {
-        static const uint8_t FREE[] = {ENG_SYNTH, ENG_MONO, ENG_VA, ENG_FM, ENG_ACID, ENG_KIT, ENG_MIDI};
-        static const uint8_t BASS[] = {ENG_BASS, ENG_ACID, ENG_FM};
+        static const uint8_t FREE[] = {ENG_ANALOG, ENG_FM, ENG_ACID, ENG_KIT, ENG_MIDI};
+        static const uint8_t BASS[] = {ENG_ANALOG, ENG_ACID, ENG_FM};
         const uint8_t *list = t == 2 ? BASS : FREE;
         int nl = t == 2 ? (int)sizeof BASS : (int)sizeof FREE;
         int e = a->ask == ASK_ENGINE && a->ask_arg == t && bm_engine_ok(t, a->eng_pending) ? a->eng_pending : tk->engine, i = 0;
@@ -2229,6 +2320,7 @@ static void enc_channel(bm_app *a, int id, int d)
             return;
         }
         if (a->page == PG_CUT) { const bm_take *tk = &a->take[a->cut_take % BM_TAKES]; int n = tk->nmarks ? tk->nmarks : BM_SLICES; a->cut_sel = (uint8_t)bm_clampi(a->cut_sel + (d > 0 ? 1 : -1), 0, n - 1); return; }
+        if (ed_select(a, d)) return;
         tabs_turn(a, d);
         return;
     }
@@ -2267,23 +2359,12 @@ static void enc_channel(bm_app *a, int id, int d)
             }
             return;
         }
-        if (k == 3) { enc_track_u8(a, t, 3, TRK_OFF(accent), tr->accent, d, 0, 127, "ACENTO", 2); return; }
         if (kind == KIND_TR) { enc_macro(a, t, k, d); return; }
+        if (tr->engine == ENG_ANALOG) { ed_turn(a, t, k, d); return; }
+        if (k == 3) { enc_track_u8(a, t, 3, TRK_OFF(accent), tr->accent, d, 0, 127, "ACENTO", 2); return; }
         enc_macro(a, t, k == 0 ? 3 : k - 1, d);
         return;
-    case PG_INST: {
-        int lane = tr_lane(a);
-        const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[lane];
-        const uint8_t cur[4] = {ln->level, ln->tune, ln->decay, ln->len};
-        static const uint8_t FIELD[4] = {1, 2, 3, 0};
-        int nv = k == 3 ? bm_clampi(cur[k] + (d > 0 ? 1 : -1), 1, 64) : bm_clampi(cur[k] + d, 0, 127);
-        app_push_i(a, CMD_SET_LANE, (uint8_t)t, (uint8_t)lane, FIELD[k], nv); app_edited(a);
-        static const char *const NM[4] = {"NIVEL", "AFINACION", "DECAY", "LARGO"};
-        if (k == 1) snprintf(b, sizeof b, "%+d ST", ((nv - 64) * 12) / 64); else if (k == 2) snprintf(b, sizeof b, "%d%%", nv * 100 / 127); else snprintf(b, sizeof b, "%d", nv);
-        snprintf(ti, sizeof ti, "%s %s", bm_lane_name(a, t, lane), NM[k]);
-        app_overlay(a, k, ti, b, k == 3 ? "PASOS" : "", k == 3 ? nv * 4 : nv * 2, -1, bm_knob_color(k));
-        return;
-    }
+    case PG_INST: ed_turn(a, t, k, d); return;
     case PG_MIX: goto mix;
     case PG_MORE:
         if (k == 0) enc_track_u8(a, t, 0, TRK_OFF(accent), tr->accent, d, 0, 127, "ACENTO", 2);

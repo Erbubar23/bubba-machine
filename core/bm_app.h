@@ -9,6 +9,7 @@
 #include "bm_takes.h"
 #include "bm_gesture.h"
 #include "bm_gfx.h"
+#include "bm_params.h"
 
 typedef struct {
     void (*blit)(void *u, int x, int y, int w, int h, const uint16_t *px);
@@ -113,6 +114,7 @@ typedef struct bm_app {
     uint8_t ch_page[BM_TRACKS];   /* última página de cada canal */
     uint8_t prev_view, prev_page;
     uint8_t sel_lane[BM_TRACKS];
+    uint8_t ed_page[BM_TRACKS];   /* página del editor de sonido (ANALOG) o del instrumento (batería) */
     int8_t oct, note_oct;
     uint8_t rec, rec_before, rec_hold, fill;
     uint16_t home_mod;            /* botones que se apretaron con HOME sostenido */
@@ -202,6 +204,11 @@ void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap,
 void bm_app_draw(bm_gfx *g, void *user);
 void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
 const char *bm_macro_name(const bm_app *a, int track, int i);
+/* editor de sonido por páginas (ANALOG en SONIDO, el instrumento de batería en INSTR) */
+const bm_ppage *bm_app_ed_pages(const bm_app *a, int t, int *n);
+int  bm_app_ed_on(const bm_app *a);
+int  bm_app_ed_value(const bm_app *a, int t, const bm_pdef *d);
+const char *bm_app_ed_name(const bm_app *a, int t, const bm_pdef *d);
 const char *bm_track_name(const bm_app *a, int t);
 const char *bm_kit_name(int kit);                       /* KO-808, KO-909 (ROM) o SINTE */
 const char *bm_sound_name(const bm_app *a, int t);      /* kit, timbre o banco de ondas del canal */

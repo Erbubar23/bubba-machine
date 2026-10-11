@@ -4,7 +4,12 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
+The sounds were rebuilt: **no more recorded sounds or wavetables**, everything is computed live with proven synthesis libraries. 0.3 patterns are read and converted automatically (format 4).
+
 ### Added
+- **Modeled drums** (T1 and KIT tracks): 16 instruments, each with its own **model**: 808 kick, snare and hat plus 909-style synthetic versions (the Plaits models by Mutable Instruments), metallic hat and cymbals, clap, tom and conga, cowbell, resonator (rim, clave, block), noise (maracas) and FM percussion. Kits **808**, **909** and **SINTE**. Each instrument is edited in INSTR: TUNE, DECAY, TONE, COLOR (whatever fits the model), MODEL, LEVEL, choke group and LENGTH. Accents hit differently, not just louder. Six drum voices (was four).
+- **New ANALOG**, a real virtual analog: two variable-shape polyBLEP oscillators (SAW, SQUARE with pulse width, TRIANGLE, folded SINE and 3 SAWS), sync, ring, sub and noise; LP 24/12, BP or HP filter with resonance and drive; filter and amp ADSR; LFO to pitch, cutoff, shape or level; POLY, MONO or LEGATO with glide. 16 presets.
+- **Paged sound editor** (SOUND for ANALOG, INSTR for drums): 4 settings per page on K1-K4, SELECT changes page, EDIT/ENV/LFO jump to the right one, with a drawing of what each page does (wave, filter curve, envelope, LFO).
 - **6-operator FM engine** (msfa, the base of Dexed and of the factory firmware) for T3 and the free channels: 16 original patches (E.PIANO, FM BASS, BELL, BRASS, STRINGS, ORGAN, CLAVI, MARIMBA...), with the BRILLO (brightness), REALIM (feedback), DECAY and ALGORITMO (all 32 DX7 algorithms) macros and a screen showing the 6 operators. MORE > ENGINE > FM.
 - **Sampler:** holding a step plays the loop from there, whole and looping, while you hold it.
 - **Free recording on note tracks**, like a looper: on an empty track, REC has no fixed length; when you close it, the track gets whole bars (1-4) and every note keeps how long you held it.
@@ -17,6 +22,9 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
 ### Changed
+- **Black 10 on drums:** a tap no longer mutes the instrument (it happened by accident and silently); **hold** it and pick with the white keys. Every mute shows a message and a muted instrument turns red in the grid.
+- **Old engines removed:** BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
+- Patterns in **format 4**: each track stores 32 sound settings and each drum instrument its model and hit. 0.3 patterns are converted on load (steps, notes, envelopes and cutoff are kept).
 - **Audio code is compiled for speed:** on the FM-1 the demo with PLAY went from 36.9 % to 27.7 % of a core. Wavetables are built at boot from their spectrum (56 KiB less program).
 - **44.1 kHz audio end to end, with a floating-point bus.** The engines used to run at 22 kHz and the output was doubled; they now run at 44.1 kHz (highs up to 20 kHz, no oversampling images) and the mix, delay, effects and clipper are floating point, block based. The delay and the effects capture (stutter, reverse, tape stop) are now 16-bit (the capture used to be 8-bit μ-law), and sampler recording goes through a Butterworth filter before dropping to 16 kHz. On the FM-1, with PLAY, the mix costs less than before even though it computes twice the samples (docs/TRAZA_FM1.md).
 - **DROP** interpolation (no interpolation) becomes **LINEAR**: at 44.1 kHz, repeating samples sounded lo-fi.

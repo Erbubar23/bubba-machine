@@ -4,7 +4,12 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 
 ## [Sin publicar]
 
+Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se calcula en vivo con bibliotecas de síntesis probadas. Los patrones de 0.3 se leen y se convierten solos (formato 4).
+
 ### Agregado
+- **Batería modelada** (T1 y los canales KIT): 16 instrumentos, cada uno con su **modelo**: bombo, caja y hat de la 808 y versiones sintéticas al estilo 909 (los modelos de Plaits, de Mutable Instruments), hat metálico y platillos, palmas, tom y conga, cencerro, resonador (rim, clave, bloque), ruido (maracas) y percusión FM. Kits **808**, **909** y **SINTE**. Cada instrumento se edita en INSTR: AFINA, DECAY, TONO, COLOR (lo que corresponda al modelo), MODELO, NIVEL, grupo de corte (choke) y LARGO. El acento pega distinto, no solo más fuerte. Seis voces para la batería (antes cuatro).
+- **ANALOG nuevo**, analógico virtual de verdad: dos osciladores de forma variable con polyBLEP (SIERRA, CUADRADA con ancho de pulso, TRIANGULO, SENO con plegado y 3 SIERRAS), sync, ring, sub y ruido; filtro LP 24/12, BP o HP con resonancia y drive; ADSR de filtro y de nivel; LFO a tono, corte, forma o nivel; POLI, MONO o LEGATO con glide. 16 presets.
+- **Editor de sonido por páginas** (SONIDO en ANALOG, INSTR en la batería): 4 ajustes por página en K1-K4, SELECT pasa de página, EDIT/ENV/LFO saltan a la que toca, y un dibujo de lo que hace cada página (onda, curva del filtro, envolvente, LFO).
 - **Motor FM de 6 operadores** (msfa, la base de Dexed y del firmware de fábrica) para T3 y los canales libres: 16 patches propios (E.PIANO, BAJO FM, CAMPANA, METALES, CUERDAS, ORGANO, CLAVI, MARIMBA...), con las macros BRILLO, REALIM, DECAY y ALGORITMO (los 32 de la DX7) y una pantalla con los 6 operadores. MAS > MOTOR > FM.
 - **Sampler:** mantener un paso hace sonar el loop desde ahí, entero y en bucle, mientras lo sostienes.
 - **Grabación libre en los canales de notas**, como una loopera: en un canal vacío, REC no tiene largo fijo; al cerrarlo, el canal queda en compases completos (1-4) y cada nota guarda lo que la sostuviste.
@@ -17,6 +22,9 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 - **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
 ### Cambiado
+- **Negra 10 en la batería:** un toque ya no mutea el instrumento (pasaba sin querer y sin aviso); hay que **mantenerla** y elegir con las blancas. Cada mute avisa en pantalla y el instrumento muteado queda en rojo en la rejilla.
+- **Fuera los motores viejos:** BAJO, SYNTH (wavetable), MONO y el ANALOG de 6 timbres pasan al ANALOG nuevo; los kits grabados KO-808 y KO-909 y el kit SINTE, a la batería modelada. El programa del FM-1 ocupa 148 KiB menos y se liberan 64 KiB de RAM.
+- Patrones en **formato 4**: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe. Los de 0.3 se convierten al cargarlos (conservan pasos, notas, envolventes y corte).
 - **El audio se compila para velocidad:** en el FM-1 la demo con PLAY pasó de 36.9 % a 27.7 % de un núcleo. Las wavetables se arman al arrancar desde su espectro (el programa ocupa 56 KiB menos).
 - **Audio a 44.1 kHz de punta a punta, con el bus en coma flotante.** Los motores calculaban a 22 kHz y la salida se duplicaba; ahora calculan a 44.1 kHz (agudos hasta 20 kHz, sin imágenes del sobremuestreo) y la mezcla, el delay, los efectos y el clipper son de coma flotante, por bloques. El delay y la captura de los efectos (stutter, reversa, tape stop) pasan a 16 bits (antes la captura era μ-law de 8 bits), y la grabación del sampler se filtra con un Butterworth antes de bajar a 16 kHz. En el FM-1, con PLAY, la mezcla cuesta menos que antes aunque calcula el doble de muestras (docs/TRAZA_FM1.md).
 - La interpolación **DROP** (sin interpolar) pasa a ser **LINEAL**: a 44.1 kHz, repetir muestras sonaba a lo-fi.

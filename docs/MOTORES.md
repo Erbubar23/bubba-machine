@@ -45,12 +45,23 @@ Fuentes: [JIANT](https://github.com/juanjiant-bit/JIANT), [MATRIXSYNTH sobre JIA
 
 Compilar el audio del núcleo (`bm_audio.c`, `bm_dsp.c`, `bm_engines.c`, `bm_seq.c`) con `-O2` bajó la demo con PLAY de 36.9 % a **27.7 %** de un núcleo.
 
+## Lo hecho: los sonidos de 0.4 (paso 2)
+
+El usuario pidió descartar todos los sonidos anteriores. Se fueron los kits grabados KO-808/KO-909 (172 KiB de ROM), el kit SINTE, las wavetables (64 KiB de RAM) y los motores BAJO, SYNTH, MONO y el ANALOG viejo.
+
+- **Batería modelada** (`core/bm_drums.cpp`): 12 modelos. De Plaits: `AnalogBassDrum`, `SyntheticBassDrum`, `AnalogSnareDrum` (también para toms y congas, sin bordona), `SyntheticSnareDrum`, `HiHat` con cuadradas en Schmitt (808) y con modulación en anillo (metálico, platillos). Propios: palmas, cencerro 808, resonador de dos modos, ruido filtrado y FM de 2 operadores. Los parámetros de cada instrumento viven en `bm_lane` (8 bytes): modelo, afinación, decay, tono, color, nivel, grupo de choke y largo. Kits en `core/bm_params.c`.
+- **ANALOG** (`core/bm_analog.cpp`): `VariableShapeOscillator` de Plaits (polyBLEP, sync), dos `Svf` de stmlib en serie para el LP 24, ADSR analógicas (ataque hacia 1.3), LFO por voz. El corte se mueve en semitonos e interpola dentro del bloque.
+- **Parámetros** (`core/bm_params.h`): cada motor declara sus páginas de 4 ajustes; la misma tabla dibuja la pantalla, formatea los valores y la usan los presets. 32 bytes por canal en el patrón (formato 4).
+- Pila: los buffers de los motores son estáticos (solo los usa la tarea de audio).
+
+Pendiente medir en el FM-1 el costo por voz de cada modelo y del ANALOG (`tools/fm1/traza.py motor`).
+
 ## Lo que sigue
 
-1. **Más espacio**: las wavetables ya se arman al arrancar desde su espectro (−56 KiB de programa). Quedan 47 KiB libres; los kits KO-808/909 (172 KiB) y los loops de fábrica (53 KiB) pasarán a la zona de datos de la flash como banco de recursos, y los kits se regenerarán a 44.1 kHz y 16 bits.
+1. ~~Más espacio~~: sin kits ni wavetables el programa bajó a 388 KB (194 KiB libres) y se liberaron 64 KiB de RAM.
 2. **Audio en dos núcleos**: repartir las voces (1.83× medido). Con eso caben ~25 voces de FM además del resto.
-3. **Batería modelada** (Plaits): un kit 808/909 calculado, con morph A/B como DRUM-X.
-4. **ANALOG 2.0**: osciladores polyBLEP con SYNC, RING, PWM, 3 sierras; filtro por voz LP/HP/BP con drive.
+3. ~~Batería modelada~~ (hecho, arriba). Queda un morph A/B por instrumento como DRUM-X.
+4. ~~ANALOG 2.0~~ (hecho, arriba).
 5. **ACID 2.0** (Open303 en float) con un generador de líneas propio.
 6. **Efectos de master**: reverb y chorus de Mutable, delay de cinta, compresor y nivelador.
 7. **Editor de FM y bancos .syx** desde el editor web.

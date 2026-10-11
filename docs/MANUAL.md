@@ -1,6 +1,6 @@
 # Bubba Machine 0.3 — Manual
 
-Bubba Machine convierte el FM-1 en una groovebox de directo de 6 canales: **3 fijos** (batería, sampler y bajo) y **3 libres** (SYNTH, MONO, KIT o MIDI). Cada canal tiene su propio largo y su propia velocidad.
+Bubba Machine convierte el FM-1 en una groovebox de directo de 6 canales: **3 fijos** (batería, sampler y bajo) y **3 libres** (ANALOG, FM, ACID, KIT o MIDI). Cada canal tiene su propio largo y su propia velocidad.
 
 La interfaz 3.0 se resume en una frase: **cuatro gestos por botón, y significan lo mismo en todos. HOME en todas partes.**
 
@@ -25,7 +25,7 @@ Nunca hay dos capas a la vez: con una capa abierta, otro botón sostenido no abr
 |---|---|
 | **ALGORITHM** | El canal. En HOME aparece un **recuadro** con el canal destino y a los 400 ms entras. Dentro de un canal cambia al instante y conserva la página. En una lista, cambia el valor marcado. Con **HOME sostenido**, elige un canal desde cualquier pantalla y entras al soltar HOME |
 | **SELECT** | La página (las pestañas de arriba) o la fila de una lista. Con un paso sostenido, su acento |
-| **PRESETS** | El sonido del canal (kit, loop A o banco de ondas). En HOME, el patrón |
+| **PRESETS** | El sonido del canal (kit, loop A o preset del motor). En HOME, el patrón |
 | **K1-K4** | Lo que dice la leyenda de abajo, siempre en el mismo color. Con HOME sostenido: BPM, swing, largo maestro y drive |
 
 **Prioridad de ALGORITHM:** paso sostenido > lista > canal > HOME. El tiempo del recuadro se cambia en GLO o SISTEMA (ENTRADA AUTO: 0, 250, 400, 800 ms u OFF).
@@ -78,12 +78,12 @@ Si usaste HOME como modificador, soltarlo **no** te lleva a la pantalla de inici
 
 | Canal | Tipo | Qué es | Pestañas |
 |---|---|---|---|
-| **T1 BATERÍA** | Fijo | Rejilla TR de 16 instrumentos: kits grabados KO-808 y KO-909, o **SINTE** (calculado en vivo) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
+| **T1 BATERÍA** | Fijo | Rejilla TR de 16 instrumentos **modelados** (calculados en vivo): kits 808, 909 y SINTE | SEQ · SONIDO · INSTR · MEZCLA · MAS |
 | **T2 SAMPLER** | Fijo | Un loop en 8 slices que un generador rearma | SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS |
-| **T3 BAJO** | Fijo | **BAJO** (wavetable monofónico con glide) o **ACID** | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
-| **T4-T6** | Libres | **SYNTH** (wavetable polifónico), **MONO**, **ANALOG**, **ACID**, **KIT** (otra batería) o **MIDI** (manda notas por MIDI) | según el motor |
+| **T3 BAJO** | Fijo | **ANALOG** (de una voz, con glide), **ACID** o **FM** | SEQ · SONIDO · MEZCLA · ARP · LOOP · MAS |
+| **T4-T6** | Libres | **ANALOG**, **FM**, **ACID**, **KIT** (otra batería) o **MIDI** (manda notas por MIDI) | según el motor |
 
-El motor de un canal libre (y el de T3: BAJO o ACID) se elige en **MAS › MOTOR** con ALGORITHM. Entre motores de notas (SYNTH, MONO, MIDI) las notas se quedan; pasar a KIT o volver de KIT pregunta, porque el canal empieza vacío.
+El motor de un canal libre (y el de T3: ANALOG, ACID o FM) se elige en **MAS › MOTOR** con ALGORITHM. Entre motores de notas (ANALOG, FM, ACID, MIDI) las notas se quedan; pasar a KIT o volver de KIT pregunta, porque el canal empieza vacío.
 
 **MAS** es la lista con todo el canal: motor, acento, largo, velocidad, transponer, canal MIDI y sonido inicial (en el sampler, además: usar el BPM del loop e interpolación). SELECT elige la fila y ALGORITHM la cambia.
 
@@ -91,16 +91,29 @@ El motor de un canal libre (y el de T3: BAJO o ACID) se elige en **MAS › MOTOR
 
 ## Los motores de sonido
 
+Desde 0.4 todo se calcula en vivo: no quedan sonidos grabados (solo los loops de fábrica del sampler).
+
 | Motor | Qué es | K1-K4 en SEQ | PRESETS |
 |---|---|---|---|
-| **SYNTH** · **MONO** · **BAJO** | Wavetable con filtro SVF y ADSR (MONO y BAJO: una voz con glide) | CUTOFF · RESO · DECAY · ONDA | Banco de ondas |
-| **ACID** | Monofónico estilo 303: oscilador, filtro escalera de 4 polos con resonancia y saturación, envolvente corta. El **acento** abre más el filtro y suena más fuerte; **LIGA** hace slide | CUTOFF · RESO · DECAY · ENV MOD | SIERRA o CUADRADA |
-| **ANALOG** | Polifónico con dos osciladores desafinados entre sí, filtro SVF y ADSR | CUTOFF · RESO · DECAY · DETUNE | SIERRA, SIERRA+SUB, CUADRADA, PULSO, SIERRA+CUADRADA, RUIDO |
-| **KIT SINTE** | Batería calculada en vivo: los mismos 16 instrumentos y en el mismo orden que los kits grabados. TONE, TUNE y DECAY la cambian de verdad (no solo filtran el sonido) | TONE · TUNE · DECAY · START | En la batería: KO-808, KO-909 o SINTE |
+| **ANALOG** | Analógico virtual: dos osciladores de forma variable (SIERRA, CUADRADA con ancho de pulso, TRIANGULO, SENO con plegado, 3 SIERRAS), sync, ring, sub y ruido; filtro LP 24/12, BP o HP con resonancia y drive; dos ADSR (filtro y nivel), LFO y modo POLI, MONO o LEGATO con glide | CORTE · RESO · ENVOLV · FORMA | 16 presets: SIERRA, BAJO, SUB BAJO, PLUCK, PAD, CUERDAS, SYNC, SOLISTA, METALES, ORGANO, CAMPANA, PWM, STAB, SUPER, VIENTO, CHIRRIDO |
+| **FM** | 6 operadores, compatible con la DX7 (msfa, el núcleo de Dexed) | BRILLO · REALIM · DECAY · ALGORITMO | 16 patches propios |
+| **ACID** | Monofónico estilo 303: filtro escalera de 4 polos, acento que abre el filtro y slide con LIGA | CUTOFF · RESO · DECAY · ENV MOD | SIERRA o CUADRADA |
+| **Batería** | 16 instrumentos modelados. Cada uno elige su **modelo**: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL (hats y platillos), PALMAS, TOM (y congas), CENCERRO, RESON (rim, clave, bloque), RUIDO (maracas) o FM (zap, metales) | TONO · AFINA · DECAY · COLOR | Kits 808, 909 y SINTE |
 
-Los kits **KO-808 y KO-909** siguen ahí: son sonidos grabados en la ROM, para cuando quieres ese golpe de siempre.
+Bombos, cajas y hats son los modelos de **Plaits** (Mutable Instruments), que imitan los circuitos de la 808 y versiones sintéticas al estilo de la 909. Con el **acento** pegan distinto, no solo más fuerte.
 
-Los osciladores de ACID y ANALOG están hechos para que los agudos no se ensucien (sin alias).
+### Editar el sonido (ANALOG)
+
+**SONIDO** es el editor del motor, en 9 páginas de 4 ajustes: OSC 1, OSC 2, CRUCE (sync, ring, envolvente al osc 2, glide), FILTRO, FILTRO + (envolvente, seguimiento de teclado, velocidad), ENV FILTRO, ENV NIVEL, LFO y VOZ.
+
+- **K1-K4** cambian los 4 ajustes de la página; abajo se ven sus valores y en el medio, un dibujo (la onda, la curva del filtro, la envolvente o el LFO).
+- **SELECT** pasa de página; en la primera o la última sigue a la pestaña de al lado.
+- **EDIT** otra vez = la página siguiente. **ENV** abre ENV NIVEL (otra vez: ENV FILTRO). **LFO** abre el LFO.
+- **PRESETS** carga un preset completo. CORTE, RESO, ENVOLV y FORMA son también las perillas de SEQ y admiten P-Lock por nota.
+
+### Editar un instrumento (batería)
+
+**INSTR** (EDIT otra vez, o ENV) edita el instrumento elegido en dos páginas: **GOLPE** (AFINA, DECAY, TONO y COLOR, que dice qué hace en ese modelo: GOLPE, BORDONA, RUIDO, ESPACIO…) e **INSTRUMENTO** (MODELO, NIVEL, CORTA A —grupo de choke— y LARGO de la línea). EDIT otra vez pasa de página. Las negras 1-8 y 9 eligen el instrumento.
 
 ## Batería (T1 y canales KIT)
 
@@ -111,15 +124,15 @@ La pantalla SEQ es una matriz: 16 instrumentos × los 16 pasos de la página. Ca
 | **Blancas** | Pasos del instrumento elegido: toque = poner o quitar |
 | **Negras 1-8** | Eligen (y tocan) un instrumento de la sección |
 | **Negra 9** | Cambia de sección (1-8 / 9-16) |
-| **Negra 10** | Toque: mute del instrumento · mantener: mutes de todos (las blancas) |
+| **Negra 10** | Mantener: mutes de los instrumentos (las blancas los mutean; avisa en pantalla y el nombre queda en rojo) |
 | **Negra 11** | FILL mientras la sostienes |
 | **OCT − / +** | Página |
 
 **Mantener un paso + girar:** K1-K4 = P-Lock de TONE, TUNE, DECAY o START solo en ese paso · SELECT = acento · ALGORITHM = repetición ×1 a ×4 o FLAM · PRESETS = condición (SIEMPRE, SOLO FILL, SIN FILL).
 
-**INSTR** (EDIT otra vez, o ENV): nivel, afinación, decay y **largo de la línea** de cada instrumento. Por ejemplo, un hat de 12 pasos contra un bombo de 16.
+**INSTR** (EDIT otra vez, o ENV): el modelo y el golpe de cada instrumento, su nivel y el **largo de la línea**. Por ejemplo, un hat de 12 pasos contra un bombo de 16.
 
-**SONIDO:** los 16 pads del kit; K1-K3 = tono, afinación y decay, K4 = cuánto suena el acento.
+**SONIDO:** los 16 pads del kit con su modelo; K1-K4 = TONO, AFINA, DECAY y COLOR de todo el kit (en el centro, el kit tal cual). PRESETS = otro kit.
 
 ## Sampler 3.0 (T2)
 
@@ -162,13 +175,13 @@ Grabar, guardar y cortar son tres pantallas, una tarea cada una.
 
 3. **CORTAR** (EDIT sobre una toma): las **blancas** ponen o quitan un corte en esa corchea, la **negra 9** pone los cortes en los golpes y la **10** vuelve a 8 partes iguales. Las negras 1-8 escuchan cada slice. SELECT o K1 eligen el corte, K2 lo mueve, K3 = zoom, K4 = pegar a 1/16 o 1/8. Se guarda al salir.
 
-## Canales de notas (T3 y SYNTH, MONO, MIDI)
+## Canales de notas (T3, ANALOG, FM, ACID, MIDI)
 
 - **SEQ:** la página es solo del canal. Arriba, los 16 pasos de la página como **piano roll**: cada nota a su altura y con lo que dura; las blancas son esos pasos (hasta 4 notas por paso). Abajo, los compases del canal y el **seguidor de tempo punteado**. **Mantener un paso** y tocar **negras 1-8** escribe esas notas de la escala del canal (otra vez la misma: la quita). Negras 9 y 10 bajan o suben su octava; 11 = FILL.
 - **Grabación libre, como una loopera:** en un canal de notas **vacío**, REC graba sin largo fijo (la pantalla dice REC LIBRE y cuenta los compases). REC otra vez lo cierra: el canal queda con los compases completos que tocaste (1 a 4) y **cada nota con lo que la sostuviste** (hasta 4 compases). Si el canal ya tiene notas, REC graba encima con su largo.
 - **Largo en compases:** SEQ sostenido + negras 7-10 = 1, 2, 3 o 4 compases.
 - **Paso sostenido + perillas:** K1-K4 = P-Lock · SELECT = golpe (NORMAL › ACENTO › FANTASMA) · ALGORITHM = probabilidad o fill · PRESETS = largo o LIGA (glide).
-- **SONIDO:** K1 = posición de la onda, K2-K3 = filtro, K4 = acento. PRESETS = banco de ondas.
+- **SONIDO:** en ANALOG, el editor por páginas (arriba). En FM y ACID, K1-K3 = las macros del motor y K4 = acento; sus envolventes están en ENV.
 - **LOOP (SEQ otra vez):** loopera sin cuantizar. K1 ON/OFF · K2 compases (1, 2 o 4). **REC** arma (empieza en el compás) › al cerrar pasa a PLAY › REC otra vez: OVERDUB › REC: PLAY. **REC 2 s** borra el loop.
 - **MIDI:** el motor MIDI no suena por dentro: manda sus notas por MIDI en su canal. Su página tiene canal, programa y dos CC (1 y 74).
 

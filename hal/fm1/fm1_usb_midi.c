@@ -20,6 +20,8 @@
 #include "usb/device/usb_stack.h"
 #include "usb_config.h"
 #include "event/device_event.h"
+#include "asm/includes.h"
+#include "os/os_api.h"
 #include "fm1_hw.h"
 
 #define MIDI_EP          1
@@ -161,6 +163,14 @@ static void usb_arranca(void)
         ep_in_dma = usb_alloc_ep_dmabuffer(USB_ID, MIDI_EP | USB_DIR_IN, MIDI_MAXP);
         ep_out_dma = usb_alloc_ep_dmabuffer(USB_ID, MIDI_EP, MIDI_MAXP * 2);
     }
+    /* Desconectar del todo antes de conectar: controlador apagado, D+ y D- sueltas, y al menos
+     * 20 ms así (dato de X0X, fm1_usb_reset). Después de un reinicio por software (el cargador de
+     * actualización reinicia el chip con el USB conectado) el computador no se entera de que el
+     * aparato se fue y la enumeración falla (primera prueba: Windows 0000:0004 a las 07:06:34). */
+    JL_USB->CON0 = 0;
+    JL_USB->CON1 = 0;
+    JL_USB_IO->CON0 = 0x0Cu;
+    os_time_dly(10);                          /* 100 ms */
     usb_add_desc_config(USB_ID, MAX_INTERFACE_NUM, NULL);
     usb_add_desc_config(USB_ID, 0, midi_desc);
     /* como usb_device_init() del SDK */

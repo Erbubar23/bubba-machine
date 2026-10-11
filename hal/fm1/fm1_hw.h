@@ -107,6 +107,19 @@ int  fm1_midi_send(const uint8_t *msg, uint32_t n);       /* mensajes MIDI compl
 int  fm1_midi_get_sysex(uint8_t *buf, uint32_t max);      /* un SysEx completo F0..F7, o 0 */
 int  fm1_midi_get_short(uint8_t msg[3]);                  /* un mensaje corto, o 0 */
 
+/* ---------------------------------------------------------------- consola (fm1_consola.c) */
+enum {
+    FM1_STAT_VERSION, FM1_STAT_UPTIME, FM1_STAT_SYSCLK, FM1_STAT_LSBCLK,
+    FM1_STAT_HALVES, FM1_STAT_LATE, FM1_STAT_RENDER_LAST, FM1_STAT_RENDER_MAX, FM1_STAT_RENDER_AVG, FM1_STAT_BUDGET,
+    FM1_STAT_SCAN, FM1_STAT_SCANISR_MAX, FM1_STAT_UI_LAST, FM1_STAT_UI_MAX, FM1_STAT_USB, FM1_STAT_FAILS,
+    FM1_STAT_PAST1, FM1_STAT_PAST2, FM1_STAT_PAST3, FM1_STAT_PAST4,
+    FM1_STAT_AUDIO_CPU, FM1_STAT_MIDI_IN, FM1_STAT_MIDI_OUT, FM1_STAT_LOOP_MAX,
+    FM1_STAT_N
+};
+extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
+void fm1_consola(const uint8_t *sysex, uint32_t n);
+uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
+
 /* ---------------------------------------------------------------- actualización */
 typedef void (*fm1_update_show)(int step, int code);
 void fm1_update_poll(fm1_update_show show);               /* saludo y sesión de actualización */

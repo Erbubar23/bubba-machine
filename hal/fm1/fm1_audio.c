@@ -26,6 +26,8 @@
 #include "os/os_api.h"
 #include "fm1_hw.h"
 
+#define BM_FS_OUT_HZ 44118u          /* core/bm_config.h BM_FS_OUT */
+
 static int32_t *buf;
 static uint32_t half_words;
 static fm1_audio_render render;
@@ -65,13 +67,19 @@ static void audio_task(void *p)
             continue;
         }
         os_sem_pend(&sem, 0);
-        uint32_t s = seq;
+        uint32_t s = seq, t0 = fm1_scan_now_us();
         int32_t *h = buf + (uint32_t)libre * half_words;
         if (render && en_marcha)
             render(h, half_words / 2u);
         else
             memset(h, 0, half_words * 4u);
         halves++;
+        uint32_t dt = fm1_scan_now_us() - t0;
+        fm1_stat[FM1_STAT_RENDER_LAST] = dt;
+        if (dt > fm1_stat[FM1_STAT_RENDER_MAX])
+            fm1_stat[FM1_STAT_RENDER_MAX] = dt;
+        fm1_stat[FM1_STAT_RENDER_AVG] = (fm1_stat[FM1_STAT_RENDER_AVG] * 15u + dt) / 16u;
+        fm1_stat[FM1_STAT_AUDIO_CPU] = current_cpu_id();
         if (seq != s) {                                   /* se liberó otra mitad mientras calculaba */
             late++;
             os_sem_set(&sem, 0);
@@ -83,6 +91,7 @@ static void audio_task(void *p)
 
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb)
 {
+    fm1_stat[FM1_STAT_BUDGET] = frames_per_half * 1000000u / BM_FS_OUT_HZ;
     buf = dma;
     half_words = frames_per_half * 2u;
     render = cb;

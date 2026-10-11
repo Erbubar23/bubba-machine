@@ -35,7 +35,7 @@ static const fm1_scan_map MAPA = {
 
 static fm1_scan scan;
 static uint8_t nivel[FM1_IDS];               /* LED_OFF, LED_DIM, LED_ON, LED_BLINK, LED_BREATH */
-static uint32_t vueltas;
+static uint32_t vueltas, prd = 1;
 static volatile uint32_t ticks;
 static int en_marcha;
 
@@ -85,11 +85,13 @@ static uint8_t filas_led(uint32_t c, uint32_t v)
         uint8_t on;
         switch (nivel[id]) {
         case LED_ON: on = 1; break;
-        case LED_DIM: on = (v & 15u) == 0; break;                 /* 1/16 */
-        case LED_BLINK: on = (v / 91u) & 1u; break;               /* ~2 Hz */
+        /* el brillo se hace saltando barridos; con ~364 barridos/s, saltar de a 1 (182 Hz) no se
+         * ve, saltar de a 16 (22 Hz) se veía como parpadeo (primera prueba en el aparato) */
+        case LED_DIM: on = (v & 1u) == 0; break;                  /* 1/2 */
+        case LED_BLINK: on = (v / 91u) & 1u; break;               /* ~2 Hz: parpadeo a propósito */
         case LED_BREATH: {
             uint32_t t = (v / 4u) & 255u, b = t < 128u ? t : 255u - t;   /* triángulo de ~2.8 s */
-            on = (v & 7u) < (b >> 4); break;
+            on = (v & 1u) == 0 || b > 64u; break;                 /* tenue <-> encendido, sin bajar de 182 Hz */
         }
         default: on = 0;
         }
@@ -111,6 +113,9 @@ static ___interrupt void scan_isr(void)
     if (sig == 0)
         vueltas++;
     leds(filas_led(sig, vueltas));
+    uint32_t us = JL_TIMER5->CNT * 250u / prd;               /* lo que tardó esta interrupción */
+    if (us > fm1_stat[FM1_STAT_SCANISR_MAX])
+        fm1_stat[FM1_STAT_SCANISR_MAX] = us;
 }
 
 void fm1_scan_start(void)
@@ -118,11 +123,13 @@ void fm1_scan_start(void)
     fm1_keys_init();                         /* filas con pull-up, LEDs y 74HC595 como salidas */
     fm1_scan_init(&scan, &MAPA);
     columna(0);
-    uint32_t clk = (uint32_t)clk_get("timer"), prd = clk / SCAN_HZ, psc = 0;
+    uint32_t clk = (uint32_t)clk_get("timer"), psc = 0;
+    prd = clk / SCAN_HZ;
     if (prd > 0xFFFFu) {
         prd = clk / 4u / SCAN_HZ;            /* divisor de 4: código 1 */
         psc = 1;
     }
+    prd = prd ? prd : 1;
     request_irq(IRQ_TIMER5_IDX, 3, scan_isr, 0);
     JL_TIMER5->CON = BIT(14);
     JL_TIMER5->CNT = 0;
@@ -163,6 +170,18 @@ int fm1_scan_is_down(int id)
 }
 
 uint32_t fm1_scan_ticks(void) { return ticks; }
+
+/* microsegundos desde que arrancó el barrido: interrupciones * 250 + lo que va de la actual */
+uint32_t fm1_scan_now_us(void)
+{
+    uint32_t a, c, b;
+    do {
+        a = ticks;
+        c = JL_TIMER5->CNT;
+        b = ticks;
+    } while (a != b);
+    return a * 250u + c * 250u / prd;
+}
 
 void fm1_scan_led(int id, uint8_t level)
 {

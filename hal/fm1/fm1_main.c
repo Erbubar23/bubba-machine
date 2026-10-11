@@ -114,10 +114,12 @@ static void midi_bombear(void)
         }
         if (n && n == need) {
             fm1_midi_send(m, n);
+            fm1_stat[FM1_STAT_MIDI_OUT]++;
             n = 0;
         }
     }
     while (fm1_midi_get_short(s)) {          /* lo que llega del computador */
+        fm1_stat[FM1_STAT_MIDI_IN]++;
         uint8_t k = largo(s[0]);
         for (uint8_t i = 0; i < k; i++)
             bm_app_midi_in(&app, s[i]);
@@ -274,6 +276,7 @@ static void bubba_task(void *p)
 
     bm_platform pf = {fm1_lcd_blit, led, midi_out, mapa, &FLASH, NULL};
     t0 = timer_get_ms();
+    fm1_stat[FM1_STAT_VERSION] = 0x000300u | (uint32_t)sin_audio << 24;
     bm_app_init(&app, &pf, t0);
     fm1_boot_stage(E_NUCLEO);
     bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
@@ -316,7 +319,12 @@ static void bubba_task(void *p)
             next_adc = t + 10u;
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
         }
+        uint32_t u0 = fm1_scan_now_us();
         bm_app_tick(&app, t);
+        uint32_t du = fm1_scan_now_us() - u0;
+        fm1_stat[FM1_STAT_UI_LAST] = du;
+        if (du > fm1_stat[FM1_STAT_UI_MAX])
+            fm1_stat[FM1_STAT_UI_MAX] = du;
         if (fm1_audio_halves() > 20u)
             fm1_boot_stage(E_SONANDO);
         if (t - t0 > 1000u)

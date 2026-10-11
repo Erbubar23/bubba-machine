@@ -295,12 +295,19 @@ static void sesion(fm1_update_show show)
         ;
 }
 
+/* los SysEx que no son del actualizador van a la consola (el diagnóstico no la tiene) */
+__attribute__((weak)) void fm1_consola(const uint8_t *m, uint32_t n) { (void)m; (void)n; }
+
 void fm1_update_poll(fm1_update_show show)
 {
     int n;
     while ((n = fm1_midi_get_sysex(rx, sizeof rx)) > 0) {
         if (es_actualizar((uint32_t)n)) {
             sesion(show);
+            continue;
+        }
+        if (n >= 5 && rx[1] == 0x7D) {
+            fm1_consola(rx, (uint32_t)n);
             continue;
         }
         if (tomar((uint32_t)n) == 7 && dec[2] == 0x11)

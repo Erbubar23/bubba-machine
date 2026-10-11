@@ -159,8 +159,8 @@ Recording, keeping and slicing are three screens, one job each.
    - Below the number: the free take memory in seconds and KB, and the maximum per take (3 s).
    - While recording **the keys are silent** and the delay and buffer-based punch-ins pause (they share the memory).
    - The take stays **SIN GUARDAR** (unsaved) and already plays as loop A. **It is saved when you stop** the transport, because writing flash stops the audio. HOME = discard.
-2. **TOMAS** (takes; EDIT 2 s on T2, or the tab): the library, with the factory loops (FAB) first. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys 1-8 play its slices. **N1** = use as loop A, **N2** = as loop B, **N11** = delete (asks). At the bottom, the free memory out of 8.1 s.
-**How much fits:** each take, up to 3 s (the recording RAM, 48 KB); all together, about 8.1 s (128 KiB of flash, 8 bits at 16 kHz = 16 KB per second). Factory loops don't use that space. The emulator shows the free memory next to the button for loading audio.
+2. **TOMAS** (takes; EDIT 2 s on T2, or the tab): the library, with the factory loops (FAB) first. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys 1-8 play its slices. **N1** = use as loop A, **N2** = as loop B, **N11** = delete (asks). At the bottom, the free memory out of 7.4 s.
+**How much fits:** each take, up to 3 s (the recording RAM, 48 KB); all together, about 7.4 s (116 KiB of flash, 8 bits at 16 kHz = 16 KB per second). Factory loops don't use that space. The emulator shows the free memory next to the button for loading audio.
 
 3. **CORTAR** (slice; EDIT on a take): **white keys** set or remove a cut on that eighth note, **black 9** puts the cuts on the hits and **black 10** goes back to 8 equal parts. Black 1-8 play each slice. SELECT or K1 pick the cut, K2 moves it, K3 = zoom, K4 = snap to 1/16 or 1/8. It is saved when you leave.
 

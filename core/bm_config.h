@@ -78,14 +78,16 @@
 #define BM_FLASH_SIZE    0x100000u
 #define BM_SECTOR        0x1000u
 #define BM_PAGE          0x100u
+/* Mapa de la zona de datos (hal/fm1/fm1_hw.h): patrones, registro de arranques (0xBF000),
+ * tomas, globales, cargador en espera (0xE0000) y ajustes del SDK (0xE5000-0xECFFF). */
 #define BM_STORE_LO      0x097000u
-#define BM_STORE_HI      0x0C0000u  /* log de patrones: 20 slots de 8 KiB */
-#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 128 KiB ≈ 8.1 s a 16 kHz */
-#define BM_TAKE_HI       0x0E0000u
+#define BM_STORE_HI      0x0BF000u  /* log de patrones: 20 slots de 8 KiB */
+#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 116 KiB ≈ 7.4 s a 16 kHz */
+#define BM_TAKE_HI       0x0DD000u
 #define BM_TAKE_HDR      128u       /* cabecera al inicio del primer sector de cada toma */
 #define BM_TAKES         8          /* tomas como máximo */
-#define BM_GLOB_LO       0x0FC000u
-#define BM_GLOB_HI       0x0FF000u
+#define BM_GLOB_LO       0x0DD000u
+#define BM_GLOB_HI       0x0E0000u
 #define BM_SLOT_SIZE     0x2000u  /* 8 KiB = 2 sectores */
 
 #endif

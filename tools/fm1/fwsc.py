@@ -5,7 +5,7 @@
 
   py -3 tools/fm1/fwsc.py info     PAQUETE.fwsc
   py -3 tools/fm1/fwsc.py idavuelta OFICIAL.fwsc
-  py -3 tools/fm1/fwsc.py armar    OFICIAL.fwsc APP.bin SALIDA.fwsc [--identidad FM-1_003]
+  py -3 tools/fm1/fwsc.py armar    OFICIAL.fwsc APP.bin SALIDA.fwsc [--identidad FM-1_003] [--vm DIR:TAM]
   py -3 tools/fm1/fwsc.py sacar    PAQUETE.fwsc DIR
 
 El paquete nuestro se arma sobre el FM-1 V15 oficial de M-VAVE (no se incluye: lo
@@ -275,8 +275,9 @@ class Flash:
         hueco = self.subs[0]['off'] - fijo          # el relleno entre la lista y app.bin
         return len(self.img) - self.base - fijo - hueco - resto
 
-    def armar(self, app):
-        """flash.bin con otra app.bin; todo lo demás igual"""
+    def armar(self, app, vm=None):
+        """flash.bin con otra app.bin; todo lo demás igual. vm=(dirección, tamaño) mueve la zona
+        "VM" del SDK (su almacén de ajustes) a otro lugar de la flash."""
         if len(app) > self.espacio():
             raise Error('app.bin mide %d bytes y caben %d' % (len(app), self.espacio()))
         files = dict(self.files, **{'app.bin': bytes(app)})
@@ -284,6 +285,10 @@ class Flash:
         datos = bytearray()
         for e in self.subs:
             e = dict(e)
+            if vm and e['raw_name'].startswith(b'VM\0'):
+                if vm[0] % 0x1000 or vm[1] % 0x1000 or vm[0] < 0x93000 or vm[0] + vm[1] > 0xED000:
+                    raise Error('zona VM fuera de lugar: 0x%X + 0x%X' % vm)
+                e.update(off=vm[0] - self.base, size=vm[1])
             if e['flags'] == 0x82:
                 d = files[e['name']]
                 e.update(off=o, size=len(d), dcrc=crc16(d))
@@ -351,11 +356,13 @@ def cmd_armar(a):
     p = Paquete(raw)
     f = Flash(p.flash())
     app = leer(a.app)
-    out = armar_paquete(p, f.armar(app), a.identidad)
+    vm = tuple(int(x, 0) for x in a.vm.split(':')) if a.vm else None
+    out = armar_paquete(p, f.armar(app, vm), a.identidad)
     # comprobación: lo que salió se vuelve a leer con el mismo lector y trae la app tal cual
     q = Paquete(out)
     g = Flash(q.flash())
-    if g.app() != app or q.ident != a.identidad or g.dec[:g.base] != f.dec[:f.base]:
+    if g.app() != app or q.ident != a.identidad or g.dec[:g.base] != f.dec[:f.base] or \
+            (vm and [e for e in g.subs if e['raw_name'].startswith(b'VM\0')][0]['off'] != vm[0] - g.base):
         raise Error('el paquete armado no se lee igual que lo que se metió')
     for e in p.ents:
         if e['type'] != 0 and p.datos(e) != q.datos(q.entrada(e['type'])):
@@ -383,7 +390,9 @@ def main():
     s = sub.add_parser('info'); s.add_argument('paquete'); s.set_defaults(fn=cmd_info)
     s = sub.add_parser('idavuelta'); s.add_argument('oficial'); s.set_defaults(fn=cmd_idavuelta)
     s = sub.add_parser('armar'); s.add_argument('oficial'); s.add_argument('app'); s.add_argument('salida')
-    s.add_argument('--identidad', default=IDENTIDAD); s.set_defaults(fn=cmd_armar)
+    s.add_argument('--identidad', default=IDENTIDAD)
+    s.add_argument('--vm', help='zona VM del SDK, DIRECCIÓN:TAMAÑO (por ejemplo 0xE5000:0x8000)')
+    s.set_defaults(fn=cmd_armar)
     s = sub.add_parser('sacar'); s.add_argument('paquete'); s.add_argument('dir'); s.set_defaults(fn=cmd_sacar)
     a = ap.parse_args()
     if hasattr(sys.stdout, 'reconfigure'):

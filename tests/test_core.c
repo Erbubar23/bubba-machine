@@ -228,7 +228,7 @@ static void test_takes(void)
     CHECK(tk2[1].nmarks == 3 && tk2[1].marks[2] == 12000 && tk2[1].gain == 80 && tk2[1].bpm_x10 == 1200 && tk2[1].data[999] == d[999]);
     int n = 2;
     while (bm_takes_write(pf.flash, pf.flash_map, pf.user, tk2, d, 16000, 1200, 1) >= 0) n++;
-    CHECK(n >= 5 && bm_takes_room(tk2) < 16000);
+    CHECK(n >= 4 && bm_takes_room(tk2) < 16000);
     printf("  %d tomas (3 s + 1.25 s + 1 s...) llenan la biblioteca de %u.%u s\n", n,
            (unsigned)(full / BM_SMP_RATE), (unsigned)(full * 10u / BM_SMP_RATE % 10u));
     CHECK(bm_takes_erase(pf.flash, &tk2[0]) == 0);

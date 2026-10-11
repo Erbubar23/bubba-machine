@@ -7,9 +7,11 @@
   py -3 tools/build.py test     compila y corre las pruebas en PC (gcc) y guarda capturas
   py -3 tools/build.py web      compila el emulador a WebAssembly (web/bm.js)
   py -3 tools/build.py site     genera la documentación del sitio (web/docs/) desde los .md
-  py -3 tools/build.py fm1      compila el núcleo y el port con el compilador de JieLi (pi32v2) y mide
-                                cuánto ocupa. Necesita el toolchain de JieLi en el volumen de Docker
-                                "jieli-opt" (ver hal/fm1/README_PORT.md). No genera nada instalable.
+  py -3 tools/build.py fm1 [diag|bubba]
+                                firmware para el FM-1 sobre el SDK de JieLi, empaquetado sobre el V15
+                                oficial: build/fm1/bubba-<app>-<versión>.fwsc. Necesita el toolchain en
+                                el volumen de Docker "jieli-opt", el SDK AC79 y el FM-1.fwsc de M-VAVE
+                                (ver hal/fm1/README_PORT.md).
   py -3 tools/build.py all      todo lo anterior
 """
 import glob, os, subprocess, sys
@@ -62,44 +64,44 @@ def web():
 
 
 JIELI_VOLUME = 'jieli-opt'
-JIELI_FLAGS = ('-target pi32v2 -integrated-as -mcpu=r3 -mfprev1 -fno-common -Os -fallow-pointer-null '
-               '-fprefer-gnu-section -mllvm -pi32v2-large-program=true -ffunction-sections -fdata-sections '
-               '-std=c99 -Wall -Wno-unused-parameter -I/opt/jieli/pi32v2/include')
-
-SIZE_SCRIPT = r"""
-import re, collections, sys
-tot = collections.Counter(); per = {}; cur = None
-for line in open(sys.argv[1]):
-    m = re.match(r'/tmp/o/(\S+)\.o:', line)
-    if m: cur = m.group(1); per[cur] = collections.Counter(); continue
-    p = line.split()
-    if len(p) >= 3 and p[0].isdigit() and p[1].startswith('.'):
-        n, s = p[1], int(p[2], 16)
-        k = 'bss' if n.startswith('.bss') else 'rodata' if n.startswith('.rodata') else 'data' if n.startswith('.data') else 'text' if n.startswith('.text') else None
-        if k: per[cur][k] += s; tot[k] += s
-for f, c in sorted(per.items()):
-    print('  %-12s text %7d  rodata %7d  data %6d  bss %6d' % (f, c['text'], c['rodata'], c['data'], c['bss']))
-print('  TOTAL        text %7d  rodata %7d  data %6d  bss %6d' % (tot['text'], tot['rodata'], tot['data'], tot['bss']))
-print('  flash (text + rodata + data): %d KB de ~604 KiB para el firmware' % ((tot['text'] + tot['rodata'] + tot['data']) // 1024))
-"""
+AC79_SDK = os.environ.get('AC79_SDK', os.path.join(os.path.expanduser('~'), 'jieli', 'fw-AC79_AIoT_SDK'))
+FM1_V15 = os.environ.get('FM1_V15', os.path.join(os.path.expanduser('~'), 'jieli', 'stock', 'FM-1.fwsc'))
 
 
-def fm1():
+def fm1(app):
+    """compila el firmware del FM-1 sobre el SDK de JieLi y lo empaqueta sobre el V15 oficial"""
+    if app not in ('diag', 'bubba'):
+        sys.exit('fm1: elige diag o bubba')
     r = subprocess.run(['docker', 'volume', 'inspect', JIELI_VOLUME], capture_output=True)
     if r.returncode:
         sys.exit('falta el toolchain de JieLi en el volumen de Docker "%s" (ver hal/fm1/README_PORT.md)' % JIELI_VOLUME)
-    vol = ROOT.replace('\\', '/') + ':/src'
+    if not os.path.isfile(os.path.join(AC79_SDK, 'cpu', 'wl82', 'sdk_ld.c')):
+        sys.exit('falta el SDK AC79 de JieLi en %s (o la variable AC79_SDK)' % AC79_SDK)
+    if not os.path.isfile(FM1_V15):
+        sys.exit('falta el FM-1 V15 de M-VAVE en %s (o la variable FM1_V15); se descarga de m-vave.com' % FM1_V15)
+    out = os.path.join(ROOT, 'build', 'fm1')
+    os.makedirs(out, exist_ok=True)
     env = dict(os.environ, MSYS_NO_PATHCONV='1')
-    cmd = ('mkdir -p /tmp/o && for f in core/*.c core/gen/*.c hal/fm1/fm1_scan.c hal/fm1/fm1_main.c; do '
-           '/opt/jieli/pi32v2/bin/clang %s -c $f -o /tmp/o/$(basename $f .c).o || exit 1; done && '
-           'for o in /tmp/o/*.o; do /opt/jieli/pi32v2/bin/objdump -section-headers $o; done > /tmp/h.txt && '
-           'python3 -c "$SIZE_SCRIPT" /tmp/h.txt' % JIELI_FLAGS)
-    env['SIZE_SCRIPT'] = SIZE_SCRIPT
-    r = subprocess.run(['docker', 'run', '--rm', '-e', 'SIZE_SCRIPT', '-v', vol, '-v', JIELI_VOLUME + ':/opt/jieli:ro',
-                        '-w', '/src', GCC_IMAGE, 'sh', '-c', cmd], env=env)
+    cmd = ('ulimit -n 8096; make -s -C /src/hal/fm1/sdk SDK=/sdk OUT=/tmp/fm1 APP=%s && '
+           'cp /tmp/fm1/app.bin /src/build/fm1/app-%s.bin && cp /tmp/fm1/sections.txt /src/build/fm1/sections-%s.txt'
+           % (app, app, app))
+    r = subprocess.run(['docker', 'run', '--rm', '-v', ROOT.replace('\\', '/') + ':/src',
+                        '-v', AC79_SDK.replace('\\', '/') + ':/sdk:ro', '-v', JIELI_VOLUME + ':/opt/jieli:ro',
+                        GCC_IMAGE, 'bash', '-c', cmd], env=env)
     if r.returncode:
         sys.exit(r.returncode)
-    print('compilado para el FM-1 (pi32v2). Solo mide: todavía no hay firmware instalable.')
+    pkg = os.path.join(out, 'bubba-%s-%s.fwsc' % (app, version()))
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'fm1', 'fwsc.py'), 'armar', FM1_V15,
+                        os.path.join(out, 'app-%s.bin' % app), pkg, '--vm', '0xE5000:0x8000'])
+    if r.returncode:
+        sys.exit(r.returncode)
+
+
+def version():
+    for line in open(os.path.join(ROOT, 'core', 'bm_config.h'), encoding='utf-8'):
+        if line.startswith('#define BM_VERSION_STR'):
+            return line.split('"')[1]
+    return '0'
 
 
 def site():
@@ -117,7 +119,7 @@ def main():
     if what in ('web', 'all'):
         web()
     if what == 'fm1':
-        fm1()
+        fm1(sys.argv[2] if len(sys.argv) > 2 else 'diag')
     if what in ('site', 'all'):
         site()
 

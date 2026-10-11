@@ -30,10 +30,14 @@ Si en el FM-1 falta RAM, lo primero que se achica es la arena (`BM_ARENA_LEN` en
 | ROM de ondas | 65 536 B | 16 ondas × 8 niveles band-limited × 256 muestras |
 | Logo de arranque | ~19 KB | RLE con paleta de 48 colores |
 | Fuentes | ~1 KB | 5×7 y 3×5 |
-| Código | `VERIFICAR` | Depende del toolchain de JieLi; el límite es ~340 KiB (SPEC §4.4) |
-| Patrones | 164 KiB | 20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling |
-| Tomas | 128 KiB | Biblioteca de largo libre: hasta 8 tomas de hasta 3 s, 8.1 s en total, en sectores seguidos con la cabecera al inicio. Se reproducen directo desde la flash |
-| Globales | 12 KiB | 3 sectores en rotación |
+| Programa (app.bin) | hasta 568 KiB | Firmware sobre el SDK de JieLi; el de diagnóstico mide 121 KiB. Lo escribe el cargador oficial dentro de `0x000000-0x092FFF` junto con el arranque del chip |
+| Patrones | 160 KiB | `0x97000`: 20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling |
+| Registro de arranques | 4 KiB | `0xBF000`: cuenta los arranques fallidos (modo seguro y modo del chip) |
+| Tomas | 116 KiB | `0xC0000`: biblioteca de largo libre: hasta 8 tomas de hasta 3 s, 7.4 s en total, en sectores seguidos con la cabecera al inicio. Se reproducen directo desde la flash |
+| Globales | 12 KiB | `0xDD000`: 3 sectores en rotación |
+| Cargador en espera | 20 KiB | `0xE0000`: el cargador de actualización mientras se instala una versión nueva |
+| Ajustes del SDK (VM) | 32 KiB | `0xE5000`: el almacén del SDK, con su tamaño por defecto; el empaquetador lo mueve ahí |
+| Del aparato | — | `0xED000` en adelante (BTIF, USR, MAC): Bubba Machine no lo toca nunca |
 
 ## Pantalla
 

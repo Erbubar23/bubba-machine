@@ -157,8 +157,8 @@ Grabar, guardar y cortar son tres pantallas, una tarea cada una.
    - Debajo del número: la memoria libre de tomas en segundos y KB, y el máximo por toma (3 s).
    - Mientras graba, **las teclas no suenan** y el delay y los punch-in con buffer se pausan (comparten la memoria).
    - La toma queda **SIN GUARDAR** y ya suena como loop A. **Se guarda al parar** el transporte, porque escribir la flash detiene el audio. HOME = descartar.
-2. **TOMAS** (EDIT 2 s en T2, o la pestaña): la biblioteca, con los loops de fábrica (FAB) primero. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas 1-8 escuchan sus slices. **N1** = usar como loop A, **N2** = como loop B, **N11** = borrar (pregunta). Abajo, la memoria libre de 8.1 s.
-**Cuánto cabe:** cada toma, hasta 3 s (la RAM de grabación, 48 KB); todas juntas, unos 8.1 s (128 KiB de flash, 8 bits a 16 kHz = 16 KB por segundo). Los loops de fábrica no gastan ese espacio. El emulador muestra la memoria libre junto al botón para cargar audio.
+2. **TOMAS** (EDIT 2 s en T2, o la pestaña): la biblioteca, con los loops de fábrica (FAB) primero. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas 1-8 escuchan sus slices. **N1** = usar como loop A, **N2** = como loop B, **N11** = borrar (pregunta). Abajo, la memoria libre de 7.4 s.
+**Cuánto cabe:** cada toma, hasta 3 s (la RAM de grabación, 48 KB); todas juntas, unos 7.4 s (116 KiB de flash, 8 bits a 16 kHz = 16 KB por segundo). Los loops de fábrica no gastan ese espacio. El emulador muestra la memoria libre junto al botón para cargar audio.
 
 3. **CORTAR** (EDIT sobre una toma): las **blancas** ponen o quitan un corte en esa corchea, la **negra 9** pone los cortes en los golpes y la **10** vuelve a 8 partes iguales. Las negras 1-8 escuchan cada slice. SELECT o K1 eligen el corte, K2 lo mueve, K3 = zoom, K4 = pegar a 1/16 o 1/8. Se guarda al salir.
 

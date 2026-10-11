@@ -468,7 +468,7 @@ static void modo_seguro(void)
 static void bubba_task(void *p)
 {
     uint8_t raw[FM1_NCOL];
-    uint32_t t0, next_adc = 0;
+    uint32_t t0, next_adc = 0, heap_t = 0;
     int ok = 0, id, down, seen = 0;
     (void)p;
 
@@ -583,6 +583,10 @@ static void bubba_task(void *p)
             fm1_boot_stage(E_1S);
         if (t - t0 > 5000u)
             fm1_boot_stage(E_5S);
+        if (t - heap_t > 5000u) {            /* memoria libre, para la consola */
+            heap_t = t;
+            fm1_heap_medir();
+        }
         fm1_miga("L8");
         fm1_latido();
         if (!ok && t - t0 > OK_MS) {         /* 10 s andando: este arranque fue bueno */

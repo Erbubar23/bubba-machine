@@ -300,7 +300,7 @@ static void test_timing(void)
         bm_app_audio(&app, abuf, 2);
         if (app.ctx.st.tn[0] != last) { at[steps++] = app.ctx.sample_clock - start; last = app.ctx.st.tn[0]; }
     }
-    for (int i = 1; i < 8; i++) { double d = (double)(at[i] - at[i - 1]); CHECK(d > 2757.4 - 2 && d < 2757.4 + 2); }
+    for (int i = 1; i < 8; i++) { double d = (double)(at[i] - at[i - 1]); double e = BM_FS * 0.125; CHECK(d > e - 2 && d < e + 2); }   /* 1/16 a 120 BPM */
     CHECK(app.ctx.st.tn[2] == 2 * app.ctx.st.tn[0] || app.ctx.st.tn[2] == 2 * app.ctx.st.tn[0] + 1);    /* x2 */
     CHECK(app.ctx.st.tn[5] * 2 >= app.ctx.st.tn[0] * 3 - 2 && app.ctx.st.tn[5] * 2 <= app.ctx.st.tn[0] * 3 + 2);  /* x3/2 */
     while (app.ctx.st.tn[0] < 20) bm_app_audio(&app, abuf, 64);

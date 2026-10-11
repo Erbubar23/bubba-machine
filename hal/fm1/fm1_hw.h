@@ -125,6 +125,7 @@ enum {
     FM1_STAT_SCAN, FM1_STAT_SCANISR_MAX, FM1_STAT_UI_LAST, FM1_STAT_UI_MAX, FM1_STAT_USB, FM1_STAT_FAILS,
     FM1_STAT_PAST1, FM1_STAT_PAST2, FM1_STAT_PAST3, FM1_STAT_PAST4,
     FM1_STAT_AUDIO_CPU, FM1_STAT_MIDI_IN, FM1_STAT_MIDI_OUT, FM1_STAT_LOOP_MAX,
+    FM1_STAT_HEAP_FREE, FM1_STAT_HEAP_MIN,          /* montón del SDK: libre según malloc y según la RAM */
     FM1_STAT_N
 };
 extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
@@ -135,7 +136,8 @@ int  fm1_lab(int cmd, int arg);                     /* pruebas por partes (fm1_m
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
 uint32_t fm1_scan_now_ticks(void);                  /* ticks del timer (~60 MHz), para tramos cortos */
 uint32_t fm1_scan_ticks_hz(void);
-int  fm1_bench(int cmd, int arg);                   /* pruebas de la arquitectura (fm1_bench.c) */
+int  fm1_bench(int cmd, int arg);
+void fm1_heap_medir(void);                          /* memoria libre del montón -> fm1_stat (desde una tarea) */                   /* pruebas de la arquitectura (fm1_bench.c) */
 void fm1_prof_reset(void);
 int  fm1_prof_read(uint32_t *out);                  /* perfil del audio por sección (core/bm_prof.h) */
 

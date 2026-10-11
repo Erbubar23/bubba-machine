@@ -86,7 +86,7 @@ typedef struct {
     uint8_t level, pan, send, duck;
     uint8_t source;        /* batería: kit · sampler: loop A · notas: banco de ondas */
     uint8_t attack, sustain, release, env_amt, glide;
-    uint8_t interp;        /* 0 = DROP, 1 = HERMITE */
+    uint8_t interp;        /* 0 = lineal, 1 = HERMITE */
     uint8_t mute;
     uint8_t transpose;     /* 24 = 0 semitonos */
     uint8_t arp_mode, arp_rate, arp_oct, arp_gate;

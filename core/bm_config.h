@@ -9,9 +9,10 @@
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
 #define BM_FS_OUT        44118u   /* ≈ 24 MHz / 544, fijo por hardware */
-#define BM_OVERSAMPLE    2u       /* motores a Fs/2, salida ZOH x2 */
-#define BM_FS            22059u   /* frecuencia de los motores */
-#define BM_BLOCK         64u      /* frames de motor por bloque = 128 de salida = 2.9 ms */
+#define BM_OVERSAMPLE    1u       /* 0.4: los motores corren a la frecuencia de salida (antes Fs/2) */
+#define BM_FS            44118u   /* frecuencia de los motores y del bus de mezcla (float) */
+#define BM_ROM_RATE      22059u   /* frecuencia de los kits de la ROM (tools/gen_assets.py) */
+#define BM_BLOCK         64u      /* frames por bloque = 1.45 ms */
 
 /* ---- Secuenciador (§4) ---- */
 #define BM_TRACKS        6
@@ -39,16 +40,16 @@
 #define BM_V_BASS        4        /* 4 reservada a T3 (mono) */
 #define BM_V_POOL0       5        /* 5..11 pool compartido T2, T4-T6 */
 #define BM_V_POOL_N      7
-#define BM_STEAL_FADE    44       /* 2 ms a BM_FS */
+#define BM_STEAL_FADE    88       /* 2 ms a BM_FS */
 
-/* ---- Memoria (§1.1: 96 KiB de RAM; ver el presupuesto en docs/MEMORIA.md) ----
- * Arena de 48 KiB compartida: normalmente delay (32 KiB) + punch-in (16 KiB);
- * mientras se graba un sample, toda la arena es el buffer de grabación. */
-#define BM_ARENA_LEN     49152u
-#define BM_DELAY_LEN     16384u   /* int16 a BM_FS/2 ≈ 1.48 s */
-#define BM_FXBUF_LEN     16384u   /* mu-law 8 bit a BM_FS ≈ 0.74 s (stutter/reverse) */
+/* ---- Memoria (docs/TRAZA_FM1.md) ----
+ * Arena de 128 KiB compartida: normalmente delay (64 KiB) + captura del punch-in (64 KiB);
+ * mientras se graba un sample, la arena es el buffer de grabación. */
+#define BM_DELAY_LEN     32768u   /* int16 a BM_FS/2 ≈ 1.49 s (el delay filtra a 11 kHz, como uno de cinta) */
+#define BM_FXBUF_LEN     32768u   /* int16 a BM_FS ≈ 0.74 s (stutter/reverse/tape) */
+#define BM_ARENA_LEN     (BM_DELAY_LEN * 2u + BM_FXBUF_LEN * 2u)
 #define BM_SMP_RATE      16000u   /* sampler a 16 kHz, 8 bit */
-#define BM_SMP_REC_MAX   BM_ARENA_LEN   /* ≈ 3.07 s grabando */
+#define BM_SMP_REC_MAX   49152u   /* ≈ 3.07 s grabando (cabe en la biblioteca de tomas) */
 #define BM_SLICES        8        /* slices de un loop del sampler */
 #define BM_PENDING_LEN   8192u    /* caché de un patrón sucio en formato disperso */
 #define BM_CMDQ_LEN      128

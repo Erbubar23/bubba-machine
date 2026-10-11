@@ -16,6 +16,8 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 - **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
 ### Cambiado
+- **Audio a 44.1 kHz de punta a punta, con el bus en coma flotante.** Los motores calculaban a 22 kHz y la salida se duplicaba; ahora calculan a 44.1 kHz (agudos hasta 20 kHz, sin imágenes del sobremuestreo) y la mezcla, el delay, los efectos y el clipper son de coma flotante, por bloques. El delay y la captura de los efectos (stutter, reversa, tape stop) pasan a 16 bits (antes la captura era μ-law de 8 bits), y la grabación del sampler se filtra con un Butterworth antes de bajar a 16 kHz. En el FM-1, con PLAY, la mezcla cuesta menos que antes aunque calcula el doble de muestras (docs/TRAZA_FM1.md).
+- La interpolación **DROP** (sin interpolar) pasa a ser **LINEAL**: a 44.1 kHz, repetir muestras sonaba a lo-fi.
 - La página SEQ de los canales de notas es solo de ese canal: piano roll de la página con el largo de cada nota, los compases del canal y el seguidor de tempo punteado. Ya no muestra los otros canales.
 - Las notas grabadas pueden durar hasta 4 compases (antes, 1).
 - Mapa de la flash para el aparato: los ajustes globales pasan a `0xDD000` y la biblioteca de tomas queda en 116 KiB (7.4 s en total; antes 8.1 s), para dejar lugar al cargador en espera y al almacén del SDK.

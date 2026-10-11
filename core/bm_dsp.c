@@ -2,7 +2,11 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — mezcla, sidechain, delay, punch-in FX, soft-clipper y salida
  * (SPEC_V3 §3.3, §4.3, §7). Cadena: pistas → delay → punch FX → clipper(DRIVE)
- * → MASTER → DAC. El pulso de Split Sync no pasa por clipper ni MASTER. */
+ * → MASTER → DAC. El pulso de Split Sync no pasa por clipper ni MASTER.
+ *
+ * 0.4: el bus es de coma flotante a 44.1 kHz (la FPU del AC791N es 1.5× más rápida que el entero
+ * de 64 bits, docs/TRAZA_FM1.md). Se mezcla canal por canal con las ganancias calculadas una vez
+ * por bloque; los canales en silencio no cuestan nada. 1.0 = 32768 en la escala de los motores. */
 #include <math.h>
 #include <string.h>
 #include "bm_audio.h"
@@ -13,66 +17,53 @@ enum {
     FX_LPF, FX_HPF, FX_BITCRUSH, FX_SRDOWN, FX_THROW, FX_FREEZE, FX_KILLLO, FX_KILLHI
 };
 
-static uint8_t ulaw_enc_tab[1024];
-static bool ulaw_ready;
+#define K15 (1.0f / 32768.0f)
+#define FX_MASK (BM_FXBUF_LEN - 1u)
+#define DLY_MASK (BM_DELAY_LEN - 1u)
 
-static void ulaw_init(void)
+static inline int16_t to16(float x)                 /* 1.0 -> 32767, con saturación y redondeo */
 {
-    for (int i = 0; i < 1024; i++) {
-        double x = (i * 32.0 + 16.0) / 32767.0;
-        if (x > 1.0) x = 1.0;
-        int q = (int)floor(127.0 * log1p(255.0 * x) / log1p(255.0) + 0.5);
-        ulaw_enc_tab[i] = (uint8_t)(q > 127 ? 127 : q);
-    }
-    ulaw_ready = true;
+    x *= 32767.0f;
+    if (x >= 32767.0f) return 32767;
+    if (x <= -32768.0f) return -32768;
+    return (int16_t)(int32_t)(x + (x >= 0.0f ? 0.5f : -0.5f));
 }
 
-extern const int16_t bm_ulaw_dec[256];
+static inline float flush(float x) { return (x > -1e-20f && x < 1e-20f) ? 0.0f : x; }
 
-static inline uint8_t ulaw_enc(int32_t x)
+/* SVF (Zavalishin/Simper, trapezoidal) en float: devuelve LP (hp=0) o HP (hp=1). */
+static inline float svf_run(float *ic1, float *ic2, float x, float a1, float a2, float a3, float k, int hp)
 {
-    int neg = x < 0;
-    int32_t m = neg ? -x : x;
-    if (m > 32767) m = 32767;
-    uint8_t q = ulaw_enc_tab[m >> 5];
-    return neg ? (uint8_t)(-(int)q & 0xFF) : q;
+    float v3 = x - *ic2;
+    float v1 = a1 * *ic1 + a2 * v3;
+    float v2 = *ic2 + a2 * *ic1 + a3 * v3;
+    *ic1 = 2.0f * v1 - *ic1;
+    *ic2 = 2.0f * v2 - *ic2;
+    return hp ? x - k * v1 - v2 : v2;
 }
 
-static inline int16_t sat16(int32_t x) { return (int16_t)(x > 32767 ? 32767 : (x < -32768 ? -32768 : x)); }
+/* Pasa-bajos de la grabación del sampler (biquad Butterworth a 7 kHz, antes de diezmar a 16 kHz). */
+static float rb0, rb1, rb2, ra1, ra2;
 
-static void svf_coefs(int ci, int64_t k, int64_t *a1, int64_t *a2, int64_t *a3)
+static void rec_lp_init(void)
 {
-    int64_t g = bm_svf_g[bm_clampi(ci, 0, 127)];
-    int64_t den = 65536 + ((g * (g + k)) >> 16);
-    *a1 = ((int64_t)1 << 32) / den;
-    *a2 = (g * *a1) >> 16;
-    *a3 = (g * *a2) >> 16;
-}
-
-/* SVF maestro de un canal: devuelve LP (hp=0) o HP (hp=1). */
-static int32_t svf_run(int32_t *ic1, int32_t *ic2, int32_t in, int64_t a1, int64_t a2, int64_t a3, int64_t k, int hp)
-{
-    int64_t x = (int64_t)in << 2;
-    int64_t v3 = x - *ic2;
-    int64_t v1 = (a1 * *ic1 + a2 * v3) >> 16;
-    int64_t v2 = *ic2 + ((a2 * *ic1 + a3 * v3) >> 16);
-    *ic1 = (int32_t)(2 * v1 - *ic1);
-    *ic2 = (int32_t)(2 * v2 - *ic2);
-    int64_t y = hp ? (x - ((k * v1) >> 16) - v2) : v2;
-    return (int32_t)(y >> 2);
+    if (rb0 != 0.0f) return;
+    double w = 2.0 * 3.14159265358979 * 7000.0 / BM_FS, cw = cos(w), al = sin(w) / (2.0 * 0.7071);
+    double a0 = 1.0 + al;
+    rb0 = (float)((1.0 - cw) / 2.0 / a0); rb1 = (float)((1.0 - cw) / a0); rb2 = rb0;
+    ra1 = (float)(-2.0 * cw / a0); ra2 = (float)((1.0 - al) / a0);
 }
 
 void bm_dsp_tick(bm_ctx *c)
 {
-    if (!ulaw_ready) ulaw_init();
     /* punch-in: cuantizado a 1/16 si está sonando */
     if (c->punch_req != c->punch_cur && (!c->playing || (c->btick % BM_TICKS_STEP) == 0)) {
         c->punch_cur = c->punch_req;
         c->punch_t = 0;
         c->punch_w0 = c->fx_w;
-        c->punch_rp = (c->fx_w % BM_FXBUF_LEN) << 8;
+        c->punch_rp = (c->fx_w & (BM_FXBUF_LEN - 1)) << 8;
         if (c->arena_busy && c->punch_cur <= FX_TAPESTOP) c->punch_cur = 0xFF;   /* sin buffer mientras hay sample sin guardar */
-        c->pf_ic1[0] = c->pf_ic1[1] = c->pf_ic2[0] = c->pf_ic2[1] = 0;
+        c->pf_ic1[0] = c->pf_ic1[1] = c->pf_ic2[0] = c->pf_ic2[1] = 0.0f;
         c->st.punch = c->punch_cur;
     }
     /* Split Sync: pulsos a ppqn configurable */
@@ -99,151 +90,190 @@ static uint32_t fx_len(const bm_ctx *c, uint32_t ticks)
 
 void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
 {
+    static float L[BM_BLOCK], R[BM_BLOCK], S[BM_BLOCK], SC[BM_BLOCK];
     const bm_meta *m = &c->pat->meta;
-    uint32_t sc_coef = bm_decay_coef[m->sc_release / 2] >> 15;     /* Q15 */
-    static const uint8_t DT[4] = {24, 48, 72, 96};
-    uint32_t dd = bm_ticks_to_samples(c, DT[m->dly_time & 3]) / 2u;
-    if (dd > BM_DELAY_LEN - 2) dd = BM_DELAY_LEN - 2;
-    if (dd < 1) dd = 1;
-    int32_t fb = m->dly_fb * 115 / 127;                 /* Q7, máx ~0.9 */
     int pc = c->punch_cur == 0xFF ? -1 : c->punch_cur;
-    int16_t *dly = c->mem->fx.dly;
-    uint8_t *fxb = c->mem->fx.fx;
-    bool busy = c->arena_busy || c->smp_rec;
-    if (pc == FX_FREEZE) fb = 128;
-    if (pc == FX_THROW && fb < 96) fb = 96;
     int32_t peak[BM_TRACKS] = {0};
+    if (n > BM_BLOCK) n = BM_BLOCK;
 
-    /* master: rampa por bloque hacia el pot */
-    uint32_t mt = (uint32_t)c->master_target * c->master_target >> 5;   /* curva cuadrática, Q15 */
-    if (mt > 32767) mt = 32767;
-    int32_t mg0 = c->master_gain, mg1 = (int32_t)mt;
-    int32_t drive_q8 = 256 + c->drive * 1792 / 127;
-
-    /* coeficientes del SVF maestro para los FX de filtro */
-    int64_t a1 = 0, a2 = 0, a3 = 0, kq = 91750;   /* k ≈ 1.4 */
-    int fhp = 0, fon = 0;
-    if (pc == FX_LPF || pc == FX_HPF || pc == FX_KILLLO || pc == FX_KILLHI) {
-        uint32_t bar = bm_ticks_to_samples(c, 384);
-        int prog = (int)((uint64_t)c->punch_t * 110u / (bar ? bar : 1));
-        if (prog > 110) prog = 110;
-        int ci = pc == FX_LPF ? 127 - prog : pc == FX_HPF ? prog : pc == FX_KILLLO ? 46 : 58;
-        fhp = (pc == FX_HPF || pc == FX_KILLLO);
-        svf_coefs(ci, kq, &a1, &a2, &a3);
-        fon = 1;
+    /* ---- sidechain: la envolvente del bombo, solo si hace falta */
+    int duck_any = 0;
+    for (int t = 1; t < BM_TRACKS; t++) if (c->pat->trk[t].duck && (c->tact & (1u << t))) duck_any = 1;
+    {
+        float e = c->sc_env, k = (float)bm_decay_coef[m->sc_release / 2] * (1.0f / 1073741824.0f);
+        int trig = c->sc_trig_at;
+        if (duck_any || trig >= 0 || e > 0.0f) {
+            for (uint32_t i = 0; i < n; i++) {
+                if ((int)i == trig) e = 1.0f;
+                SC[i] = e;
+                e *= k;
+            }
+            c->sc_env = e < 1e-6f ? 0.0f : e;
+        }
     }
 
-    for (uint32_t i = 0; i < n; i++) {
-        if (c->sc_trig_at >= 0 && (uint32_t)c->sc_trig_at == i) c->sc_env = 32767;
-        int32_t sc = c->sc_env;
-        c->sc_env = (int32_t)(((int64_t)sc * sc_coef) >> 15);
-
-        int32_t L = 0, R = 0, send = 0;
-        for (int t = 0; t < BM_TRACKS; t++) {
-            const bm_track *tr = &c->pat->trk[t];
-            int32_t x = c->tbuf[t][i];
-            x = x * tr->level / 400;            /* nivel 100 = -12 dB de headroom en el bus */
-            if (t >= 1 && tr->duck) x = (int32_t)(((int64_t)x * (32767 - sc * tr->duck / 127)) >> 15);
-            int32_t ax = x < 0 ? -x : x;
-            if (ax > peak[t]) peak[t] = ax;
-            L += (x * bm_pan_l[tr->pan & 127]) >> 15;
-            R += (x * bm_pan_r[tr->pan & 127]) >> 15;
-            send += (x * tr->send) >> 7;
-        }
-
-        /* delay a Fs/2: escribe en muestras pares, mantiene en impares */
-        if (!busy) {
-            c->d_acc += (pc == FX_FREEZE) ? 0 : send + ((pc == FX_THROW) ? (L + R) / 2 : 0);
-            if ((c->sample_clock + i) & 1) {
-                uint32_t rd = (c->dly_w - dd) & (BM_DELAY_LEN - 1);
-                c->d_out = dly[rd];
-                dly[c->dly_w] = sat16(c->d_acc / 2 + ((c->d_out * fb) >> 7));
-                c->dly_w = (c->dly_w + 1) & (BM_DELAY_LEN - 1);
-                c->d_acc = 0;
+    /* ---- canales: ganancias por bloque, un recorrido por canal que sonó */
+    for (uint32_t i = 0; i < n; i++) L[i] = R[i] = S[i] = 0.0f;
+    for (int t = 0; t < BM_TRACKS; t++) {
+        if (!(c->tact & (1u << t))) continue;
+        const bm_track *tr = &c->pat->trk[t];
+        const int32_t *x = c->tbuf[t];
+        float g = (float)tr->level * (1.0f / 400.0f) * K15;      /* nivel 100 = -12 dB de headroom en el bus */
+        float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
+        float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
+        float gs = g * (float)tr->send * (1.0f / 128.0f);
+        int32_t pk = 0;
+        if (t >= 1 && tr->duck) {
+            float dk = (float)tr->duck * (1.0f / 127.0f);
+            for (uint32_t i = 0; i < n; i++) {
+                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+                if (ax > pk) pk = ax;
+                float v = (float)xi * (1.0f - SC[i] * dk);
+                L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
             }
-            L += (c->d_out * m->dly_mix) >> 7;
-            R += (c->d_out * m->dly_mix) >> 7;
-            /* captura para stutter/reverse/tape */
-            fxb[c->fx_w % BM_FXBUF_LEN] = ulaw_enc((L + R) / 2);
+        } else {
+            for (uint32_t i = 0; i < n; i++) {
+                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+                if (ax > pk) pk = ax;
+                float v = (float)xi;
+                L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
+            }
+        }
+        peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
+    }
+
+    /* ---- delay a Fs/2 (escribe la suma de dos muestras, lee con interpolación lineal) y captura del punch */
+    int16_t *fxb = c->mem->fx.fx;
+    if (!(c->arena_busy || c->smp_rec)) {
+        int16_t *dly = c->mem->fx.dly;
+        static const uint8_t DT[4] = {24, 48, 72, 96};
+        uint32_t dd = bm_ticks_to_samples(c, DT[m->dly_time & 3]) / 2u;
+        if (dd > BM_DELAY_LEN - 2) dd = BM_DELAY_LEN - 2;
+        if (dd < 1) dd = 1;
+        float fb = (float)m->dly_fb * (0.9f / 127.0f);
+        if (pc == FX_FREEZE) fb = 1.0f;
+        if (pc == FX_THROW && fb < 0.75f) fb = 0.75f;
+        float in_g = pc == FX_FREEZE ? 0.0f : 1.0f, thr = pc == FX_THROW ? 0.5f : 0.0f;
+        float mix = (float)m->dly_mix * (1.0f / 128.0f);
+        for (uint32_t i = 0; i < n; i++) {
+            c->d_acc += in_g * (S[i] + thr * (L[i] + R[i]));
+            float dv;
+            if (c->fx_w & 1u) {
+                uint32_t rd = (c->dly_w - dd) & DLY_MASK;
+                c->d_prev = c->d_cur;
+                c->d_cur = (float)dly[rd] * K15;
+                dly[c->dly_w] = to16(c->d_acc * 0.5f + c->d_cur * fb);
+                c->dly_w = (c->dly_w + 1u) & DLY_MASK;
+                c->d_acc = 0.0f;
+                dv = 0.5f * (c->d_prev + c->d_cur);
+            } else dv = c->d_cur;
+            L[i] += dv * mix; R[i] += dv * mix;
+            fxb[c->fx_w & FX_MASK] = to16((L[i] + R[i]) * 0.5f);   /* captura para stutter/reverse/tape */
             c->fx_w++;
         }
+    }
 
-        if (pc >= 0) {
+    /* ---- punch-in FX */
+    if (pc >= 0) {
+        float a1 = 0, a2 = 0, a3 = 0, kq = 1.4f;
+        int fhp = 0, fon = 0;
+        if (pc == FX_LPF || pc == FX_HPF || pc == FX_KILLLO || pc == FX_KILLHI) {
+            uint32_t bar = bm_ticks_to_samples(c, 384);
+            int prog = (int)((uint64_t)c->punch_t * 110u / (bar ? bar : 1));
+            if (prog > 110) prog = 110;
+            int ci = pc == FX_LPF ? 127 - prog : pc == FX_HPF ? prog : pc == FX_KILLLO ? 46 : 58;
+            float g = (float)bm_svf_g[bm_clampi(ci, 0, 127)] * (1.0f / 65536.0f);
+            a1 = 1.0f / (1.0f + g * (g + kq)); a2 = g * a1; a3 = g * a2;
+            fhp = (pc == FX_HPF || pc == FX_KILLLO);
+            fon = 1;
+        }
+        static const uint8_t TK[4] = {96, 48, 24, 12};
+        uint32_t len = pc <= FX_STUT32 ? fx_len(c, TK[pc]) : (pc == FX_REV8 || pc == FX_REV4) ? fx_len(c, pc == FX_REV8 ? 48 : 96) : 1;
+        uint32_t T = pc == FX_TAPESTOP ? bm_ticks_to_samples(c, 96) : 1;
+        float gt = ((c->st.free_ticks % 24u) < 12u) ? 1.0f : 0.0f;
+        for (uint32_t i = 0; i < n; i++) {
             uint32_t t = c->punch_t++;
-            int32_t s = 0;
             switch (pc) {
-            case FX_STUT4: case FX_STUT8: case FX_STUT16: case FX_STUT32: {
-                static const uint8_t TK[4] = {96, 48, 24, 12};
-                uint32_t len = fx_len(c, TK[pc]);
-                s = bm_ulaw_dec[fxb[(c->punch_w0 + t % len) % BM_FXBUF_LEN]];
-                L = R = s; break;
-            }
-            case FX_REV8: case FX_REV4: {
-                uint32_t len = fx_len(c, pc == FX_REV8 ? 48 : 96);
-                s = bm_ulaw_dec[fxb[(c->punch_w0 + BM_FXBUF_LEN * 4u - 1u - t % len) % BM_FXBUF_LEN]];
-                L = R = s; break;
-            }
+            case FX_STUT4: case FX_STUT8: case FX_STUT16: case FX_STUT32:
+                L[i] = R[i] = (float)fxb[(c->punch_w0 + t % len) & FX_MASK] * K15;
+                break;
+            case FX_REV8: case FX_REV4:
+                L[i] = R[i] = (float)fxb[(c->punch_w0 + BM_FXBUF_LEN * 4u - 1u - t % len) & FX_MASK] * K15;
+                break;
             case FX_TAPESTOP: {
-                uint32_t T = bm_ticks_to_samples(c, 96);
                 int32_t rate = T ? 256 - (int32_t)((uint64_t)t * 256u / T) : 0;   /* Q8 */
-                if (rate <= 0) { L = R = 0; break; }
+                if (rate <= 0) { L[i] = R[i] = 0.0f; break; }
                 c->punch_rp += (uint32_t)rate;
-                s = bm_ulaw_dec[fxb[(c->punch_rp >> 8) % BM_FXBUF_LEN]];
-                L = R = s; break;
-            }
-            case FX_GATE: {
-                int32_t target = ((c->st.free_ticks % 24u) < 12u) ? 32767 : 0;
-                c->gate_g += (target - c->gate_g) >> 5;
-                L = (int32_t)(((int64_t)L * c->gate_g) >> 15);
-                R = (int32_t)(((int64_t)R * c->gate_g) >> 15);
+                uint32_t k = c->punch_rp >> 8;
+                float f = (float)(c->punch_rp & 255u) * (1.0f / 256.0f);
+                float s0 = (float)fxb[k & FX_MASK], s1 = (float)fxb[(k + 1u) & FX_MASK];
+                L[i] = R[i] = (s0 + (s1 - s0) * f) * K15;
                 break;
             }
-            case FX_BITCRUSH: L = (L >> 11) << 11; R = (R >> 11) << 11; break;
-            case FX_SRDOWN:
-                if (t % 6u == 0) { c->sh_l = L; c->sh_r = R; }
-                L = c->sh_l; R = c->sh_r; break;
+            case FX_GATE:
+                c->gate_g += (gt - c->gate_g) * (1.0f / 64.0f);
+                L[i] *= c->gate_g; R[i] *= c->gate_g;
+                break;
+            case FX_BITCRUSH:                                 /* 5 bits, a propósito */
+                L[i] = (float)(int32_t)(L[i] * 16.0f) * (1.0f / 16.0f);
+                R[i] = (float)(int32_t)(R[i] * 16.0f) * (1.0f / 16.0f);
+                break;
+            case FX_SRDOWN:                                   /* ≈ 3.7 kHz, a propósito */
+                if (t % 12u == 0) { c->sh_l = L[i]; c->sh_r = R[i]; }
+                L[i] = c->sh_l; R[i] = c->sh_r;
+                break;
             default: break;
             }
             if (fon) {
-                L = svf_run(&c->pf_ic1[0], &c->pf_ic2[0], L, a1, a2, a3, kq, fhp);
-                R = svf_run(&c->pf_ic1[1], &c->pf_ic2[1], R, a1, a2, a3, kq, fhp);
+                L[i] = svf_run(&c->pf_ic1[0], &c->pf_ic2[0], L[i], a1, a2, a3, kq, fhp);
+                R[i] = svf_run(&c->pf_ic1[1], &c->pf_ic2[1], R[i], a1, a2, a3, kq, fhp);
             }
         }
+        for (int ch = 0; ch < 2; ch++) { c->pf_ic1[ch] = flush(c->pf_ic1[ch]); c->pf_ic2[ch] = flush(c->pf_ic2[ch]); }
+    }
 
-        /* sampler: resample de la mezcla (post-FX, pre-master), diezmado a 16 kHz */
-        if (c->smp_rec) {
-            int32_t mono = (L + R) / 2;
-            c->smp_lp += ((mono - c->smp_lp) * 27852) >> 15;          /* pasa-bajos antes de diezmar */
+    /* ---- sampler: la mezcla (post-FX, pre-master), filtrada y diezmada a 16 kHz, 8 bit */
+    if (c->smp_rec) {
+        rec_lp_init();
+        float *z = c->smp_z;
+        for (uint32_t i = 0; i < n && c->smp_rec; i++) {
+            float x = (L[i] + R[i]) * 0.5f;
+            float y = rb0 * x + rb1 * z[0] + rb2 * z[1] - ra1 * z[2] - ra2 * z[3];
+            z[1] = z[0]; z[0] = x; z[3] = z[2]; z[2] = y;
             c->smp_dec_acc += BM_SMP_RATE;
             if (c->smp_dec_acc >= BM_FS) {
                 c->smp_dec_acc -= BM_FS;
                 uint32_t cap = c->smp_cap && c->smp_cap < BM_SMP_REC_MAX ? c->smp_cap : BM_SMP_REC_MAX;
                 if (c->smp_rec_pos < cap) {
-                    int32_t v = c->smp_lp >> 8;
-                    c->mem->arena[c->smp_rec_pos++] = (uint8_t)(int8_t)(v > 127 ? 127 : (v < -128 ? -128 : v));
+                    float v = y * 128.0f;
+                    int32_t q = (int32_t)(v + (v >= 0.0f ? 0.5f : -0.5f));
+                    c->mem->arena[c->smp_rec_pos++] = (uint8_t)(int8_t)(q > 127 ? 127 : (q < -128 ? -128 : q));
                 } else bm_smp_rec_stop(c);                    /* tope: se para sola */
             }
         }
+        z[2] = flush(z[2]); z[3] = flush(z[3]);
+    }
 
-        /* soft-clipper con DRIVE */
-        int32_t y[2];
-        int32_t in[2] = {L, R};
+    /* ---- soft-clipper con DRIVE, MASTER (rampa por bloque) y fade de escritura de flash */
+    uint32_t mt = (uint32_t)c->master_target * c->master_target >> 5;   /* curva cuadrática, Q15 */
+    if (mt > 32767) mt = 32767;
+    float mg = (float)c->master_gain * K15, dmg = ((float)mt * K15 - mg) / (float)(n ? n : 1);
+    float drv = 1.0f + (float)c->drive * (7.0f / 127.0f);
+    const float FADE = 1.0f / (0.005f * (float)BM_FS);                  /* 5 ms */
+    const float CEIL = 29000.0f / 32768.0f * 8388352.0f;                /* techo ≈ -1 dBFS, a 24 bit */
+    for (uint32_t i = 0; i < n; i++) {
+        float y[2], in[2] = {L[i] * drv, R[i] * drv};
         for (int ch = 0; ch < 2; ch++) {
-            int64_t u = ((int64_t)in[ch] * drive_q8) >> 8;
-            if (u >= 32768) { y[ch] = 32767; c->clip_hold = 1; }
-            else if (u <= -32768) { y[ch] = -32767; c->clip_hold = 1; }
-            else y[ch] = (int32_t)((3 * u) / 2 - (((u * u) >> 15) * u >> 15) / 2);
+            float u = in[ch];
+            if (u >= 1.0f) { y[ch] = 1.0f; c->clip_hold = 1; }
+            else if (u <= -1.0f) { y[ch] = -1.0f; c->clip_hold = 1; }
+            else y[ch] = u * (1.5f - 0.5f * u * u);
         }
-
-        /* MASTER + fade de escritura de flash */
-        int32_t mg = mg0 + (int32_t)(((int64_t)(mg1 - mg0) * (int32_t)i) / (int32_t)n);
-        if (c->fade_req) { c->fade_gain -= 300; if (c->fade_gain < 0) c->fade_gain = 0; }
-        else { c->fade_gain += 300; if (c->fade_gain > 32767) c->fade_gain = 32767; }
-        int32_t g = (int32_t)(((int64_t)mg * c->fade_gain) >> 15);
-        g = (g * 29000) >> 15;                                   /* techo ≈ -1 dBFS */
-        int32_t oL = (int32_t)(((int64_t)y[0] * g) >> 15) << 8;
-        int32_t oR = (int32_t)(((int64_t)y[1] * g) >> 15) << 8;
-
+        if (c->fade_req) { c->fade_gain -= FADE; if (c->fade_gain < 0.0f) c->fade_gain = 0.0f; }
+        else { c->fade_gain += FADE; if (c->fade_gain > 1.0f) c->fade_gain = 1.0f; }
+        float g = mg * c->fade_gain * CEIL;
+        mg += dmg;
+        int32_t oL = (int32_t)(y[0] * g), oR = (int32_t)(y[1] * g);
         if (c->sync_mode == 1) {                                 /* L = pulso, R = mezcla mono */
             oR = (oL + oR) / 2;
             int32_t p = 0;
@@ -251,19 +281,16 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             else if (c->sync_left) { c->sync_left--; p = 7549747; }
             oL = p;
         }
-        /* x2 a 44.1 kHz con interpolación lineal (el escalón ZOH dejaba -22 dB de imágenes) */
-        out[4 * i + 0] = (c->prev_l + oL) / 2; out[4 * i + 1] = (c->prev_r + oR) / 2;
-        out[4 * i + 2] = oL; out[4 * i + 3] = oR;
-        c->prev_l = oL; c->prev_r = oR;
+        out[2 * i + 0] = oL; out[2 * i + 1] = oR;
     }
-    c->master_gain = (uint16_t)mg1;
-    c->st.faded = (c->fade_req && c->fade_gain == 0) ? 1 : 0;
+    c->master_gain = (uint16_t)mt;
+    c->st.faded = (c->fade_req && c->fade_gain == 0.0f) ? 1 : 0;
     if (c->clip_hold) { c->st.clip = 1; c->clip_hold = 0; }
     for (int t = 0; t < BM_TRACKS; t++) {
         uint32_t p = (uint32_t)peak[t] >> 7;
         if (p > 255) p = 255;
         uint32_t old = c->peak_acc[t];
-        c->peak_acc[t] = p > old ? p : (old * 7) / 8;
+        c->peak_acc[t] = p > old ? p : (old * 15) / 16;
         c->st.peak[t] = (uint8_t)c->peak_acc[t];
     }
     if (c->smp_rec) c->st.smp_len = c->smp_rec_pos;

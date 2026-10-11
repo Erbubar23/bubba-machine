@@ -207,7 +207,7 @@ typedef void (*bm_midi_out_fn)(void *user, uint8_t byte);
 
 typedef union {
     uint8_t arena[BM_ARENA_LEN];
-    struct { int16_t dly[BM_DELAY_LEN]; uint8_t fx[BM_FXBUF_LEN]; } fx;
+    struct { int16_t dly[BM_DELAY_LEN]; int16_t fx[BM_FXBUF_LEN]; } fx;
 } bm_audio_mem;
 
 typedef struct bm_ctx {
@@ -236,27 +236,27 @@ typedef struct bm_ctx {
     bm_arp arp[BM_TRACKS];
     bm_strum strum[8];
 
-    /* mezcla y FX */
+    /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores) */
     int32_t tbuf[BM_TRACKS][BM_BLOCK];
-    int32_t sc_env;
+    uint8_t tact;                /* canales que sonaron en el bloque (bit t) */
+    float sc_env;
     int16_t sc_trig_at;
     uint16_t blk_off;
     bm_audio_mem *mem;
     uint8_t arena_busy;          /* la arena tiene un sample sin guardar: sin delay ni punch con buffer */
     uint32_t dly_w;
-    int32_t d_out, d_acc;
-    int32_t prev_l, prev_r;
+    float d_acc, d_prev, d_cur;  /* delay a Fs/2: suma de dos muestras y las dos últimas leídas */
     uint32_t fx_w;
     uint8_t punch_req, punch_cur;
     uint32_t punch_t, punch_w0, punch_rp;
-    int32_t pf_ic1[2], pf_ic2[2];
-    int32_t sh_l, sh_r, gate_g;
+    float pf_ic1[2], pf_ic2[2];
+    float sh_l, sh_r, gate_g;
     uint16_t master_target, master_gain;
     uint8_t drive, clip_hold;
     uint8_t sync_mode, sync_ppqn, sync_lat;
     uint32_t sync_wait, sync_left;
     uint8_t fade_req;
-    int32_t fade_gain;
+    float fade_gain;
     uint32_t peak_acc[BM_TRACKS];
 
     /* sampler */
@@ -264,7 +264,7 @@ typedef struct bm_ctx {
     uint32_t smp_base_inc;       /* 16 kHz -> BM_FS en Q16 */
     uint8_t smp_rec, smp_armed;
     uint32_t smp_rec_pos, smp_dec_acc, smp_cap;
-    int32_t smp_lp;
+    float smp_z[4];              /* pasa-bajos antes de diezmar la grabación (biquad) */
     uint8_t brk_live;            /* negras 9-11: reversa, media velocidad, stutter · 8 = paso sostenido */
     uint8_t brk_next_flags;      /* para el próximo note_on del sampler */
     uint16_t brk_next_off;       /* posición dentro del slice, Q16 */

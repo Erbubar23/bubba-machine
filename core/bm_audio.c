@@ -44,7 +44,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->sc_trig_at = -1;
     c->punch_req = c->punch_cur = 0xFF;
     c->master_target = 820; c->master_gain = 0;
-    c->fade_gain = 32767;
+    c->fade_gain = 1.0f;
     c->drive = 25;
     c->sync_ppqn = 2;
     c->st.queued = 0xFF; c->st.punch = 0xFF; c->st.step = -1;
@@ -64,7 +64,7 @@ void bm_smp_rec_start(bm_ctx *c)
 {
     smp_voices_off(c, -1);
     c->smp_armed = 0; c->st.smp_armed = 0;
-    c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_dec_acc = 0; c->smp_lp = 0;
+    c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_dec_acc = 0; memset(c->smp_z, 0, sizeof c->smp_z);
     c->punch_cur = c->punch_req = 0xFF;
     memset(c->mem->arena, 0, sizeof c->mem->arena);
     c->arena_busy = 1;
@@ -224,7 +224,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         if (k->u.ptr) c->smp[0] = *(const bm_smp_src *)k->u.ptr; else memset(&c->smp[0], 0, sizeof c->smp[0]);
         c->arena_busy = 0; c->st.smp_unsaved = 0;
         memset(c->mem->arena, 0, sizeof c->mem->arena);   /* vuelve a ser delay + punch */
-        c->d_out = c->d_acc = 0;
+        c->d_acc = c->d_prev = c->d_cur = 0;
         c->gen_blk = 0;
         break;
     case CMD_BRK_HOLD:
@@ -317,7 +317,8 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
     BM_PROF_LAP(BM_P_SEQ);
     while (n_eng) {
         uint32_t n = n_eng < BM_BLOCK ? n_eng : BM_BLOCK;
-        for (int t = 0; t < BM_TRACKS; t++) memset(c->tbuf[t], 0, n * sizeof(int32_t));
+        for (int t = 0; t < BM_TRACKS; t++) if (c->tact & (1u << t)) memset(c->tbuf[t], 0, sizeof c->tbuf[t]);   /* solo los que sonaron */
+        c->tact = 0;
         c->sc_trig_at = -1;
         uint32_t done = 0;
         while (done < n) {
@@ -339,7 +340,7 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
             }
             BM_PROF_RESTART();
             for (int t = 0; t < BM_TRACKS; t++) {
-                c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)k2);
+                if (c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)k2)) c->tact |= (uint8_t)(1u << t);
                 BM_PROF_LAP(BM_P_T0 + t);
             }
             c->acc_q16 += k2 << 16;

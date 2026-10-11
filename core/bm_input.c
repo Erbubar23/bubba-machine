@@ -135,7 +135,7 @@ void bm_app_more_row(const bm_app *a, int i, const char **name, char *val, int c
         if (m->bpm_x10) snprintf(val, (size_t)cap, "%d.%d", m->bpm_x10 / 10, m->bpm_x10 % 10); else snprintf(val, (size_t)cap, "--");
         break;
     }
-    case ROW_INTERP: snprintf(val, (size_t)cap, "%s", tk->interp ? "HERMITE" : "DROP"); break;
+    case ROW_INTERP: snprintf(val, (size_t)cap, "%s", tk->interp ? "HERMITE" : "LINEAL"); break;
     default: snprintf(val, (size_t)cap, "GIRA = SI"); break;
     }
 }

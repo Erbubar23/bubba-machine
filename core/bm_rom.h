@@ -15,7 +15,7 @@
 #define BM_WAVE_LEN     256
 
 typedef struct {
-    const uint8_t *data;   /* mu-law 8 bit a BM_FS */
+    const uint8_t *data;   /* mu-law 8 bit a BM_ROM_RATE */
     uint32_t len;
     uint8_t choke;         /* grupo de choke (0 = ninguno) */
     uint8_t ducks;         /* dispara el sidechain */

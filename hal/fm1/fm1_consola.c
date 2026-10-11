@@ -23,6 +23,17 @@
 #include "asm/clock.h"
 #include "fm1_hw.h"
 
+/* Memoria libre del montón del SDK (dlmalloc sobre sbrk, system.a). malloc no sirve para medirla:
+ * devuelve un puntero hasta para 512 KiB. Desde una tarea, no desde la interrupción del USB. */
+extern unsigned int get_malloc_remain_heap_size(void);
+extern unsigned int get_ram_free_heap_size(void);
+
+void fm1_heap_medir(void)
+{
+    fm1_stat[FM1_STAT_HEAP_FREE] = get_malloc_remain_heap_size();
+    fm1_stat[FM1_STAT_HEAP_MIN] = get_ram_free_heap_size();
+}
+
 volatile uint32_t fm1_stat[FM1_STAT_N];
 
 static uint8_t tx[8 + 2 * (FM1_STAT_N * 4 + 8) + 1];

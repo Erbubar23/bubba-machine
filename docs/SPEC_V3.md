@@ -102,7 +102,7 @@ Todo pasa por **una matriz con diodos de 11 columnas × 6 filas**, manejada por 
 - **Carácter lo-fi:** los motores pueden correr a Fs/2 (≈ 22 059 Hz) con sobremuestreo ×2 (por defecto, *zero-order hold*). Así se reduce el CPU a la mitad y se consigue el sonido "SP". Ver DECISIÓN-2.
 
 ### 3.2 Interpolación de muestras
-- Modo por pista: **DROP** (sin interpolación, estilo SP-1200, *por defecto* en Drums) o **HERMITE** (cúbica, *por defecto* en Sampler).
+- Modo por pista: **LINEAL** (*por defecto* en Drums; hasta 0.3 era DROP, sin interpolación) o **HERMITE** (cúbica, *por defecto* en Sampler).
 - *(Corrección V3: Hermite reduce el ruido de interpolación, pero no elimina el aliasing al subir el tono.)*
 - Wavetables: tablas **band-limited por octava** (mipmaps) generadas por el packer (8.1).
 
@@ -187,7 +187,7 @@ Tomado del mapa que usa Felucca. **`VERIFICAR` el tamaño final del binario ante
 
 | Pista | Motor | Detalle |
 |---|---|---|
-| T1 Drums | ROMpler | Hits CC0 (estilo 808/909/Linn) desde la ROM. Choke: HH cerrado corta HH abierto. 4 voces reservadas. Modo DROP por defecto |
+| T1 Drums | ROMpler | Hits CC0 (estilo 808/909/Linn) desde la ROM. Choke: HH cerrado corta HH abierto. 4 voces reservadas. Interpolación LINEAL por defecto |
 | T2 Sampler | RAM | Ver 5.2 |
 | T3 Bass | Wavetable mono | 1 voz, glide cuando el evento tiene TIE, SVF paso-bajo de 2 polos |
 | T4–T6 Synth | Wavetable poly | Pool compartido; ondas AKWF remuestreadas a 256 muestras; SVF de 2 polos |
@@ -343,7 +343,7 @@ y=240 └───────────────────────�
 | SCL | escala y acordes | K1 tónica, K2 escala (9), K3 acorde base (tríada/+7/+9/SUS2/SUS4), K4 LOCK (teclado siempre en escala) | — |
 | ARP | arpegiador | K1 modo (OFF/UP/DOWN/UP-DN/RAND), K2 rate (1/8 1/16 1/32), K3 octavas (1-3), K4 gate | Solo pistas synth |
 | Negra 11 en SEQ | reservada | **UNDO** (un nivel) | El undo existía pero no tenía tecla |
-| GLO + ALGORITHM | motor o kit | T1: kit (KO-808 / KO-909) · T2: interpolación (DROP/HERMITE) · T3-T6: banco de ondas | — |
+| GLO + ALGORITHM | motor o kit | T1: kit (KO-808 / KO-909) · T2: interpolación (LINEAL/HERMITE) · T3-T6: banco de ondas | — |
 | GLO + PRESETS | onda / kit | Sin uso | Quedó cubierto por GLO + ALGORITHM |
 | Paso mantenido | P-Lock con KNOBs | Además: SELECT = nota/sonido, ALGORITHM = probabilidad (pasos de 5 %), PRESETS = largo 1-16 o TIE | Los 7 encoders tienen trabajo |
 | Formato disperso | paso u8 | Byte de posición = paso (bits 0-5) + slot (bits 6-7) | Conservar el slot de cada evento al recargar |

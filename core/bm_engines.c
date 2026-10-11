@@ -6,6 +6,14 @@
 #include "bm_rom.h"
 #include "bm_util.h"
 
+/* Tiempos y constantes que se afinaron con los motores a 22 059 Hz: AT22 pasa n muestras de entonces
+ * a muestras de BM_FS, y los coeficientes de un polo (Q15) se recalcularon para el mismo corte. */
+#define AT22(n) ((uint32_t)(n) * BM_FS / 22059u)
+#define ACID_ATK ((int32_t)(((uint64_t)1 << 26) * 22059u / BM_FS))     /* ataque de ~0.7 ms */
+
+/* interpolación lineal en Q15 (cabe en 32 bits con muestras de 16) */
+static inline int32_t lerp15(int32_t a, int32_t b, uint32_t frac16) { return a + (((b - a) * (int32_t)(frac16 >> 1)) >> 15); }
+
 /* ------------------------------------------------------------ voces */
 static int voice_prio(const bm_voice *v)
 {
@@ -225,7 +233,7 @@ static bool acid_process(bm_engine *e, int32_t *buf, uint16_t frames)
             v->z[3] += (int32_t)(((int64_t)(v->z[2] - v->z[3]) * g) >> 15);
             int32_t y = soft(v->z[3] + (int32_t)(((int64_t)v->z[3] * kq) >> 10), 26000);
             switch (v->stage) {
-            case ENV_ATK: v->env += 1 << 26; if (v->env >= (1 << 30)) { v->env = 1 << 30; v->stage = ENV_DEC; } break;
+            case ENV_ATK: v->env += ACID_ATK; if (v->env >= (1 << 30)) { v->env = 1 << 30; v->stage = ENV_DEC; } break;
             case ENV_REL:
                 v->env = (int32_t)(((int64_t)v->env * c_rel) >> 30);
                 if (v->env < (1 << 14)) { v->active = 0; v->pend = 0; }
@@ -304,12 +312,12 @@ static int32_t sdrum_sample(bm_voice *v)
     case SD_KICK: case SD_TOM: case SD_SINE: case SD_ZAP:
         s = bm_sine[v->phase >> 24];
         v->phase += inc;
-        if (d->model == SD_KICK && v->start < 60) s += ((int32_t)(bm_xorshift32(&v->pos) >> 17) - 16384);   /* el click */
+        if (d->model == SD_KICK && v->start < AT22(60)) s += ((int32_t)(bm_xorshift32(&v->pos) >> 17) - 16384);   /* el click */
         if (d->tone == 1) s = (s * 3) / 2;                      /* más saturado */
         break;
     case SD_SNARE:
         n = (int32_t)(bm_xorshift32(&v->pos) >> 16) - 32768;
-        v->z[0] += ((n - v->z[0]) * 9000) >> 15;                /* lo que queda arriba del ruido */
+        v->z[0] += ((n - v->z[0]) * 4860) >> 15;                /* lo que queda arriba del ruido */
         s = (bm_sine[v->phase >> 24] + bm_sine[v->ph[0] >> 24]) * (v->z[2] >> 15) / 65536 + (n - v->z[0]) * 3 / 4;
         v->phase += inc; v->ph[0] += v->ph[1];
         v->z[2] = (int32_t)(((int64_t)v->z[2] * bm_decay_coef[44]) >> 30);   /* el cuerpo dura menos que el ruido */
@@ -318,36 +326,36 @@ static int32_t sdrum_sample(bm_voice *v)
         n = (int32_t)(bm_xorshift32(&v->pos) >> 16) - 32768;
         int32_t m = ((v->phase & 0x80000000u) ? 9000 : -9000) + ((v->ph[0] & 0x80000000u) ? 9000 : -9000)
                   + ((v->ph[2] & 0x80000000u) ? 7000 : -7000);
-        v->phase += v->ph[1]; v->ph[0] += v->ph[1] * 3 / 2 + 77777; v->ph[2] += v->ph[1] * 7 / 5 + 33333;
+        v->phase += v->ph[1]; v->ph[0] += v->ph[1] * 3 / 2 + 77777u * 22059u / BM_FS; v->ph[2] += v->ph[1] * 7 / 5 + 33333u * 22059u / BM_FS;
         int32_t x = n / 2 + m;
-        v->z[0] += ((x - v->z[0]) * 21000) >> 15;               /* agudos: x menos su pasa-bajos */
+        v->z[0] += ((x - v->z[0]) * 13131) >> 15;               /* agudos: x menos su pasa-bajos */
         s = x - v->z[0];
         break;
     }
     case SD_CLAP: {
         n = (int32_t)(bm_xorshift32(&v->pos) >> 16) - 32768;
-        if (v->start == 0 || v->start == 230 || v->start == 470) v->z[2] = 1 << 30;   /* tres palmas y la cola */
+        if (v->start == 0 || v->start == AT22(230) || v->start == AT22(470)) v->z[2] = 1 << 30;   /* tres palmas y la cola */
         v->z[2] = (int32_t)(((int64_t)v->z[2] * bm_decay_coef[10]) >> 30);
-        v->z[0] += ((n - v->z[0]) * 6000) >> 15;
+        v->z[0] += ((n - v->z[0]) * 3151) >> 15;
         int32_t bp = n - v->z[0];
-        int32_t burst = v->start < 700 ? (v->z[2] >> 15) : 0, tail = v->start >= 700 ? 32768 : 0;
+        int32_t burst = v->start < AT22(700) ? (v->z[2] >> 15) : 0, tail = v->start >= AT22(700) ? 32768 : 0;
         s = (int32_t)(((int64_t)bp * (burst + tail)) >> 15);
         break;
     }
     case SD_RIM:
-        s = bm_sine[v->phase >> 24] + (v->start < 40 ? ((int32_t)(bm_xorshift32(&v->pos) >> 17) - 16384) : 0);
+        s = bm_sine[v->phase >> 24] + (v->start < AT22(40) ? ((int32_t)(bm_xorshift32(&v->pos) >> 17) - 16384) : 0);
         v->phase += inc;
         break;
     case SD_BELL:
         s = ((v->phase & 0x80000000u) ? 12000 : -12000) + ((v->ph[0] & 0x80000000u) ? 12000 : -12000);
         v->phase += inc; v->ph[0] += v->ph[1];
-        v->z[0] += ((s - v->z[0]) * 4000) >> 15;
+        v->z[0] += ((s - v->z[0]) * 2065) >> 15;
         s -= v->z[0];
         break;
     case SD_SHAKE:
         n = (int32_t)(bm_xorshift32(&v->pos) >> 16) - 32768;
-        v->z[0] += ((n - v->z[0]) * 22000) >> 15;
-        s = (n - v->z[0]) * (v->start < 200 ? (int32_t)v->start : 200) / 200;
+        v->z[0] += ((n - v->z[0]) * 13984) >> 15;
+        s = (n - v->z[0]) * (v->start < AT22(200) ? (int32_t)v->start : (int32_t)AT22(200)) / (int32_t)AT22(200);
         break;
     default: break;
     }
@@ -378,7 +386,8 @@ static void drum_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t ve
     v->sound = (uint8_t)snd; v->choke = d->choke;
     const bm_lane *ln = &bm_trk_tr(c->pat, e->track)->lane[snd];
     v->vel = (uint8_t)bm_clampi(vel * ln->level / 100, 1, 127);
-    v->step = bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)];
+    v->step = (uint32_t)((uint64_t)bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)]
+                         * BM_ROM_RATE / BM_FS);                         /* la ROM está a 22 kHz */
     v->start = (uint32_t)((uint64_t)d->len * eff(v, t, 3) / 254u);
     v->end = d->len;
     v->pos = 0; v->env = 1 << 30; v->lp = 0;
@@ -439,7 +448,7 @@ static bool drum_process(bm_engine *e, int32_t *buf, uint16_t frames)
             int32_t idx = (int32_t)(v->start + (v->pos >> 16));
             if ((uint32_t)idx >= v->end) { v->active = 0; v->pend = 0; break; }
             int32_t s = herm ? hermite(drum_at(d, idx - 1), drum_at(d, idx), drum_at(d, idx + 1), drum_at(d, idx + 2), v->pos & 0xFFFF)
-                             : drum_at(d, idx);
+                             : lerp15(drum_at(d, idx), drum_at(d, idx + 1), v->pos & 0xFFFF);
             v->lp += ((s - v->lp) * a) >> 15;
             v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
             int32_t out = (int32_t)(((int64_t)v->lp * (v->env >> 14)) >> 16);
@@ -573,16 +582,16 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
             if (off >= span && v->loopv) { v->pos -= span << 16; off = v->pos >> 16; }   /* vuelve al principio */
             if (off >= span) { v->active = 0; v->pend = 0; break; }
             int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
-            int32_t s;
-            if (herm && !v->dir) s = hermite(smp_at(m, idx - 1), smp_at(m, idx), smp_at(m, idx + 1), smp_at(m, idx + 2), v->pos & 0xFFFF);
-            else s = smp_at(m, idx);
+            int32_t s, dn = v->dir ? -1 : 1;                   /* dn: hacia dónde avanza la lectura */
+            if (herm) s = hermite(smp_at(m, idx - dn), smp_at(m, idx), smp_at(m, idx + dn), smp_at(m, idx + 2 * dn), v->pos & 0xFFFF);
+            else s = lerp15(smp_at(m, idx), smp_at(m, idx + dn), v->pos & 0xFFFF);
             v->lp += ((s - v->lp) * a) >> 15;
             if (!v->loopv) v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
             int32_t out = (int32_t)(((int64_t)v->lp * (v->env >> 14)) >> 16);
             out = ((out * v->vel) >> 7) * v->gain >> 6;
             /* micro-fade de salida al final del slice para que no haga click */
             uint32_t left = span - off;
-            if (left < 64 && !v->loopv) out = out * (int32_t)left / 64;
+            if (left < AT22(64) && !v->loopv) out = out * (int32_t)left / (int32_t)AT22(64);
             int fading = v->fade != 0;
             buf[i] += voice_fade_step(c, v, out);
             if (fading && v->fade == 0) break;     /* la voz cambió de dueño o terminó */

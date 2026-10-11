@@ -50,10 +50,28 @@ Mediciones hechas en el FM-1 del autor con `tools/fm1/traza.py` (pruebas del lab
 ## Plan reestructurado (prioridad: calidad de audio)
 
 1. ~~Caché de datos de 32 KiB~~ (hecho y medido).
-2. **Bus de audio en coma flotante a 44.1 kHz**, por bloques, con la mezcla reescrita: hoy la mezcla sola cuesta 8.6 %.
+2. ~~**Bus de audio en coma flotante a 44.1 kHz**~~ (hecho y medido, sección 4).
 3. **Audio en dos núcleos**: dos tareas, cada una con la mitad de las voces (1.83× medido).
 4. **Pantalla**: SPI más rápido (hasta 30 MHz medido) y envío por DMA sin bloquear.
 5. **Compilador**: `-O2` en el audio, medido contra el espacio.
 6. **Reloj**: 360 MHz hoy (la batería no es prioridad); medir 396 MHz, el modo de sobrerreloj del propio SDK, con un cambio en tiempo de ejecución, porque el `isd_config` del paquete no se puede cambiar.
 7. **Memoria del programa**: datos grandes a la zona de datos, para hacer lugar a los motores nuevos.
 8. **Motores de calidad** (`docs/INVESTIGACION_SONIDO.md`), medidos voz por voz con el mismo perfil.
+
+## 4. Paso 2: los motores a 44.1 kHz y el bus en coma flotante
+
+Cambio: `BM_FS` de 22 059 a 44 118 Hz (sin sobremuestreo x2); la mezcla (`core/bm_dsp.c`) en float, canal por canal con las ganancias calculadas una vez por bloque y sin recorrer los canales en silencio (`bm_ctx.tact`); delay a Fs/2 en 16 bits con escritura promediada y lectura interpolada; captura de los punch-in en 16 bits (antes μ-law de 8); los kits de la ROM (22 kHz) se leen a medio paso con interpolación lineal o Hermite.
+
+| Sección | 22 kHz + entero (antes) | **44.1 kHz + float** |
+|---|---|---|
+| Mezcla y efectos, en reposo | 8.4 % | **4.8 %** |
+| Mezcla y efectos, con PLAY | 8.6 % | **7.3 %** (el doble de muestras) |
+| Canales, con PLAY (suma) | 14.7 % | 29.0 % (el doble de muestras, motores sin cambiar) |
+| **Total con PLAY** | 23.8 % | **36.9 %** de un núcleo; 0 bloques tarde; peor bloque 53 % del presupuesto |
+| RAM estática (`.ram0_bss`) | 180 KiB | 260 KiB (arena de 128 KiB: delay 64 + captura 64) |
+| Montón libre (`get_malloc_remain_heap_size`) | — | **192 KiB** |
+
+- El costo por muestra de la mezcla bajó a menos de la mitad (7.3 % con el doble de muestras contra 8.6 %).
+- Los motores cuestan el doble porque calculan el doble de muestras: siguen en entero de 64 bits. Pasarlos a float (1.5× medido) y repartirlos en los dos núcleos (1.83× medido) son los pasos 3 y 8.
+- `malloc` del SDK devuelve un puntero hasta para 512 KiB: no sirve para medir la memoria libre. La consola usa `get_malloc_remain_heap_size()` de `system.a`, desde la tarea principal (la consola corre en la interrupción del USB).
+- Pendiente para el paso 8: los kits KO-808/909 siguen grabados a 22 kHz en μ-law de 8 bits (no tienen nada arriba de 11 kHz). Hay que regenerarlos a 44.1 kHz y 16 bits en la zona de datos de la flash (paso 7).

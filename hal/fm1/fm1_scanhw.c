@@ -1,7 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Barrido de la matriz por interrupción (TIMER5, 4 kHz, una columna por interrupción ≈ 364
- * barridos completos por segundo) y LEDs de botones y teclas con brillo por tiempo encendido.
+/* Barrido de la matriz por interrupción (TIMER5, una columna cada 250 us ≈ 364 barridos
+ * completos por segundo) y LEDs de botones y teclas con brillo por tiempo encendido.
+ *
+ * Brillo: cada columna dura 250 us en dos tramos. Al empezar (tramo 0) se prenden los LEDs
+ * encendidos y los tenues; a los ~31 us (tramo 1) se apagan los tenues. Tenue = 1/8 del brillo,
+ * sin parpadeo porque cada LED se prende en cada barrido. (Antes el tenue se hacía saltando
+ * barridos: a 1/16 parpadeaba y a 1/2 no se distinguía del encendido; en el aparato las teclas
+ * de la batería se veían todas iguales.)
  *
  * Cada interrupción: lee las filas de la columna que se eligió en la anterior (ya asentadas),
  * se las pasa a fm1_scan (antirrebote y perillas, código portable probado en PC), apaga los
@@ -35,8 +41,9 @@ static const fm1_scan_map MAPA = {
 
 static fm1_scan scan;
 static uint8_t nivel[FM1_IDS];               /* LED_OFF, LED_DIM, LED_ON, LED_BLINK, LED_BREATH */
-static uint32_t vueltas, prd = 1;
-static volatile uint32_t ticks;
+static uint32_t vueltas, prd = 1, prd_tenue = 1, cnt_us = 1;
+static volatile uint32_t ticks, isr_n;
+static volatile uint8_t tramo, leds_llenos;
 static int en_marcha;
 
 #define PA_BIT(n) (1u << (n))
@@ -74,31 +81,30 @@ static inline void columna(uint32_t p)       /* 16 bits a los 74HC595, el bit 15
     JL_PORTA->OUT &= ~PA_BIT(1);
 }
 
-/* qué filas de la columna c se prenden en la vuelta v: brillo por fracción de vueltas */
-static uint8_t filas_led(uint32_t c, uint32_t v)
+/* filas de la columna c para la vuelta v: *todas = las que se prenden al empezar la columna,
+ * devuelve las que siguen prendidas después del tramo tenue */
+static uint8_t filas_led(uint32_t c, uint32_t v, uint8_t *todas)
 {
-    uint8_t m = 0;
+    uint8_t lleno = 0, tenue = 0;
     for (int r = 1; r <= 4; r++) {
         int id = MAPA.id[r][c];
         if (id < 0)
             continue;
-        uint8_t on;
+        uint8_t m = (uint8_t)(1u << r);
         switch (nivel[id]) {
-        case LED_ON: on = 1; break;
-        /* el brillo se hace saltando barridos; con ~364 barridos/s, saltar de a 1 (182 Hz) no se
-         * ve, saltar de a 16 (22 Hz) se veía como parpadeo (primera prueba en el aparato) */
-        case LED_DIM: on = (v & 1u) == 0; break;                  /* 1/2 */
-        case LED_BLINK: on = (v / 91u) & 1u; break;               /* ~2 Hz: parpadeo a propósito */
-        case LED_BREATH: {
-            uint32_t t = (v / 4u) & 255u, b = t < 128u ? t : 255u - t;   /* triángulo de ~2.8 s */
-            on = (v & 1u) == 0 || b > 64u; break;                 /* tenue <-> encendido, sin bajar de 182 Hz */
+        case LED_ON: lleno |= m; break;
+        case LED_DIM: tenue |= m; break;
+        case LED_BLINK: if ((v / 91u) & 1u) lleno |= m; break;            /* ~2 Hz: parpadeo a propósito */
+        case LED_BREATH: {                                              /* de tenue a encendido, ~2.8 s */
+            uint32_t t = (v / 4u) & 255u, b = t < 128u ? t : 255u - t;  /* 0..127 */
+            if (((v * 37u) & 127u) < b) lleno |= m; else tenue |= m;    /* fracción de vueltas a pleno */
+            break;
         }
-        default: on = 0;
+        default: break;
         }
-        if (on)
-            m |= (uint8_t)(1u << r);
     }
-    return m;
+    *todas = (uint8_t)(lleno | tenue);
+    return lleno;
 }
 
 static ___interrupt void scan_isr(void)
@@ -106,14 +112,24 @@ static ___interrupt void scan_isr(void)
     if (!(JL_TIMER5->CON & BIT(15)))
         return;
     JL_TIMER5->CON |= BIT(14);
-    uint8_t sig = fm1_scan_column(&scan, filas());
+    isr_n++;
+    if (tramo == 1) {                         /* fin del tramo tenue: quedan los encendidos */
+        leds(leds_llenos);
+        JL_TIMER5->PRD = prd - prd_tenue;
+        tramo = 0;
+        return;
+    }
+    uint8_t todas, sig = fm1_scan_column(&scan, filas());
     leds(0);
     columna(sig);
     ticks++;
     if (sig == 0)
         vueltas++;
-    leds(filas_led(sig, vueltas));
-    uint32_t us = JL_TIMER5->CNT * 250u / prd;               /* lo que tardó esta interrupción */
+    leds_llenos = filas_led(sig, vueltas, &todas);
+    leds(todas);
+    JL_TIMER5->PRD = prd_tenue;
+    tramo = 1;
+    uint32_t us = JL_TIMER5->CNT / cnt_us;                   /* lo que tardó esta interrupción */
     if (us > fm1_stat[FM1_STAT_SCANISR_MAX])
         fm1_stat[FM1_STAT_SCANISR_MAX] = us;
 }
@@ -130,6 +146,9 @@ void fm1_scan_start(void)
         psc = 1;
     }
     prd = prd ? prd : 1;
+    prd_tenue = prd / 8u ? prd / 8u : 1u;
+    cnt_us = prd / 250u ? prd / 250u : 1u;
+    tramo = 0;
     request_irq(IRQ_TIMER5_IDX, 3, scan_isr, 0);
     JL_TIMER5->CON = BIT(14);
     JL_TIMER5->CNT = 0;
@@ -137,6 +156,19 @@ void fm1_scan_start(void)
     JL_TIMER5->CON |= psc << 4;
     JL_TIMER5->CON |= BIT(0);
     en_marcha = 1;
+}
+
+void fm1_scan_pause(int on)
+{
+    static uint32_t con;
+    if (!en_marcha)
+        return;
+    if (on) {
+        con = JL_TIMER5->CON;
+        JL_TIMER5->CON = BIT(14);             /* parado y sin aviso pendiente */
+    } else {
+        JL_TIMER5->CON = (con & ~BIT(15)) | BIT(14);
+    }
 }
 
 void fm1_scan_stop(void)
@@ -171,19 +203,23 @@ int fm1_scan_is_down(int id)
 
 uint32_t fm1_scan_ticks(void) { return ticks; }
 
-/* microsegundos desde que arrancó el barrido: interrupciones * 250 + lo que va de la actual */
+/* microsegundos desde que arrancó el barrido: columnas * 250 + lo que va de la actual */
 uint32_t fm1_scan_now_us(void)
 {
-    uint32_t a, c, b, pend;
+    uint32_t a, c, b, pend, f, us;
     do {
-        a = ticks;
+        a = isr_n;
         c = JL_TIMER5->CNT;
         pend = JL_TIMER5->CON & BIT(15);
-        b = ticks;
+        f = tramo;
+        us = ticks * 250u;
+        b = isr_n;
     } while (a != b);
-    if (pend && c < prd / 2u)                 /* dio la vuelta y la interrupción todavía no la contó */
-        a++;
-    return a * 250u + c * 250u / prd;
+    if (f == 1)                               /* en el tramo tenue */
+        us += pend ? prd_tenue / cnt_us : c / cnt_us;
+    else                                      /* en el resto de la columna */
+        us += pend ? 250u : (prd_tenue + c) / cnt_us;
+    return us;
 }
 
 void fm1_scan_led(int id, uint8_t level)

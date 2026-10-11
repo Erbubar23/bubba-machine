@@ -531,17 +531,13 @@ static void test_layers(void)
     shot("46-ask");
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(app.ask == ASK_NONE);
-    /* REC 2 s: pregunta y borra el canal */
+    /* REC 2 s: borra el canal sin preguntar (HOME + OCT- lo deshace) */
     ch(0);
     down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);
-    CHECK(app.ask == ASK_CLEAR);
-    btn(BTN_OCT_UP, 20);
+    CHECK(app.ask == ASK_NONE && app.view == V_CH);
     any = 0;
     for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
     CHECK(!any);
-    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);
-    btn(BTN_HOME, 30);                                        /* HOME = no */
-    CHECK(app.ask == ASK_NONE && app.view == V_CH);
 }
 
 static void test_free_engines(void)

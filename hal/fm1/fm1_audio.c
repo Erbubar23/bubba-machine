@@ -33,6 +33,7 @@ static int32_t *buf;
 static uint32_t half_words;
 static fm1_audio_render render;
 static volatile uint32_t halves, late, seq;
+static volatile uint8_t calculando;
 static volatile uint8_t libre;
 static int en_marcha, tarea, mudo;
 static OS_SEM sem;
@@ -70,11 +71,13 @@ static void audio_task(void *p)
         os_sem_pend(&sem, 0);
         uint32_t s = seq, t0 = fm1_scan_now_us();
         int32_t *h = buf + (uint32_t)libre * half_words;
+        calculando = 1;
         if (render && en_marcha)
             render(h, half_words / 2u);
         else
             memset(h, 0, half_words * 4u);
         halves++;
+        calculando = 0;
         uint32_t dt = fm1_scan_now_us() - t0;
         if (dt > 1000000u)
             dt = 0;                                       /* el reloj no anda (barrido apagado) */
@@ -156,6 +159,23 @@ void fm1_audio_stop(void)
     if (!mudo)
         JL_ALNK0->CON0 &= ~0x800u;                        /* sin DMA: nada de zumbido repetido */
     en_marcha = 0;
+}
+
+/* pausa para escribir la flash: sin DMA no hay interrupción; se espera a que la tarea termine el
+ * bloque que esté calculando (código en la flash). Al volver, silencio y DMA de nuevo. */
+void fm1_audio_pause(int on)
+{
+    if (!en_marcha || mudo)
+        return;
+    if (on) {
+        JL_ALNK0->CON0 &= ~0x800u;
+        for (int i = 0; i < 20 && calculando; i++)
+            os_time_dly(1);
+    } else {
+        memset(buf, 0, half_words * 2u * 4u);
+        JL_ALNK0->CON2 = 0x0Fu;
+        JL_ALNK0->CON0 |= 0x800u;
+    }
 }
 
 uint32_t fm1_audio_halves(void) { return halves; }

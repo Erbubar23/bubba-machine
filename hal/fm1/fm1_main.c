@@ -130,6 +130,45 @@ static void midi_bombear(void)
     }
 }
 
+
+/* ------------------------------------------------------------------ migas de pan */
+/* Dos caracteres en la esquina inferior derecha que dicen en qué paso está la tarea principal.
+ * Si el aparato se cuelga, la pantalla se queda mostrando el último (sin USB ni consola, es lo
+ * único que se puede leer). Solo desde la tarea principal: es la que usa la pantalla. */
+static int migas_on;
+
+void fm1_miga(const char *c)
+{
+    static uint16_t px[9 * 12];
+    if (!migas_on)
+        return;
+    for (int i = 0; i < 9 * 12; i++)
+        px[i] = 0x0000u;
+    for (int k = 0; k < 2 && c[k]; k++) {
+        const uint8_t *g = bm_font5x7[(uint8_t)c[k] - 32u];
+        for (int y = 0; y < 7; y++)
+            for (int x = 0; x < 5; x++)
+                if ((g[y] >> (4 - x)) & 1u)
+                    px[(y + 1) * 12 + k * 6 + x + 1] = C_YELLOW;
+    }
+    fm1_lcd_blit(NULL, 228, 231, 12, 9, px);
+}
+
+/* ------------------------------------------------------------------ flash */
+void fm1_quiet(int on)                       /* fm1_flash.c: antes y después de borrar o escribir */
+{
+    static int n;
+    if (on) {
+        if (n++ == 0) {
+            fm1_audio_pause(1);
+            fm1_scan_pause(1);
+        }
+    } else if (n && --n == 0) {
+        fm1_scan_pause(0);
+        fm1_audio_pause(0);
+    }
+}
+
 /* ------------------------------------------------------------------ plataforma */
 static void led(void *u, int id, uint8_t level) { (void)u; fm1_scan_led(id, level); }
 static const uint8_t *mapa(void *u, uint32_t a) { (void)u; return fm1_flash_map(a); }
@@ -425,28 +464,38 @@ static void bubba_task(void *p)
         modo = FM1_BOOT_NORMAL;
     }
 
+    migas_on = 1;
+    fm1_miga("A0");
     bm_platform pf = {fm1_lcd_blit, led, midi_out, mapa, &FLASH, NULL};
     fm1_flash_plain_window();                /* por si el SDK la volvió a poner desde su almacén */
     t0 = timer_get_ms();
     fm1_stat[FM1_STAT_VERSION] = 0x000300u | (uint32_t)sin_audio << 24;
+    fm1_miga("A1");
     bm_app_init(&app, &pf, t0);
+    fm1_miga("A2");
     fm1_boot_stage(E_NUCLEO);
+    fm1_miga("A3");
     bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
     bm_app_battery(&app, 100);               /* sin curva medida todavía: ver README_PORT.md */
     if (!lab_scan)
         fm1_scan_start();
+    fm1_miga("A4");
     fm1_boot_stage(E_TECLAS);
+    fm1_miga("A5");
     fm1_log("nucleo listo, barrido en marcha");
     if (sin_audio)
         fm1_audio_start_mute(dma, HALF_FRAMES, render);
     else
         fm1_audio_start(dma, HALF_FRAMES, render);
+    fm1_miga("A6");
     fm1_log(sin_audio ? "audio sin salida" : "audio ALNK0 en marcha");
     fm1_boot_stage(E_AUDIO);
+    fm1_miga("A7");
     fm1_log("etapa AUDIO anotada");
 
     for (;;) {
         uint32_t t = timer_get_ms();
+        fm1_miga("L1");
         while ((id = fm1_scan_edge(&down)) >= 0) {
             if (id < BTN_COUNT)
                 bm_app_button(&app, id, down, t);
@@ -454,7 +503,7 @@ static void bubba_task(void *p)
                 bm_app_key(&app, id - BM_LED_KEY0, down, t);
         }
         for (int e = 0; e < 7; e++) {
-            int d = fm1_scan_encoder(e);
+            int d = -fm1_scan_encoder(e);    /* el sentido de la cuadratura es el contrario (probado en el aparato) */
             if (d)
                 bm_app_encoder(&app, ENC_ROLE[e], d, t);
         }
@@ -469,14 +518,19 @@ static void bubba_task(void *p)
         } else {
             combo_t0 = 0;
         }
+        fm1_miga("L3");
         midi_bombear();
+        fm1_miga("L4");
         fm1_update_poll(paso_actualizacion);
+        fm1_miga("L5");
         if ((int32_t)(t - next_adc) >= 0) {
             next_adc = t + 10u;
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
         }
         uint32_t u0 = fm1_scan_now_us();
+        fm1_miga("L6");
         bm_app_tick(&app, t);
+        fm1_miga("L7");
         uint32_t du = fm1_scan_now_us() - u0;
         fm1_stat[FM1_STAT_UI_LAST] = du;
         if (du > fm1_stat[FM1_STAT_UI_MAX])
@@ -491,6 +545,7 @@ static void bubba_task(void *p)
             fm1_boot_stage(E_1S);
         if (t - t0 > 5000u)
             fm1_boot_stage(E_5S);
+        fm1_miga("L8");
         if (!ok && t - t0 > OK_MS) {         /* 10 s andando: este arranque fue bueno */
             fm1_boot_ok();
             ok = 1;

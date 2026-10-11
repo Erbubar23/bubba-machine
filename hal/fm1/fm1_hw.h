@@ -59,7 +59,9 @@ enum {
 #define FM1_VM_LEN      0x008000u      /* empaquetador para que no se mezcle con los datos */
 
 int  fm1_flash_init(void);
-void fm1_flash_plain_window(void);                        /* la zona de datos se lee sin descifrar por XIP */
+void fm1_flash_plain_window(void);
+void fm1_quiet(int on);
+void fm1_miga(const char *c);                             /* paso actual, en una esquina de la pantalla */                                   /* pausa barrido y audio mientras se escribe la flash */                        /* la zona de datos se lee sin descifrar por XIP */
 int  fm1_flash_read(uint32_t a, void *d, uint32_t n);
 int  fm1_flash_erase(uint32_t a);                         /* sector de 4 KiB */
 int  fm1_flash_prog(uint32_t a, const void *s, uint32_t n);
@@ -96,6 +98,8 @@ typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 2
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* dma: 2 mitades */
 void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* sin ALNK0 */
 void fm1_audio_stop(void);
+void fm1_audio_pause(int on);                             /* DMA e interrupción en pausa, sin rearmar el codec */
+void fm1_scan_pause(int on);
 uint32_t fm1_audio_halves(void);                          /* medios buffers calculados */
 uint32_t fm1_audio_late(void);                            /* medios buffers que llegaron tarde (silencio) */
 uint32_t fm1_scan_ticks(void);                            /* interrupciones del barrido (250 us cada una) */
@@ -104,7 +108,8 @@ uint32_t fm1_scan_ticks(void);                            /* interrupciones del 
 void fm1_midi_init(void);
 int  fm1_midi_ready(void);                                /* configurado por el host */
 int  fm1_midi_on(void);                                   /* controlador encendido */
-int  fm1_midi_send(const uint8_t *msg, uint32_t n);       /* mensajes MIDI completos (SysEx incluido) */
+int  fm1_midi_send(const uint8_t *msg, uint32_t n);       /* mensajes MIDI completos (SysEx incluido); no espera */
+uint32_t fm1_midi_lost(void);                             /* eventos descartados porque el computador no leía */
 int  fm1_midi_get_sysex(uint8_t *buf, uint32_t max);      /* un SysEx completo F0..F7, o 0 */
 int  fm1_midi_get_short(uint8_t msg[3]);                  /* un mensaje corto, o 0 */
 

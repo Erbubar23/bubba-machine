@@ -8,7 +8,14 @@
  * controlador repite la de apps/common/usb/device/usb_device.c del SDK (Apache-2.0).
  *
  * La interrupción solo guarda los paquetes de 4 bytes que llegan; el armado de SysEx y de
- * mensajes cortos, y el envío, se hacen desde las tareas.
+ * mensajes cortos se hace desde las tareas.
+ *
+ * El envío nunca espera: los eventos van a una cola y salen de a un paquete (64 bytes) cuando el
+ * anterior ya salió, desde la interrupción de "paquete enviado" del endpoint (el patrón de la
+ * clase HID del SDK, hid.c). Si el computador no lee (ningún programa con el puerto abierto), la
+ * cola se llena y lo nuevo se descarta. Antes se usaba usb_g_bulk_write, que espera hasta 200 ms
+ * por paquete: con el MIDI clock del núcleo el bucle principal nunca salía de ahí (en el aparato,
+ * pantalla congelada en el paso L3 y la enumeración fallando).
  *
  * El controlador se enciende apenas arranca el firmware (fm1_midi_init), sin esperar el aviso
  * de "computador conectado" de la detección del SDK: en el aparato ese aviso no llegó nunca
@@ -104,13 +111,44 @@ static void midi_rx(struct usb_device_t *usb_device, u32 ep)
     }
 }
 
+/* ------------------------------------------------------------------ cola de envío */
+#define TXQ 1024u                              /* bytes: 256 eventos de 4 */
+static u8 txq[TXQ];
+static volatile u16 tx_w, tx_r;
+static volatile u8 tx_ocupado;
+static volatile u32 tx_perdidos;
+
+/* carga el siguiente paquete si el endpoint está libre (desde la tarea o la interrupción) */
+static void tx_patear(void)
+{
+    u32 n = 0;
+    if (!configurada || tx_ocupado || tx_r == tx_w)
+        return;
+    while (tx_r != tx_w && n < MIDI_MAXP) {
+        ep_in_dma[n++] = txq[tx_r];
+        tx_r = (u16)((tx_r + 1u) % TXQ);
+    }
+    tx_ocupado = 1;
+    usb_set_intr_txe(USB_ID, MIDI_EP);
+    usb_g_bulk_write(USB_ID, MIDI_EP, NULL, n);   /* el endpoint está libre: no espera */
+}
+
+static void midi_tx(struct usb_device_t *usb_device, u32 ep)
+{
+    tx_ocupado = 0;
+    tx_patear();
+}
+
 static void midi_endpoints(struct usb_device_t *usb_device, u32 itf)
 {
     usb_g_ep_config(USB_ID, MIDI_EP | USB_DIR_IN, USB_ENDPOINT_XFER_BULK, 0, ep_in_dma, MIDI_MAXP);
     usb_g_ep_config(USB_ID, MIDI_EP | USB_DIR_OUT, USB_ENDPOINT_XFER_BULK, 1, ep_out_dma, MIDI_MAXP);
     usb_g_set_intr_hander(USB_ID, MIDI_EP | USB_DIR_OUT, midi_rx);
+    usb_g_set_intr_hander(USB_ID, MIDI_EP | USB_DIR_IN, midi_tx);
     usb_enable_ep(USB_ID, MIDI_EP);
     rx_w = rx_r = 0;
+    tx_w = tx_r = 0;
+    tx_ocupado = 0;
     configurada = 1;
 }
 
@@ -250,24 +288,15 @@ int fm1_midi_on(void) { return encendida; }
 int fm1_midi_ready(void) { return configurada; }
 
 /* ------------------------------------------------------------------ envío */
-static u8 tx_pkt[MIDI_MAXP];
-static u32 tx_n;
-
-static void tx_flush(void)
-{
-    if (tx_n && configurada)
-        usb_g_bulk_write(USB_ID, MIDI_EP, tx_pkt, tx_n);
-    tx_n = 0;
-}
-
 static void tx_put(u8 cin, u8 a, u8 b, u8 c)
 {
-    tx_pkt[tx_n++] = cin;
-    tx_pkt[tx_n++] = a;
-    tx_pkt[tx_n++] = b;
-    tx_pkt[tx_n++] = c;
-    if (tx_n == MIDI_MAXP)
-        tx_flush();
+    u16 w = tx_w, nx = (u16)((w + 4u) % TXQ);
+    if (nx == tx_r || (u16)((w + 4u) % TXQ) == tx_r) {
+        tx_perdidos++;                         /* cola llena: el computador no está leyendo */
+        return;
+    }
+    txq[w] = cin; txq[w + 1u] = a; txq[w + 2u] = b; txq[w + 3u] = c;
+    tx_w = nx;
 }
 
 int fm1_midi_send(const uint8_t *m, uint32_t n)
@@ -275,6 +304,7 @@ int fm1_midi_send(const uint8_t *m, uint32_t n)
     uint32_t i = 0;
     if (!configurada || !n)
         return -1;
+    CPU_CRITICAL_ENTER();
     if (m[0] == 0xF0) {                        /* SysEx: de a 3 bytes, el último paquete dice cuántos */
         while (n - i > 3) {
             tx_put(0x04, m[i], m[i + 1], m[i + 2]);
@@ -291,9 +321,12 @@ int fm1_midi_send(const uint8_t *m, uint32_t n)
     } else if (m[0] >= 0xF8) {
         tx_put(0x0F, m[0], 0, 0);
     }
-    tx_flush();
+    tx_patear();
+    CPU_CRITICAL_EXIT();
     return 0;
 }
+
+uint32_t fm1_midi_lost(void) { return tx_perdidos; }
 
 /* ------------------------------------------------------------------ recepción */
 #define SYX_MAX 1024

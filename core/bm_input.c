@@ -1747,8 +1747,9 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             a->rec_hold = 0;
             if (k == G_LONG) {
                 if (a->view == V_CH && a->page == PG_LOOP) { app_push(a, CMD_LOOP, a->track, 2, 0); app_toast(a, "LOOP BORRADO"); return; }
-                snprintf(b, sizeof b, "BORRAR T%d %s?", a->track + 1, bm_track_name(a, a->track));
-                app_ask(a, ASK_CLEAR, a->track, 0, b, "HOME+OCT- LO DESHACE");
+                app_clear_track(a, a->track);   /* sin preguntar: HOME + OCT- lo deshace */
+                snprintf(b, sizeof b, "T%d BORRADO", a->track + 1);
+                app_toast(a, b);
             }
         }
         return;

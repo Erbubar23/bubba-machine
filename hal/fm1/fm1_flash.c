@@ -21,6 +21,14 @@
 
 static int abierta;
 
+/* Mientras el SDK borra o programa, apaga las interrupciones de su núcleo y estaciona al otro
+ * en RAM (cpu_enter_sfc_critical: le manda una interrupción y espera a que conteste). Nuestras
+ * interrupciones (barrido y audio) corren desde la flash; en el aparato, escribir la flash con
+ * Bubba sonando se colgaba a veces justo ahí (registro de arranques: cada cuelgue en la escritura
+ * siguiente). Por eso se pausan antes y se reanudan después, como hacen Felucca y X0X. */
+__attribute__((weak)) void fm1_quiet(int on) { (void)on; }
+__attribute__((weak)) void fm1_miga(const char *c) { (void)c; }
+
 void fm1_flash_plain_window(void)
 {
     CPU_CRITICAL_ENTER();
@@ -65,9 +73,15 @@ int fm1_flash_erase(uint32_t a)
     if ((a & 0xFFFu) || !dentro(a, 0x1000u))
         return -1;
     fm1_flash_init();
+    fm1_miga("E1");
+    fm1_quiet(1);
+    fm1_miga("E2");
     norflash_ioctl(NULL, IOCTL_SET_WRITE_PROTECT, 0);
     int r = norflash_ioctl(NULL, IOCTL_ERASE_SECTOR, a) < 0 ? -1 : 0;
+    fm1_miga("E3");
     inval(a, 0x1000u);
+    fm1_quiet(0);
+    fm1_miga("E4");
     return r;
 }
 
@@ -78,9 +92,15 @@ int fm1_flash_prog(uint32_t a, const void *s, uint32_t n)
     if (!dentro(a, n))
         return -1;
     fm1_flash_init();
+    fm1_miga("W1");
+    fm1_quiet(1);
+    fm1_miga("W2");
     norflash_ioctl(NULL, IOCTL_SET_WRITE_PROTECT, 0);
     int r = norflash_write(NULL, (void *)s, n, a) < 0 ? -1 : 0;
+    fm1_miga("W3");
     inval(a, n);
+    fm1_quiet(0);
+    fm1_miga("W4");
     return r;
 }
 

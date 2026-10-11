@@ -36,6 +36,7 @@ static const fm1_scan_map MAPA = {
 static fm1_scan scan;
 static uint8_t nivel[FM1_IDS];               /* LED_OFF, LED_DIM, LED_ON, LED_BLINK, LED_BREATH */
 static uint32_t vueltas;
+static volatile uint32_t ticks;
 static int en_marcha;
 
 #define PA_BIT(n) (1u << (n))
@@ -106,6 +107,7 @@ static ___interrupt void scan_isr(void)
     uint8_t sig = fm1_scan_column(&scan, filas());
     leds(0);
     columna(sig);
+    ticks++;
     if (sig == 0)
         vueltas++;
     leds(filas_led(sig, vueltas));
@@ -159,6 +161,8 @@ int fm1_scan_is_down(int id)
 {
     return id >= 0 && id < FM1_IDS && ((scan.down_bits[id >> 5] >> (id & 31)) & 1u);
 }
+
+uint32_t fm1_scan_ticks(void) { return ticks; }
 
 void fm1_scan_led(int id, uint8_t level)
 {

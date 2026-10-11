@@ -216,6 +216,7 @@ static void diag_task(void *p)
     d.t0 = timer_get_ms();
     fm1_lcd_init();
     fm1_midi_init();
+    fm1_boot_stage(1);
     adc_add_sample_ch(FM1_ADC_MASTER);
     adc_add_sample_ch(FM1_ADC_BATT);
     scr.force = 1;

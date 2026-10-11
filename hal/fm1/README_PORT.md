@@ -102,6 +102,15 @@ Al empezar una actualización el firmware calla el audio y deja la pantalla al s
 | Audio: codec externo por ALNK0 canal 3, 24 bits, 24 MHz / 544; líneas del codec PC0, PC1, PC2 y PC6; grupo de pines y fuente de reloj de ALNK0; avisos de medio buffer | Felucca (`fm1_audio.h`); registros `JL_ALNK0`, `JL_CLOCK`, `JL_IOMAP` del SDK |
 | Botones por serigrafía (OCT− 0, OCT+ 1, FX 2 … PLAY 12, REC 13) y perillas (SELECT 0, ALGORITHM 1, KNOB 1-4 2-5, PRESETS 6) | Felucca (`panel.c`: PLAY y REC medidos, el resto por serigrafía) |
 
+## Primera prueba en el aparato (2026-10-11)
+
+- El instalador web y el cargador oficial escribieron Bubba Machine sin problema (el cargador aparece como USB `4D4A:4155`).
+- Bubba Machine arrancó en **modo seguro**: el modo normal se cayó dos veces seguidas y la red de seguridad funcionó (pantalla, flash y registro de arranques andan).
+- El USB del firmware **no apareció nunca**, ni en modo seguro: esperaba el aviso de "computador conectado" de la detección del SDK, que no llegó. Corregido: el controlador se enciende al arrancar (`fm1_usb_midi.c`).
+- El modo normal probablemente se quedaba sin tiempo con el render dentro de la interrupción (reinicio del perro guardián). Corregido: el render pasa a una tarea con freno (`fm1_audio.c`).
+- Para la próxima: cada arranque anota hasta qué etapa llegó y cómo terminó, y el modo seguro lo muestra. Desde el modo seguro, PLAY arranca sin salida de audio.
+- Sin USB, la vuelta es por el modo del chip (OCT− + OCT+ 5 s) y `tools/fm1/rescate.py`.
+
 ## Lo que se mide en la primera prueba
 
 1. **Audio**: que el codec arranque con la secuencia de ALNK0 y que el render quepa en 5.8 ms por medio buffer. Si no cabe, se oye entrecortado: el arreglo es subir el reloj del sistema o el medio buffer.

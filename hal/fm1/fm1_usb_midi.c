@@ -8,7 +8,13 @@
  * controlador repite la de apps/common/usb/device/usb_device.c del SDK (Apache-2.0).
  *
  * La interrupción solo guarda los paquetes de 4 bytes que llegan; el armado de SysEx y de
- * mensajes cortos, y el envío, se hacen desde las tareas. */
+ * mensajes cortos, y el envío, se hacen desde las tareas.
+ *
+ * El controlador se enciende apenas arranca el firmware (fm1_midi_init), sin esperar el aviso
+ * de "computador conectado" de la detección del SDK: en el aparato ese aviso no llegó nunca
+ * (primera prueba, 2026-10-11: ni el modo seguro apareció en el computador). El FM-1 siempre es
+ * dispositivo; con la pull-up puesta y sin computador, no pasa nada. La detección sigue
+ * registrada (el SDK la necesita para el reloj del USB) pero ya no apaga ni reinicia nada. */
 #include "app_config.h"
 #include "system/includes.h"
 #include "usb/device/usb_stack.h"
@@ -175,7 +181,7 @@ static void usb_arranca(void)
     encendida = 1;
 }
 
-static void usb_para(void)
+static void __attribute__((unused)) usb_para(void)
 {
     if (!encendida)
         return;
@@ -186,7 +192,8 @@ static void usb_para(void)
     encendida = 0;
 }
 
-/* la detección del SDK (dispositivo "otg") avisa cuando hay un computador del otro lado */
+/* la detección del SDK (dispositivo "otg"): si avisa que hay computador y el USB no estaba
+ * encendido, se enciende; el aviso de que se fue no apaga nada */
 static void otg_evento(struct sys_event *e)
 {
     struct device_event *ev = (struct device_event *)e->payload;
@@ -195,13 +202,14 @@ static void otg_evento(struct sys_event *e)
         return;
     if (ev->event == DEVICE_EVENT_IN)
         usb_arranca();
-    else if (ev->event == DEVICE_EVENT_OUT)
-        usb_para();
 }
 
-/* lo mismo que el SDK en usb_device.c: la detección lo usa para esperar el SOF del computador */
+/* lo mismo que el SDK en usb_device.c: la detección lo usa para esperar el SOF del computador.
+ * Con el controlador ya encendido no se toca nada (reiniciarlo cortaría la conexión). */
 u32 usb_otg_sof_check_init(const usb_dev id)
 {
+    if (encendida)
+        return 1;
     if (!ep0_dma)
         ep0_dma = usb_alloc_ep_dmabuffer(id, 0, 64);
     usb_g_sie_init(id);
@@ -219,7 +227,10 @@ u32 usb_otg_sof_check_init(const usb_dev id)
 void fm1_midi_init(void)
 {
     register_sys_event_handler(SYS_DEVICE_EVENT, DEVICE_EVENT_FROM_OTG, 2, otg_evento);
+    usb_arranca();
 }
+
+int fm1_midi_on(void) { return encendida; }
 
 int fm1_midi_ready(void) { return configurada; }
 

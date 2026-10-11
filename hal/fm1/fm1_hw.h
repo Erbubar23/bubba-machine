@@ -69,6 +69,9 @@ enum { FM1_BOOT_NORMAL, FM1_BOOT_SAFE };
 int  fm1_boot_begin(int keys_safe);       /* devuelve FM1_BOOT_*; puede no volver (modo del chip) */
 void fm1_boot_ok(void);                   /* llamar cuando el firmware lleva un rato bien */
 uint32_t fm1_boot_fails(void);
+void fm1_boot_stage(int n);               /* etapa n (1..8) alcanzada en este arranque */
+enum { FM1_RST_NONE = 0xFF, FM1_RST_POWER = 1, FM1_RST_WDT = 2, FM1_RST_SOFT = 3, FM1_RST_OTHER = 4 };
+int  fm1_boot_past(int k, uint8_t *etapa, uint8_t *fin, uint8_t *ok);   /* k = 1: el arranque anterior */
 void fm1_enter_uboot(void);               /* modo de actualización del chip (USB 4C4A:8057); no vuelve */
 
 /* ---------------------------------------------------------------- pantalla */
@@ -90,12 +93,16 @@ void fm1_scan_led(int id, uint8_t level);                 /* LED_OFF..LED_BREATH
 /* ---------------------------------------------------------------- audio: ALNK0 -> codec */
 typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 24 bits a la izquierda */
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* dma: 2 mitades */
+void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* sin ALNK0 */
 void fm1_audio_stop(void);
-uint32_t fm1_audio_halves(void);
+uint32_t fm1_audio_halves(void);                          /* medios buffers calculados */
+uint32_t fm1_audio_late(void);                            /* medios buffers que llegaron tarde (silencio) */
+uint32_t fm1_scan_ticks(void);                            /* interrupciones del barrido (250 us cada una) */
 
 /* ---------------------------------------------------------------- USB-MIDI */
 void fm1_midi_init(void);
 int  fm1_midi_ready(void);                                /* configurado por el host */
+int  fm1_midi_on(void);                                   /* controlador encendido */
 int  fm1_midi_send(const uint8_t *msg, uint32_t n);       /* mensajes MIDI completos (SysEx incluido) */
 int  fm1_midi_get_sysex(uint8_t *buf, uint32_t max);      /* un SysEx completo F0..F7, o 0 */
 int  fm1_midi_get_short(uint8_t msg[3]);                  /* un mensaje corto, o 0 */

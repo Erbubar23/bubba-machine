@@ -12,7 +12,12 @@
  *
  * Salidas de emergencia, las mismas del diagnóstico (fm1_boot.c): dos arranques fallidos =
  * modo seguro (sin sonido ni núcleo, solo pantalla y USB para reinstalar); cuatro = modo de
- * actualización del chip; OCT- y OCT+ juntos 5 s = modo del chip. */
+ * actualización del chip; OCT- y OCT+ juntos 5 s = modo del chip.
+ *
+ * Cada arranque anota hasta qué etapa llegó (E_*) y el modo seguro muestra las de los arranques
+ * anteriores y cómo terminaron (apagado, perro guardián, reinicio por falla). Desde el modo
+ * seguro, PLAY arranca Bubba Machine sin salida de audio (el núcleo corre igual, callado): así
+ * se separa una falla del audio de una del resto. */
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -36,6 +41,10 @@ const struct task_info task_info_table[] = {
 #define HALF_FRAMES 256u                     /* múltiplo de BM_BLOCK * BM_OVERSAMPLE */
 #define OK_MS       10000u                   /* tanto andando bien = el arranque fue bueno */
 #define UBOOT_MS    5000u                    /* OCT- y OCT+ juntos: modo del chip */
+
+enum { E_PANTALLA = 1, E_NUCLEO, E_TECLAS, E_AUDIO, E_SONANDO, E_1S, E_5S };
+static const char *const ETAPA[9] = {"ANTES DE LA PANTALLA", "PANTALLA Y USB", "NUCLEO LISTO", "TECLAS",
+                                     "AUDIO INICIADO", "AUDIO SONANDO", "1 S ANDANDO", "5 S ANDANDO", "5 S ANDANDO"};
 
 static bm_app app;
 static int32_t dma[2 * HALF_FRAMES * 2];
@@ -130,14 +139,34 @@ static void dibujar_aviso(bm_gfx *g, void *u)
     gfx_text(g, 8, 8, "BUBBA MACHINE", C_YELLOW, 2);
     gfx_text(g, 8, 28, BM_VERSION_STR " - " FM1_IDENT, C_GREY, 1);
     if (seguro) {
-        gfx_text(g, 8, 52, "MODO SEGURO", C_ORANGE, 2);
-        gfx_text(g, 8, 76, "NO ARRANCO BIEN DOS VECES:", C_WHITE, 1);
-        gfx_text(g, 8, 88, "SIN SONIDO, USB ACTIVO.", C_WHITE, 1);
-        gfx_text(g, 8, 108, "REINSTALA O VUELVE AL DE FABRICA", C_GREY, 1);
-        gfx_text(g, 8, 120, "DESDE EL INSTALADOR WEB.", C_GREY, 1);
-        gfx_text(g, 8, 140, "APAGA Y PRENDE: SE INTENTA DE NUEVO.", C_GREY, 1);
-        gfx_text(g, 8, 160, fm1_midi_ready() ? "USB: MIDI LISTO" : "USB: SIN COMPUTADOR",
+        static const char *const FIN[] = {"-", "APAGADO", "PERRO GUARDIAN", "REINICIO POR FALLA", "OTRO"};
+        char b[48];
+        gfx_text(g, 8, 44, "MODO SEGURO", C_ORANGE, 2);
+        gfx_text(g, 8, 64, "SIN SONIDO, USB ACTIVO. INSTALADOR WEB:", C_WHITE, 1);
+        gfx_text(g, 8, 74, "REINSTALAR O VOLVER AL DE FABRICA.", C_WHITE, 1);
+        gfx_text(g, 8, 90, "ARRANQUES ANTERIORES:", C_GREY, 1);
+        for (int k = 1; k <= 3; k++) {
+            uint8_t e, fin, ok;
+            char *p = b;
+            if (!fm1_boot_past(k, &e, &fin, &ok))
+                break;
+            *p++ = (char)('0' + k);
+            *p++ = ' ';
+            for (const char *q = ETAPA[e > 8 ? 8 : e]; *q;)
+                *p++ = *q++;
+            *p = 0;
+            gfx_text(g, 8, 80 + k * 22, b, ok ? C_GREEN : C_YELLOW, 1);
+            p = b;
+            for (const char *q = "  FIN: "; *q;)
+                *p++ = *q++;
+            for (const char *q = ok ? "BIEN" : FIN[fin >= 1 && fin <= 4 ? fin : 0]; *q;)
+                *p++ = *q++;
+            *p = 0;
+            gfx_text(g, 8, 90 + k * 22, b, C_GREY, 1);
+        }
+        gfx_text(g, 8, 160, fm1_midi_ready() ? "USB: MIDI LISTO" : fm1_midi_on() ? "USB: ESPERANDO AL COMPUTADOR" : "USB: APAGADO",
                  fm1_midi_ready() ? C_GREEN : C_GREY, 1);
+        gfx_text(g, 8, 172, "PLAY: ARRANCAR SIN SALIDA DE AUDIO", C_CYAN, 1);
     }
     if (upd_step) {
         static const char *const PASO[] = {"", "LEYENDO PAQUETE", "REVISANDO ARRANQUE", "COPIANDO CARGADOR",
@@ -155,7 +184,7 @@ static void dibujar_aviso(bm_gfx *g, void *u)
     }
 }
 
-static int modo;
+static int modo, sin_audio;
 
 static void paso_actualizacion(int step, int code)
 {
@@ -173,12 +202,16 @@ static void paso_actualizacion(int step, int code)
         en_actualizacion = 0;
         upd_step = 0;
         fm1_scan_start();
-        fm1_audio_start(dma, HALF_FRAMES, render);
+        if (sin_audio)
+            fm1_audio_start_mute(dma, HALF_FRAMES, render);
+        else
+            fm1_audio_start(dma, HALF_FRAMES, render);
         app.scr.force = 1;
     }
 }
 
 /* ------------------------------------------------------------------ modo seguro */
+/* vuelve solo si se pulsa PLAY (arrancar sin salida de audio) */
 static void modo_seguro(void)
 {
     uint8_t raw[FM1_NCOL];
@@ -189,6 +222,10 @@ static void modo_seguro(void)
     for (;;) {
         uint32_t t = timer_get_ms();
         fm1_keys_frame(raw, NULL);
+        if ((raw[10] >> 2) & 1u) {           /* PLAY (12): fila 2, columna 10 */
+            fm1_boot_ok();                   /* esta prueba no suma arranques fallidos */
+            return;
+        }
         if (((raw[0] >> 4) & 1u) && ((raw[1] >> 4) & 1u)) {      /* OCT- (0) y OCT+ (1): fila 4 */
             if (!combo_t0)
                 combo_t0 = t | 1u;
@@ -228,16 +265,26 @@ static void bubba_task(void *p)
     fm1_midi_init();
     adc_add_sample_ch(FM1_ADC_MASTER);
     adc_add_sample_ch(FM1_ADC_BATT);
-    if (modo == FM1_BOOT_SAFE)
-        modo_seguro();                       /* no vuelve */
+    fm1_boot_stage(E_PANTALLA);
+    if (modo == FM1_BOOT_SAFE) {
+        modo_seguro();                       /* vuelve solo con PLAY */
+        sin_audio = 1;
+        modo = FM1_BOOT_NORMAL;
+    }
 
     bm_platform pf = {fm1_lcd_blit, led, midi_out, mapa, &FLASH, NULL};
     t0 = timer_get_ms();
     bm_app_init(&app, &pf, t0);
+    fm1_boot_stage(E_NUCLEO);
     bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
     bm_app_battery(&app, 100);               /* sin curva medida todavía: ver README_PORT.md */
     fm1_scan_start();
-    fm1_audio_start(dma, HALF_FRAMES, render);
+    fm1_boot_stage(E_TECLAS);
+    if (sin_audio)
+        fm1_audio_start_mute(dma, HALF_FRAMES, render);
+    else
+        fm1_audio_start(dma, HALF_FRAMES, render);
+    fm1_boot_stage(E_AUDIO);
 
     for (;;) {
         uint32_t t = timer_get_ms();
@@ -270,6 +317,12 @@ static void bubba_task(void *p)
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
         }
         bm_app_tick(&app, t);
+        if (fm1_audio_halves() > 20u)
+            fm1_boot_stage(E_SONANDO);
+        if (t - t0 > 1000u)
+            fm1_boot_stage(E_1S);
+        if (t - t0 > 5000u)
+            fm1_boot_stage(E_5S);
         if (!ok && t - t0 > OK_MS) {         /* 10 s andando: este arranque fue bueno */
             fm1_boot_ok();
             ok = 1;

@@ -10,8 +10,9 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Length in bars** on the SEQ layer (black 7-10).
 - **New sound engines:** **ACID** (303-style: 4-pole ladder filter with resonance, accent and slide) for T3 and the free tracks; **ANALOG** (two detuned oscillators, sub and noise, 6 timbres) for the free tracks; and the **SINTE** kit, drums computed live. The recorded KO-808 and KO-909 kits stay.
 - **Take memory in view:** on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
-- **FM-1, first firmware for the device** (in testing, not yet tried on hardware): a **diagnostic** with no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
-- **Web installer** (`instalar.html`): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it recognizes the FM-1 by itself and comes down to one button, **Install**; it also goes back to the factory firmware and resumes an interrupted install. `tools/fm1/servir.py` serves it on the computer with V15 already loaded.
+- **FM-1, full Bubba Machine for the device** (in testing, not yet tried on hardware): the core with sound through the codec (ALNK0), matrix and LEDs on interrupts, screen, USB-MIDI, saving, safe mode and the update service.
+- **FM-1, diagnostic firmware** (in testing): no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
+- **Web installer** (`instalar.html`): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it reads the FM-1 by itself (says which firmware it runs, or why it can't find it), you choose what to install (Bubba Machine, diagnostic or factory firmware) and press one button; it also goes back to the factory firmware and resumes an interrupted install. `tools/fm1/servir.py` serves it on the computer with V15 already loaded.
 - **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
 ### Changed

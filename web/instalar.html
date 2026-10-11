@@ -25,32 +25,38 @@ header .sub { color: var(--mut); font-size: 13px; }
 main { max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; }
 section { background: var(--body); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; }
 h1 { font-size: 22px; margin: 8px 0 4px; }
-h2 { font-size: 16px; margin: 0 0 8px; }
+h2 { font-size: 16px; margin: 0 0 10px; }
 p, li { color: #cfd4d9; }
 .small { font-size: 13px; color: var(--mut); }
 button { font: inherit; font-weight: 700; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--body2); color: var(--txt); cursor: pointer; }
 button:disabled { opacity: .4; cursor: not-allowed; }
-#go { display: block; width: 100%; font-size: 20px; padding: 18px; margin: 16px 0 8px; background: var(--yellow); color: #111; border-color: var(--yellow); border-radius: 12px; }
+#go { display: block; width: 100%; font-size: 20px; padding: 18px; margin: 4px 0 8px; background: var(--yellow); color: #111; border-color: var(--yellow); border-radius: 12px; }
+#go.fabrica { background: var(--body2); color: var(--txt); border-color: var(--mut); }
+#permitir { margin-top: 6px; background: var(--yellow); color: #111; border-color: var(--yellow); }
 input[type=file] { font: inherit; font-size: 13px; color: var(--mut); max-width: 100%; }
 .line { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--body2); margin: 8px 0; }
 .line .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--dim); flex: none; }
 .line.ok .dot { background: var(--green); } .line.bad .dot { background: var(--red); }
 .line.info .dot { background: var(--yellow); animation: blink 1.2s infinite; }
-.line .what { font-size: 12px; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; }
 .line .txt { overflow-wrap: anywhere; }
 @keyframes blink { 50% { opacity: .3; } }
-.ok { color: var(--green); } .bad { color: var(--red); } .info { color: var(--mut); }
+#devinfo { font-size: 13px; color: var(--mut); margin: 4px 2px 0; white-space: pre-line; }
+.opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; cursor: pointer; background: var(--body2); }
+.opt:hover { border-color: var(--mut); }
+.opt.sel { border-color: var(--yellow); }
+.opt input { margin-top: 5px; accent-color: var(--yellow); }
+.opt b { display: block; }
+.opt span { font-size: 13px; color: var(--mut); }
 #falta { border: 2px dashed var(--orange); border-radius: 12px; padding: 14px; margin: 10px 0; }
 #falta.over { background: #22150f; }
 progress { width: 100%; height: 14px; accent-color: var(--yellow); }
 #estado { font-weight: 600; margin: 8px 0; min-height: 1.5em; }
+.ok { color: var(--green); } .bad { color: var(--red); } .info { color: var(--mut); }
 .risk { font-size: 13px; color: var(--mut); margin: 0; }
 details { margin: 16px 0; }
 summary { cursor: pointer; color: var(--mut); font-weight: 600; }
 details section { margin: 10px 0; }
 pre#log { background: #000; color: #9aa1a8; font-size: 12px; padding: 10px; border-radius: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-select { font: inherit; max-width: 100%; }
 </style>
 </head>
 <body>
@@ -60,21 +66,31 @@ select { font: inherit; max-width: 100%; }
   <nav class="sitenav" data-t="nav"><a href="index.html">Inicio</a><a href="emulador.html">Emulador</a><a href="docs/instalar.html">Guía</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" class="lang">English</a></nav>
 </header>
 <main>
-<h1 data-t="h1">Instalar Bubba Machine en el M-VAVE FM-1</h1>
-<p class="small" data-t="intro">Conecta el FM-1 por USB (cable de datos) y préndelo. La página lo reconoce sola; cuando el botón se encienda, púlsalo.</p>
+<h1 data-t="h1">Instalar en el M-VAVE FM-1</h1>
+<p class="small" data-t="intro">Conecta el FM-1 por USB (cable de datos) y préndelo. La página lo lee sola; elige qué instalar y pulsa el botón.</p>
 
 <section>
-  <div class="line info" id="dev"><span class="dot"></span><div><div class="what" data-t="w_dev">FM-1</div><div class="txt" id="devt">…</div></div></div>
-  <div class="line info" id="pkg"><span class="dot"></span><div><div class="what" data-t="w_pkg">Firmware</div><div class="txt" id="pkgt">…</div></div></div>
+  <h2 data-t="h_dev">1. Tu FM-1</h2>
+  <div class="line info" id="dev"><span class="dot"></span><div class="txt" id="devt">…</div></div>
+  <button id="permitir" hidden data-t="permitir">Permitir MIDI</button>
+  <div id="devinfo"></div>
+</section>
 
+<section>
+  <h2 data-t="h_que">2. ¿Qué quieres instalar?</h2>
+  <div id="opciones"></div>
+  <div class="line info" id="pkg"><span class="dot"></span><div class="txt" id="pkgt">…</div></div>
   <div id="falta" hidden>
     <b data-t="faltah">Falta el firmware de fábrica de M-VAVE (FM-1 V15)</b>
-    <p class="small" data-t="faltawhy">Bubba Machine se arma sobre ese archivo aquí, en tu navegador, y se instala con el cargador oficial de M-VAVE (este sitio no puede publicarlo). Descárgalo y arrástralo aquí, o elígelo. Se pide una sola vez: el navegador lo recuerda.</p>
-    <div class="row"><a href="https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc" data-t="bajar">Descargar FM-1.fwsc</a> <input type="file" id="fstock" accept=".fwsc"></div>
+    <p class="small" data-t="faltawhy">Todo se instala con el cargador oficial de M-VAVE, que viene en ese archivo, y Bubba Machine se arma sobre él aquí, en tu navegador (este sitio no puede publicarlo). Descárgalo y arrástralo aquí, o elígelo. Se pide una sola vez: el navegador lo recuerda.</p>
+    <a href="https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc" data-t="bajar">Descargar FM-1.fwsc</a> <input type="file" id="fstock" accept=".fwsc">
   </div>
+</section>
 
-  <button id="go" disabled data-t="instalar">Instalar Bubba Machine</button>
-  <p class="risk" data-t="risk">Firmware no oficial, <b>en pruebas</b>, sin garantía (GPL-3.0, secciones 15 y 16). Lo que guardaste en el firmware actual (patrones de X0X, por ejemplo) se puede perder. No desconectes el cable ni cierres la página mientras escribe. Siempre puedes volver al de fábrica (abajo, «Más opciones»).</p>
+<section>
+  <h2 data-t="h_go">3. Instalar</h2>
+  <button id="go" disabled>…</button>
+  <p class="risk" data-t="risk">Firmware no oficial, <b>en pruebas</b>, sin garantía (GPL-3.0, secciones 15 y 16). Lo que guardaste en el firmware actual (patrones de X0X, por ejemplo) se puede perder. No desconectes el cable ni cierres la página mientras escribe. Siempre puedes volver al de fábrica eligiéndolo arriba.</p>
   <div id="estado"></div>
   <progress id="bar" max="100" value="0"></progress>
 </section>
@@ -82,18 +98,14 @@ select { font: inherit; max-width: 100%; }
 <details id="mas">
   <summary data-t="mas">Más opciones</summary>
   <section>
-    <h2 data-t="h_ver">Versión</h2>
-    <select id="ver"></select>
-    <p id="otro" hidden><input type="file" id="fown" accept=".bin,.fwsc"></p>
-  </section>
-  <section>
-    <h2 data-t="h_back">Volver al firmware de fábrica</h2>
-    <p class="small" data-t="backwhy">Instala el FM-1 V15 de M-VAVE tal cual, con su cargador oficial.</p>
-    <button id="volver" disabled data-t="volver">Volver al de fábrica</button>
+    <h2 data-t="h_otro">Instalar otro archivo</h2>
+    <p class="small" data-t="otrowhy">Un app.bin compilado por ti (se arma sobre el V15) o un .fwsc ya armado. Al elegirlo aparece como opción arriba.</p>
+    <input type="file" id="fown" accept=".bin,.fwsc">
   </section>
   <section>
     <h2 data-t="h_help">Si algo sale mal</h2>
     <ul data-t="help">
+      <li><b>El FM-1 no aparece:</b> abajo de «Tu FM-1» se ve qué puertos MIDI encontró la página. Si dice «ocupado», cierra el programa que lo usa (REAPER u otro DAW, M-UPGRADE, otra pestaña con un instalador) y desconecta y conecta el cable.</li>
       <li><b>Se cortó la instalación:</b> el FM-1 se queda en modo actualización (aparece como «ota-FM-1»). Vuelve a conectarlo: el botón cambia a «Continuar la instalación».</li>
       <li><b>Bubba Machine no arranca:</b> después de dos arranques fallidos entra en <b>modo seguro</b> (aviso en pantalla, sin sonido, USB activo): desde aquí puedes reinstalar o volver al de fábrica.</li>
       <li><b>Ni siquiera el modo seguro arranca:</b> el FM-1 pasa al modo de actualización del chip y se rescata con la computadora (<a href="docs/instalar.html">guía de instalación</a>, «Si algo sale mal»).</li>
@@ -103,6 +115,6 @@ select { font: inherit; max-width: 100%; }
 </details>
 </main>
 
-<script type="module" src="instalar.js"></script>
+<script type="module" src="instalar.js?v=5"></script>
 </body>
 </html>

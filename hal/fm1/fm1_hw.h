@@ -79,6 +79,20 @@ void fm1_lcd_blit(void *u, int x, int y, int w, int h, const uint16_t *px);
 void     fm1_keys_init(void);
 void     fm1_keys_frame(uint8_t raw[FM1_NCOL], const uint8_t led[FM1_NCOL]);   /* un barrido completo */
 
+/* barrido por interrupción (TIMER5) para el firmware completo; fm1_keys_frame es el del diagnóstico */
+void fm1_scan_start(void);
+void fm1_scan_stop(void);
+int  fm1_scan_edge(int *down);                            /* un flanco (id 0..40) o -1 */
+int  fm1_scan_encoder(int e);                             /* pasos de la perilla e desde la última vez */
+int  fm1_scan_is_down(int id);
+void fm1_scan_led(int id, uint8_t level);                 /* LED_OFF..LED_BREATH (core/bm_types.h) */
+
+/* ---------------------------------------------------------------- audio: ALNK0 -> codec */
+typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 24 bits a la izquierda */
+void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* dma: 2 mitades */
+void fm1_audio_stop(void);
+uint32_t fm1_audio_halves(void);
+
 /* ---------------------------------------------------------------- USB-MIDI */
 void fm1_midi_init(void);
 int  fm1_midi_ready(void);                                /* configurado por el host */

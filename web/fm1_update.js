@@ -219,16 +219,21 @@ export class Actualizador {
   }
 
   // el primer par entrada/salida (mismo nombre) que contesta el saludo y pasa el filtro
+  // this.vistos queda con lo que se encontró en cada puerto, para explicar por qué no aparece
   async buscar(filtro) {
     const outs = [...this.access.outputs.values()];
+    this.vistos = [];
     for (const input of this.access.inputs.values()) {
-      if (input.state === "disconnected" || !this.portRe.test(input.name || "")) continue;
-      const output = outs.find((o) => o.name === input.name);
-      if (!output) continue;
-      try { await input.open(); await output.open(); } catch (_) { continue; }
+      if (input.state === "disconnected") continue;
+      const name = input.name || "";
+      if (!this.portRe.test(name)) { this.vistos.push({ name, estado: "otro" }); continue; }
+      const output = outs.find((o) => o.name === name) || (outs.filter((o) => this.portRe.test(o.name || "")).length === 1 ? outs.find((o) => this.portRe.test(o.name || "")) : null);
+      if (!output) { this.vistos.push({ name, estado: "sinsalida" }); continue; }
+      try { await input.open(); await output.open(); } catch (_) { this.vistos.push({ name, estado: "ocupado" }); continue; }
       const link = new Enlace(input, output);
       const id = await saludar(link, 2);
-      if (id && (!filtro || filtro(id))) return { link, id, name: input.name };
+      if (id && (!filtro || filtro(id))) { this.vistos.push({ name, estado: "ok", id }); return { link, id, name }; }
+      this.vistos.push({ name, estado: id ? "filtrado" : "mudo", id });
       link.close();
     }
     return null;

@@ -25,6 +25,7 @@ int main(void)
     map.enc_b[0][0] = 1; map.enc_b[0][1] = 0;
     for (int e = 1; e < FM1_ENCS; e++) { map.enc_a[e][0] = 10; map.enc_a[e][1] = 5; map.enc_b[e][0] = 10; map.enc_b[e][1] = 5; }
     fm1_scan_init(&s, &map);
+    frame();                                       /* primer frame: las perillas en su detent */
 
     printf("antirrebote\n");
     int down, id;
@@ -61,6 +62,27 @@ int main(void)
     v = fm1_scan_take_encoder(&s, 0);
     CHECK(v == -2 * dir);
     CHECK(fm1_scan_take_encoder(&s, 1) == 0);
+
+    printf("cuadratura: perilla con dos detents por ciclo\n");
+    for (int i = 1; i <= 2; i++) {                 /* 00 -> 10 -> 11 y se queda */
+        uint8_t ab = CW[i];
+        matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
+        frame();
+    }
+    for (int i = 0; i < FM1_REST_FRAMES + 2; i++) frame();
+    CHECK(fm1_scan_take_encoder(&s, 0) == dir);    /* aprendió el detent nuevo y contó el paso */
+    for (int i = 3; i <= 4; i++) {                 /* 11 -> 01 -> 00: otro detent, ya conocido */
+        uint8_t ab = CW[i % 4];
+        matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
+        frame();
+    }
+    CHECK(fm1_scan_take_encoder(&s, 0) == dir);
+    for (int i = 3; i >= 2; i--) {                 /* y de vuelta: 00 -> 01 -> 11 */
+        uint8_t ab = CW[i];
+        matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
+        frame();
+    }
+    CHECK(fm1_scan_take_encoder(&s, 0) == -dir);
 
     printf("\n%d comprobaciones, %d fallos\n", checks, fails);
     return fails ? 1 : 0;

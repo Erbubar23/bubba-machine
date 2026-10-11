@@ -23,6 +23,12 @@ static int get_bit(const volatile uint32_t *b, int id) { return (b[id >> 5] >> (
 
 static int raw_at(const fm1_scan *s, int col, int row) { return (s->raw[col] >> row) & 1; }
 
+static void enc_step(fm1_scan *s, int e, int dir)
+{
+    s->enc_acc[e] = (int16_t)(s->enc_acc[e] + dir);
+    s->qsub[e] = 0;
+}
+
 uint8_t fm1_scan_column(fm1_scan *s, uint8_t rows)
 {
     uint8_t c = s->col;
@@ -48,16 +54,35 @@ uint8_t fm1_scan_column(fm1_scan *s, uint8_t rows)
             int a = raw_at(s, s->map->enc_a[e][0], s->map->enc_a[e][1]);
             int b = raw_at(s, s->map->enc_b[e][0], s->map->enc_b[e][1]);
             uint8_t ns = (uint8_t)((a << 1) | b);
+            if (!s->seeded) {                     /* al prender, cada perilla está en un detent */
+                s->q[e] = ns;
+                s->rest[e] = (uint8_t)(1u << ns);
+                continue;
+            }
+            if (ns == s->q[e]) {
+                if (s->still[e] < 255u && ++s->still[e] == FM1_REST_FRAMES) {
+                    s->rest[e] |= (uint8_t)(1u << ns);     /* se quedó aquí: también es un detent */
+                    if (s->qsub[e] >= 2 || s->qsub[e] <= -2)
+                        enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);
+                }
+                continue;
+            }
             int8_t d = QDEC[(s->q[e] << 2) | ns];
             s->q[e] = ns;
-            if (d) {
-                s->qsub[e] = (int8_t)(s->qsub[e] + d);
-                if (s->qsub[e] >= 4 || s->qsub[e] <= -4) {      /* 4 transiciones = 1 detent */
-                    s->enc_acc[e] = (int16_t)(s->enc_acc[e] + (s->qsub[e] > 0 ? 1 : -1));
-                    s->qsub[e] = 0;
-                }
+            s->still[e] = 0;
+            if (!d)
+                continue;                         /* salto de dos estados: dirección desconocida */
+            s->qsub[e] = (int8_t)(s->qsub[e] + d);
+            if ((s->rest[e] >> ns) & 1u) {
+                if (s->qsub[e] >= 2 || s->qsub[e] <= -2)
+                    enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);
+                else
+                    s->qsub[e] = 0;               /* volvió al mismo detent */
+            } else if (s->qsub[e] >= 4 || s->qsub[e] <= -4) {
+                enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);    /* un ciclo entero sin pasar por un detent conocido */
             }
         }
+        s->seeded = 1;
     }
     s->col = (uint8_t)((c + 1) % FM1_COLS);
     return s->col;
@@ -67,7 +92,7 @@ int fm1_scan_next_edge(fm1_scan *s, int *down)
 {
     for (int id = 0; id < FM1_IDS; id++)
         if (get_bit(s->edge_bits, id)) {
-            set_bit(s->edge_bits, id, 0);      /* TODO(HW-VERIFY): hacerlo con IRQ apagadas en el port */
+            set_bit(s->edge_bits, id, 0);
             *down = get_bit(s->down_bits, id);
             return id;
         }
@@ -76,7 +101,7 @@ int fm1_scan_next_edge(fm1_scan *s, int *down)
 
 int16_t fm1_scan_take_encoder(fm1_scan *s, int e)
 {
-    int16_t v = s->enc_acc[e];                  /* TODO(HW-VERIFY): leer y poner a 0 con IRQ apagadas */
+    int16_t v = s->enc_acc[e];
     s->enc_acc[e] = 0;
     return v;
 }

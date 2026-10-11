@@ -1,13 +1,18 @@
 # Port al FM-1
 
-**Estado (0.3.x, octubre de 2026):** hay un **firmware de diagnóstico** que compila y se empaqueta, todavía **sin probar en un FM-1**. El firmware completo (con sonido) viene después de que el diagnóstico confirme la pantalla, la matriz y el USB en el aparato.
+**Estado (0.3.x, octubre de 2026):** compilan y se empaquetan dos firmwares, los dos **todavía sin probar en un FM-1**:
+
+- **Bubba Machine** (`fm1_main.c`): el núcleo completo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, la pantalla, USB-MIDI, el guardado y el servicio de actualización. `app.bin` de 559 008 bytes (quedan 23 KB).
+- **Diagnóstico** (`fm1_diag.c`): sin sonido, muestra cada botón, tecla y perilla con su cruce en la matriz. Sirve para comprobar el aparato o calibrar.
 
 Regla del proyecto: el código es propio. Los drivers son los del **SDK AC79 de JieLi (Apache-2.0)**; de Felucca y X0X solo se toman hechos de hardware (pines, mapa de la matriz, direcciones verificadas), nunca su código.
 
 ## Cómo se arma
 
 ```
+py -3 tools/build.py fm1 bubba     # Bubba Machine completo
 py -3 tools/build.py fm1 diag      # firmware de diagnóstico
+py -3 tools/fm1/servir.py          # el instalador en esta computadora, con el V15 ya cargado
 ```
 
 Necesita, fuera del repositorio:
@@ -18,7 +23,7 @@ Necesita, fuera del repositorio:
 | SDK `AC79NN_SDK_V1.2.1` | `~/jieli/fw-AC79_AIoT_SDK` (o `AC79_SDK`) | arranque, sistema, USB, SPI, flash, ADC |
 | `FM-1.fwsc` V15 de M-VAVE | `~/jieli/stock/FM-1.fwsc` (o `FM1_V15`) | base del paquete |
 
-Sale `build/fm1/bubba-diag-<versión>.fwsc`. **Ese archivo no se publica**: lleva el arranque y el cargador de M-VAVE. Cada quien lo arma con su propia copia del V15.
+Sale `build/fm1/bubba-machine-<versión>.fwsc` (o `bubba-diag-…`), y `web/fm1/` recibe solo el `app.bin` con su lista `versiones.json`, que es lo que publica el sitio. **Ese archivo no se publica**: lleva el arranque y el cargador de M-VAVE. Cada quien lo arma con su propia copia del V15.
 
 ### El paquete (`tools/fm1/fwsc.py`)
 
@@ -55,16 +60,33 @@ El driver de flash (`fm1_flash.c`) rechaza cualquier borrado o escritura fuera d
 - **Modo del chip**: cuatro arranques fallidos seguidos, o OCT− y OCT+ juntos 5 s, llevan al modo de actualización propio del chip (USB `4C4A:8057`). Se entra escribiendo `usb_update_mode` en `0x01C7FD80` y reiniciando, dato verificado por X0X. Desde ahí, `tools/fm1/rescate.py` (Windows) hace un respaldo completo y vuelve a poner un firmware.
 - **Lo que no cubre**: si el firmware se cae *antes* de llegar a `app_main` (en el arranque del SDK), no corre nada de lo anterior. Para eso queda el *FM-1 Transporter* (una placa RP2040 conectada a las líneas USB). El arranque del SDK es el mismo que usa el firmware de fábrica (mismo `startup.S` y mismo sistema), y el nuestro no llama a `power_init()`: la energía queda como la deja el arranque del chip.
 
-## Primera prueba en el aparato (diagnóstico)
+## Cómo corre el firmware completo
 
-1. Desde el FM-1 con X0X (o con el firmware de fábrica): `py -3 tools/fm1/servir.py` abre `web/instalar.html` en `localhost` con el V15 ya cargado; reconoce el FM-1 solo y basta con pulsar **Instalar** (la versión por defecto es la primera de `web/fm1/versiones.json`, el diagnóstico).
-2. Qué mirar en la pantalla:
+| Dónde | Qué |
+|---|---|
+| Interrupción de ALNK0 (`fm1_audio.c`, prioridad 1) | el render del núcleo: 256 frames por medio buffer (5.8 ms), estéreo de 24 bits alineado a la izquierda |
+| Interrupción de TIMER5 (`fm1_scanhw.c`, 4 kHz, prioridad 3) | una columna de la matriz por interrupción (≈364 barridos/s), antirrebote y perillas (`fm1_scan.c`, probado en PC) y los LEDs con brillo por tiempo encendido |
+| Tarea `bubba` (`fm1_main.c`) | flancos y perillas hacia el núcleo, MIDI por USB en las dos direcciones, MASTER, `bm_app_tick` (dibuja lo que cambió y guarda), el servicio de actualización y OCT− + OCT+ 5 s al modo del chip |
+
+Las perillas aprenden en qué estados descansan: cuentan un paso por detent tanto si el detent es un ciclo de cuadratura entero como si es medio.
+
+Al empezar una actualización el firmware calla el audio y deja la pantalla al servicio; si el computador la cancela, sigue tocando.
+
+## Primera prueba en el aparato
+
+1. Desde el FM-1 con X0X (o con el firmware de fábrica): `py -3 tools/fm1/servir.py` abre `web/instalar.html` en `localhost` con el V15 ya cargado. La página lee el FM-1 sola; se elige **Bubba Machine** o **Diagnóstico** y se pulsa el botón.
+2. Con Bubba Machine, qué mirar:
+   - que arranque al logo y después a HOME;
+   - que suene la demo con PLAY (por el altavoz y por el jack);
+   - que los botones hagan lo que dice su serigrafía y las perillas giren para el lado correcto (si KNOB 1-4 están cambiadas, se corrige con el diagnóstico);
+   - que los LEDs sigan al secuenciador.
+3. Con el diagnóstico, qué mirar en la pantalla:
    - que arranque, con «ARRANQUE NORMAL FALLIDOS 0» y «USB: MIDI LISTO» con la computadora conectada;
    - que cada botón y tecla marque su cruce en la cuadrícula y su número;
    - que cada perilla cuente para los dos lados;
    - que MASTER se mueva;
    - que las teclas manden notas a la computadora.
-3. Volver: desde el mismo instalador, al V15 o a X0X. Esto prueba el servicio de actualización propio.
+4. Volver: desde el mismo instalador, eligiendo **Firmware de fábrica**. Esto prueba el servicio de actualización propio.
 
 ## Hechos de hardware usados (fuentes)
 
@@ -77,9 +99,12 @@ El driver de flash (`fm1_flash.c`) rechaza cualquier borrado o escritura fuera d
 | Registro de actualización (tipo 0x5A0D, `ota-FM-1_015`, cargador en 0xE0000, copia a 256 B del final) y entrada al modo del chip | X0X (`ota.c`, `fm1_sys.h`), verificados en el aparato; estructura `UPDATA_PARM` del SDK |
 | Protocolo del modo del chip, cargador `wl82loader.bin` | jl-uboot-tool (kagaimiq, MIT) |
 | Llave 0x980F, flash 0x856014 de 1 MiB | jl-misctools sobre el V15; X0X (`fm1_rescue.py`) |
+| Audio: codec externo por ALNK0 canal 3, 24 bits, 24 MHz / 544; líneas del codec PC0, PC1, PC2 y PC6; grupo de pines y fuente de reloj de ALNK0; avisos de medio buffer | Felucca (`fm1_audio.h`); registros `JL_ALNK0`, `JL_CLOCK`, `JL_IOMAP` del SDK |
+| Botones por serigrafía (OCT− 0, OCT+ 1, FX 2 … PLAY 12, REC 13) y perillas (SELECT 0, ALGORITHM 1, KNOB 1-4 2-5, PRESETS 6) | Felucca (`panel.c`: PLAY y REC medidos, el resto por serigrafía) |
 
-## Lo que falta para el firmware completo
+## Lo que se mide en la primera prueba
 
-1. Audio: el DAC interno (FM-1-RE `docs/io/03-audio-dac.md`) con el driver del SDK y el render del núcleo en bloques.
-2. `fm1_main.c` sobre el SDK: el núcleo con pantalla, matriz, USB-MIDI, flash y actualización.
-3. Medir la CPU del audio por bloque y el tamaño: el núcleo ocupa ~423 KB y el diagnóstico 121 KiB, contra un límite de 568 KiB.
+1. **Audio**: que el codec arranque con la secuencia de ALNK0 y que el render quepa en 5.8 ms por medio buffer. Si no cabe, se oye entrecortado: el arreglo es subir el reloj del sistema o el medio buffer.
+2. **Perillas**: el orden de KNOB 1-4 y su sentido.
+3. **Batería**: el firmware muestra 100 % hasta medir la curva del ADC (el diagnóstico muestra el valor crudo).
+4. **Tomas**: las muestras grabadas se leen por XIP; si la flash cifra esa zona, se oyen como ruido y hay que leerlas por `norflash_origin_read`.

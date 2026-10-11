@@ -1,51 +1,58 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erbubar23
 //
-// La página del instalador (instalar.html). Todo lo que pueda hacer sola lo hace sola: pide MIDI,
-// reconoce el FM-1 (y lo vuelve a buscar cuando se conecta o se desconecta), consigue el FM-1 V15
-// de M-VAVE y arma el paquete en el navegador (web/fm1_pack.js). A la persona le queda pulsar
-// «Instalar» y confirmar; la escritura la hace web/fm1_update.js.
+// La página del instalador (instalar.html). Lo que pueda hacer sola lo hace sola: pide MIDI,
+// lee el FM-1 (y lo vuelve a buscar cuando se conecta o se desconecta), consigue el FM-1 V15
+// de M-VAVE y arma el paquete en el navegador (web/fm1_pack.js). La persona elige qué instalar
+// (Bubba Machine, el diagnóstico o el firmware de fábrica), pulsa el botón y confirma; la
+// escritura la hace web/fm1_update.js.
 //
 // De dónde sale el V15, en orden: lo que el navegador ya guardó (IndexedDB) → fm1/local/FM-1.fwsc
 // (solo existe con tools/fm1/servir.py, en esta computadora) → elegirlo o arrastrarlo a mano.
-import { Actualizador, revisarPaquete, FalloFM1, V15_SHA256, sha256 } from "./fm1_update.js";
-import { armarPaquete } from "./fm1_pack.js";
+import { Actualizador, revisarPaquete, FalloFM1, V15_SHA256, sha256 } from "./fm1_update.js?v=5";
+import { armarPaquete } from "./fm1_pack.js?v=5";
 
 const EN = new URLSearchParams(location.search).get("lang") === "en";
 const T = {
   es: {
-    pidiendo: "Pidiendo permiso para MIDI…", nomidi: "Este navegador no tiene Web MIDI: usa Chrome o Edge en una computadora.",
-    sinperm: "Sin permiso para MIDI con SysEx. Pulsa el botón para pedirlo de nuevo.", permitir: "Permitir MIDI",
-    buscando: "Buscando… conecta el FM-1 y préndelo.",
-    hay: (t) => `${t}: listo para instalar`, otaq: (t) => `${t}: en modo actualización (una instalación quedó a medias)`,
-    otromodelo: (t) => `${t}: no es un FM-1`,
-    revisando: "Armando el paquete…", v15: "Buscando el FM-1 V15 de M-VAVE…", nostock: "Ese archivo no es el FM-1 V15 de M-VAVE.",
-    faltav15: "Falta el FM-1 V15 de M-VAVE (abajo).",
-    armado: (n) => `${n}: listo`, otro: "Otro archivo (app.bin o un .fwsc armado)…", cargando: "Descargando…", danada: "la descarga llegó dañada: ",
-    instalar: "Instalar Bubba Machine", continuar: "Continuar la instalación",
+    pidiendo: "Chrome está pidiendo permiso para MIDI: acepta el aviso junto a la barra de direcciones.",
+    nomidi: "Este navegador no tiene Web MIDI: usa Chrome o Edge en una computadora (no en el teléfono).",
+    bloqueado: "Chrome bloqueó el MIDI para esta página. Pulsa el ícono junto a la dirección (candado o ajustes), pon «Dispositivos MIDI» en Permitir y recarga.",
+    sinperm: "Sin permiso para MIDI. Pulsa «Permitir MIDI» y acepta.",
+    buscando: "Buscando el FM-1… conéctalo y préndelo.",
+    hay: (t, n) => n ? `Conectado: FM-1 con ${n} (${t})` : `Conectado: ${t}`, otaq: (t) => `Conectado en modo actualización (${t}): una instalación quedó a medias.`,
+    otromodelo: (t) => `Contestó ${t}: no es un FM-1.`,
+    vistos: "Puertos MIDI que ve la página:", ninguno: "Ningún puerto MIDI. Revisa que el cable sea de datos (no solo de carga).",
+    est: { ok: "es el FM-1", otro: "otro aparato (no se toca)", sinsalida: "sin salida MIDI", ocupado: "OCUPADO por otro programa: ciérralo (DAW, M-UPGRADE, otra pestaña) y reconecta el cable", mudo: "no contestó", filtrado: "contestó" },
+    v15: "Buscando el FM-1 V15 de M-VAVE…", nostock: "Ese archivo no es el FM-1 V15 de M-VAVE.", faltav15: "Falta el FM-1 V15 de M-VAVE (abajo).",
+    listo: (n) => `${n}: listo para instalar`, cargando: "Descargando…", revisando: "Armando el paquete…", danada: "la descarga llegó dañada: ",
+    fabrica: "Firmware de fábrica (M-VAVE V15)", fabricad: "Recupera el firmware original del aparato.",
+    instalar: (n) => `Instalar ${n}`, recuperar: "Recuperar el firmware de fábrica", continuar: "Continuar la instalación",
     pasos: { inicio: "Empezando…", revisa: "Paso 1 de 2: el FM-1 revisa el paquete…", cargador: "Esperando al cargador de actualización…", escribe: "Paso 2 de 2: escribiendo. No desconectes.", reinicio: "Reiniciando…", listo: "Listo." },
     hecho: (t) => `Listo: el FM-1 arrancó con ${t}.`, distinto: (t, p) => `Se escribió, pero el FM-1 dice ${t} en vez de ${p}.`,
     seguro: (n, d) => `Se va a instalar ${n} en ${d}.\n\nEs firmware en pruebas, sin garantía. Lo guardado en el firmware actual se puede perder.\nNo desconectes el cable ni cierres la página hasta que diga «Listo».\n\n¿Instalar ahora?`,
-    seguroV: (d) => `Se va a instalar el firmware de fábrica de M-VAVE (V15) en ${d}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
+    seguroF: (d) => `Se va a instalar el firmware de fábrica de M-VAVE (V15) en ${d}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
     seguroC: (n) => `Se va a terminar de escribir ${n}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
-    fabrica: "firmware de fábrica (V15)",
   },
   en: {
-    pidiendo: "Asking for MIDI permission…", nomidi: "This browser has no Web MIDI: use Chrome or Edge on a computer.",
-    sinperm: "No MIDI SysEx permission. Press the button to ask again.", permitir: "Allow MIDI",
-    buscando: "Searching… connect the FM-1 and switch it on.",
-    hay: (t) => `${t}: ready to install`, otaq: (t) => `${t}: in update mode (an install was left halfway)`,
-    otromodelo: (t) => `${t}: not an FM-1`,
-    revisando: "Building the package…", v15: "Looking for M-VAVE's FM-1 V15…", nostock: "That file is not M-VAVE's FM-1 V15.",
-    faltav15: "M-VAVE's FM-1 V15 is missing (below).",
-    armado: (n) => `${n}: ready`, otro: "Another file (app.bin or a built .fwsc)…", cargando: "Downloading…", danada: "the download is damaged: ",
-    instalar: "Install Bubba Machine", continuar: "Resume the install",
+    pidiendo: "Chrome is asking for MIDI permission: accept the prompt next to the address bar.",
+    nomidi: "This browser has no Web MIDI: use Chrome or Edge on a computer (not a phone).",
+    bloqueado: "Chrome blocked MIDI for this page. Click the icon next to the address (lock or settings), set \"MIDI devices\" to Allow and reload.",
+    sinperm: "No MIDI permission. Press \"Allow MIDI\" and accept.",
+    buscando: "Looking for the FM-1… connect it and switch it on.",
+    hay: (t, n) => n ? `Connected: FM-1 running ${n} (${t})` : `Connected: ${t}`, otaq: (t) => `Connected in update mode (${t}): an install was left halfway.`,
+    otromodelo: (t) => `${t} answered: not an FM-1.`,
+    vistos: "MIDI ports the page sees:", ninguno: "No MIDI ports. Check that the cable carries data (not charge only).",
+    est: { ok: "it is the FM-1", otro: "another device (left alone)", sinsalida: "no MIDI output", ocupado: "BUSY in another app: close it (DAW, M-UPGRADE, another tab) and reconnect the cable", mudo: "did not answer", filtrado: "answered" },
+    v15: "Looking for M-VAVE's FM-1 V15…", nostock: "That file is not M-VAVE's FM-1 V15.", faltav15: "M-VAVE's FM-1 V15 is missing (below).",
+    listo: (n) => `${n}: ready to install`, cargando: "Downloading…", revisando: "Building the package…", danada: "the download is damaged: ",
+    fabrica: "Factory firmware (M-VAVE V15)", fabricad: "Brings back the device's original firmware.",
+    instalar: (n) => `Install ${n}`, recuperar: "Restore the factory firmware", continuar: "Resume the install",
     pasos: { inicio: "Starting…", revisa: "Step 1 of 2: the FM-1 checks the package…", cargador: "Waiting for the update loader…", escribe: "Step 2 of 2: writing. Don't unplug.", reinicio: "Restarting…", listo: "Done." },
     hecho: (t) => `Done: the FM-1 started with ${t}.`, distinto: (t, p) => `Written, but the FM-1 reports ${t} instead of ${p}.`,
     seguro: (n, d) => `${n} will be installed on ${d}.\n\nThis is firmware in testing, with no warranty. What the current firmware saved may be lost.\nDon't unplug the cable or close the page until it says "Done".\n\nInstall now?`,
-    seguroV: (d) => `M-VAVE's factory firmware (V15) will be installed on ${d}.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
+    seguroF: (d) => `M-VAVE's factory firmware (V15) will be installed on ${d}.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
     seguroC: (n) => `${n} will finish being written.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
-    fabrica: "factory firmware (V15)",
   },
 }[EN ? "en" : "es"];
 
@@ -54,87 +61,134 @@ if (EN) {
   const tx = {
     title: "Installer for the FM-1", sub: "Over USB-C, from Chrome or Edge (Web MIDI).",
     nav: '<a href="en/index.html">Home</a><a href="emulador.html?lang=en">Emulator</a><a href="en/docs/install.html">Guide</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="instalar.html" class="lang">Español</a>',
-    h1: "Install Bubba Machine on the M-VAVE FM-1",
-    intro: "Connect the FM-1 over USB (data cable) and switch it on. The page recognizes it by itself; when the button lights up, press it.",
-    w_dev: "FM-1", w_pkg: "Firmware",
+    h1: "Install on the M-VAVE FM-1",
+    intro: "Connect the FM-1 over USB (data cable) and switch it on. The page reads it by itself; choose what to install and press the button.",
+    h_dev: "1. Your FM-1", permitir: "Allow MIDI", h_que: "2. What do you want to install?",
     faltah: "M-VAVE's factory firmware (FM-1 V15) is missing",
-    faltawhy: "Bubba Machine is built on that file here, in your browser, and installed with M-VAVE's official loader (this site can't publish it). Download it and drop it here, or choose it. It is asked only once: the browser remembers it.",
-    bajar: "Download FM-1.fwsc", instalar: "Install Bubba Machine",
-    risk: "Unofficial firmware, <b>in testing</b>, with no warranty (GPL-3.0, sections 15 and 16). What the current firmware saved (X0X patterns, for example) may be lost. Don't unplug the cable or close the page while it writes. You can always go back to the factory firmware (below, \"More options\").",
-    mas: "More options", h_ver: "Version", h_back: "Back to the factory firmware",
-    backwhy: "Installs M-VAVE's FM-1 V15 as is, with its official loader.", volver: "Back to the factory firmware",
+    faltawhy: "Everything is installed with M-VAVE's official loader, which comes in that file, and Bubba Machine is built on it here, in your browser (this site can't publish it). Download it and drop it here, or choose it. It is asked only once: the browser remembers it.",
+    bajar: "Download FM-1.fwsc", h_go: "3. Install",
+    risk: "Unofficial firmware, <b>in testing</b>, with no warranty (GPL-3.0, sections 15 and 16). What the current firmware saved (X0X patterns, for example) may be lost. Don't unplug the cable or close the page while it writes. You can always go back to the factory firmware by choosing it above.",
+    mas: "More options", h_otro: "Install another file",
+    otrowhy: "An app.bin you built (it is built on top of V15) or an already built .fwsc. Once chosen it appears as an option above.",
     h_help: "If something goes wrong",
-    help: "<li><b>The install was interrupted:</b> the FM-1 stays in update mode (it shows as \"ota-FM-1\"). Reconnect it: the button changes to \"Resume the install\".</li><li><b>Bubba Machine doesn't start:</b> after two failed starts it enters <b>safe mode</b> (a notice on screen, no sound, USB on): reinstall or go back to the factory firmware from here.</li><li><b>Not even safe mode starts:</b> the FM-1 drops into the chip's own update mode and is rescued from a computer (<a href=\"en/docs/install.html\">install guide</a>, \"If something goes wrong\").</li>",
+    help: "<li><b>The FM-1 doesn't show up:</b> under \"Your FM-1\" you can see which MIDI ports the page found. If it says \"busy\", close the app using it (REAPER or another DAW, M-UPGRADE, another tab with an installer) and unplug and replug the cable.</li><li><b>The install was interrupted:</b> the FM-1 stays in update mode (it shows as \"ota-FM-1\"). Reconnect it: the button changes to \"Resume the install\".</li><li><b>Bubba Machine doesn't start:</b> after two failed starts it enters <b>safe mode</b> (a notice on screen, no sound, USB on): reinstall or go back to the factory firmware from here.</li><li><b>Not even safe mode starts:</b> the FM-1 drops into the chip's own update mode and is rescued from a computer (<a href=\"en/docs/install.html\">install guide</a>, \"If something goes wrong\").</li>",
   };
   for (const el of document.querySelectorAll("[data-t]")) if (tx[el.dataset.t] !== undefined) el.innerHTML = tx[el.dataset.t];
 }
+
+// qué firmware es, por la versión que contesta al saludo
+const FIRMWARES = { 15: EN ? "the factory firmware (V15)" : "el firmware de fábrica (V15)", 3: "Bubba Machine", 900: "X0X", 910: "Felucca" };
 
 const $ = (id) => document.getElementById(id);
 const say = (t, cls = "") => { $("estado").textContent = t; $("estado").className = cls; };
 const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
 const line = (id, t, cls) => { $(id + "t").textContent = t; $(id).className = "line " + cls; };
 
-let up = null, sinPermiso = false;
+let up = null, permiso = "prompt", pedido = false;
 let dev = null;                   // lo que contestó el saludo (identidad), o null
 let v15 = null, stock = null;     // el V15 (bytes) y su paquete revisado
-let bubba = null, nombre = "";    // el paquete de Bubba Machine, revisado, y cómo se llama
-let ultimo = null;                // el último paquete que se empezó a escribir (para «Continuar»)
-let writing = false, versiones = [], appBytes = null, appFwsc = null;
+let opciones = [], sel = null;    // {clave, nombre, detalle, tipo: "app"|"fabrica"|"propio", archivo?, sha256?}
+const paquetes = new Map();       // clave -> paquete revisado (o un error)
+const bins = new Map();           // archivo -> bytes de app.bin
+let ultimo = null, ultimoNombre = "";   // lo último que se empezó a escribir (para «Continuar»)
+let writing = false;
 
-// ------------------------------------------------------------------ botones ---
+// ------------------------------------------------------------------ pantalla ---
 function refresh() {
   const go = $("go");
-  if (!up) {
-    go.textContent = T.permitir;
-    go.disabled = !sinPermiso;
-  } else if (dev && dev.ota) {
+  const pkg = paqueteElegido();
+  $("permitir").hidden = !!up || permiso === "denied" || !navigator.requestMIDIAccess;
+  go.classList.toggle("fabrica", !!sel && sel.tipo === "fabrica" && !(dev && dev.ota));
+  if (dev && dev.ota) {
     go.textContent = T.continuar;
-    go.disabled = writing || !(ultimo || bubba);
+    go.disabled = writing || !(ultimo || pkg);
   } else {
-    go.textContent = T.instalar;
-    go.disabled = writing || !dev || dev.model !== "FM-1" || !bubba;
+    go.textContent = !sel ? "…" : sel.tipo === "fabrica" ? T.recuperar : T.instalar(sel.nombre);
+    go.disabled = writing || !up || !dev || dev.model !== "FM-1" || !pkg;
   }
-  $("volver").disabled = writing || !up || !dev || dev.ota || dev.model !== "FM-1" || !stock;
-  $("fstock").disabled = $("fown").disabled = $("ver").disabled = writing;
+  for (const el of document.querySelectorAll("#opciones input")) el.disabled = writing;
+  $("fstock").disabled = $("fown").disabled = writing;
+}
+
+function pintarOpciones() {
+  const box = $("opciones");
+  box.textContent = "";
+  for (const o of opciones) {
+    const lab = document.createElement("label");
+    lab.className = "opt" + (sel && sel.clave === o.clave ? " sel" : "");
+    const r = document.createElement("input");
+    r.type = "radio"; r.name = "que"; r.checked = !!sel && sel.clave === o.clave;
+    r.addEventListener("change", () => elegir(o));
+    const d = document.createElement("div");
+    const b = document.createElement("b"); b.textContent = o.nombre;
+    const s = document.createElement("span"); s.textContent = o.detalle || "";
+    d.append(b, s);
+    lab.append(r, d);
+    box.appendChild(lab);
+  }
 }
 
 // ---------------------------------------------------------------------- MIDI ---
+async function estadoPermiso() {
+  try {
+    const p = await navigator.permissions.query({ name: "midi", sysex: true });
+    p.onchange = () => { permiso = p.state; if (p.state === "granted") midi(); else mostrarDev(); };
+    return p.state;
+  } catch (_) { return "prompt"; }
+}
+
+function mostrarDev() {
+  if (!navigator.requestMIDIAccess) { line("dev", T.nomidi, "bad"); refresh(); return; }
+  if (!up) {
+    if (permiso === "denied") line("dev", T.bloqueado, "bad");
+    else if (pedido) line("dev", T.pidiendo, "info");
+    else line("dev", T.sinperm, "bad");
+    $("devinfo").textContent = "";
+    refresh();
+    return;
+  }
+  if (!dev) line("dev", T.buscando, "info");
+  else if (dev.ota) line("dev", T.otaq(dev.text), "ok");
+  else if (dev.model !== "FM-1") line("dev", T.otromodelo(dev.text), "bad");
+  else line("dev", T.hay(dev.text, FIRMWARES[dev.version]), "ok");
+  const v = up.vistos || [];
+  $("devinfo").textContent = dev && !dev.ota && !v.some((x) => x.estado === "ocupado") ? "" :
+    !v.length ? T.ninguno : T.vistos + "\n" + v.map((x) => `· ${x.name}: ${T.est[x.estado] || x.estado}${x.id ? " (" + x.id.text + ")" : ""}`).join("\n");
+  refresh();
+}
+
 async function midi() {
   if (up) return up;
-  if (!navigator.requestMIDIAccess) { line("dev", T.nomidi, "bad"); return null; }
-  line("dev", T.pidiendo, "info");
+  if (!navigator.requestMIDIAccess) { mostrarDev(); return null; }
+  pedido = true;
+  mostrarDev();
   try {
     const access = await navigator.requestMIDIAccess({ sysex: true });
     up = new Actualizador(access, log);
-    sinPermiso = false;
+    permiso = "granted";
     access.onstatechange = () => { clearTimeout(detectar.t); detectar.t = setTimeout(detectar, 800); };
-    refresh();
     detectar();
     return up;
   } catch (_) {
-    sinPermiso = true;
-    line("dev", T.sinperm, "bad");
-    refresh();
+    pedido = false;
+    permiso = await estadoPermiso();
+    mostrarDev();
     return null;
   }
 }
+$("permitir").addEventListener("click", () => midi());
 
-// reconocer lo conectado: solo el saludo de identidad, no escribe nada. Mientras no haya un FM-1,
-// vuelve a mirar cada pocos segundos (al prenderse tarda en contestar); nunca mientras escribe.
+// leer lo conectado: solo el saludo de identidad, no escribe nada. Mientras no haya un FM-1,
+// vuelve a mirar cada pocos segundos; nunca mientras escribe.
 let buscando = null;
 async function detectar() {
   clearTimeout(detectar.poll);
   if (!up || writing) return;
   if (buscando) return buscando;
   buscando = (async () => {
-    if (!dev) line("dev", T.buscando, "info");
     try { dev = await up.conectado(); } catch (_) { dev = null; }
     if (writing) return;
-    if (!dev) line("dev", T.buscando, "info");
-    else if (dev.ota) line("dev", T.otaq(dev.text), "ok");
-    else if (dev.model !== "FM-1") line("dev", T.otromodelo(dev.text), "bad");
-    else line("dev", T.hay(dev.text), "ok");
-    refresh();
+    mostrarDev();
     if (!dev) detectar.poll = setTimeout(detectar, 3000);
   })();
   try { await buscando; } finally { buscando = null; }
@@ -165,6 +219,7 @@ async function usarV15(raw, recordar) {
   if (!raw || (await sha256(raw)) !== V15_SHA256) return false;
   v15 = raw;
   stock = await revisarPaquete(raw);
+  paquetes.clear();
   $("falta").hidden = true;
   if (recordar) await guardado("put", raw);
   return true;
@@ -190,7 +245,7 @@ async function elegirV15(f) {
     refresh();
     return;
   }
-  await armar();
+  await preparar();
 }
 $("fstock").addEventListener("change", (e) => elegirV15(e.target.files[0]));
 const zona = $("falta");
@@ -198,68 +253,74 @@ zona.addEventListener("dragover", (e) => { e.preventDefault(); zona.classList.ad
 zona.addEventListener("dragleave", () => zona.classList.remove("over"));
 zona.addEventListener("drop", (e) => { e.preventDefault(); zona.classList.remove("over"); elegirV15(e.dataTransfer.files[0]); });
 
-// ------------------------------------------------------------- el paquete ---
-// app.bin (de la lista o propio) armado sobre el V15, o un .fwsc ya armado
-async function armar() {
-  bubba = null;
-  refresh();
-  try {
-    if (appFwsc) {
-      bubba = await revisarPaquete(appFwsc);
-    } else if (appBytes) {
-      if (!v15) { line("pkg", T.faltav15, "bad"); return; }
-      line("pkg", T.revisando, "info");
-      bubba = await revisarPaquete(armarPaquete(v15, appBytes));
-    } else {
-      return;
-    }
-    line("pkg", T.armado(nombre || bubba.ident), "ok");
-    log(`paquete: ${nombre} · ${bubba.ident} · sha256 ${bubba.sha}`);
-  } catch (e) { bubba = null; line("pkg", e.message, "bad"); }
-  refresh();
+// ------------------------------------------------------------- los paquetes ---
+function paqueteElegido() {
+  if (!sel) return null;
+  if (sel.tipo === "fabrica") return stock;
+  const p = paquetes.get(sel.clave);
+  return p && !(p instanceof Error) ? p : null;
 }
 
-async function cargarPropio(f) {
-  const raw = new Uint8Array(await f.arrayBuffer());
-  appBytes = appFwsc = null;
-  nombre = f.name;
-  if (/\.fwsc$/i.test(f.name)) appFwsc = raw; else appBytes = raw;
-  await armar();
-}
-
-async function elegirVersion() {
-  appBytes = appFwsc = null;
-  bubba = null;
+// arma (o toma de la caché) el paquete de la opción elegida y lo muestra
+async function preparar() {
+  const o = sel;
   refresh();
-  const v = $("ver").value;
-  $("otro").hidden = v !== "otro";
-  if (v === "otro") {
-    const f = $("fown").files[0];
-    if (f) await cargarPropio(f);
+  if (!o) return;
+  if (o.tipo === "fabrica") {
+    if (stock) line("pkg", T.listo(o.nombre), "ok"); else line("pkg", T.faltav15, "bad");
+    refresh();
     return;
   }
-  const item = versiones.find((x) => x.archivo === v);
-  if (!item) return;
-  nombre = EN ? item.nombre_en || item.nombre : item.nombre;
-  nombre = nombre.replace(/\s*\(.*\)$/, "");
-  line("pkg", T.cargando, "info");
-  try {
-    const raw = new Uint8Array(await (await fetch("fm1/" + item.archivo, { cache: "no-cache" })).arrayBuffer());
-    if ((await sha256(raw)) !== item.sha256) throw new FalloFM1("paquete", T.danada + item.archivo);
-    appBytes = raw;
-  } catch (e) { line("pkg", e.message, "bad"); return; }
-  await armar();
+  let p = paquetes.get(o.clave);
+  if (!p) {
+    try {
+      if (o.tipo === "propio" && o.fwsc) {
+        p = await revisarPaquete(o.fwsc);
+      } else {
+        let app = o.tipo === "propio" ? o.bin : bins.get(o.archivo);
+        if (!app) {
+          line("pkg", T.cargando, "info");
+          app = new Uint8Array(await (await fetch("fm1/" + o.archivo, { cache: "no-cache" })).arrayBuffer());
+          if ((await sha256(app)) !== o.sha256) throw new FalloFM1("paquete", T.danada + o.archivo);
+          bins.set(o.archivo, app);
+        }
+        if (!v15) { if (sel === o) { line("pkg", T.faltav15, "bad"); refresh(); } return; }
+        if (sel === o) line("pkg", T.revisando, "info");
+        p = await revisarPaquete(armarPaquete(v15, app));
+      }
+      log(`paquete: ${o.nombre} · ${p.ident} · sha256 ${p.sha}`);
+    } catch (e) { p = e instanceof Error ? e : new Error(String(e)); }
+    paquetes.set(o.clave, p);
+  }
+  if (sel !== o) return;
+  if (p instanceof Error) line("pkg", p.message, "bad"); else line("pkg", T.listo(o.nombre), "ok");
+  refresh();
 }
-$("ver").addEventListener("change", elegirVersion);
-$("fown").addEventListener("change", (e) => { if (e.target.files[0]) cargarPropio(e.target.files[0]); });
+
+function elegir(o) {
+  sel = o;
+  pintarOpciones();
+  preparar();
+}
+
+$("fown").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const raw = new Uint8Array(await f.arrayBuffer());
+  const o = { clave: "propio:" + f.name + ":" + raw.length, nombre: f.name, detalle: EN ? "Your file" : "Tu archivo", tipo: "propio" };
+  if (/\.fwsc$/i.test(f.name)) o.fwsc = raw; else o.bin = raw;
+  opciones = opciones.filter((x) => x.tipo !== "propio");
+  opciones.splice(opciones.length - 1, 0, o);
+  elegir(o);
+});
 
 // ------------------------------------------------------------- escribir ---
 const guard = (e) => { e.preventDefault(); e.returnValue = ""; };
-async function correr(pkg, pregunta, fn) {
+async function correr(pkg, nombre, pregunta, fn) {
   if (!pkg || writing) return;
   if (buscando) await buscando;
   if (!confirm(pregunta)) return;
-  writing = true; ultimo = pkg; refresh();
+  writing = true; ultimo = pkg; ultimoNombre = nombre; refresh();
   clearTimeout(detectar.poll);
   window.addEventListener("beforeunload", guard);
   $("bar").value = 0;
@@ -286,35 +347,33 @@ async function correr(pkg, pregunta, fn) {
   }
 }
 
-$("go").addEventListener("click", async () => {
-  if (!up) { await midi(); return; }
+$("go").addEventListener("click", () => {
+  if (!up) { midi(); return; }
   if (dev && dev.ota) {
-    const pkg = ultimo || bubba;
-    correr(pkg, T.seguroC(pkg === stock ? T.fabrica : nombre), (p, s) => up.continuar(p, s));
-  } else {
-    correr(bubba, T.seguro(nombre, dev ? dev.text : "FM-1"), (p, s) => up.instalar(p, s));
+    const pkg = ultimo || paqueteElegido();
+    const n = ultimo ? ultimoNombre : sel.nombre;
+    correr(pkg, n, T.seguroC(n), (p, s) => up.continuar(p, s));
+  } else if (sel) {
+    const pkg = paqueteElegido();
+    const pregunta = sel.tipo === "fabrica" ? T.seguroF(dev ? dev.text : "FM-1") : T.seguro(sel.nombre, dev ? dev.text : "FM-1");
+    correr(pkg, sel.nombre, pregunta, (p, s) => up.instalar(p, s));
   }
-});
-$("volver").addEventListener("click", () => {
-  if (up) correr(stock, T.seguroV(dev ? dev.text : "FM-1"), (p, s) => up.instalar(p, s));
 });
 
 // ------------------------------------------------------------------ arranque ---
 (async () => {
   refresh();
-  midi();
+  permiso = navigator.requestMIDIAccess ? await estadoPermiso() : "prompt";
+  if (permiso !== "denied") midi(); else mostrarDev();
+  let versiones = [];
   try { versiones = await (await fetch("fm1/versiones.json", { cache: "no-cache" })).json(); } catch (_) { versiones = []; }
-  for (const v of versiones) {
-    const o = document.createElement("option");
-    o.value = v.archivo;
-    o.textContent = EN ? v.nombre_en || v.nombre : v.nombre;
-    $("ver").appendChild(o);
-  }
-  const o = document.createElement("option");
-  o.value = "otro";
-  o.textContent = T.otro;
-  $("ver").appendChild(o);
+  opciones = versiones.map((v) => ({
+    clave: v.archivo, archivo: v.archivo, sha256: v.sha256, tipo: "app",
+    nombre: EN ? v.nombre_en || v.nombre : v.nombre, detalle: EN ? v.detalle_en || v.detalle : v.detalle,
+  }));
+  opciones.push({ clave: "fabrica", tipo: "fabrica", nombre: T.fabrica, detalle: T.fabricad });
+  sel = opciones[0];
+  pintarOpciones();
   await buscarV15();
-  await elegirVersion();
-  if (!v15 && !appFwsc) line("pkg", T.faltav15, "bad");
+  await preparar();
 })();

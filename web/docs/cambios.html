@@ -57,9 +57,11 @@
 </li><li>
 <strong>Memoria de tomas a la vista:</strong> en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
 </li><li>
-<strong>FM-1, primer firmware para el aparato</strong> (en pruebas, sin probar todavía en hardware): un <strong>diagnóstico</strong> sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
+<strong>FM-1, Bubba Machine completo para el aparato</strong> (en pruebas, sin probar todavía en hardware): el núcleo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, pantalla, USB-MIDI, guardado, modo seguro y servicio de actualización.
 </li><li>
-<strong>Instalador web</strong> (<code>instalar.html</code>): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; reconoce el FM-1 solo y queda en un botón, <strong>Instalar</strong>; también vuelve al firmware de fábrica y continúa una instalación cortada. <code>tools/fm1/servir.py</code> lo sirve en la computadora con el V15 ya cargado.
+<strong>FM-1, firmware de diagnóstico</strong> (en pruebas): sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
+</li><li>
+<strong>Instalador web</strong> (<code>instalar.html</code>): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; lee el FM-1 solo (dice qué firmware tiene, o por qué no lo encuentra), se elige qué instalar (Bubba Machine, diagnóstico o firmware de fábrica) y queda un botón; también vuelve al firmware de fábrica y continúa una instalación cortada. <code>tools/fm1/servir.py</code> lo sirve en la computadora con el V15 ya cargado.
 </li><li>
 <strong>Herramientas del FM-1:</strong> <code>tools/fm1/fwsc.py</code> (empaquetador, comprobado byte por byte contra el V15) y <code>tools/fm1/rescate.py</code> (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 </li></ul>

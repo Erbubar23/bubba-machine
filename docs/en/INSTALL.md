@@ -1,8 +1,8 @@
 # Installing Bubba Machine
 
-## Current status: in testing, no sound yet
+## Current status: in testing
 
-There is a **diagnostic firmware** for the FM-1 and a **web installer**. Neither has been tested on a device yet: the author does the first test. The firmware with sound comes once the diagnostic confirms the screen, the buttons and USB. Technical progress is in [`hal/fm1/README_PORT.md`](../../hal/fm1/README_PORT.md) (Spanish).
+Bubba Machine for the FM-1 now has a **full firmware, with sound**, a **diagnostic firmware** and a **web installer**. It has **not been tested on a device yet**: the author does the first test. Technical progress is in [`hal/fm1/README_PORT.md`](../../hal/fm1/README_PORT.md) (Spanish).
 
 If you don't want to risk your FM-1, use the emulator (below): it runs the same code.
 
@@ -24,12 +24,15 @@ The emulator runs exactly the same C code that will run on the device.
 You need a computer with **Chrome or Edge** (Web MIDI), a **USB data cable** and the **FM-1.fwsc** file (FM-1 V15) that M-VAVE publishes on its site.
 
 1. Connect the FM-1 over USB and switch it on. It may run the factory firmware, X0X or Bubba Machine. Close any other app using its MIDI.
-2. Open the **installer** (`instalar.html?lang=en` on the site) and accept the MIDI permission. The page **recognizes the FM-1 by itself** and builds the package.
-3. Press **Install Bubba Machine** and confirm. Don't unplug until it says "Done".
+2. Open the **installer** (`instalar.html?lang=en` on the site) and accept the MIDI permission. The page **reads the FM-1 by itself** and says which firmware it runs.
+3. Choose what to install: **Bubba Machine**, the **Diagnostic** (no sound, to check buttons, keys and knobs) or M-VAVE's **Factory firmware**.
+4. Press the button and confirm. Don't unplug until it says "Done".
+
+If the page doesn't find the FM-1, under "Your FM-1" it shows which MIDI ports it sees and what is wrong with them (for example "busy" when REAPER or another app has it open).
 
 The first time, the page asks for **M-VAVE's FM-1.fwsc** (FM-1 V15), which M-VAVE publishes on its site: the package is **built in your browser** on top of that file, because this site only publishes our part, never M-VAVE's. It is checked to be exactly that file, and the browser remembers it for next time.
 
-**From a copy of the repository** (for example, for a version you built yourself): `py -3 tools/fm1/servir.py` opens the installer at `http://localhost:8765/instalar.html` and hands it V15 directly (taken from `~/jieli/stock/FM-1.fwsc` or downloaded from M-VAVE once), so there is nothing to choose. The version is changed under **More options**.
+**From a copy of the repository** (for example, for a version you built yourself): `py -3 tools/fm1/servir.py` opens the installer at `http://localhost:8765/instalar.html` and hands it V15 directly (taken from `~/jieli/stock/FM-1.fwsc` or downloaded from M-VAVE once), so there is nothing to choose. Under **More options** you can install a file of your own.
 
 How it works inside:
 
@@ -42,7 +45,7 @@ How it works inside:
 
 There are three ways, from the easiest to the emergency one:
 
-- **From the same installer**: under **More options**, press **Back to the factory firmware**.
+- **From the same installer**: choose **Factory firmware** and press **Restore the factory firmware**.
 - **With M-UPGRADE**, M-VAVE's official updater. Bubba Machine presents itself as FM-1 version 3 and speaks the same protocol, so M-UPGRADE should offer V15 (not tested yet).
 - **From X0X or its safe mode**, with its own installer.
 

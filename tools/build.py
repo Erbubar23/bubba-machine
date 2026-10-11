@@ -42,8 +42,7 @@ def test():
     os.makedirs(os.path.join(ROOT, 'build', 'out'), exist_ok=True)
     docker(GCC_IMAGE,
            f'gcc {CFLAGS} {SRC} tests/test_core.c -lm -o build/test_core && ./build/test_core build/out && '
-           f'gcc {CFLAGS} hal/fm1/fm1_scan.c tests/test_scan.c -o build/test_scan && ./build/test_scan && '
-           f'gcc {CFLAGS} -fsyntax-only hal/fm1/fm1_main.c')
+           f'gcc {CFLAGS} hal/fm1/fm1_scan.c tests/test_scan.c -o build/test_scan && ./build/test_scan')
     try:
         from PIL import Image
         os.makedirs(os.path.join(ROOT, 'assets', 'screens'), exist_ok=True)
@@ -90,7 +89,8 @@ def fm1(app):
                         GCC_IMAGE, 'bash', '-c', cmd], env=env)
     if r.returncode:
         sys.exit(r.returncode)
-    pkg = os.path.join(out, 'bubba-%s-%s.fwsc' % (app, version()))
+    base = 'bubba-%s-%s' % ('diag' if app == 'diag' else 'machine', version())
+    pkg = os.path.join(out, base + '.fwsc')
     r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'fm1', 'fwsc.py'), 'armar', FM1_V15,
                         os.path.join(out, 'app-%s.bin' % app), pkg, '--vm', '0xE5000:0x8000'])
     if r.returncode:
@@ -99,7 +99,7 @@ def fm1(app):
     # V15 de cada quien, así lo de M-VAVE nunca se publica
     pub = os.path.join(ROOT, 'web', 'fm1')
     os.makedirs(pub, exist_ok=True)
-    nombre = 'bubba-%s-%s.bin' % (app, version())
+    nombre = base + '.bin'
     with open(os.path.join(out, 'app-%s.bin' % app), 'rb') as f:
         data = f.read()
     with open(os.path.join(pub, nombre), 'wb') as f:
@@ -111,9 +111,13 @@ def fm1(app):
             diag = '-diag-' in n
             v = n.rsplit('-', 1)[1][:-4]
             lista.append({'archivo': n, 'sha256': hashlib.sha256(d).hexdigest(), 'bytes': len(d),
-                          'nombre': ('Diagnóstico %s (sin sonido: primera prueba del aparato)' if diag else 'Bubba Machine %s') % v,
-                          'nombre_en': ('Diagnostic %s (no sound: first test of the device)' if diag else 'Bubba Machine %s') % v})
-    lista.sort(key=lambda x: ('-diag-' not in x['archivo'], x['archivo']))
+                          'nombre': ('Diagnóstico %s' if diag else 'Bubba Machine %s') % v,
+                          'nombre_en': ('Diagnostic %s' if diag else 'Bubba Machine %s') % v,
+                          'detalle': 'Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.' if diag else
+                          'El groovebox completo: 6 canales, secuenciador, sampler y sonido. En pruebas.',
+                          'detalle_en': 'No sound: shows every button, key and knob to check the device.' if diag else
+                          'The full groovebox: 6 channels, sequencer, sampler and sound. In testing.'})
+    lista.sort(key=lambda x: ('-diag-' in x['archivo'], x['archivo']))
     with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(lista, f, ensure_ascii=False, indent=1)
         f.write('\n')

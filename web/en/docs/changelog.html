@@ -59,7 +59,7 @@
 </li><li>
 <strong>FM-1, first firmware for the device</strong> (in testing, not yet tried on hardware): a <strong>diagnostic</strong> with no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
 </li><li>
-<strong>Web installer</strong> (<code>instalar.html</code>): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it also goes back to the factory firmware and resumes an interrupted install.
+<strong>Web installer</strong> (<code>instalar.html</code>): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it recognizes the FM-1 by itself and comes down to one button, <strong>Install</strong>; it also goes back to the factory firmware and resumes an interrupted install. <code>tools/fm1/servir.py</code> serves it on the computer with V15 already loaded.
 </li><li>
 <strong>FM-1 tools:</strong> <code>tools/fm1/fwsc.py</code> (packer, checked byte for byte against V15) and <code>tools/fm1/rescate.py</code> (rescue from Windows through chip mode, with a full backup before writing).
 </li></ul>

@@ -69,16 +69,14 @@ In <strong>Sampler and memory</strong> you can load a WAV of up to 3 s as a new 
 <h2 id="how-to-install">How to install</h2>
 <p>You need a computer with <strong>Chrome or Edge</strong> (Web MIDI), a <strong>USB data cable</strong> and the <strong>FM-1.fwsc</strong> file (FM-1 V15) that M-VAVE publishes on its site.</p>
 <ol><li>
-Open the <strong>installer</strong>: <code>instalar.html?lang=en</code> on the site. For a version you built yourself, serve the <code>web/</code> folder on your computer (<code>py -3 -m http.server</code> inside <code>web/</code>) and open <code>http://localhost:8000/instalar.html?lang=en</code>.
+Connect the FM-1 over USB and switch it on. It may run the factory firmware, X0X or Bubba Machine. Close any other app using its MIDI.
 </li><li>
-Connect the FM-1 and press <strong>Find the FM-1</strong>. It may run the factory firmware, X0X or Bubba Machine.
+Open the <strong>installer</strong> (<code>instalar.html?lang=en</code> on the site) and accept the MIDI permission. The page <strong>recognizes the FM-1 by itself</strong> and builds the package.
 </li><li>
-Choose <strong>M-VAVE's FM-1.fwsc</strong>. The page checks that it is exactly that file.
-</li><li>
-Choose the <strong>Bubba Machine version</strong>. The page <strong>builds the package in your browser</strong> on top of M-VAVE's file: this site only publishes our part, never M-VAVE's.
-</li><li>
-Tick that you understand the risks and press <strong>Install Bubba Machine</strong>. Don't unplug until it says "Done".
+Press <strong>Install Bubba Machine</strong> and confirm. Don't unplug until it says "Done".
 </li></ol>
+<p>The first time, the page asks for <strong>M-VAVE's FM-1.fwsc</strong> (FM-1 V15), which M-VAVE publishes on its site: the package is <strong>built in your browser</strong> on top of that file, because this site only publishes our part, never M-VAVE's. It is checked to be exactly that file, and the browser remembers it for next time.</p>
+<p><strong>From a copy of the repository</strong> (for example, for a version you built yourself): <code>py -3 tools/fm1/servir.py</code> opens the installer at <code>http://localhost:8765/instalar.html</code> and hands it V15 directly (taken from <code>~/jieli/stock/FM-1.fwsc</code> or downloaded from M-VAVE once), so there is nothing to choose. The version is changed under <strong>More options</strong>.</p>
 <p>How it works inside:</p>
 <ul><li>
 The running firmware prepares <strong>M-VAVE's official update loader</strong> and restarts into it.
@@ -92,7 +90,7 @@ The package refuses to install if the device's boot area is not identical to the
 <h2 id="back-to-the-factory-firmware">Back to the factory firmware</h2>
 <p>There are three ways, from the easiest to the emergency one:</p>
 <ul><li>
-<strong>From the same installer</strong>: choose the FM-1.fwsc and press <strong>Back to the factory firmware</strong>.
+<strong>From the same installer</strong>: under <strong>More options</strong>, press <strong>Back to the factory firmware</strong>.
 </li><li>
 <strong>With M-UPGRADE</strong>, M-VAVE's official updater. Bubba Machine presents itself as FM-1 version 3 and speaks the same protocol, so M-UPGRADE should offer V15 (not tested yet).
 </li><li>
@@ -100,7 +98,7 @@ The package refuses to install if the device's boot area is not identical to the
 </li></ul>
 <h2 id="if-something-goes-wrong">If something goes wrong</h2>
 <ul><li>
-<strong>The install was interrupted</strong> (the FM-1 shows up as "ota-FM-1"): reconnect, choose the same files and press <strong>Resume</strong>. The FM-1 stays in that mode until it finishes.
+<strong>The install was interrupted</strong> (the FM-1 shows up as "ota-FM-1"): reconnect it with the installer open: the button changes to <strong>Resume the install</strong>. The FM-1 stays in that mode until it finishes.
 </li><li>
 <strong>Safe mode:</strong> if Bubba Machine fails to start properly twice in a row, it starts with no sound and USB on, so you can reinstall or go back to the factory firmware. You also get there by switching it on with OCT− and OCT+ held.
 </li><li>

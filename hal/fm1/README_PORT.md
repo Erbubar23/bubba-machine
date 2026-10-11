@@ -57,7 +57,7 @@ El driver de flash (`fm1_flash.c`) rechaza cualquier borrado o escritura fuera d
 
 ## Primera prueba en el aparato (diagnóstico)
 
-1. Desde el FM-1 con X0X (o con el firmware de fábrica): `web/instalar.html` servido en `localhost`, eligiendo `build/fm1/bubba-diag-<versión>.fwsc`.
+1. Desde el FM-1 con X0X (o con el firmware de fábrica): `py -3 tools/fm1/servir.py` abre `web/instalar.html` en `localhost` con el V15 ya cargado; reconoce el FM-1 solo y basta con pulsar **Instalar** (la versión por defecto es la primera de `web/fm1/versiones.json`, el diagnóstico).
 2. Qué mirar en la pantalla:
    - que arranque, con «ARRANQUE NORMAL FALLIDOS 0» y «USB: MIDI LISTO» con la computadora conectada;
    - que cada botón y tecla marque su cruce en la cuadrícula y su número;

@@ -69,16 +69,14 @@ En <strong>Sampler y memoria</strong> puedes cargar un WAV de hasta 3 s como tom
 <h2 id="cómo-se-instala">Cómo se instala</h2>
 <p>Hace falta una computadora con <strong>Chrome o Edge</strong> (Web MIDI), un <strong>cable USB de datos</strong> y el archivo <strong>FM-1.fwsc</strong> (FM-1 V15) que M-VAVE publica en su sitio.</p>
 <ol><li>
-Abre el <strong>instalador</strong>: <code>instalar.html</code> del sitio. Para una versión armada por ti, sirve la carpeta <code>web/</code> en tu computadora (<code>py -3 -m http.server</code> dentro de <code>web/</code>) y abre <code>http://localhost:8000/instalar.html</code>.
+Conecta el FM-1 por USB y préndelo. Puede tener el firmware de fábrica, X0X o Bubba Machine. Cierra cualquier otro programa que use su MIDI.
 </li><li>
-Conecta el FM-1 y pulsa <strong>Buscar el FM-1</strong>. Puede tener el firmware de fábrica, X0X o Bubba Machine.
+Abre el <strong>instalador</strong> (<code>instalar.html</code> del sitio) y acepta el permiso de MIDI. La página <strong>reconoce el FM-1 sola</strong> y arma el paquete.
 </li><li>
-Elige el <strong>FM-1.fwsc de M-VAVE</strong>. La página comprueba que sea exactamente ese archivo.
-</li><li>
-Elige la <strong>versión de Bubba Machine</strong>. La página <strong>arma el paquete en tu navegador</strong> sobre el archivo de M-VAVE: este sitio solo publica lo nuestro, nunca lo de M-VAVE.
-</li><li>
-Marca que entiendes los riesgos y pulsa <strong>Instalar Bubba Machine</strong>. No desconectes hasta que diga «Listo».
+Pulsa <strong>Instalar Bubba Machine</strong> y confirma. No desconectes hasta que diga «Listo».
 </li></ol>
+<p>La primera vez, la página pide el <strong>FM-1.fwsc de M-VAVE</strong> (FM-1 V15), que M-VAVE publica en su sitio: el paquete se <strong>arma en tu navegador</strong> sobre ese archivo, porque este sitio solo publica lo nuestro, nunca lo de M-VAVE. Se comprueba que sea exactamente ese archivo, y el navegador lo recuerda para la próxima vez.</p>
+<p><strong>Desde una copia del repositorio</strong> (por ejemplo, para una versión armada por ti): <code>py -3 tools/fm1/servir.py</code> abre el instalador en <code>http://localhost:8765/instalar.html</code> y le entrega el V15 directamente (lo toma de <code>~/jieli/stock/FM-1.fwsc</code> o lo descarga de M-VAVE una vez), así no hay que elegir nada. La versión se cambia en <strong>Más opciones</strong>.</p>
 <p>Cómo funciona por dentro:</p>
 <ul><li>
 El firmware que corre prepara el <strong>cargador de actualización oficial de M-VAVE</strong> y reinicia en él.
@@ -92,7 +90,7 @@ El paquete se niega a instalarse si el arranque del aparato no es idéntico al d
 <h2 id="volver-al-firmware-de-fábrica">Volver al firmware de fábrica</h2>
 <p>Hay tres caminos, del más cómodo al de emergencia:</p>
 <ul><li>
-<strong>Desde el mismo instalador</strong>: elige el FM-1.fwsc y pulsa <strong>Volver al de fábrica</strong>.
+<strong>Desde el mismo instalador</strong>: en <strong>Más opciones</strong>, pulsa <strong>Volver al de fábrica</strong>.
 </li><li>
 <strong>Con M-UPGRADE</strong>, el actualizador oficial de M-VAVE. Bubba Machine se presenta como la versión 3 del FM-1 y habla el mismo protocolo, así que M-UPGRADE debería ofrecer la V15 (todavía sin probar).
 </li><li>
@@ -100,7 +98,7 @@ El paquete se niega a instalarse si el arranque del aparato no es idéntico al d
 </li></ul>
 <h2 id="si-algo-sale-mal">Si algo sale mal</h2>
 <ul><li>
-<strong>Se cortó la instalación</strong> (el FM-1 aparece como «ota-FM-1»): vuelve a conectar, elige los mismos archivos y pulsa <strong>Continuar</strong>. El FM-1 se queda en ese modo hasta terminar.
+<strong>Se cortó la instalación</strong> (el FM-1 aparece como «ota-FM-1»): vuelve a conectarlo con el instalador abierto: el botón cambia a <strong>Continuar la instalación</strong>. El FM-1 se queda en ese modo hasta terminar.
 </li><li>
 <strong>Modo seguro:</strong> si Bubba Machine no llega a arrancar bien dos veces seguidas, arranca sin sonido y con el USB activo, para reinstalar o volver al de fábrica. También se entra prendiéndolo con OCT− y OCT+ apretados.
 </li><li>

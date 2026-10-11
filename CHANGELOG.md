@@ -11,7 +11,7 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 - **Motores de sonido nuevos:** **ACID** (estilo 303: filtro escalera de 4 polos con resonancia, acento y slide) para T3 y los canales libres; **ANALOG** (dos osciladores desafinados, sub y ruido, 6 timbres) para los canales libres; y el kit **SINTE**, una batería calculada en vivo. Los kits grabados KO-808 y KO-909 se quedan.
 - **Memoria de tomas a la vista:** en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
 - **FM-1, primer firmware para el aparato** (en pruebas, sin probar todavía en hardware): un **diagnóstico** sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
-- **Instalador web** (`instalar.html`): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; también vuelve al firmware de fábrica y continúa una instalación cortada.
+- **Instalador web** (`instalar.html`): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; reconoce el FM-1 solo y queda en un botón, **Instalar**; también vuelve al firmware de fábrica y continúa una instalación cortada. `tools/fm1/servir.py` lo sirve en la computadora con el V15 ya cargado.
 - **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
 ### Cambiado

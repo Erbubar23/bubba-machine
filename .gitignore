@@ -6,3 +6,7 @@ __pycache__/
 assets/test-samples/
 assets/loops/local/
 assets/loops/loops.local.json
+
+# el FM-1 V15 de M-VAVE nunca se sube (tools/fm1/servir.py lo entrega sin copiarlo aquí)
+web/fm1/local/
+*.fwsc

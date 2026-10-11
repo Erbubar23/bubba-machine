@@ -14,7 +14,7 @@
                                 (ver hal/fm1/README_PORT.md).
   py -3 tools/build.py all      todo lo anterior
 """
-import glob, os, subprocess, sys
+import glob, hashlib, json, os, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GCC_IMAGE = 'python:3.12-bookworm'
@@ -95,6 +95,29 @@ def fm1(app):
                         os.path.join(out, 'app-%s.bin' % app), pkg, '--vm', '0xE5000:0x8000'])
     if r.returncode:
         sys.exit(r.returncode)
+    # para el instalador web: solo app.bin (lo nuestro); el paquete lo arma el navegador sobre el
+    # V15 de cada quien, así lo de M-VAVE nunca se publica
+    pub = os.path.join(ROOT, 'web', 'fm1')
+    os.makedirs(pub, exist_ok=True)
+    nombre = 'bubba-%s-%s.bin' % (app, version())
+    with open(os.path.join(out, 'app-%s.bin' % app), 'rb') as f:
+        data = f.read()
+    with open(os.path.join(pub, nombre), 'wb') as f:
+        f.write(data)
+    lista = []
+    for n in sorted(os.listdir(pub)):
+        if n.endswith('.bin'):
+            d = open(os.path.join(pub, n), 'rb').read()
+            diag = '-diag-' in n
+            v = n.rsplit('-', 1)[1][:-4]
+            lista.append({'archivo': n, 'sha256': hashlib.sha256(d).hexdigest(), 'bytes': len(d),
+                          'nombre': ('Diagnóstico %s (sin sonido: primera prueba del aparato)' if diag else 'Bubba Machine %s') % v,
+                          'nombre_en': ('Diagnostic %s (no sound: first test of the device)' if diag else 'Bubba Machine %s') % v})
+    lista.sort(key=lambda x: ('-diag-' not in x['archivo'], x['archivo']))
+    with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(lista, f, ensure_ascii=False, indent=1)
+        f.write('\n')
+    print('para el instalador web: web/fm1/%s (+ versiones.json)' % nombre)
 
 
 def version():

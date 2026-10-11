@@ -56,12 +56,20 @@
 <strong>Motores de sonido nuevos:</strong> <strong>ACID</strong> (estilo 303: filtro escalera de 4 polos con resonancia, acento y slide) para T3 y los canales libres; <strong>ANALOG</strong> (dos osciladores desafinados, sub y ruido, 6 timbres) para los canales libres; y el kit <strong>SINTE</strong>, una batería calculada en vivo. Los kits grabados KO-808 y KO-909 se quedan.
 </li><li>
 <strong>Memoria de tomas a la vista:</strong> en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
+</li><li>
+<strong>FM-1, primer firmware para el aparato</strong> (en pruebas, sin probar todavía en hardware): un <strong>diagnóstico</strong> sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
+</li><li>
+<strong>Instalador web</strong> (<code>instalar.html</code>): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; también vuelve al firmware de fábrica y continúa una instalación cortada.
+</li><li>
+<strong>Herramientas del FM-1:</strong> <code>tools/fm1/fwsc.py</code> (empaquetador, comprobado byte por byte contra el V15) y <code>tools/fm1/rescate.py</code> (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 </li></ul>
 <h3 id="cambiado">Cambiado</h3>
 <ul><li>
 La página SEQ de los canales de notas es solo de ese canal: piano roll de la página con el largo de cada nota, los compases del canal y el seguidor de tempo punteado. Ya no muestra los otros canales.
 </li><li>
 Las notas grabadas pueden durar hasta 4 compases (antes, 1).
+</li><li>
+Mapa de la flash para el aparato: los ajustes globales pasan a <code>0xDD000</code> y la biblioteca de tomas queda en 116 KiB (7.4 s en total; antes 8.1 s), para dejar lugar al cargador en espera y al almacén del SDK.
 </li></ul>
 <h2 id="030---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0">0.3.0</a> - 2026-10-10</h2>
 <p>La interfaz 3.0, completa en el emulador. <strong>No lee los patrones, ajustes ni samples de la 0.2:</strong> al primer arranque los borra y empieza con la demo. El port al FM-1 sigue sin probarse en hardware.</p>

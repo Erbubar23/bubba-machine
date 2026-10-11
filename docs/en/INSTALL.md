@@ -1,10 +1,10 @@
 # Installing Bubba Machine
 
-## Current status: it cannot be installed yet
+## Current status: in testing, no sound yet
 
-**There is no installer and no binary for the FM-1.** The firmware runs in full in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html?lang=en) and in the PC tests, but the hardware port is a skeleton that **has never been built with the JieLi toolchain or tested on an FM-1**. Progress is tracked in [`hal/fm1/README_PORT.md`](../../hal/fm1/README_PORT.md) (Spanish).
+There is a **diagnostic firmware** for the FM-1 and a **web installer**. Neither has been tested on a device yet: the author does the first test. The firmware with sound comes once the diagnostic confirms the screen, the buttons and USB. Technical progress is in [`hal/fm1/README_PORT.md`](../../hal/fm1/README_PORT.md) (Spanish).
 
-Do not try to flash anything from this repository onto your device.
+If you don't want to risk your FM-1, use the emulator (below): it runs the same code.
 
 ## Meanwhile: the emulator
 
@@ -19,17 +19,45 @@ Do not try to flash anything from this repository onto your device.
 
 The emulator runs exactly the same C code that will run on the device.
 
-## How installing will work
+## How to install
 
-Once there is a version tested on hardware:
+You need a computer with **Chrome or Edge** (Web MIDI), a **USB data cable** and the **FM-1.fwsc** file (FM-1 V15) that M-VAVE publishes on its site.
 
-1. **Backup first.** The installer will refuse to install unless there is a full backup of your FM-1's flash (1 MiB).
-2. **Install over USB-C**, from the browser (Web MIDI), with no extra programs.
-3. **Going back:** you will always be able to return to the factory firmware with M-VAVE's official updater or, if something goes wrong, restore the backup with the chip's boot mode or with the *FM-1 Transporter* (RP2040).
-4. **Safe mode:** holding OCT− and OCT+ at power-on boots without loading the patterns, in case one of them were damaged.
+1. Open the **installer**: `instalar.html?lang=en` on the site. For a version you built yourself, serve the `web/` folder on your computer (`py -3 -m http.server` inside `web/`) and open `http://localhost:8000/instalar.html?lang=en`.
+2. Connect the FM-1 and press **Find the FM-1**. It may run the factory firmware, X0X or Bubba Machine.
+3. Choose **M-VAVE's FM-1.fwsc**. The page checks that it is exactly that file.
+4. Choose the **Bubba Machine version**. The page **builds the package in your browser** on top of M-VAVE's file: this site only publishes our part, never M-VAVE's.
+5. Tick that you understand the risks and press **Install Bubba Machine**. Don't unplug until it says "Done".
 
-Bubba Machine only writes to the flash areas reserved for patterns, samples and settings. It never touches the bootloader or the factory firmware backup.
+How it works inside:
+
+- The running firmware prepares **M-VAVE's official update loader** and restarts into it.
+- That loader writes the new program.
+- The chip's boot area and the device data (above `0xED000`) are not touched.
+- The package refuses to install if the device's boot area is not identical to the file's.
+
+## Back to the factory firmware
+
+There are three ways, from the easiest to the emergency one:
+
+- **From the same installer**: choose the FM-1.fwsc and press **Back to the factory firmware**.
+- **With M-UPGRADE**, M-VAVE's official updater. Bubba Machine presents itself as FM-1 version 3 and speaks the same protocol, so M-UPGRADE should offer V15 (not tested yet).
+- **From X0X or its safe mode**, with its own installer.
+
+## If something goes wrong
+
+- **The install was interrupted** (the FM-1 shows up as "ota-FM-1"): reconnect, choose the same files and press **Resume**. The FM-1 stays in that mode until it finishes.
+- **Safe mode:** if Bubba Machine fails to start properly twice in a row, it starts with no sound and USB on, so you can reinstall or go back to the factory firmware. You also get there by switching it on with OCT− and OCT+ held.
+- **Chip mode:** after four failed starts, or with OCT− and OCT+ held together for 5 s, the FM-1 enters the chip's own update mode and doesn't show up as MIDI. From a Windows console **run as administrator**:
+
+  ```
+  py -3 tools/fm1/rescate.py respaldo
+  py -3 tools/fm1/rescate.py restaurar FM-1.fwsc
+  ```
+
+  It always saves a full flash backup first. Then it writes only the program area, and checks what it wrote.
+- **Nothing above responds:** the *FM-1 Transporter* remains, an RP2040 board wired to the USB lines.
 
 ## Safety
 
-Installing unofficial firmware **can brick your FM-1** and will probably void the warranty. This software comes with no warranty (see the [license](../../LICENSE), sections 15 and 16). Only install versions marked as **tested on hardware** in the [changelog](CHANGELOG.md).
+Installing unofficial firmware **can brick your FM-1** and will probably void the warranty. This software comes with no warranty (see the [license](../../LICENSE), sections 15 and 16). Until the [changelog](CHANGELOG.md) marks a version as **tested on hardware**, it is a test.

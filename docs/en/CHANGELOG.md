@@ -10,10 +10,14 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Length in bars** on the SEQ layer (black 7-10).
 - **New sound engines:** **ACID** (303-style: 4-pole ladder filter with resonance, accent and slide) for T3 and the free tracks; **ANALOG** (two detuned oscillators, sub and noise, 6 timbres) for the free tracks; and the **SINTE** kit, drums computed live. The recorded KO-808 and KO-909 kits stay.
 - **Take memory in view:** on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
+- **FM-1, first firmware for the device** (in testing, not yet tried on hardware): a **diagnostic** with no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
+- **Web installer** (`instalar.html`): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it also goes back to the factory firmware and resumes an interrupted install.
+- **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
 ### Changed
 - The SEQ page of note tracks is only about that track: a piano roll of the page with each note's length, the track's bars and the dotted tempo follower. It no longer shows the other tracks.
 - Recorded notes can last up to 4 bars (before, 1).
+- Flash map for the device: global settings move to `0xDD000` and the take library becomes 116 KiB (7.4 s in total; before 8.1 s), to make room for the waiting loader and the SDK store.
 
 ## [0.3.0] - 2026-10-10
 

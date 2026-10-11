@@ -10,10 +10,14 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 - **Largo en compases** en la capa de SEQ (negras 7-10).
 - **Motores de sonido nuevos:** **ACID** (estilo 303: filtro escalera de 4 polos con resonancia, acento y slide) para T3 y los canales libres; **ANALOG** (dos osciladores desafinados, sub y ruido, 6 timbres) para los canales libres; y el kit **SINTE**, una batería calculada en vivo. Los kits grabados KO-808 y KO-909 se quedan.
 - **Memoria de tomas a la vista:** en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
+- **FM-1, primer firmware para el aparato** (en pruebas, sin probar todavía en hardware): un **diagnóstico** sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
+- **Instalador web** (`instalar.html`): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; también vuelve al firmware de fábrica y continúa una instalación cortada.
+- **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
 ### Cambiado
 - La página SEQ de los canales de notas es solo de ese canal: piano roll de la página con el largo de cada nota, los compases del canal y el seguidor de tempo punteado. Ya no muestra los otros canales.
 - Las notas grabadas pueden durar hasta 4 compases (antes, 1).
+- Mapa de la flash para el aparato: los ajustes globales pasan a `0xDD000` y la biblioteca de tomas queda en 116 KiB (7.4 s en total; antes 8.1 s), para dejar lugar al cargador en espera y al almacén del SDK.
 
 ## [0.3.0] - 2026-10-10
 

@@ -32,3 +32,6 @@ jobs:
 
       - name: Pruebas del núcleo
         run: python tools/build.py test
+
+      - name: Rescate del FM-1 contra un chip simulado
+        run: python tests/test_rescate.py

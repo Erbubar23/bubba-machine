@@ -43,9 +43,9 @@
     <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
   <main class="doc">
 <h1 id="installing-bubba-machine">Installing Bubba Machine</h1>
-<h2 id="current-status-it-cannot-be-installed-yet">Current status: it cannot be installed yet</h2>
-<p><strong>There is no installer and no binary for the FM-1.</strong> The firmware runs in full in the <a href="https://erbubar23.github.io/bubba-machine/emulador.html?lang=en">web emulator</a> and in the PC tests, but the hardware port is a skeleton that <strong>has never been built with the JieLi toolchain or tested on an FM-1</strong>. Progress is tracked in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
-<p>Do not try to flash anything from this repository onto your device.</p>
+<h2 id="current-status-in-testing-no-sound-yet">Current status: in testing, no sound yet</h2>
+<p>There is a <strong>diagnostic firmware</strong> for the FM-1 and a <strong>web installer</strong>. Neither has been tested on a device yet: the author does the first test. The firmware with sound comes once the diagnostic confirms the screen, the buttons and USB. Technical progress is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
+<p>If you don't want to risk your FM-1, use the emulator (below): it runs the same code.</p>
 <h2 id="meanwhile-the-emulator">Meanwhile: the emulator</h2>
 <ol><li>
 Open the <a href="https://erbubar23.github.io/bubba-machine/emulador.html?lang=en">emulator</a> in Chrome or Edge.
@@ -66,20 +66,54 @@ The <strong>mouse wheel</strong> over a knob turns it.
 In <strong>Sampler and memory</strong> you can load a WAV of up to 3 s as a new take.
 </li></ol>
 <p>The emulator runs exactly the same C code that will run on the device.</p>
-<h2 id="how-installing-will-work">How installing will work</h2>
-<p>Once there is a version tested on hardware:</p>
+<h2 id="how-to-install">How to install</h2>
+<p>You need a computer with <strong>Chrome or Edge</strong> (Web MIDI), a <strong>USB data cable</strong> and the <strong>FM-1.fwsc</strong> file (FM-1 V15) that M-VAVE publishes on its site.</p>
 <ol><li>
-<strong>Backup first.</strong> The installer will refuse to install unless there is a full backup of your FM-1's flash (1 MiB).
+Open the <strong>installer</strong>: <code>instalar.html?lang=en</code> on the site. For a version you built yourself, serve the <code>web/</code> folder on your computer (<code>py -3 -m http.server</code> inside <code>web/</code>) and open <code>http://localhost:8000/instalar.html?lang=en</code>.
 </li><li>
-<strong>Install over USB-C</strong>, from the browser (Web MIDI), with no extra programs.
+Connect the FM-1 and press <strong>Find the FM-1</strong>. It may run the factory firmware, X0X or Bubba Machine.
 </li><li>
-<strong>Going back:</strong> you will always be able to return to the factory firmware with M-VAVE's official updater or, if something goes wrong, restore the backup with the chip's boot mode or with the <em>FM-1 Transporter</em> (RP2040).
+Choose <strong>M-VAVE's FM-1.fwsc</strong>. The page checks that it is exactly that file.
 </li><li>
-<strong>Safe mode:</strong> holding OCT− and OCT+ at power-on boots without loading the patterns, in case one of them were damaged.
+Choose the <strong>Bubba Machine version</strong>. The page <strong>builds the package in your browser</strong> on top of M-VAVE's file: this site only publishes our part, never M-VAVE's.
+</li><li>
+Tick that you understand the risks and press <strong>Install Bubba Machine</strong>. Don't unplug until it says "Done".
 </li></ol>
-<p>Bubba Machine only writes to the flash areas reserved for patterns, samples and settings. It never touches the bootloader or the factory firmware backup.</p>
+<p>How it works inside:</p>
+<ul><li>
+The running firmware prepares <strong>M-VAVE's official update loader</strong> and restarts into it.
+</li><li>
+That loader writes the new program.
+</li><li>
+The chip's boot area and the device data (above <code>0xED000</code>) are not touched.
+</li><li>
+The package refuses to install if the device's boot area is not identical to the file's.
+</li></ul>
+<h2 id="back-to-the-factory-firmware">Back to the factory firmware</h2>
+<p>There are three ways, from the easiest to the emergency one:</p>
+<ul><li>
+<strong>From the same installer</strong>: choose the FM-1.fwsc and press <strong>Back to the factory firmware</strong>.
+</li><li>
+<strong>With M-UPGRADE</strong>, M-VAVE's official updater. Bubba Machine presents itself as FM-1 version 3 and speaks the same protocol, so M-UPGRADE should offer V15 (not tested yet).
+</li><li>
+<strong>From X0X or its safe mode</strong>, with its own installer.
+</li></ul>
+<h2 id="if-something-goes-wrong">If something goes wrong</h2>
+<ul><li>
+<strong>The install was interrupted</strong> (the FM-1 shows up as "ota-FM-1"): reconnect, choose the same files and press <strong>Resume</strong>. The FM-1 stays in that mode until it finishes.
+</li><li>
+<strong>Safe mode:</strong> if Bubba Machine fails to start properly twice in a row, it starts with no sound and USB on, so you can reinstall or go back to the factory firmware. You also get there by switching it on with OCT− and OCT+ held.
+</li><li>
+<strong>Chip mode:</strong> after four failed starts, or with OCT− and OCT+ held together for 5 s, the FM-1 enters the chip's own update mode and doesn't show up as MIDI. From a Windows console <strong>run as administrator</strong>:
+</li></ul>
+<pre><code>py -3 tools/fm1/rescate.py respaldo
+py -3 tools/fm1/rescate.py restaurar FM-1.fwsc</code></pre>
+<p>It always saves a full flash backup first. Then it writes only the program area, and checks what it wrote.</p>
+<ul><li>
+<strong>Nothing above responds:</strong> the <em>FM-1 Transporter</em> remains, an RP2040 board wired to the USB lines.
+</li></ul>
 <h2 id="safety">Safety</h2>
-<p>Installing unofficial firmware <strong>can brick your FM-1</strong> and will probably void the warranty. This software comes with no warranty (see the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">license</a>, sections 15 and 16). Only install versions marked as <strong>tested on hardware</strong> in the <a href="changelog.html">changelog</a>.</p>
+<p>Installing unofficial firmware <strong>can brick your FM-1</strong> and will probably void the warranty. This software comes with no warranty (see the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">license</a>, sections 15 and 16). Until the <a href="changelog.html">changelog</a> marks a version as <strong>tested on hardware</strong>, it is a test.</p>
     <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/INSTALL.md">docs/en/INSTALL.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
   </main>
 </div>

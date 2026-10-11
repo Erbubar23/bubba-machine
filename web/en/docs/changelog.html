@@ -56,12 +56,20 @@
 <strong>New sound engines:</strong> <strong>ACID</strong> (303-style: 4-pole ladder filter with resonance, accent and slide) for T3 and the free tracks; <strong>ANALOG</strong> (two detuned oscillators, sub and noise, 6 timbres) for the free tracks; and the <strong>SINTE</strong> kit, drums computed live. The recorded KO-808 and KO-909 kits stay.
 </li><li>
 <strong>Take memory in view:</strong> on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
+</li><li>
+<strong>FM-1, first firmware for the device</strong> (in testing, not yet tried on hardware): a <strong>diagnostic</strong> with no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
+</li><li>
+<strong>Web installer</strong> (<code>instalar.html</code>): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it also goes back to the factory firmware and resumes an interrupted install.
+</li><li>
+<strong>FM-1 tools:</strong> <code>tools/fm1/fwsc.py</code> (packer, checked byte for byte against V15) and <code>tools/fm1/rescate.py</code> (rescue from Windows through chip mode, with a full backup before writing).
 </li></ul>
 <h3 id="changed">Changed</h3>
 <ul><li>
 The SEQ page of note tracks is only about that track: a piano roll of the page with each note's length, the track's bars and the dotted tempo follower. It no longer shows the other tracks.
 </li><li>
 Recorded notes can last up to 4 bars (before, 1).
+</li><li>
+Flash map for the device: global settings move to <code>0xDD000</code> and the take library becomes 116 KiB (7.4 s in total; before 8.1 s), to make room for the waiting loader and the SDK store.
 </li></ul>
 <h2 id="030---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0">0.3.0</a> - 2026-10-10</h2>
 <p>Interface 3.0, complete in the emulator. <strong>It does not read 0.2 patterns, settings or samples:</strong> on first boot it erases them and starts with the demo. The FM-1 port is still untested on hardware.</p>

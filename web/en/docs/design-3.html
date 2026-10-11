@@ -43,7 +43,7 @@
     <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
   <main class="doc">
 <h1 id="bubba-machine-30-interface-design">Bubba Machine 3.0: interface design</h1>
-<blockquote><p><strong>Status: design, not implemented.</strong> The current version (0.2) works as described in the <a href="manual.html">manual</a>. This document is the direction for 0.3. On-screen names stay in Spanish, with their meaning in parentheses.</p></blockquote>
+<blockquote><p><strong>Status: implemented in 0.3.0.</strong> The <a href="manual.html">manual</a> explains how to play it. This document keeps the reasoning behind each decision. On-screen names stay in Spanish, with their meaning in parentheses.</p></blockquote>
 <h2 id="the-idea">The idea</h2>
 <p><strong>Four gestures per button, meaning the same on every button. HOME everywhere.</strong></p>
 <p>The big knobs take you places, the small ones adjust, and the keys play and control. It brings back the best of 0.2 (three kinds of press, live layers, the 2 s ring) and adds the new: knobs that navigate, HOME as a controller, tabs, and fixed and free tracks.</p>
@@ -94,22 +94,22 @@
 <strong>SLICE:</strong> later, calmly. White keys place cuts on eighth notes, black key 9 places them on the hits and black key 10 spreads them evenly.
 </li></ol>
 <p>A take stays unsaved until you stop the transport, because writing the flash pauses the audio.</p>
-<h2 id="open-decisions">Open decisions</h2>
+<h2 id="decisions">Decisions</h2>
 <ul><li>
-<strong>Entry box timing:</strong> 400 ms proposed, to be tested.
+<strong>Entry box timing:</strong> 400 ms by default; changed in GLO or SISTEMA (0, 250, 400, 800 ms or OFF). <em>Resolved in 0.3.0.</em>
 </li><li>
-<strong>Pattern banks:</strong> the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns.
+<strong>Take library:</strong> the 128 KiB of samples became a free-length take library (format 3). <em>Resolved in 0.3.0.</em>
 </li><li>
-<strong>Take library:</strong> today there are 2 fixed 4 s slots; a free-length library needs a new flash format.
+<strong>Pattern banks:</strong> the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns. <em>Open:</em> in 0.3, PRESETS on HOME walks the 16.
 </li><li>
-<strong>Ghost notes on drums:</strong> each step's byte is full; it needs a level P-Lock or a bigger format.
+<strong>Ghost notes on drums:</strong> each step's byte is full; it needs a level P-Lock or a bigger format. <em>Open:</em> notes already have three levels.
 </li></ul>
     <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/DESIGN_3.0.md">docs/en/DESIGN_3.0.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
   </main>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

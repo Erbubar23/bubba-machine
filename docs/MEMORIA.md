@@ -6,18 +6,19 @@ Medido con `sizeof` en el build de PC (punteros de 8 bytes; en el FM-1 son de 4,
 
 | Bloque | Bytes | Notas |
 |---|---:|---|
-| Patrón activo (`bm_pattern`) | 12 696 | 2 pistas TR (16 líneas × 64 pasos, 1 byte por paso + P-Locks) + 4 synths + 4 looperas |
-| Arena compartida | 49 152 | Delay (32 KiB) + punch-in (16 KiB); durante una grabación de sample, toda la arena es el buffer (3 s a 16 kHz) |
-| Caché de patrón sin guardar | 8 192 | para cambiar de patrón sonando; también sirve de buffer al reescribir los chops |
-| Portapapeles, undo y redo | ~6 200 | una pista cada uno |
-| Cola de comandos UI → audio | ~2 048 | 128 comandos |
-| Contexto de audio (voces, buffers, secuenciador) | ~4 300 | |
-| Resto de la app (UI, gestos, forma de onda) | ~1 700 | |
-| **Total `bm_app`** | **84 312** | |
+| Patrón activo (`bm_pattern`) | 12 792 | T1 batería y T2 sampler en rejilla TR (16 líneas × 64 pasos, 1 byte por paso + P-Locks) + 4 canales de notas o KIT (unión) + 4 looperas |
+| Arena compartida | 49 152 | Delay (32 KiB) + punch-in (16 KiB); mientras graba la GRABADORA, toda la arena es la toma (3 s a 16 kHz) |
+| Caché de patrón sin guardar | 8 192 | para cambiar de patrón sonando; también sirve de buffer al reescribir la cabecera de una toma |
+| Portapapeles, undo y redo | ~6 200 | un canal cada uno |
+| Cola de comandos UI → audio | ~2 056 | 128 comandos |
+| Contexto de audio (voces, secuenciador, generador, 3 fuentes del sampler) | ~4 100 | |
+| Tomas, fuentes y dibujos por bandas | ~2 050 | 8 tomas, 3 fuentes estables, el loop A y la toma que se corta |
+| Resto de la app (UI, gestos, teclas, canción) | ~2 500 | |
+| **Total `bm_app`** | **86 984** | 0.2 usaba 84 776 |
 | Franja de render + tile | 4 800 | 240×8×2 + 60×8×2 |
 | Tabla mu-law, LEDs, MIDI | ~1 100 | |
-| **Total estático** | **~90 200** | |
-| Libre para pila e ISR | ~8 100 | `VERIFICAR` con el mapa del linker del port |
+| **Total estático** | **~92 900** | |
+| Libre para pila e ISR | ~5 400 | `VERIFICAR` con el mapa del linker del port |
 
 Si en el FM-1 falta RAM, lo primero que se achica es la arena (`BM_ARENA_LEN` en `core/bm_config.h`): menos delay y menos segundos de grabación.
 
@@ -31,7 +32,7 @@ Si en el FM-1 falta RAM, lo primero que se achica es la arena (`BM_ARENA_LEN` en
 | Fuentes | ~1 KB | 5×7 y 3×5 |
 | Código | `VERIFICAR` | Depende del toolchain de JieLi; el límite es ~340 KiB (SPEC §4.4) |
 | Patrones | 164 KiB | 20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling |
-| Samples | 128 KiB | 2 slots de 64 KiB (4 s a 16 kHz cada uno), se reproducen directo desde la flash |
+| Tomas | 128 KiB | Biblioteca de largo libre: hasta 8 tomas de hasta 3 s, 8.1 s en total, en sectores seguidos con la cabecera al inicio. Se reproducen directo desde la flash |
 | Globales | 12 KiB | 3 sectores en rotación |
 
 ## Pantalla

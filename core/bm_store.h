@@ -40,5 +40,7 @@ bool bm_store_has(const bm_store *s, uint8_t obj);
 int  bm_store_used_slots(const bm_store *s);
 int  bm_store_write_glob(bm_store *s, const uint8_t *body, uint16_t len);
 int  bm_store_read_glob(const bm_store *s, uint8_t *dst, int cap);
+/* Borra patrones, canción y ajustes (al pasar de 0.2 a 0.3, que no los lee). */
+int  bm_store_format(bm_store *s, const bm_flash_ops *f);
 
 #endif

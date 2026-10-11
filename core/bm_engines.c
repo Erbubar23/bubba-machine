@@ -100,7 +100,7 @@ static int32_t hermite(int32_t xm1, int32_t x0, int32_t x1, int32_t x2, uint32_t
     return (int32_t)y;
 }
 
-/* ------------------------------------------------------------ T1: batería ROMpler */
+/* ------------------------------------------------------------ batería ROMpler (T1 y canales KIT) */
 static int32_t drum_at(const bm_drum_sound *d, int32_t i)
 {
     if (i < 0 || (uint32_t)i >= d->len) return 0;
@@ -111,14 +111,14 @@ static void drum_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t ve
 {
     (void)legato;
     bm_ctx *c = e->ctx;
-    const bm_track *t = &c->pat->trk[0];
+    const bm_track *t = &c->pat->trk[e->track];
     int snd = note % BM_KIT_SOUNDS;
     const bm_drum_sound *d = &bm_rom_kits[t->source % BM_KITS][snd];
     memcpy(v->lk, lk, 4);
-    v->active = 1; v->track = 0; v->note = (uint8_t)snd; v->vel = vel;
+    v->active = 1; v->track = e->track; v->note = (uint8_t)snd; v->vel = vel;
     v->stage = ENV_DEC; v->gate = 0; v->fade = 0; v->pend = 0; v->age = ++c->age;
     v->sound = (uint8_t)snd; v->choke = d->choke;
-    const bm_lane *ln = &c->pat->tr[0].lane[snd];
+    const bm_lane *ln = &bm_trk_tr(c->pat, e->track)->lane[snd];
     v->vel = (uint8_t)bm_clampi(vel * ln->level / 100, 1, 127);
     v->step = bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)];
     v->start = (uint32_t)((uint64_t)d->len * eff(v, t, 3) / 254u);
@@ -129,19 +129,19 @@ static void drum_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t ve
 static void drum_note_on(bm_engine *e, uint8_t note, uint8_t vel)
 {
     bm_ctx *c = e->ctx;
-    const bm_track *t = &c->pat->trk[0];
+    const bm_track *t = &c->pat->trk[e->track];
     int snd = note % BM_KIT_SOUNDS;
     const bm_drum_sound *d = &bm_rom_kits[t->source % BM_KITS][snd];
     uint8_t lk[4];
     take_locks(e, lk);
     e->legato_next = 0;
     if (d->choke)
-        for (int i = 0; i < BM_V_DRUM_N; i++) {
-            bm_voice *v = &c->voice[BM_V_DRUM0 + i];
-            if (v->active && v->choke == d->choke) bm_voice_fade(v);
+        for (int i = 0; i < BM_VOICES; i++) {
+            bm_voice *v = &c->voice[i];
+            if (v->active && v->track == e->track && v->choke == d->choke) bm_voice_fade(v);
         }
-    if (d->ducks && c->sc_trig_at < 0) c->sc_trig_at = (int16_t)c->blk_off;
-    bm_voice *v = bm_voice_get(c, 0, (uint8_t)snd, vel, lk, 0);
+    if (d->ducks && e->track == 0 && c->sc_trig_at < 0) c->sc_trig_at = (int16_t)c->blk_off;
+    bm_voice *v = bm_voice_get(c, e->track, (uint8_t)snd, vel, lk, 0);
     if (v) drum_voice_start(e, v, (uint8_t)snd, vel, lk, 0);
 }
 
@@ -150,15 +150,16 @@ static void drum_note_off(bm_engine *e, uint8_t note) { (void)e; (void)note; /* 
 static bool drum_process(bm_engine *e, int32_t *buf, uint16_t frames)
 {
     bm_ctx *c = e->ctx;
-    const bm_track *t = &c->pat->trk[0];
+    const bm_track *t = &c->pat->trk[e->track];
+    const bm_tr *tr = bm_trk_tr(c->pat, e->track);
     bool any = false;
-    for (int vi = 0; vi < BM_V_DRUM_N; vi++) {
-        bm_voice *v = &c->voice[BM_V_DRUM0 + vi];
-        if (!v->active || v->track != 0) continue;
+    for (int vi = 0; vi < BM_VOICES; vi++) {
+        bm_voice *v = &c->voice[vi];
+        if (!v->active || v->track != e->track) continue;
         any = true;
         const bm_drum_sound *d = &bm_rom_kits[t->source % BM_KITS][v->sound];
         int32_t a = bm_onepole_a[eff(v, t, 0)];
-        uint32_t coef = bm_decay_coef[eff(v, t, 2) * c->pat->tr[0].lane[v->sound].decay / 127];
+        uint32_t coef = bm_decay_coef[eff(v, t, 2) * tr->lane[v->sound].decay / 127];
         bool herm = t->interp != 0;
         for (uint16_t i = 0; i < frames && v->active; i++) {
             int32_t idx = (int32_t)(v->start + (v->pos >> 16));
@@ -183,10 +184,11 @@ static void drum_init(bm_engine *e) { common_init(e); }
 
 const bm_engine_vt bm_eng_drum = {drum_init, drum_note_on, drum_note_off, common_set_macro, drum_process, drum_voice_start};
 
-/* ------------------------------------------------------------ T2: sampler */
-static void slice_bounds(const bm_ctx *c, int i, uint32_t *s, uint32_t *e)
+/* ------------------------------------------------------------ T2: sampler de loops en slices
+ * La nota lleva el slice (bits 0-2), la fuente (bits 3-4: 0 A, 1 B, 2 escucha), reversa (bit 5)
+ * y media velocidad (bit 6). El loop sigue el tempo: suena a BPM / BPM del loop, más PITCH. */
+static void slice_bounds(const bm_smp_src *m, int i, uint32_t *s, uint32_t *e)
 {
-    const bm_smp_src *m = &c->smp;
     if (m->nmarks == 0) {
         *s = m->len * (uint32_t)i / BM_SLICES;
         *e = m->len * (uint32_t)(i + 1) / BM_SLICES;
@@ -196,43 +198,61 @@ static void slice_bounds(const bm_ctx *c, int i, uint32_t *s, uint32_t *e)
     }
 }
 
-static int32_t smp_at(const bm_ctx *c, int32_t i)
+static int32_t smp_at(const bm_smp_src *m, int32_t i)
 {
-    if (i < 0 || (uint32_t)i >= c->smp.len) return 0;
-    return (int32_t)c->smp.data[i] << 8;
+    if (i < 0 || (uint32_t)i >= m->len) return 0;
+    return (int32_t)m->data[i] << 8;
+}
+
+uint32_t bm_brk_rate(const bm_ctx *c, const bm_smp_src *m)
+{
+    uint32_t r = bm_semi_ratio[bm_clampi(c->pat->trk[1].pitch, 0, 48)];
+    if (m->bpm_x10) r = (uint32_t)(((uint64_t)r * c->pat->meta.bpm_x10) / m->bpm_x10);
+    return r;
 }
 
 static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
     (void)legato;
     bm_ctx *c = e->ctx;
-    const bm_track *t = &c->pat->trk[1];
-    int sl = note % BM_SLICES;
+    int sl = note & 7, src = (note >> BRK_SRC_SH) & 3;
+    if (src > 2) src = 0;
+    const bm_smp_src *m = &c->smp[src];
     uint32_t s, en;
-    slice_bounds(c, sl, &s, &en);
+    slice_bounds(m, sl, &s, &en);
+    if (en <= s) { v->active = 0; return; }
     memcpy(v->lk, lk, 4);
     v->active = 1; v->track = 1; v->note = (uint8_t)sl; v->vel = vel;
     v->stage = ENV_DEC; v->gate = 1; v->fade = 0; v->pend = 0; v->age = ++c->age;
-    v->sound = (uint8_t)sl;
-    const bm_lane *ln = &c->pat->tr[1].lane[sl];
-    v->vel = (uint8_t)bm_clampi(vel * ln->level / 100, 1, 127);
-    uint32_t ratio = bm_semi_ratio[bm_clampi(24 + ((eff(v, t, 1) - 64) * 12) / 64 + ((ln->tune - 64) * 12) / 64, 0, 48)];
+    v->sound = (uint8_t)sl; v->src = (uint8_t)src; v->dir = (note & BRK_REV) ? 1 : 0;
+    v->gain = m->gain ? m->gain : 64;
+    uint32_t ratio = bm_brk_rate(c, m);
+    if (note & BRK_HALF) ratio >>= 1;
     v->step = (uint32_t)(((uint64_t)c->smp_base_inc * ratio) >> 16);
-    v->start = s + (uint32_t)((uint64_t)(en - s) * eff(v, t, 3) / 254u);
-    v->end = en; v->pos = 0; v->env = 1 << 30; v->lp = 0;
+    v->start = s; v->end = en;
+    v->pos = (en - s) * (uint32_t)c->brk_next_off;          /* Q16: dentro del slice */
+    c->brk_next_off = 0;
+    v->env = 1 << 30; v->lp = 0;
 }
 
 static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel)
 {
     bm_ctx *c = e->ctx;
-    int sl = note % BM_SLICES;
     uint8_t lk[4];
     take_locks(e, lk);
     e->legato_next = 0;
-    if (c->smp.len == 0 || !c->smp.data || c->smp_rec) return;
-    if (c->smp.nmarks && sl >= c->smp.nmarks) return;
-    bm_voice *v = bm_voice_get(c, 1, (uint8_t)sl, vel, lk, 0);
-    if (v) smp_voice_start(e, v, (uint8_t)sl, vel, lk, 0);
+    int src = (note >> BRK_SRC_SH) & 3, sl = note & 7;
+    if (src > 2) return;
+    const bm_smp_src *m = &c->smp[src];
+    if (m->len == 0 || !m->data || c->smp_rec) { c->brk_next_off = 0; return; }
+    if (m->nmarks && sl >= m->nmarks) { c->brk_next_off = 0; return; }
+    for (int i = 0; i < BM_VOICES; i++)                    /* break: un slice corta al anterior */
+        if (c->voice[i].active && c->voice[i].track == 1) bm_voice_fade(&c->voice[i]);
+    c->brk_last = note; c->brk_last_off = c->brk_next_off; c->st.brk_slice = (int8_t)sl;
+    c->st.lane_trig[1] |= (uint16_t)(1u << sl);
+    bm_voice *v = bm_voice_get(c, 1, note, vel, lk, 0);
+    if (v) smp_voice_start(e, v, note, vel, lk, 0);
+    c->brk_next_off = 0;
 }
 
 static void smp_note_off(bm_engine *e, uint8_t note) { (void)e; (void)note; }
@@ -246,21 +266,25 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != 1) continue;
         any = true;
+        const bm_smp_src *m = &c->smp[v->src % 3];
+        if (!m->data) { v->active = 0; continue; }
         int32_t a = bm_onepole_a[eff(v, t, 0)];
-        uint32_t coef = bm_decay_coef[eff(v, t, 2) * c->pat->tr[1].lane[v->sound].decay / 127];
+        uint32_t coef = bm_decay_coef[eff(v, t, 2)];
         bool herm = t->interp != 0;
-        if (!c->smp.data) { v->active = 0; continue; }
+        uint32_t span = v->end - v->start;
         for (uint16_t i = 0; i < frames && v->active; i++) {
-            int32_t idx = (int32_t)(v->start + (v->pos >> 16));
-            if ((uint32_t)idx >= v->end) { v->active = 0; v->pend = 0; break; }
-            int32_t s = herm ? hermite(smp_at(c, idx - 1), smp_at(c, idx), smp_at(c, idx + 1), smp_at(c, idx + 2), v->pos & 0xFFFF)
-                             : smp_at(c, idx);
+            uint32_t off = v->pos >> 16;
+            if (off >= span) { v->active = 0; v->pend = 0; break; }
+            int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
+            int32_t s;
+            if (herm && !v->dir) s = hermite(smp_at(m, idx - 1), smp_at(m, idx), smp_at(m, idx + 1), smp_at(m, idx + 2), v->pos & 0xFFFF);
+            else s = smp_at(m, idx);
             v->lp += ((s - v->lp) * a) >> 15;
             v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
             int32_t out = (int32_t)(((int64_t)v->lp * (v->env >> 14)) >> 16);
-            out = out * v->vel >> 7;
+            out = ((out * v->vel) >> 7) * v->gain >> 6;
             /* micro-fade de salida al final del slice para que no haga click */
-            uint32_t left = v->end - (uint32_t)idx;
+            uint32_t left = span - off;
             if (left < 64) out = out * (int32_t)left / 64;
             int fading = v->fade != 0;
             buf[i] += voice_fade_step(c, v, out);
@@ -276,6 +300,46 @@ static void smp_init(bm_engine *e) { common_init(e); }
 
 const bm_engine_vt bm_eng_sampler = {smp_init, smp_note_on, smp_note_off, common_set_macro, smp_process, smp_voice_start};
 
+/* ------------------------------------------------------------ MIDI: notas hacia afuera */
+static void midi_send(bm_ctx *c, uint8_t a, uint8_t b, uint8_t d)
+{
+    if (!c->midi_out) return;
+    c->midi_out(c->midi_user, a); c->midi_out(c->midi_user, b); c->midi_out(c->midi_user, d);
+}
+
+static int midi_note(const bm_ctx *c, const bm_track *t, uint8_t note)
+{
+    return bm_clampi(note + (int)t->transpose - 24 + (int)c->pat->meta.transpose - 24, 0, 127);
+}
+
+static void midi_note_on(bm_engine *e, uint8_t note, uint8_t vel)
+{
+    bm_ctx *c = e->ctx;
+    const bm_track *t = &c->pat->trk[e->track];
+    for (int i = 0; i < 4; i++) e->lock_next[i] = BM_LOCK_NONE;
+    e->legato_next = 0;
+    midi_send(c, (uint8_t)(0x90 | (t->midi_ch & 15)), (uint8_t)midi_note(c, t, note), vel ? vel : 1);
+}
+
+static void midi_note_off(bm_engine *e, uint8_t note)
+{
+    bm_ctx *c = e->ctx;
+    const bm_track *t = &c->pat->trk[e->track];
+    midi_send(c, (uint8_t)(0x80 | (t->midi_ch & 15)), (uint8_t)midi_note(c, t, note), 0);
+}
+
+static bool midi_process(bm_engine *e, int32_t *buf, uint16_t frames) { (void)e; (void)buf; (void)frames; return false; }
+
+static void midi_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
+{
+    (void)e; (void)note; (void)vel; (void)lk; (void)legato;
+    v->active = 0;
+}
+
+static void midi_init(bm_engine *e) { common_init(e); }
+
+const bm_engine_vt bm_eng_midi = {midi_init, midi_note_on, midi_note_off, common_set_macro, midi_process, midi_voice_start};
+
 /* ------------------------------------------------------------ T3-T6: wavetable + SVF */
 static const uint8_t MAXH[BM_WAVE_LEVELS] = {127, 64, 32, 16, 8, 4, 2, 1};
 
@@ -290,7 +354,7 @@ static void wave_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t ve
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
-    int n = bm_clampi(note + (int)t->transpose - 24, 0, 127);
+    int n = bm_clampi(note + (int)t->transpose - 24 + (int)c->pat->meta.transpose - 24, 0, 127);
     uint32_t inc = bm_note_inc[n];
     memcpy(v->lk, lk, 4);
     if (legato && v->active && v->track == e->track && v->gate && !v->fade) {
@@ -310,13 +374,13 @@ static void wave_note_on(bm_engine *e, uint8_t note, uint8_t vel)
     take_locks(e, lk);
     uint8_t legato = e->legato_next;
     e->legato_next = 0;
-    if (e->track == 2) {
-        bm_voice *v = &c->voice[BM_V_BASS];
-        if (v->active && v->track == 2 && v->gate && !v->fade) {
-            if (legato) { wave_voice_start(e, v, note, vel, lk, 1); return; }
-            /* mono: redisparo en la misma voz */
-            wave_voice_start(e, v, note, vel, lk, 0);
-            return;
+    if (e->track == 2 || c->pat->trk[e->track].engine == ENG_MONO) {     /* mono: misma voz, con glide si liga */
+        for (int i = 0; i < BM_VOICES; i++) {
+            bm_voice *v = &c->voice[i];
+            if (v->active && v->track == e->track && v->gate && !v->fade) {
+                wave_voice_start(e, v, note, vel, lk, legato);
+                return;
+            }
         }
     }
     bm_voice *v = bm_voice_get(c, e->track, note, vel, lk, 0);
@@ -414,3 +478,13 @@ static bool wave_process(bm_engine *e, int32_t *buf, uint16_t frames)
 static void wave_init(bm_engine *e) { common_init(e); }
 
 const bm_engine_vt bm_eng_wave = {wave_init, wave_note_on, wave_note_off, common_set_macro, wave_process, wave_voice_start};
+
+const bm_engine_vt *bm_engine_vt_for(int engine)
+{
+    switch (engine) {
+    case ENG_DRUM: case ENG_KIT: return &bm_eng_drum;
+    case ENG_BREAK: return &bm_eng_sampler;
+    case ENG_MIDI: return &bm_eng_midi;
+    default: return &bm_eng_wave;
+    }
+}

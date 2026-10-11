@@ -171,3 +171,10 @@ int bm_store_read_glob(const bm_store *s, uint8_t *dst, int cap)
     if (s->f->read(BM_GLOB_LO + (uint32_t)s->glob_live * BM_SECTOR + 16, dst, s->glob_len)) return -1;
     return s->glob_len;
 }
+
+int bm_store_format(bm_store *s, const bm_flash_ops *f)
+{
+    for (uint32_t a = BM_STORE_LO; a < BM_STORE_HI; a += BM_SECTOR) if (f->erase(a)) return -1;
+    for (uint32_t a = BM_GLOB_LO; a < BM_GLOB_HI; a += BM_SECTOR) if (f->erase(a)) return -1;
+    return bm_store_mount(s, f);
+}

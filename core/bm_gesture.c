@@ -15,19 +15,15 @@ void bm_gesture_init(bm_gesture *g, bm_gesture_cb cb, void *user)
 {
     memset(g, 0, sizeof *g);
     g->cb = cb; g->user = user;
-    for (int i = 0; i < BTN_COUNT; i++) cfg(g, i, 0, 0, 0, 1, 0);
+    for (int i = 0; i < BTN_COUNT; i++) cfg(g, i, 1, 1, 0, 1, 0);   /* toque + capa al mantener */
     cfg(g, BTN_PLAY, 0, 0, 1, 0, 0);
-    cfg(g, BTN_REC, 0, 0, 1, 0, UI_LONG_MS);          /* 2 s: borrar la pista */
     cfg(g, BTN_OCT_DN, 0, 0, 1, 0, 0);
     cfg(g, BTN_OCT_UP, 0, 0, 1, 0, 0);
-    cfg(g, BTN_GLO, 0, 0, 1, 1, 0);                   /* modificador + TAP = página global */
-    cfg(g, BTN_HOME, 1, 1, 0, 1, UI_LONG_MS);         /* capa MUTE · 2 s: SISTEMA */
-    cfg(g, BTN_SEQ, 1, 1, 0, 1, UI_LONG_MS);          /* capa PATRONES · 2 s: TIEMPO */
-    cfg(g, BTN_EDIT, 1, 1, 0, 1, UI_LONG_MS);         /* capa BORRAR · 2 s: SAMPLER / INIT */
-    cfg(g, BTN_FX, 1, 1, 0, 1, 0);
-    cfg(g, BTN_SCL, 1, 1, 0, 1, 0);
-    cfg(g, BTN_ARP, 1, 1, 0, 1, 0);
-    cfg(g, BTN_SAVE, 0, 0, 0, 1, UI_LONG_MS);         /* 2 s: guardado rápido */
+    cfg(g, BTN_HOME, 1, 1, 0, 1, UI_LONG_MS);         /* capa CONTROLADOR · 2 s: SISTEMA */
+    cfg(g, BTN_SEQ, 1, 1, 0, 1, UI_LONG_MS);          /* capa LARGO Y VELOCIDAD · 2 s: TIEMPO */
+    cfg(g, BTN_EDIT, 1, 1, 0, 1, UI_LONG_MS);         /* capa BORRAR · 2 s: TOMAS / SONIDO INICIAL */
+    cfg(g, BTN_SAVE, 1, 1, 0, 1, UI_LONG_MS);         /* capa COPIAR PATRON · 2 s: guardado rápido */
+    cfg(g, BTN_REC, 1, 1, 0, 1, UI_LONG_MS);          /* mantener = grabar mientras · 2 s: borrar la pista */
 }
 
 bool bm_gesture_is_down(const bm_gesture *g, int id) { return id >= 0 && id < BTN_COUNT && g->b[id].down; }

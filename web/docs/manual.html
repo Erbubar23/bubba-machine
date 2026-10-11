@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bubba Machine 0.2 — Manual · Bubba Machine</title>
+<title>Bubba Machine 0.3 — Manual · Bubba Machine</title>
 <link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/manual.html">
 <link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/manual.html">
 <link rel="icon" href="../icon.png">
@@ -42,172 +42,144 @@
     <a href="memoria.html">Memoria</a>
     <a href="diseno-0-2.html">Diseño 0.2</a></aside>
   <main class="doc">
-<h1 id="bubba-machine-02-manual">Bubba Machine 0.2 — Manual</h1>
-<p>Bubba Machine convierte el FM-1 en una groovebox de directo de 6 pistas. Tiene batería estilo TR, un sampler cuyos chops se secuencian igual que la batería, y bajo y synths con loopera. Cada pista puede tener su propio largo y su propia velocidad.</p>
-<h2 id="tres-formas-de-apretar-un-botón">Tres formas de apretar un botón</h2>
-<div class="tbl"><table><thead><tr><th>Pulsación</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>Toque</strong></td><td>Abre la pantalla del botón. Otro toque: su página siguiente</td></tr><tr><td><strong>Mantener</strong> (300 ms)</td><td>Abre su <strong>capa en vivo</strong> mientras lo sostienes. Al soltar, vuelves a donde estabas</td></tr><tr><td><strong>Mantener 2 s</strong></td><td>Abre una <strong>pantalla especial</strong>. Un anillo amarillo arriba se llena mientras esperas. Si tocas otra cosa durante la pulsación, los 2 s se cancelan</td></tr></tbody></table></div>
+<h1 id="bubba-machine-03-manual">Bubba Machine 0.3 — Manual</h1>
+<p>Bubba Machine convierte el FM-1 en una groovebox de directo de 6 canales: <strong>3 fijos</strong> (batería, sampler y bajo) y <strong>3 libres</strong> (SYNTH, MONO, KIT o MIDI). Cada canal tiene su propio largo y su propia velocidad.</p>
+<p>La interfaz 3.0 se resume en una frase: <strong>cuatro gestos por botón, y significan lo mismo en todos. HOME en todas partes.</strong></p>
+<blockquote><p>La 0.3 cambió el formato de los patrones, los ajustes y los samples. <strong>No lee lo que guardó la 0.2</strong>: al arrancar por primera vez borra esos datos y empieza con la demo.</p></blockquote>
+<h2 id="cuatro-gestos-por-botón">Cuatro gestos por botón</h2>
+<div class="tbl"><table><thead><tr><th>Gesto</th><th>Cuándo</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>Toque</strong></td><td>menos de 300 ms</td><td>Abre su página en el canal donde estás. Otra vez: la siguiente página del mismo botón</td></tr><tr><td><strong>Mantener</strong></td><td>300 ms o más</td><td>Su <strong>capa en vivo</strong>: mientras sostienes, las teclas hacen esa función y la pantalla dibuja el teclado con lo que hace cada tecla. Al soltar, vuelves</td></tr><tr><td><strong>Mantener 2 s</strong></td><td>2 s sin tocar otra cosa</td><td>Su configuración o su acción peligrosa. Un anillo se llena arriba; si tocas otra cosa, se cancela. Solo en HOME, SEQ, EDIT, SAVE y REC</td></tr><tr><td><strong>HOME + botón</strong></td><td>con HOME sostenido</td><td>La <strong>versión global</strong> del botón: para todo el proyecto, no solo el canal</td></tr></tbody></table></div>
+<p>Nunca hay dos capas a la vez: con una capa abierta, otro botón sostenido no abre la suya.</p>
+<p><strong>Preguntas.</strong> Lo que borra algo pregunta antes: <strong>OCT+ = sí</strong>, <strong>HOME = no</strong> (cualquier otro botón también cancela).</p>
+<h2 id="las-perillas">Las perillas</h2>
+<div class="tbl"><table><thead><tr><th>Perilla</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>ALGORITHM</strong></td><td>El canal. En HOME aparece un <strong>recuadro</strong> con el canal destino y a los 400 ms entras. Dentro de un canal cambia al instante y conserva la página. En una lista, cambia el valor marcado. Con <strong>HOME sostenido</strong>, elige un canal desde cualquier pantalla y entras al soltar HOME</td></tr><tr><td><strong>SELECT</strong></td><td>La página (las pestañas de arriba) o la fila de una lista. Con un paso sostenido, su acento</td></tr><tr><td><strong>PRESETS</strong></td><td>El sonido del canal (kit, loop A o banco de ondas). En HOME, el patrón</td></tr><tr><td><strong>K1-K4</strong></td><td>Lo que dice la leyenda de abajo, siempre en el mismo color. Con HOME sostenido: BPM, swing, largo maestro y drive</td></tr></tbody></table></div>
+<p><strong>Prioridad de ALGORITHM:</strong> paso sostenido &gt; lista &gt; canal &gt; HOME. El tiempo del recuadro se cambia en GLO o SISTEMA (ENTRADA AUTO: 0, 250, 400, 800 ms u OFF).</p>
 <h2 id="la-pantalla">La pantalla</h2>
 <ul><li>
-<strong>Arriba:</strong> transporte, patrón (y el que sigue en cola), compás y tiempo, pista, BPM. También la escena que suena (A-D), <strong>F</strong> cuando suena el fill, el anillo de los 2 s y la batería.
+<strong>Arriba:</strong> transporte, patrón (y el que sigue en cola), compás y tiempo, el canal, BPM. También la escena (A-D), <strong>F</strong> cuando suena el fill, el tono del proyecto si está transpuesto, el anillo de los 2 s y la batería.
 </li><li>
-<strong>En medio:</strong> lo que hace el modo actual. Los valores que giras aparecen aquí encima y se van solos.
+<strong>Dentro de un canal:</strong> sus <strong>pestañas</strong> debajo del estado. La activa está subrayada con el color del canal.
 </li><li>
 <strong>Abajo:</strong> qué hace cada perilla K1-K4, en su color y en su orden físico.
 </li><li>
 <strong>Borde rojo:</strong> la mezcla saturó.
 </li></ul>
-<h2 id="las-pistas">Las pistas</h2>
-<div class="tbl"><table><thead><tr><th>Pista</th><th>Qué es</th></tr></thead><tbody><tr><td><strong>T1 DRUMS</strong></td><td>Batería TR: 16 instrumentos (kit KO-808 o KO-909), cada uno con su línea de pasos</td></tr><tr><td><strong>T2 SAMPLER</strong></td><td>16 chops de un sample (slot A o B). Se secuencian igual que la batería</td></tr><tr><td><strong>T3 BASS</strong></td><td>Wavetable monofónico con filtro y glide</td></tr><tr><td><strong>T4-T6 SYN</strong></td><td>Wavetable polifónico con filtro</td></tr></tbody></table></div>
-<p><strong>ALGORITHM</strong> cambia de pista desde cualquier pantalla.</p>
-<h2 id="botones">Botones</h2>
-<div class="tbl"><table><thead><tr><th>Botón</th><th>Toque</th><th>Otra vez</th><th>Mantener</th><th>2 s</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>Pistas y mezclador</td><td><strong>Escenas</strong></td><td>Mute (blancas 1-6) y solo (9-14)</td><td><strong>Sistema</strong></td></tr><tr><td><strong>SEQ</strong></td><td>Pasos</td><td>Synth: <strong>loopera</strong></td><td>Patrones (blanca = siguiente)</td><td><strong>Tiempo</strong></td></tr><tr><td><strong>EDIT</strong></td><td>Sonido (kit, sample u onda)</td><td>TR: instrumento</td><td><strong>Borrar</strong> estilo TR</td><td>T2: <strong>sampler</strong> · otras: sonido inicial</td></tr><tr><td><strong>ENV</strong></td><td>Envolvente</td><td>Página 2</td><td>—</td><td>—</td></tr><tr><td><strong>FX</strong></td><td>Delay y sidechain</td><td>—</td><td><strong>Punch-in</strong></td><td>—</td></tr><tr><td><strong>SCL</strong></td><td>Escala</td><td><strong>Cuadrícula de acordes</strong></td><td>Acordes en vivo</td><td>—</td></tr><tr><td><strong>ARP</strong></td><td>Arpegiador</td><td>—</td><td>Synth: arpegio · TR: <strong>roll</strong></td><td>—</td></tr><tr><td><strong>SAVE</strong></td><td>Menú de guardado</td><td>Ejecuta</td><td>—</td><td>Guardado rápido</td></tr><tr><td><strong>GLO</strong></td><td>Global (BPM, swing, largo maestro, drive, fills)</td><td>—</td><td>Modificador</td><td>—</td></tr><tr><td><strong>REC</strong></td><td>Grabar en vivo (en LOOP: loopera · en el sampler: grabar)</td><td>—</td><td>—</td><td><strong>Borrar la pista</strong></td></tr><tr><td><strong>PLAY</strong></td><td>Play/stop</td><td>—</td><td>—</td><td>—</td></tr><tr><td><strong>OCT − / +</strong></td><td>Octava · en SEQ: página · en BORRAR: deshacer / rehacer</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div>
-<p><strong>GLO sostenido +:</strong> KNOB 1-4 = BPM · swing · largo maestro · drive · SELECT = fill automático · ALGORITHM = kit / slot / banco de ondas · SEQ = canción · OCT = transponer · negras 1-6 = mute.</p>
-<h2 id="batería-tr-seq-en-t1-y-t2">Batería TR (SEQ en T1 y T2)</h2>
-<p>La pantalla es una matriz: 16 instrumentos × los 16 pasos de la página. Cada línea muestra su cabezal, porque cada instrumento puede tener su propio largo.</p>
-<div class="tbl"><table><thead><tr><th>Control</th><th>Hace</th></tr></thead><tbody><tr><td><strong>Blancas</strong></td><td>Pasos del instrumento elegido: toque = poner o quitar</td></tr><tr><td><strong>Negras 1-8</strong></td><td>Eligen (y tocan) un instrumento de la sección</td></tr><tr><td><strong>Negra 9</strong></td><td>Cambia de sección (1-8 / 9-16)</td></tr><tr><td><strong>Negra 10</strong></td><td>FILL mientras la sostienes</td></tr><tr><td><strong>Negra 11</strong></td><td>Toque: mute del instrumento · mantener: mutes de todos</td></tr><tr><td><strong>OCT − / +</strong></td><td>Página</td></tr><tr><td><strong>SELECT</strong></td><td>Instrumento</td></tr></tbody></table></div>
-<p><strong>Paso sostenido + perilla:</strong></p>
-<ul><li>
-KNOB 1-4: P-Lock de TONE, TUNE, DECAY o START, solo en ese paso.
-</li><li>
-SELECT: acento.
-</li><li>
-ALGORITHM: repetición ×1 a ×4, o FLAM.
-</li><li>
-PRESETS: condición (SIEMPRE, SOLO FILL, SIN FILL).
-</li></ul>
-<p><strong>EDIT otra vez (INSTRUMENTO):</strong> nivel, afinación, decay y <strong>largo de la línea</strong>. Por ejemplo, un hi-hat de 12 pasos contra un bombo de 16.</p>
-<p><strong>BORRAR (EDIT sostenido):</strong></p>
-<ul><li>
-Sonando, sostener una blanca borra ese instrumento en cada paso por donde pasa el cabezal. Parado, lo borra entero.
-</li><li>
-Negras 1-3: copiar, pegar y limpiar la pista.
-</li><li>
-OCT − / +: deshacer y rehacer.
-</li></ul>
-<p><strong>ROLL (ARP sostenido):</strong> cada blanca repite su instrumento a la velocidad de K1 (1/8, 1/16, 1/32, tresillos). Con REC encendido, se graba como pasos con repetición.</p>
-<p><strong>Fills:</strong> los pasos con condición suenan o callan en el fill. El fill suena mientras sostienes la negra 10, o solo cada 2, 4 u 8 compases (GLO + SELECT).</p>
-<h2 id="tiempo-seq-2-s">Tiempo (SEQ 2 s)</h2>
-<p>Muestra las 6 pistas como barras de su duración real, con el cabezal de cada una: el polímetro a la vista.</p>
-<ul><li>
-SELECT o ALGORITHM: elige la pista.
-</li><li>
-K1: largo (1-64).
-</li><li>
-K2: velocidad (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4).
-</li><li>
-K3 y K4 (solo pistas TR): elige un instrumento y cambia su largo.
-</li></ul>
-<p>El <strong>largo maestro</strong> (GLO + K3: 16, 32, 48, 64, 128 o INF) reinicia todas las pistas a la vez. Ahí cambian los patrones y las escenas.</p>
-<h2 id="sampler-t2">Sampler (T2)</h2>
+<h2 id="los-14-botones">Los 14 botones</h2>
+<div class="tbl"><table><thead><tr><th>Botón</th><th>Toque</th><th>Otra vez</th><th>Mantener (capa)</th><th>2 s</th><th>HOME +</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>HOME: los 6 canales y el banco</td><td>MEZCLA › ESCENAS › CANCIÓN</td><td><strong>Controlador</strong> (ver abajo)</td><td>SISTEMA</td><td>(es el modificador)</td></tr><tr><td><strong>SEQ</strong></td><td>Pasos del canal</td><td>Notas: LOOP · sampler: RETRIG</td><td><strong>Largo y velocidad</strong></td><td>TIEMPO de los 6 canales</td><td>CANCIÓN</td></tr><tr><td><strong>EDIT</strong></td><td>SONIDO</td><td>Batería: INSTR · TOMAS: CORTAR</td><td><strong>Borrar</strong></td><td>Sampler: TOMAS · otros: sonido inicial</td><td>Copiar el canal a otro</td></tr><tr><td><strong>ENV</strong></td><td>ENV (notas) · INSTR (batería)</td><td>ENV página 2</td><td><strong>Acento</strong></td><td>—</td><td>—</td></tr><tr><td><strong>LFO</strong></td><td>LFO (próxima versión)</td><td>—</td><td><strong>Repetir</strong> (rejillas) · <strong>ligar</strong> (notas)</td><td>—</td><td>—</td></tr><tr><td><strong>FX</strong></td><td>MEZCLA del canal</td><td>—</td><td><strong>Punch-in</strong></td><td>—</td><td>Delay y sidechain globales</td></tr><tr><td><strong>SCL</strong></td><td>ESCALA del canal</td><td>ACORDES</td><td><strong>Acordes</strong> en vivo</td><td>—</td><td>Escala del proyecto</td></tr><tr><td><strong>ARP</strong></td><td>ARP del canal</td><td>—</td><td><strong>Arpegio</strong> (notas) · <strong>roll</strong> (rejillas)</td><td>—</td><td>—</td></tr><tr><td><strong>SAVE</strong></td><td>Menú de guardar</td><td>Ejecuta</td><td><strong>Copiar patrón</strong></td><td>Guardado rápido</td><td>Guardar como</td></tr><tr><td><strong>GLO</strong></td><td>Lista global</td><td>Cierra</td><td><strong>Tono</strong> y TAP tempo</td><td>—</td><td>—</td></tr><tr><td><strong>REC</strong></td><td>Grabar (en el sampler: GRABADORA)</td><td>Loopera: sobregrabar › play</td><td>Grabar solo mientras lo sostienes</td><td>Borrar el canal (pregunta)</td><td>SONG REC</td></tr><tr><td><strong>PLAY</strong></td><td>Play / stop</td><td>—</td><td>—</td><td>—</td><td>Volver al paso 1 sin parar</td></tr><tr><td><strong>OCT − / +</strong></td><td>Octava · página de pasos · en preguntas OCT+ = sí</td><td>—</td><td>—</td><td>—</td><td>Deshacer / rehacer</td></tr></tbody></table></div>
+<h2 id="home-en-todas-partes">HOME en todas partes</h2>
+<p>El FM-1 no tiene SHIFT, así que HOME hace tres trabajos:</p>
 <ol><li>
-Elige T2 y abre <strong>EDIT</strong>.
+<strong>Pantalla de inicio:</strong> los 6 canales con su secuencia y el banco de 16 patrones. Otra vez: MEZCLA (los 6 niveles; ALGORITHM elige canal y K1-K4 lo mezclan), ESCENAS y CANCIÓN.
 </li><li>
-<strong>Mantén REC:</strong> graba lo que está sonando (hasta 3 s, 16 kHz).
+<strong>Controlador que te sigue:</strong> mantener HOME trae el controlador a cualquier pantalla. Editas el bajo y, sin salir, muteas o pones el siguiente patrón en cola.
 </li><li>
-Mientras grabas, cada <strong>blanca</strong> marca un chop. Sin chops, el sample se divide en 16 partes iguales.
-</li><li>
-Al <strong>parar</strong>, el sample se guarda solo en su slot (A o B, hasta 4 s cada uno). Mientras no se guarda, el delay y los punch-in con buffer quedan en pausa, porque comparten la memoria.
-</li><li>
-Los chops son los 16 instrumentos de la rejilla TR de T2.
+<strong>Modificador:</strong> HOME + botón = su versión global (tabla de arriba).
 </li></ol>
-<p><strong>Loop de fábrica:</strong> además de los slots A y B, T2 trae loops de solo lectura en la ROM (F1, F2…). El demo arranca con F1. Si grabas con un loop de fábrica elegido, la grabación va al slot A. Los loops de fábrica se cortan siempre en 16 chops iguales y no se pueden borrar.</p>
-<p><strong>El dibujo del sample</strong> muestra tres carriles por frecuencia: graves abajo (naranja), medios (gris) y agudos arriba (cian). En música muy comprimida la forma de onda es un bloque; por bandas se ven el bombo, el rumble y los hats.</p>
-<p><strong>SAMPLER (EDIT 2 s en T2):</strong></p>
+<p>Si usaste HOME como modificador, soltarlo <strong>no</strong> te lleva a la pantalla de inicio: HOME solo navega con un toque limpio.</p>
+<p><strong>Teclas con HOME (en la pantalla HOME, en MEZCLA o sosteniendo HOME):</strong></p>
+<div class="tbl"><table><thead><tr><th>Tecla</th><th>Qué hace</th></tr></thead><tbody><tr><td><strong>Blancas 1-16</strong></td><td>Ponen en cola ese patrón (parado: cambia al instante). Mantén una y toca otra: <strong>cadena</strong> del primero al segundo</td></tr><tr><td><strong>Negras 1-6</strong></td><td>Toque: mute de T1-T6. Mantener: <strong>solo</strong> mientras la sostienes</td></tr><tr><td><strong>Negras 7-10</strong></td><td>Lanzan las escenas A-D</td></tr><tr><td><strong>Negra 11</strong></td><td>FILL mientras la sostienes</td></tr></tbody></table></div>
+<h2 id="canales-3-fijos-y-3-libres">Canales: 3 fijos y 3 libres</h2>
+<div class="tbl"><table><thead><tr><th>Canal</th><th>Tipo</th><th>Qué es</th><th>Pestañas</th></tr></thead><tbody><tr><td><strong>T1 BATERÍA</strong></td><td>Fijo</td><td>Rejilla TR de 16 instrumentos (kit KO-808 o KO-909)</td><td>SEQ · SONIDO · INSTR · MEZCLA · MAS</td></tr><tr><td><strong>T2 SAMPLER</strong></td><td>Fijo</td><td>Un loop en 8 slices que un generador rearma</td><td>SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS</td></tr><tr><td><strong>T3 BAJO</strong></td><td>Fijo</td><td>Wavetable monofónico con glide</td><td>SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS</td></tr><tr><td><strong>T4-T6</strong></td><td>Libres</td><td><strong>SYNTH</strong> (polifónico), <strong>MONO</strong>, <strong>KIT</strong> (otra batería) o <strong>MIDI</strong> (manda notas por MIDI)</td><td>según el motor</td></tr></tbody></table></div>
+<p>El motor de un canal libre se elige en <strong>MAS › MOTOR</strong> con ALGORITHM. Entre motores de notas (SYNTH, MONO, MIDI) las notas se quedan; pasar a KIT o volver de KIT pregunta, porque el canal empieza vacío.</p>
+<p><strong>MAS</strong> es la lista con todo el canal: motor, acento, largo, velocidad, transponer, canal MIDI y sonido inicial (en el sampler, además: usar el BPM del loop e interpolación). SELECT elige la fila y ALGORITHM la cambia.</p>
+<p><strong>Las negras siguen una sola gramática en SEQ:</strong> 1-8 son los elementos del canal, 9 y 10 lo modifican y <strong>11 rompe el patrón</strong> (FILL en las baterías y las notas, STUTTER en el sampler).</p>
+<h2 id="batería-t1-y-canales-kit">Batería (T1 y canales KIT)</h2>
+<p>La pantalla SEQ es una matriz: 16 instrumentos × los 16 pasos de la página. Cada línea muestra su cabezal, porque cada instrumento puede tener su largo.</p>
+<div class="tbl"><table><thead><tr><th>Control</th><th>Hace</th></tr></thead><tbody><tr><td><strong>Blancas</strong></td><td>Pasos del instrumento elegido: toque = poner o quitar</td></tr><tr><td><strong>Negras 1-8</strong></td><td>Eligen (y tocan) un instrumento de la sección</td></tr><tr><td><strong>Negra 9</strong></td><td>Cambia de sección (1-8 / 9-16)</td></tr><tr><td><strong>Negra 10</strong></td><td>Toque: mute del instrumento · mantener: mutes de todos (las blancas)</td></tr><tr><td><strong>Negra 11</strong></td><td>FILL mientras la sostienes</td></tr><tr><td><strong>OCT − / +</strong></td><td>Página</td></tr></tbody></table></div>
+<p><strong>Mantener un paso + girar:</strong> K1-K4 = P-Lock de TONE, TUNE, DECAY o START solo en ese paso · SELECT = acento · ALGORITHM = repetición ×1 a ×4 o FLAM · PRESETS = condición (SIEMPRE, SOLO FILL, SIN FILL).</p>
+<p><strong>INSTR</strong> (EDIT otra vez, o ENV): nivel, afinación, decay y <strong>largo de la línea</strong> de cada instrumento. Por ejemplo, un hat de 12 pasos contra un bombo de 16.</p>
+<p><strong>SONIDO:</strong> los 16 pads del kit; K1-K3 = tono, afinación y decay, K4 = cuánto suena el acento.</p>
+<h2 id="sampler-30-t2">Sampler 3.0 (T2)</h2>
+<p>La idea viene del BREAK de X0X (un loop en slices que un generador reordena), con una pantalla que deja ver lo que pasa.</p>
 <ul><li>
-K1: fuente (slot A, slot B o un loop de fábrica).
+<strong>Slices:</strong> el loop A partido en 8. Las barras muestran la energía de cada slice; <strong>K</strong> y <strong>S</strong> marcan dónde están el bombo y la caja.
 </li><li>
-K2: chops manuales o 4, 8 o 16 partes iguales.
+<strong>Fila TU</strong> (lo que programaste): hueco = silencio, recuadro = <strong>el generador elige</strong>, lleno con número = <strong>slice fijo</strong>. Raya blanca arriba = acento.
 </li><li>
-Negra 11 dos veces: borra el slot.
+<strong>Fila SUENA:</strong> el slice que eligió el generador en cada paso de este compás. Raya naranja = retrig, <strong>&lt;</strong> = reversa, <strong>H</strong> = media velocidad, <strong>-</strong> = silencio de ROMPER.
 </li></ul>
-<h2 id="synths">Synths</h2>
+<div class="tbl"><table><thead><tr><th>Control</th><th>Hace</th></tr></thead><tbody><tr><td><strong>Blanca</strong></td><td>Silencio ↔ generador. En un paso fijo, lo suelta al generador</td></tr><tr><td><strong>Blanca sostenida + negra 1-8</strong></td><td>Fija ese paso a ese slice</td></tr><tr><td><strong>Negras 1-8</strong></td><td>Tocan ese slice. Con REC sostenido se escriben como pasos fijos</td></tr><tr><td><strong>Negras 9 · 10 · 11</strong></td><td>Reversa · media velocidad · STUTTER, mientras las sostienes</td></tr><tr><td><strong>K1-K4</strong></td><td><strong>VARIAR</strong> (cuánto cambia el orden) · <strong>ANCLAR</strong> (respeta los tiempos fuertes, con K y S) · <strong>REPETIR</strong> (retrigs) · <strong>ROMPER</strong> (reversa, media velocidad, silencios y repeticiones)</td></tr><tr><td><strong>EDIT sostenido + negra 4</strong></td><td><strong>CAPTURAR:</strong> lo que suena en este compás queda fijo. HOME + OCT− lo deshace</td></tr></tbody></table></div>
+<p>El generador decide cada compás con una semilla: la fila SUENA es exactamente lo que va a sonar, y cambia mientras giras las perillas. Con todo en 0, el loop suena en orden.</p>
+<p><strong>RETRIG</strong> (SEQ otra vez): cuando el generador repite, elige 2X, 3X, 4X u 8X con estos pesos.</p>
+<p><strong>SONIDO:</strong> K1 = LOOP A, K2 = LOOP B, K3 = cuántos compases usan el B, K4 = PITCH. El loop sigue el tempo: suena a BPM / BPM del loop, y la pantalla dice cuántos semitonos se movió. <strong>MAS › USAR BPM DEL LOOP</strong> pone el tempo del proyecto al del loop. PRESETS también elige el loop A.</p>
+<p><strong>Loops de fábrica:</strong> en la ROM vienen BUBBA 160 y BUBBA 128, sintetizados en el repositorio. No gastan memoria de tomas.</p>
+<p><strong>El dibujo</strong> muestra tres carriles por frecuencia: graves abajo (naranja), medios (gris) y agudos arriba (cian). Con música muy comprimida la forma de onda es un bloque; por bandas se ven el bombo, el rumble y los hats.</p>
+<h2 id="grabadora-rec-en-el-sampler">Grabadora (REC en el sampler)</h2>
+<p>Grabar, guardar y cortar son tres pantallas, una tarea cada una.</p>
+<ol><li>
+<strong>GRABAR:</strong> REC en T2 abre la grabadora <strong>armada</strong>. Empieza en el siguiente compás (K1 = INICIO: COMPÁS o YA). Un número grande dice los segundos que <strong>quedan</strong>: el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Las rayas blancas marcan cuántos compases caben y la ámbar, el tope. REC otra vez = parar; también se para sola en el tope. Mantener REC en la grabadora graba solo mientras lo sostienes.
 <ul><li>
-<strong>SEQ:</strong> como en 0.1. Hasta 4 notas por paso. Paso sostenido: KNOB = P-Lock, SELECT = nota, ALGORITHM = probabilidad o fill, PRESETS = largo o TIE (glide).
+Mientras graba, <strong>las teclas no suenan</strong> y el delay y los punch-in con buffer se pausan (comparten la memoria).
 </li><li>
-<strong>LOOP (SEQ otra vez):</strong> loopera de notas sin cuantizar.
-<ul><li>
-K1 ON/OFF · K2 compases (1, 2 o 4).
-</li><li>
-<strong>REC</strong> arma la grabación (empieza en el siguiente compás). Al cerrar el loop pasa a PLAY. REC otra vez: sobregrabar (OVERDUB). REC otra vez: PLAY.
-</li><li>
-<strong>REC 2 s</strong> borra el loop.
-</li></ul>
-</li></ul>
-<h2 id="acordes-la-cuadrícula-scl-otra-vez">Acordes: la cuadrícula (SCL otra vez)</h2>
-<p>Las 16 blancas son 16 acordes, dibujados como una cuadrícula de 4×4 (fila 1 = blancas 1-4). Cada pad muestra el <strong>grado</strong> (I, ii, V7…) y el <strong>nombre</strong> del acorde. Su color dice su función:</p>
-<ul><li>
-<strong>Azul (reposo):</strong> I, iii, vi.
-</li><li>
-<strong>Verde (preparación):</strong> ii, IV.
-</li><li>
-<strong>Naranja (tensión):</strong> V, vii.
-</li></ul>
-<p>Se lee como un mapa: de verde a naranja a azul suena a "ir y volver".</p>
-<ul><li>
-<strong>K1:</strong> juego de acordes.
-<ul><li>
-DIATÓNICO: tríadas y séptimas.
-</li><li>
-PROGRESIONES: cada fila es una progresión clásica, de izquierda a derecha.
-</li><li>
-NEO SOUL: séptimas y novenas.
+La toma queda <strong>SIN GUARDAR</strong> y ya suena como loop A. <strong>Se guarda al parar</strong> el transporte, porque escribir la flash detiene el audio. HOME = descartar.
 </li></ul>
 </li><li>
-<strong>K2:</strong> voicing (cerrado, abierto o conducido: cada acorde en la inversión más cercana al anterior).
+<strong>TOMAS</strong> (EDIT 2 s en T2, o la pestaña): la biblioteca, con los loops de fábrica (FAB) primero. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas 1-8 escuchan sus slices. <strong>N1</strong> = usar como loop A, <strong>N2</strong> = como loop B, <strong>N11</strong> = borrar (pregunta). Abajo, la memoria libre de 8.1 s.
 </li><li>
-<strong>K3:</strong> octava · <strong>K4:</strong> strum.
-</li><li>
-<strong>Negras 1-4</strong> (mientras las sostienes): +7, +9, SUS2, SUS4.
-</li><li>
-Los acordes suenan en la pista synth elegida (o en T4 si estás en una pista TR).
-</li><li>
-<strong>SCL sostenido</strong> activa la cuadrícula en las teclas desde cualquier pantalla.
-</li></ul>
-<h2 id="escenas-home-otra-vez">Escenas (HOME otra vez)</h2>
-<p>Una escena = <strong>patrón + mutes</strong> (de las pistas y de los instrumentos TR).</p>
+<strong>CORTAR</strong> (EDIT sobre una toma): las <strong>blancas</strong> ponen o quitan un corte en esa corchea, la <strong>negra 9</strong> pone los cortes en los golpes y la <strong>10</strong> vuelve a 8 partes iguales. Las negras 1-8 escuchan cada slice. SELECT o K1 eligen el corte, K2 lo mueve, K3 = zoom, K4 = pegar a 1/16 o 1/8. Se guarda al salir.
+</li></ol>
+<h2 id="canales-de-notas-t3-y-synth-mono-midi">Canales de notas (T3 y SYNTH, MONO, MIDI)</h2>
 <ul><li>
-Blancas 1-4: lanzan A-D en el siguiente ciclo maestro (parado: al instante).
+<strong>SEQ:</strong> las blancas son los pasos (hasta 4 notas por paso). <strong>Mantener un paso</strong> y tocar <strong>negras 1-8</strong> escribe esas notas de la escala del canal (otra vez la misma: la quita). Negras 9 y 10 bajan o suben su octava; 11 = FILL.
 </li><li>
-Blancas 5-8: guardan lo que suena en A-D.
+<strong>Paso sostenido + perillas:</strong> K1-K4 = P-Lock · SELECT = golpe (NORMAL › ACENTO › FANTASMA) · ALGORITHM = probabilidad o fill · PRESETS = largo o LIGA (glide).
 </li><li>
-Mantener una de 1-4 y tocar otras: <strong>cadena</strong> en bucle.
+<strong>SONIDO:</strong> K1 = posición de la onda, K2-K3 = filtro, K4 = acento. PRESETS = banco de ondas.
 </li><li>
-<strong>REC:</strong> SONG REC. Cada ciclo que suena queda escrito en la canción (GLO + SEQ para verla y editarla).
+<strong>LOOP (SEQ otra vez):</strong> loopera sin cuantizar. K1 ON/OFF · K2 compases (1, 2 o 4). <strong>REC</strong> arma (empieza en el compás) › al cerrar pasa a PLAY › REC otra vez: OVERDUB › REC: PLAY. <strong>REC 2 s</strong> borra el loop.
+</li><li>
+<strong>MIDI:</strong> el motor MIDI no suena por dentro: manda sus notas por MIDI en su canal. Su página tiene canal, programa y dos CC (1 y 74).
 </li></ul>
+<h2 id="las-capas-mantener">Las capas (mantener)</h2>
+<p>Mientras sostienes, la pantalla dibuja el teclado con lo que hace cada tecla y sus LEDs. La secuencia sigue sonando.</p>
+<div class="tbl"><table><thead><tr><th>Mantener</th><th>Capa</th><th>Las teclas</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>Controlador</td><td>Blancas = patrón en cola · negras 1-6 = mute / solo · 7-10 = escenas · 11 = FILL. ALGORITHM = ir a un canal al soltar</td></tr><tr><td><strong>SEQ</strong></td><td>Largo y velocidad</td><td>Blanca = largo del canal (1-16; OCT−/+ = 17-64) · negras 1-6 = velocidad ×2 a ×1/4</td></tr><tr><td><strong>EDIT</strong></td><td>Borrar</td><td>Sonando: mantener una blanca borra lo que pasa bajo el cabezal; parado: borra la línea o el paso · negras 1-3 = copiar, pegar, limpiar el canal · sampler: negra 4 = CAPTURAR · OCT−/+ = deshacer / rehacer</td></tr><tr><td><strong>ENV</strong></td><td>Acento</td><td>Blanca = acento sí / no (paso vacío = nuevo con acento; en notas: NORMAL › ACENTO › FANTASMA). K1 = cuánto acento</td></tr><tr><td><strong>LFO</strong></td><td>Repetir · ligar</td><td>Rejillas: blanca = ×1 › ×2 › ×3 › ×4 › FLAM. Notas: blanca = liga la nota con la siguiente (K1 = glide)</td></tr><tr><td><strong>FX</strong></td><td>Punch-in</td><td>Blancas = 16 efectos cuantizados a 1/16 · negras 1-6 siguen muteando</td></tr><tr><td><strong>SCL</strong></td><td>Acordes</td><td>Blancas = 16 acordes · negras 1-4 = +7, +9, SUS2, SUS4</td></tr><tr><td><strong>ARP</strong></td><td>Arpegio · roll</td><td>Notas: lo que tocas se arpegia · rejillas: blanca = roll de ese instrumento o slice (K1 = velocidad; con REC se graba como repeticiones)</td></tr><tr><td><strong>SAVE</strong></td><td>Copiar patrón</td><td>Blanca = pegar el patrón ahí · negra (1-6) + blanca = solo ese canal. Si el destino tiene notas, pregunta</td></tr><tr><td><strong>GLO</strong></td><td>Tono</td><td>Todo el teclado transpone el proyecto (C4 = 0) · <strong>PLAY = TAP tempo</strong> sin parar</td></tr></tbody></table></div>
+<h2 id="tiempo-seq-2-s">Tiempo (SEQ 2 s)</h2>
+<p>Muestra los 6 canales como barras de su duración real, cada una con su cabezal: el polímetro a la vista. SELECT o ALGORITHM eligen el canal; K1 = largo (1-64); K2 = velocidad (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4); K3 y K4 (rejillas): un instrumento y su largo.</p>
+<p>El <strong>largo maestro</strong> (HOME + K3: 16, 32, 48, 64, 128 o INF) reinicia todos los canales juntos. Ahí cambian los patrones y las escenas.</p>
+<h2 id="escalas-y-acordes">Escalas y acordes</h2>
+<ul><li>
+<strong>ESCALA</strong> (SCL): cada canal de notas puede tener su <strong>escala propia</strong> (K2: PROYECTO o una de 9 escalas, K1 = tónica). <strong>HOME + SCL</strong> cambia la escala del proyecto, que usan los canales sin escala propia.
+</li><li>
+<strong>ACORDES</strong> (SCL otra vez): 16 acordes en una cuadrícula 4×4 con su grado y su nombre. El color dice su función: <strong>azul</strong> reposo (I, iii, vi), <strong>verde</strong> preparación (ii, IV), <strong>naranja</strong> tensión (V, vii). K1 = juego (DIATÓNICO, PROGRESIONES, NEO SOUL), K2 = voicing (cerrado, abierto o conducido), K3 = octava, K4 = strum.
+</li></ul>
+<h2 id="escenas-y-canción">Escenas y canción</h2>
+<p><strong>ESCENAS</strong> (HOME, HOME, HOME): una escena = patrón + mutes. Blancas 1-4 lanzan A-D al siguiente ciclo maestro (parado: ya); 5-8 guardan lo que suena en A-D; mantén una de 1-4 y toca otras para una <strong>cadena</strong>. Desde cualquier pantalla, con HOME, las negras 7-10 también las lanzan. <strong>REC</strong> en ESCENAS (o HOME + REC) = SONG REC.</p>
+<p><strong>CANCIÓN</strong> (HOME + SEQ): blanca agrega un patrón, negra 9 borra; K1 = paso, K2 = repeticiones, K4 = canción ON/OFF.</p>
 <h2 id="efectos">Efectos</h2>
 <ul><li>
-<strong>FX:</strong> tiempo del delay, feedback, mezcla y release del sidechain. El envío al delay y el ducking de cada pista se ajustan en HOME (K3, K4).
+<strong>MEZCLA de cada canal</strong> (FX): nivel, pan, envío al delay y <strong>duck</strong> (el sidechain del bombo de T1; el sampler también se puede agachar).
 </li><li>
-<strong>FX sostenido + blanca:</strong> 16 punch-in cuantizados a 1/16 (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high).
+<strong>HOME + FX:</strong> tiempo, feedback y mezcla del delay, y release del sidechain.
 </li><li>
-<strong>DRIVE</strong> (GLO + K4): saturación de la mezcla.
+<strong>FX sostenido:</strong> 16 punch-in (stutter, reversa, tape stop, gate, barridos, bitcrush, SR down, delay throw, echo freeze, kill low/high).
+</li><li>
+<strong>DRIVE</strong> (HOME + K4): saturación de la mezcla.
 </li></ul>
 <h2 id="guardar">Guardar</h2>
 <ul><li>
-La flash <strong>solo se escribe en STOP</strong> (escribir detiene el audio unos instantes).
+La flash <strong>solo se escribe parado</strong> (escribir pausa el audio un momento).
 </li><li>
-<strong>Autoguardado:</strong> parado, después de 10 s sin tocar nada.
+<strong>Autoguardado:</strong> parado, a los 10 s sin tocar nada.
 </li><li>
-<strong>SAVE:</strong> guardar · guardar como · guardar canción y escenas · borrar patrón (SAVE dos veces) · contar eventos.
+<strong>SAVE:</strong> guardar · guardar como · guardar canción y escenas · borrar patrón (SAVE dos veces) · contar eventos. <strong>SAVE 2 s:</strong> guardado rápido. <strong>HOME + SAVE:</strong> guardar como.
 </li><li>
-<strong>SAVE 2 s:</strong> guardado rápido.
+<strong>Copiar:</strong> SAVE sostenido + blanca copia el patrón; HOME + EDIT copia un canal a otro del mismo patrón (ALGORITHM elige el destino, OCT+ pega; un canal libre cambia de motor si hace falta).
 </li></ul>
 <h2 id="sistema-home-2-s">Sistema (HOME 2 s)</h2>
-<p>Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · fuente del sampler · patrones guardados · samples · versión.</p>
+<p>Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · entrada automática del recuadro · patrones guardados · tomas y memoria libre · versión.</p>
 <h2 id="midi">MIDI</h2>
 <ul><li>
-Entrada (USB y TRS): canales 1-6 = pistas. En T1 y T2, la nota elige el instrumento (0-15).
+<strong>Entrada</strong> (USB y TRS): canales 1-6 = canales de Bubba Machine. En las rejillas, la nota elige el instrumento (0-15); en el sampler, el slice.
 </li><li>
-Reloj externo: sigue el MIDI Clock y Start/Stop.
+<strong>Reloj externo:</strong> sigue el MIDI Clock y Start/Stop.
 </li><li>
-Salida: MIDI Clock cuando el reloj es interno.
+<strong>Salida:</strong> MIDI Clock cuando el reloj es interno, y las notas de los canales con motor MIDI.
 </li></ul>
     <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MANUAL.md">docs/MANUAL.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
   </main>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

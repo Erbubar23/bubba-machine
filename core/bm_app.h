@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Bubba Machine — aplicación (bucle principal): vistas, controles, guardado. */
+/* Bubba Machine — aplicación (bucle principal): vistas, controles, guardado (DISENO_3.0). */
 #ifndef BM_APP_H
 #define BM_APP_H
 
 #include "bm_audio.h"
 #include "bm_store.h"
+#include "bm_takes.h"
 #include "bm_gesture.h"
 #include "bm_gfx.h"
 
@@ -18,21 +19,35 @@ typedef struct {
     void *user;
 } bm_platform;
 
+/* Pantallas. Los canales usan V_CH con su página (pestaña). */
 typedef enum {
     V_BOOT,
-    /* pantallas (toque) */
-    V_HOME, V_SCENES, V_SEQ, V_LOOP, V_EDIT, V_INST, V_ENV, V_LFO, V_FX, V_SCL, V_CHORDS,
-    V_ARP, V_SAVE, V_GLO, V_SONG,
-    /* pantallas especiales (2 s) */
-    V_SYSTEM, V_TIME, V_SAMPLER,
-    /* capas (mantener) */
-    V_BANK, V_MUTE, V_ERASE, V_PUNCH, V_CHORDLIVE, V_ARPLIVE, V_ROLL, V_LANEMUTE,
+    V_HOME, V_MIX, V_SCENES, V_SONG,           /* HOME, y HOME otra vez */
+    V_CH,                                       /* un canal: a->page */
+    V_GLO, V_SYSTEM, V_TIME, V_SAVE,           /* globales */
+    V_FXG, V_SCLG, V_COPYCH,                   /* HOME + FX, HOME + SCL, HOME + EDIT */
     V_COUNT
 } bm_view;
 
+/* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
+typedef enum {
+    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_RETRIG, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
+    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_CUT, PG_COUNT
+} bm_page;
+
+/* Capas en vivo (mantener un botón). */
+typedef enum {
+    L_NONE, L_HOME, L_LEN, L_ERASE, L_ACC, L_REP, L_PUNCH, L_CHORDS, L_ARP, L_ROLL, L_COPY, L_TONE, L_LANEMUTE,
+    L_COUNT
+} bm_layer;
+
+/* Preguntas: OCT+ = sí, HOME = no. */
+enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT };
+
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
-    uint8_t rsv[23];
+    uint8_t enter;          /* recuadro de ALGORITHM: 0, 250, 400, 800 ms u OFF */
+    uint8_t rsv[22];
 } bm_settings;
 
 typedef struct {
@@ -44,11 +59,14 @@ typedef struct {
 
 typedef struct { char name[10], val[10]; uint8_t pct, locked; } bm_legend;
 
+/* Mapa del teclado de una capa: lo que hace cada tecla, para dibujarlo y para los LEDs. */
+typedef struct { char label[6]; uint8_t led; uint16_t color; } bm_keyfn;
+
 #define BM_JOBS 10
 enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD,
-       JOB_SAVE_SAMPLE, JOB_SAMPLE_MARKS, JOB_SAMPLE_ERASE };
+       JOB_SAVE_TAKE, JOB_TAKE_META, JOB_TAKE_ERASE, JOB_COPY_PAT, JOB_COPY_TRK };
 
-typedef union { bm_tr tr; bm_event ev[BM_STEPS][BM_EVENTS]; } bm_trackbuf;
+typedef union { bm_tr tr; bm_notes nt; } bm_trackbuf;
 
 typedef struct bm_app {
     bm_platform pf;
@@ -70,35 +88,48 @@ typedef struct bm_app {
     uint8_t set_dirty, song_dirty;
     uint32_t t_edit;
     uint8_t job[BM_JOBS], job_arg[BM_JOBS], njob, job_fading;
-    bm_smp_src smp_info[BM_SMP_SLOTS];
-    uint8_t smp_valid[BM_SMP_SLOTS];
-    bm_smp_src smp_send;          /* copia estable que lee el audio */
-    uint8_t chops_mode;           /* 0 manual, 1: 4, 2: 8, 3: 16 */
-    uint8_t wave[3][232];         /* energía del sample por columna: graves, medios, agudos (para dibujar) */
-    uint8_t wave_was_rec;
 
-    /* portapapeles, undo y redo (una pista) */
+    /* sampler: tomas, fuentes y dibujo */
+    bm_take take[BM_TAKES];
+    bm_smp_src smp_send[3];       /* copias estables que lee el audio: loop A, loop B, escucha */
+    uint8_t wave[3][232];         /* loop A por columna: graves, medios, agudos */
+    uint8_t wave_cut[3][232];     /* la toma que se está cortando */
+    uint8_t slice_e[BM_SLICES][5];/* energía de cada slice del loop A (barras de SEQ) */
+    uint8_t wave_was_rec, take_dirty, takes_row, cut_take, cut_sel, cut_snap, cut_zoom;
+    uint8_t sent_src[2], src_dirty, wave_src;
+
+    /* portapapeles, undo y redo (un canal) */
     bm_trackbuf clip;
+    bm_track clip_trk;
     bm_event clip_step[BM_EVENTS];
-    uint8_t clip_type, clip_track;   /* 0 nada, 1 paso, 2 pista */
+    uint8_t clip_type, clip_track;   /* 0 nada, 1 paso, 2 canal */
     bm_trackbuf undo, redo;
     int8_t undo_track, redo_track;
 
     /* UI */
     bm_gesture ges;
     bm_screen scr;
-    uint8_t view, layer, track, page, env_page;
-    uint8_t sel_lane[BM_TR_TRACKS];
-    int8_t oct;
-    uint8_t rec, rec_before, glo_down, fill;
+    uint8_t view, page, layer, track, step_page, env_page;
+    uint8_t ch_page[BM_TRACKS];   /* última página de cada canal */
+    uint8_t prev_view, prev_page;
+    uint8_t sel_lane[BM_TRACKS];
+    int8_t oct, note_oct;
+    uint8_t rec, rec_before, rec_hold, fill;
+    uint16_t home_mod;            /* botones que se apretaron con HOME sostenido */
+    uint8_t home_used;
+    uint8_t box_on, box_track, box_hold;
+    uint32_t box_until;
     int8_t held_step, held_white;
-    uint8_t held_edit, held_had_event, held_long;
+    uint8_t held_edit, held_had_event, held_long, held_notes;
     uint32_t step_t0;
     uint8_t keys_down[BM_KEYS];
     uint8_t key_notes[BM_KEYS][4], key_nn[BM_KEYS], key_trk[BM_KEYS];
     int8_t key_rec_step[BM_KEYS], key_rec_slot[BM_KEYS];
     uint32_t key_rec_tick[BM_KEYS];
     uint32_t key_t0[BM_KEYS];
+    uint8_t key_role[BM_KEYS];    /* qué hizo la tecla al bajar (para soltarla bien) */
+    uint16_t home_done;
+    uint8_t eng_pending, rec_now, solo_mask;
     uint8_t chord_mod;
     int8_t last_pad;
     uint8_t prev_chord[4], prev_chord_n;
@@ -106,15 +137,26 @@ typedef struct bm_app {
     uint8_t last_note[BM_TRACKS];
     int8_t pat_sel;
     uint32_t pat_sel_t;
+    uint16_t pat_held;            /* blancas sostenidas en HOME: cadena de patrones */
+    uint8_t pchain[8], pchain_n;
+    int8_t solo_key, solo_track;
+    uint8_t solo_on, solo_saved;
     uint16_t erase_mask;          /* capa BORRAR sonando: instrumentos que se borran al pasar */
     uint8_t erase_syn;
     uint8_t roll_rate;            /* índice 0..4 */
     uint16_t roll_mask;
+    uint8_t brk_live;
+    uint8_t len_page;             /* capa LARGO: OCT +/- = largos 17-64 */
     uint8_t launch_held, chain[8], chain_n;
     uint8_t song_rec;
     uint32_t song_rec_loops;
+    uint32_t tap_t[4];
+    uint8_t tap_n;
     uint8_t time_row, time_lane;
-    uint8_t menu_row, save_row, save_target, song_cur, clear_armed, init_armed, erase_slot_armed;
+    uint8_t menu_row, glo_row, more_row, save_row, save_target, song_cur, clear_armed;
+    uint8_t copy_src, copy_dst, copy_pat_dst, copy_trk;
+    uint8_t ask, ask_arg, ask_arg2;
+    char ask_text[2][30];
     uint32_t clear_t;
     bm_overlay ov;
     char toast[30];
@@ -124,10 +166,9 @@ typedef struct bm_app {
     uint32_t now, boot_t;
     uint8_t last_trig[BM_TRACKS];
     uint32_t trig_until[BM_TRACKS];
-    uint32_t lane_flash[BM_TR_TRACKS][BM_LANES];
+    uint32_t lane_flash[BM_TRACKS][BM_LANES];
     int8_t punch_key;
     uint32_t clip_until;
-    uint8_t smp_was_rec;
     uint16_t edits_seen;
 } bm_app;
 
@@ -140,27 +181,35 @@ void bm_app_battery(bm_app *a, uint8_t pct);
 void bm_app_midi_in(bm_app *a, uint8_t byte);
 void bm_app_tick(bm_app *a, uint32_t now);
 void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);
-void bm_app_samples_reload(bm_app *a);   /* tras escribir un sample desde fuera (editor/emulador) */
+void bm_app_takes_reload(bm_app *a);   /* tras escribir una toma desde fuera (editor/emulador) */
 
-/* Fuentes de T2: 0..BM_SMP_SLOTS-1 son slots de flash, las siguientes son loops de fábrica. */
-int  bm_app_smp_sources(void);
-int  bm_app_smp_src(const bm_app *a);
-bool bm_app_smp_is_rom(int src);
-bool bm_app_smp_ready(const bm_app *a, int src);
-const char *bm_app_smp_name(int src);
+/* Fuentes del sampler: 0..7 = toma, BM_SRC_ROM|i = loop de fábrica. */
+int  bm_app_sources(const bm_app *a, uint8_t out[BM_TAKES + 8]);   /* lista de fuentes que existen */
+bool bm_app_src_ok(const bm_app *a, uint8_t src);
+void bm_app_src_name(const bm_app *a, uint8_t src, char *buf, int cap);
+bool bm_app_src_info(const bm_app *a, uint8_t src, bm_smp_src *out);
+float bm_app_brk_semis(const bm_app *a);   /* cuántos semitonos se movió el loop A (tempo + PITCH) */
 
 /* para el dibujo */
-int  bm_app_eff_view(const bm_app *a);
+int  bm_app_layer(const bm_app *a);
+int  bm_app_tabs(const bm_app *a, int t, uint8_t out[8]);   /* pestañas de un canal */
+const char *bm_page_name(int page);
 void bm_app_legend(const bm_app *a, bm_legend out[4]);
+void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
 void bm_app_draw(bm_gfx *g, void *user);
 void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
-const char *bm_macro_name(int track, int i);
-const char *bm_track_name(int t);
+const char *bm_macro_name(const bm_app *a, int track, int i);
+const char *bm_track_name(const bm_app *a, int t);
 uint16_t bm_track_color(int t);
 uint16_t bm_knob_color(int i);
 const char *bm_lane_name(const bm_app *a, int t, int lane);
-int  bm_app_track_step(const bm_app *a, int t, int lane);   /* paso que suena (lane < 0: pista synth) */
+int  bm_app_track_step(const bm_app *a, int t, int lane);   /* paso que suena (lane < 0: canal de notas) */
 int  bm_app_chord_track(const bm_app *a);
+int  bm_app_enter_ms(const bm_app *a);                       /* -1 = OFF */
+uint32_t bm_app_rec_room(const bm_app *a);                   /* muestras que caben en la próxima toma */
+uint8_t bm_app_takes_sel(const bm_app *a);                    /* fuente marcada en TOMAS */
+int  bm_app_more_count(const bm_app *a);
+void bm_app_more_row(const bm_app *a, int i, const char **name, char *val, int cap);
 extern const char *const bm_roll_names[5];
 
 #endif

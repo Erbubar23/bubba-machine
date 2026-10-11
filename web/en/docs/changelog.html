@@ -44,10 +44,55 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
-<h2 id="unreleased">[Unreleased]</h2>
+<h2 id="030---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0">0.3.0</a> - 2026-10-10</h2>
+<p>Interface 3.0, complete in the emulator. <strong>It does not read 0.2 patterns, settings or samples:</strong> on first boot it erases them and starts with the demo. The FM-1 port is still untested on hardware.</p>
 <h3 id="added">Added</h3>
 <ul><li>
+<strong>Four gestures per button</strong> that mean the same thing on every button: tap (its page; again, the next one), hold (its live layer, with the keyboard drawn on screen), hold 2 s and <strong>HOME + button</strong> (its global version).
+</li><li>
+<strong>HOME everywhere:</strong> home screen with the pattern bank, a <strong>controller</strong> when held on any screen (white keys = queue a pattern, two whites = chain, black keys = mute or solo, scenes and FILL) and a modifier: undo and redo, back to step 1, SONG REC, song, global delay, project scale, save as and copy a track onto another.
+</li><li>
+<strong>ALGORITHM navigates:</strong> on HOME, a box with the target track and entry after 400 ms (0, 250, 400, 800 ms or OFF); inside a track it switches and keeps the page; with HOME held it picks a track from any screen.
+</li><li>
+<strong>Tabs per track</strong> that SELECT walks, and the <strong>MAS</strong> (more) tab with everything about the track.
+</li><li>
+<strong>3 fixed and 3 free tracks:</strong> T4-T6 pick the <strong>SYNTH, MONO, KIT</strong> (a second TR drum machine) or <strong>MIDI</strong> engine (sends its notes over MIDI).
+</li><li>
+<strong>New layers:</strong> SEQ length and speed, ENV paint accents, LFO paint repeats or ties, SAVE copy the pattern (or one track) somewhere else, GLO transpose the whole project with TAP tempo on PLAY.
+</li><li>
+<strong>Sampler 3.0:</strong> a loop in 8 slices that a <strong>generator</strong> rearranges bar by bar, with the <strong>TU</strong> row (silence, generator or pinned slice) and the <strong>SUENA</strong> row (what it picked), the VARIAR, ANCLAR, REPETIR and ROMPER knobs (vary, anchor, repeat, break), detected kick and snare (K and S), loop B with its chance, weighted retrigs, live reverse, half speed and stutter, and <strong>CAPTURAR</strong> (capture) the variation that is playing.
+</li><li>
+<strong>The loop follows the tempo</strong> and the screen says how many semitones it moved; PITCH corrects it and MAS &gt; USAR BPM DEL LOOP sets the project to its tempo.
+</li><li>
+<strong>A dedicated recorder</strong> (REC on the sampler): armed to the bar, with the seconds left in large digits, an unsaved take that already plays and is saved on stop.
+</li><li>
+<strong>Take library</strong> of free-length takes (8.1 s in total, up to 3 s per take) with BPM, bars and gain, and the <strong>CORTAR</strong> (slice) editor: cuts on eighth notes, on the hits or even.
+</li><li>
+<strong>Three-level accent</strong> on notes (normal, accent, ghost) and how much accent per track.
+</li><li>
+<strong>A scale per track</strong>; the project scale lives on HOME + SCL.
+</li><li>
+<strong>Questions</strong> before erasing (OCT+ yes, HOME no).
+</li><li>
 Website and documentation in English too, with a language switch on every page (emulator included).
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>GLO</strong> is no longer the modifier: HOME is. GLO opens the global list and, held, the TONO (pitch) layer.
+</li><li>
+<strong>REC</strong> acts on release: tap = record, hold = record while held, 2 s = clear the track (asks).
+</li><li>
+A track's black keys follow a single grammar: 1-8 the elements, 9 and 10 modify, 11 FILL or STUTTER.
+</li><li>
+The sampler went from 16 chops to 8 slices, and from 2 fixed 4 s slots to the take library.
+</li><li>
+The sampler can also duck under the kick's sidechain, and the demo lowered its levels so it does not clip with the break playing.
+</li><li>
+<strong>Format 3</strong> for patterns, settings and takes.
+</li></ul>
+<h3 id="removed">Removed</h3>
+<ul><li>
+The 0.2 SAMPLER screen (now SONIDO, TOMAS, GRABAR and CORTAR) and slots A and B.
 </li></ul>
 <h2 id="020---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0">0.2.0</a> - 2026-10-10</h2>
 <p>First public version. Runs on PC and in the web emulator; the FM-1 port has not been tested on hardware yet.</p>
@@ -94,7 +139,7 @@ FM-1 port skeleton (structure, pins and matrix scanning).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

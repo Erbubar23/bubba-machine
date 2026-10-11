@@ -143,7 +143,7 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             const bm_track *tr = &c->pat->trk[t];
             int32_t x = c->tbuf[t][i];
             x = x * tr->level / 400;            /* nivel 100 = -12 dB de headroom en el bus */
-            if (t >= 2 && tr->duck) x = (int32_t)(((int64_t)x * (32767 - sc * tr->duck / 127)) >> 15);
+            if (t >= 1 && tr->duck) x = (int32_t)(((int64_t)x * (32767 - sc * tr->duck / 127)) >> 15);
             int32_t ax = x < 0 ? -x : x;
             if (ax > peak[t]) peak[t] = ax;
             L += (x * bm_pan_l[tr->pan & 127]) >> 15;
@@ -217,14 +217,11 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             c->smp_dec_acc += BM_SMP_RATE;
             if (c->smp_dec_acc >= BM_FS) {
                 c->smp_dec_acc -= BM_FS;
-                if (c->smp_rec_pos < BM_SMP_REC_MAX) {
+                uint32_t cap = c->smp_cap && c->smp_cap < BM_SMP_REC_MAX ? c->smp_cap : BM_SMP_REC_MAX;
+                if (c->smp_rec_pos < cap) {
                     int32_t v = c->smp_lp >> 8;
                     c->mem->arena[c->smp_rec_pos++] = (uint8_t)(int8_t)(v > 127 ? 127 : (v < -128 ? -128 : v));
-                } else {
-                    c->smp_rec = 0; c->st.smp_rec = 0;
-                    c->smp.data = (const int8_t *)c->mem->arena; c->smp.len = BM_SMP_REC_MAX;
-                    c->arena_busy = 1; c->st.smp_unsaved = 1;
-                }
+                } else bm_smp_rec_stop(c);                    /* tope: se para sola */
             }
         }
 

@@ -43,7 +43,7 @@
     <a href="diseno-0-2.html">Diseño 0.2</a></aside>
   <main class="doc">
 <h1 id="bubba-machine-30-diseño-de-la-interfaz">Bubba Machine 3.0: diseño de la interfaz</h1>
-<blockquote><p><strong>Estado: diseño, sin implementar.</strong> La versión actual (0.2) funciona como se describe en el <a href="manual.html">manual</a>. Este documento es la dirección para la 0.3.</p></blockquote>
+<blockquote><p><strong>Estado: implementado en la 0.3.0.</strong> El <a href="manual.html">manual</a> explica cómo se toca. Este documento guarda el porqué de cada decisión.</p></blockquote>
 <h2 id="la-idea">La idea</h2>
 <p><strong>Cuatro gestos por botón, y significan lo mismo en todos. HOME en todas partes.</strong></p>
 <p>Las perillas grandes te llevan, las pequeñas ajustan y las teclas controlan. Se recupera lo mejor de 0.2 (tres pulsaciones, capas en vivo, anillo de 2 s) y se suma lo nuevo: perillas que navegan, HOME como controlador, pestañas y canales fijos y libres.</p>
@@ -94,22 +94,22 @@
 <strong>CORTAR:</strong> después, con calma. Las blancas ponen cortes por corchea, la negra 9 los pone en los golpes y la 10 los reparte iguales.
 </li></ol>
 <p>La toma queda sin guardar hasta que paras el transporte, porque escribir la flash detiene el audio.</p>
-<h2 id="decisiones-pendientes">Decisiones pendientes</h2>
+<h2 id="decisiones">Decisiones</h2>
 <ul><li>
-<strong>Tiempo del recuadro de entrada:</strong> 400 ms propuesto, a probar.
+<strong>Tiempo del recuadro de entrada:</strong> 400 ms por defecto; se cambia en GLO o SISTEMA (0, 250, 400, 800 ms u OFF). <em>Resuelta en 0.3.0.</em>
 </li><li>
-<strong>Bancos de patrones:</strong> la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones.
+<strong>Biblioteca de tomas:</strong> los 128 KiB de samples pasaron a una biblioteca de tomas de largo libre (formato 3). <em>Resuelta en 0.3.0.</em>
 </li><li>
-<strong>Biblioteca de tomas:</strong> hoy son 2 slots fijos de 4 s; una biblioteca de largo libre necesita cambiar el formato de la flash.
+<strong>Bancos de patrones:</strong> la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones. <em>Pendiente:</em> en la 0.3, PRESETS en HOME recorre los 16.
 </li><li>
-<strong>Fantasma en la batería:</strong> el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato.
+<strong>Fantasma en la batería:</strong> el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato. <em>Pendiente:</em> en las notas ya hay tres niveles.
 </li></ul>
     <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_3.0.md">docs/DISENO_3.0.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
   </main>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

@@ -4,7 +4,8 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.2.0"
+#define BM_VERSION_STR "0.3.0"
+#define BM_FMT           3        /* formato de patrones, ajustes y tomas (0.3 no lee los de 0.2) */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
 #define BM_FS_OUT        44118u   /* ≈ 24 MHz / 544, fijo por hardware */
@@ -48,7 +49,7 @@
 #define BM_FXBUF_LEN     16384u   /* mu-law 8 bit a BM_FS ≈ 0.74 s (stutter/reverse) */
 #define BM_SMP_RATE      16000u   /* sampler a 16 kHz, 8 bit */
 #define BM_SMP_REC_MAX   BM_ARENA_LEN   /* ≈ 3.07 s grabando */
-#define BM_SLICES        16
+#define BM_SLICES        8        /* slices de un loop del sampler */
 #define BM_PENDING_LEN   8192u    /* caché de un patrón sucio en formato disperso */
 #define BM_CMDQ_LEN      128
 
@@ -60,6 +61,7 @@
 #define UI_FPS           30u
 #define UI_AUTOSAVE_MS   10000u
 #define UI_BOOT_MS       1200u
+#define UI_ENTER_MS      400u    /* recuadro de ALGORITHM en HOME antes de entrar al canal */
 
 /* ---- Pantalla (§1.2, §6.3) ---- */
 #define BM_LCD_W         240
@@ -78,11 +80,10 @@
 #define BM_PAGE          0x100u
 #define BM_STORE_LO      0x097000u
 #define BM_STORE_HI      0x0C0000u  /* log de patrones: 20 slots de 8 KiB */
-#define BM_SMP_LO        0x0C0000u  /* 2 slots de sample de 64 KiB */
-#define BM_SMP_SLOT      0x10000u
-#define BM_SMP_SLOTS     2
-#define BM_SMP_HDR       128u
-#define BM_SMP_MAX       (BM_SMP_SLOT - BM_SMP_HDR)   /* 65408 muestras ≈ 4.09 s */
+#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 128 KiB ≈ 8.1 s a 16 kHz */
+#define BM_TAKE_HI       0x0E0000u
+#define BM_TAKE_HDR      128u       /* cabecera al inicio del primer sector de cada toma */
+#define BM_TAKES         8          /* tomas como máximo */
 #define BM_GLOB_LO       0x0FC000u
 #define BM_GLOB_HI       0x0FF000u
 #define BM_SLOT_SIZE     0x2000u  /* 8 KiB = 2 sectores */

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Bubba Machine — gramática de gestos (SPEC_V3 §6.2, DISENO_0.2 §1).
+/* Bubba Machine — gramática de gestos (DISENO_3.0: cuatro gestos por botón).
  *
  *  TAP      soltar antes de 300 ms (o botón sin capa) y sin combo -> al soltar
  *  HOLD     300 ms con el botón abajo -> al cumplirse (no al soltar): capa en vivo
  *  LONG     2 s sin tocar nada más -> al cumplirse: pantalla especial
  *  COMBO    otra tecla/encoder durante la pulsación: HOLD inmediato si hay capa,
  *           y cancela el TAP y el LONG
- *  PRESS/UP botones instantáneos (PLAY, REC, OCT, GLO) -> al presionar/soltar
+ *  PRESS/UP botones instantáneos (PLAY, OCT) -> al presionar/soltar
  */
 #ifndef BM_GESTURE_H
 #define BM_GESTURE_H

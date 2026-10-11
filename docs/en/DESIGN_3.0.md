@@ -1,6 +1,6 @@
 # Bubba Machine 3.0: interface design
 
-> **Status: design, not implemented.** The current version (0.2) works as described in the [manual](MANUAL.md). This document is the direction for 0.3. On-screen names stay in Spanish, with their meaning in parentheses.
+> **Status: implemented in 0.3.0.** The [manual](MANUAL.md) explains how to play it. This document keeps the reasoning behind each decision. On-screen names stay in Spanish, with their meaning in parentheses.
 
 ## The idea
 
@@ -92,9 +92,9 @@ Recording, saving and slicing are three screens, one job each:
 
 A take stays unsaved until you stop the transport, because writing the flash pauses the audio.
 
-## Open decisions
+## Decisions
 
-- **Entry box timing:** 400 ms proposed, to be tested.
-- **Pattern banks:** the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns.
-- **Take library:** today there are 2 fixed 4 s slots; a free-length library needs a new flash format.
-- **Ghost notes on drums:** each step's byte is full; it needs a level P-Lock or a bigger format.
+- **Entry box timing:** 400 ms by default; changed in GLO or SISTEMA (0, 250, 400, 800 ms or OFF). *Resolved in 0.3.0.*
+- **Take library:** the 128 KiB of samples became a free-length take library (format 3). *Resolved in 0.3.0.*
+- **Pattern banks:** the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns. *Open:* in 0.3, PRESETS on HOME walks the 16.
+- **Ghost notes on drums:** each step's byte is full; it needs a level P-Lock or a bigger format. *Open:* notes already have three levels.

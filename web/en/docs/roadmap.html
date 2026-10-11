@@ -44,13 +44,13 @@
   <main class="doc">
 <h1 id="roadmap">Roadmap</h1>
 <p>What is coming for Bubba Machine, in order of importance. Dates depend on getting the hardware working.</p>
-<h2 id="now-02x-public-preview">Now: 0.2.x, public preview</h2>
+<h2 id="now-03x-interface-30">Now: 0.3.x, interface 3.0</h2>
 <ul><li>
-The full firmware in the web emulator.
-</li><li>
-Documentation, GPL-3.0 license and website.
+The full 3.0 interface in the web emulator: four gestures per button, HOME everywhere, fixed and free tracks, sampler 3.0 and a recorder with a take library.
 </li><li>
 Collecting reports and opinions about how it plays.
+</li><li>
+Open decisions: more pattern banks (the flash holds 16) and ghost notes on drums.
 </li></ul>
 <h2 id="porting-to-the-fm-1">Porting to the FM-1</h2>
 <p>The most important step: making it run on the device. The plan is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish):</p>
@@ -69,20 +69,15 @@ Install over USB-C from the browser, with Web MIDI.
 </li><li>
 Mandatory backup before installing and one-click rollback.
 </li></ul>
-<h2 id="03-the-30-interface">0.3: the 3.0 interface</h2>
-<p>The new way to play, already designed in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>:</p>
+<h2 id="done-03-interface-30">Done: 0.3, interface 3.0</h2>
+<p>See the <a href="changelog.html">changelog</a> and the <a href="manual.html">manual</a>. The design is in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>.</p>
+<h2 id="after-03">After 0.3</h2>
 <ul><li>
-Four gestures per button that mean the same thing on every button: tap, hold, hold 2 s and HOME + button.
+<strong>Per-track LFO</strong> (the button already has its layer: repeat and tie).
 </li><li>
-HOME everywhere: sequence controller and global modifier.
+<strong>Pattern banks:</strong> a bigger flash map or smaller patterns.
 </li><li>
-ALGORITHM moves between tracks, with a box that confirms where you are going.
-</li><li>
-3 fixed tracks (drums, sampler and bass) and 3 free ones (SYNTH, MONO, KIT or MIDI).
-</li><li>
-Sampler 3.0: a break the generator rearranges, with a PLAYS row to see what it picked.
-</li><li>
-A dedicated recorder with a take library and an editor to slice later.
+<strong>Ghost notes on drums:</strong> a level P-Lock or a bigger format.
 </li></ul>
 <h2 id="later">Later</h2>
 <ul><li>
@@ -97,7 +92,7 @@ A dedicated recorder with a take library and an editor to slice later.
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

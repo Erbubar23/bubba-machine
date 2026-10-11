@@ -11,11 +11,11 @@ Do not try to flash anything from this repository onto your device.
 1. Open the [emulator](https://erbubar23.github.io/bubba-machine/emulador.html?lang=en) in Chrome or Edge.
 2. Press **Power on**. It starts with a demo.
 3. With the computer keyboard:
-   - **Space** is PLAY, **Enter** is REC and **Shift** is GLO.
-   - Numbers **1-8** are HOME, SEQ, EDIT, ENV, FX, SCL, ARP and SAVE, and the **arrows** are OCT− and OCT+.
+   - **Space** is PLAY, **Enter** is REC and **Shift** is HOME (the modifier: hold it and turn ALGORITHM to jump to another track).
+   - Numbers **1-9 and 0** are HOME, SEQ, EDIT, ENV, FX, SCL, ARP, SAVE, LFO and GLO, and the **arrows** are OCT− and OCT+.
    - The **Z-/** and **Q-P** rows play the FM-1 keys.
    - The **mouse wheel** over a knob turns it.
-4. In **Sampler and memory** you can load a WAV of up to 4 s into slot A.
+4. In **Sampler and memory** you can load a WAV of up to 3 s as a new take.
 
 The emulator runs exactly the same C code that will run on the device.
 

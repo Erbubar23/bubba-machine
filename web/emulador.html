@@ -77,7 +77,7 @@ button.act:hover { background: #33373d; }
 <div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button" data-i18n="on">Encender</button><span data-i18n="onnote">El audio arranca al pulsar (regla del navegador).</span></div></div>
 <header>
   <a id="homelink" href="index.html"><img src="logo.svg" alt="Bubba Machine"></a>
-  <div><b data-i18n="title">Emulador del firmware 0.2.0</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
+  <div><b data-i18n="title">Emulador del firmware 0.3.0</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
   <nav class="sitenav" aria-label="Sitio" data-i18n="nav"><a href="index.html">Inicio</a><a href="docs/manual.html">Manual</a><a href="docs/instalar.html">Instalar</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" data-lang="en" lang="en" class="lang">English</a></nav>
 </header>
 <main>
@@ -109,18 +109,19 @@ button.act:hover { background: #33373d; }
     <div class="card">
       <h2 data-i18n="h.play">Cómo se toca</h2>
       <ul data-i18n="play">
-        <li><b>Toque</b>: abre la pantalla del botón (otra vez: su página siguiente). <b>Mantener</b> 300 ms: su capa en vivo. <b>Mantener 2 s</b> sin tocar nada más: pantalla especial (el anillo amarillo arriba se llena).</li>
-        <li><b>Capas</b>: SEQ = patrones · HOME = mute · EDIT = borrar estilo TR · FX = punch-in · SCL = acordes · ARP = arpegio (synths) o roll (batería).</li>
-        <li><b>2 s</b>: SEQ = TIEMPO (largo y velocidad por pista) · HOME = SISTEMA · EDIT en T2 = SAMPLER · REC = borrar pista · SAVE = guardado rápido.</li>
-        <li><b>Batería TR</b> (SEQ en T1): negras 1-8 eligen instrumento, 9 cambia de sección, 10 FILL, 11 mute. Mantén un paso y gira: KNOB = P-Lock, SELECT = acento, ALGORITHM = repetición/flam, PRESETS = condición de fill.</li>
-        <li><b>HOME otra vez</b> = escenas. <b>SCL otra vez</b> = cuadrícula de acordes. <b>SEQ otra vez</b> en un synth = loopera.</li>
-        <li><b>ALGORITHM</b> cambia de pista, <b>PRESETS</b> de patrón, <b>GLO</b> es el modificador.</li>
+        <li><b>Cuatro gestos por botón</b>: <b>toque</b> = su página en el canal (otra vez: la siguiente) · <b>mantener</b> = su capa en vivo, con el teclado dibujado · <b>2 s</b> = configuración (HOME, SEQ, EDIT, SAVE, REC) · <b>HOME + botón</b> = su versión global.</li>
+        <li><b>ALGORITHM</b> = el canal. En HOME aparece un recuadro y a los 400 ms entras. Dentro de un canal cambia y conserva la página. <b>SELECT</b> recorre las pestañas.</li>
+        <li><b>Mantener HOME</b> en cualquier pantalla: blancas = patrón en cola (dos = cadena), negras 1-6 = mute (mantener = solo), 7-10 = escenas, 11 = FILL. K1-K4 = BPM, swing, largo, drive.</li>
+        <li><b>HOME +</b> OCT- / OCT+ = deshacer / rehacer · PLAY = desde el paso 1 · REC = song rec · SEQ = canción · FX = delay global · EDIT = copiar canal · SAVE = guardar como.</li>
+        <li><b>Capas</b>: SEQ largo y velocidad · EDIT borrar · ENV acentos · LFO repetir/ligar · FX punch-in · SCL acordes · ARP arpegio o roll · SAVE copiar patrón · GLO tono + tap tempo.</li>
+        <li><b>Sampler (T2)</b>: fila TU (blanca = generador, blanca + negra = slice fijo) y fila SUENA. K1-K4 = VARIAR, ANCLAR, REPETIR, ROMPER. REC abre la GRABADORA; EDIT 2 s = TOMAS; EDIT en una toma = CORTAR.</li>
+        <li><b>Canales libres</b> T4-T6: SELECT hasta la pestaña MAS y ALGORITHM cambia el MOTOR (SYNTH, MONO, KIT, MIDI). Preguntas: OCT+ = sí, HOME = no.</li>
         <li>Clic derecho en un botón o tecla la deja <b>presionada</b> (para combos con ratón).</li>
       </ul>
     </div>
     <div class="card">
       <h2 data-i18n="h.kbd">Teclado de la PC</h2>
-      <p data-i18n="kbd"><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · rueda del ratón sobre un knob. Mantén <kbd>2</kbd> dos segundos para la pantalla TIEMPO.</p>
+      <p data-i18n="kbd"><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> o <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · rueda del ratón sobre un knob. Mantén <kbd>Shift</kbd> y gira ALGORITHM para ir a otro canal.</p>
     </div>
     <div class="card">
       <h2 data-i18n="h.hw">Hardware simulado</h2>
@@ -131,10 +132,9 @@ button.act:hover { background: #33373d; }
     </div>
     <div class="card">
       <h2 data-i18n="h.smp">Sampler y memoria</h2>
-      <p data-i18n="smp">En el FM-1 el sampler graba la mezcla (mantén REC en EDIT de T2). Aquí además puedes cargar un audio en un slot (hasta 4 s, 16 kHz). Se corta en 16 chops que se secuencian como la batería. T2 ya trae un loop de fábrica (F1): elígelo con K1 en la pantalla SAMPLER (EDIT 2 s en T2).</p>
+      <p data-i18n="smp">En el FM-1 la GRABADORA graba la mezcla (REC en T2): hasta 3 s por toma y 8.1 s en total. Aquí además puedes cargar un audio como toma nueva; queda al tempo actual y en 8 slices iguales. Úsala desde T2 &gt; TOMAS (EDIT 2 s): N1 = loop A, N2 = loop B, EDIT = cortar.</p>
       <div class="acts">
-        <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV al slot A</button>
-        <button class="act" id="wavbtnb" type="button" data-i18n="b.wavb">WAV al slot B</button>
+        <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV a TOMAS</button>
         <input type="file" id="wav" accept="audio/*" hidden>
         <button class="act" id="midibtn" type="button" data-i18n="b.midi">Activar MIDI IN</button>
         <button class="act" id="wipe" type="button" data-i18n="b.wipe">Borrar memoria</button>
@@ -152,47 +152,49 @@ button.act:hover { background: #33373d; }
   if (lang !== 'en') lang = 'es';
   if (q) { try { localStorage.setItem('bm-lang', lang); } catch (e) {} }
   var ES = {
-    'e.slot': 'No se pudo guardar en el slot.',
-    'ok.slot': function (s, t) { return 'Slot ' + s + ': ' + t + ' s en 16 chops. Elige T2 con ALGORITHM (GLO + ALGORITHM cambia de slot) y toca las blancas.'; },
+    'e.slot': 'No se pudo guardar la toma.',
+    'ok.slot': function (s, t) { return 'Toma ' + s + ' guardada (' + t + ' s). En T2 > TOMAS (EDIT 2 s), N1 la pone como loop A.'; },
+    'e.full': 'No cabe: la biblioteca de tomas está llena (borra una con N11 en TOMAS).',
     'e.read': 'No se pudo leer ese archivo de audio.',
     'e.midi': 'Este navegador no tiene Web MIDI (usa Chrome o Edge).',
-    'ok.midi': 'MIDI IN activo: canales 1-6 = pistas, reloj si GLO > RELOJ = EXTERNO.',
+    'ok.midi': 'MIDI IN activo: canales 1-6 = canales, reloj si SISTEMA > RELOJ = EXTERNO.',
     'e.nomidi': 'No hay entradas MIDI conectadas.',
     'e.perm': 'Permiso de MIDI denegado.',
     'q.wipe': '¿Borrar patrones, song y ajustes guardados en este navegador?',
     'ok.wipe': 'Memoria borrada: vuelve la demo.'
   };
   var EN = {
-    title: 'Firmware emulator 0.2.0',
+    title: 'Firmware emulator 0.3.0',
     sub: 'The same C99 code that will run on the FM-1, compiled to WebAssembly. The firmware screens are in Spanish for now.',
     nav: '<a href="en/index.html">Home</a><a href="en/docs/manual.html">Manual</a><a href="en/docs/install.html">Install</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="?lang=es" data-lang="es" lang="es" class="lang">Español</a>',
     on: 'Power on',
     onnote: 'Audio starts when you press it (browser rule).',
     'h.play': 'How to play',
-    play: '<li><b>Tap</b>: opens the button\'s screen (again: its next page). <b>Hold</b> 300 ms: its live layer. <b>Hold 2 s</b> without touching anything else: special screen (the yellow ring at the top fills).</li>' +
-          '<li><b>Layers</b>: SEQ = patterns · HOME = mute · EDIT = TR-style erase · FX = punch-in · SCL = chords · ARP = arpeggio (synths) or roll (drums).</li>' +
-          '<li><b>2 s</b>: SEQ = TIEMPO (length and speed per track) · HOME = SISTEMA (system) · EDIT on T2 = SAMPLER · REC = clear track · SAVE = quick save.</li>' +
-          '<li><b>TR drums</b> (SEQ on T1): black keys 1-8 select the instrument, 9 switches section, 10 FILL, 11 mute. Hold a step and turn: KNOB = P-Lock, SELECT = accent, ALGORITHM = repeat/flam, PRESETS = fill condition.</li>' +
-          '<li><b>HOME again</b> = scenes. <b>SCL again</b> = chord grid. <b>SEQ again</b> on a synth = looper.</li>' +
-          '<li><b>ALGORITHM</b> changes track, <b>PRESETS</b> the pattern, <b>GLO</b> is the modifier.</li>' +
+    play: '<li><b>Four gestures per button</b>: <b>tap</b> = its page on the track (again: the next one) · <b>hold</b> = its live layer, with the keyboard drawn on screen · <b>2 s</b> = settings (HOME, SEQ, EDIT, SAVE, REC) · <b>HOME + button</b> = its global version.</li>' +
+          '<li><b>ALGORITHM</b> = the track. On HOME a box shows up and you enter after 400 ms. Inside a track it switches and keeps the page. <b>SELECT</b> walks the tabs.</li>' +
+          '<li><b>Hold HOME</b> on any screen: white keys = queue a pattern (two = chain), black 1-6 = mute (hold = solo), 7-10 = scenes, 11 = FILL. K1-K4 = BPM, swing, length, drive.</li>' +
+          '<li><b>HOME +</b> OCT- / OCT+ = undo / redo · PLAY = restart from step 1 · REC = song rec · SEQ = song · FX = global delay · EDIT = copy track · SAVE = save as.</li>' +
+          '<li><b>Layers</b>: SEQ length and speed · EDIT erase · ENV accents · LFO repeat/tie · FX punch-in · SCL chords · ARP arpeggio or roll · SAVE copy pattern · GLO pitch + tap tempo.</li>' +
+          '<li><b>Sampler (T2)</b>: TU row (white = generator, white + black = pinned slice) and SUENA row (what plays). K1-K4 = VARIAR (vary), ANCLAR (anchor), REPETIR (repeat), ROMPER (break). REC opens the recorder (GRABADORA); EDIT 2 s = TOMAS (takes); EDIT on a take = CORTAR (slice).</li>' +
+          '<li><b>Free tracks</b> T4-T6: SELECT to the MAS tab and ALGORITHM changes the MOTOR (engine: SYNTH, MONO, KIT, MIDI). Questions: OCT+ = yes, HOME = no.</li>' +
           '<li>Right-click a button or key to keep it <b>held</b> (for mouse combos).</li>',
     'h.kbd': 'Computer keyboard',
-    kbd: '<kbd>Z</kbd>…<kbd>/</kbd> and <kbd>Q</kbd>…<kbd>P</kbd> = keys · <kbd>Space</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> GLO · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>1</kbd> HOME <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE · mouse wheel over a knob. Hold <kbd>2</kbd> for two seconds for the TIEMPO (time) screen.',
+    kbd: '<kbd>Z</kbd>…<kbd>/</kbd> and <kbd>Q</kbd>…<kbd>P</kbd> = keys · <kbd>Space</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> or <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · mouse wheel over a knob. Hold <kbd>Shift</kbd> and turn ALGORITHM to jump to another track.',
     'h.hw': 'Simulated hardware',
     'hw.spi': 'SPI to the screen (per frame)',
     'hw.budget': 'Budget at 12 MHz',
     'hw.writes': 'Flash writes',
     'h.smp': 'Sampler and memory',
-    smp: 'On the FM-1 the sampler records the mix (hold REC in EDIT on T2). Here you can also load audio into a slot (up to 4 s, 16 kHz). It is cut into 16 chops that are sequenced like the drums. T2 already has factory loops (F1, F2): pick one with K1 on the SAMPLER screen (EDIT 2 s on T2).',
-    'b.wava': 'WAV to slot A',
-    'b.wavb': 'WAV to slot B',
+    smp: 'On the FM-1 the recorder (GRABADORA) records the mix (REC on T2): up to 3 s per take and 8.1 s in total. Here you can also load audio as a new take; it is set to the current tempo and cut into 8 equal slices. Use it from T2 &gt; TOMAS (EDIT 2 s): N1 = loop A, N2 = loop B, EDIT = slice.',
+    'b.wava': 'WAV to TAKES',
     'b.midi': 'Enable MIDI IN',
     'b.wipe': 'Erase memory',
-    'e.slot': 'Could not save to the slot.',
-    'ok.slot': function (s, t) { return 'Slot ' + s + ': ' + t + ' s in 16 chops. Select T2 with ALGORITHM (GLO + ALGORITHM switches slot) and play the white keys.'; },
+    'e.slot': 'Could not save the take.',
+    'ok.slot': function (s, t) { return 'Take ' + s + ' saved (' + t + ' s). On T2 > TOMAS (EDIT 2 s), N1 makes it loop A.'; },
+    'e.full': 'It does not fit: the take library is full (delete one with N11 on TOMAS).',
     'e.read': 'Could not read that audio file.',
     'e.midi': 'This browser has no Web MIDI (use Chrome or Edge).',
-    'ok.midi': 'MIDI IN on: channels 1-6 = tracks, clock if GLO > RELOJ = EXTERNO.',
+    'ok.midi': 'MIDI IN on: channels 1-6 = tracks, clock if SISTEMA > RELOJ = EXTERNO.',
     'e.nomidi': 'No MIDI inputs connected.',
     'e.perm': 'MIDI permission denied.',
     'q.wipe': 'Erase the patterns, song and settings saved in this browser?',
@@ -320,8 +322,8 @@ button.act:hover { background: #33373d; }
 
   /* ---------------- teclado de la PC ---------------- */
   const PCKEYS = 'zsxdcfvbhnjm,l.;/qwertyuiop';
-  const BTNKEYS = { ' ': 'PLAY', 'Enter': 'REC', 'Shift': 'GLO', 'ArrowLeft': 'OCT_DN', 'ArrowRight': 'OCT_UP',
-    '1': 'HOME', '2': 'SEQ', '3': 'EDIT', '4': 'ENV', '5': 'FX', '6': 'SCL', '7': 'ARP', '8': 'SAVE' };
+  const BTNKEYS = { ' ': 'PLAY', 'Enter': 'REC', 'Shift': 'HOME', 'ArrowLeft': 'OCT_DN', 'ArrowRight': 'OCT_UP',
+    '1': 'HOME', '2': 'SEQ', '3': 'EDIT', '4': 'ENV', '5': 'FX', '6': 'SCL', '7': 'ARP', '8': 'SAVE', '9': 'LFO', '0': 'GLO' };
   const pk = (e, d) => {
     if (e.target.tagName === 'INPUT' || e.repeat) return;
     const i = PCKEYS.indexOf(e.key.toLowerCase());
@@ -383,9 +385,7 @@ button.act:hover { background: #33373d; }
 
   /* ---------------- WAV al sampler ---------------- */
   const wav = document.getElementById('wav');
-  let wavSlot = 0;
-  document.getElementById('wavbtn').addEventListener('click', () => { wavSlot = 0; wav.click(); });
-  document.getElementById('wavbtnb').addEventListener('click', () => { wavSlot = 1; wav.click(); });
+  document.getElementById('wavbtn').addEventListener('click', () => wav.click());
   wav.addEventListener('change', async () => {
     const f = wav.files[0]; if (!f) return;
     try {
@@ -393,6 +393,7 @@ button.act:hover { background: #33373d; }
       const tmp = new OfflineAudioContext(1, 1, 16000);
       const dec = await tmp.decodeAudioData(buf);
       const cap = M._bm_web_sampler_cap();
+      if (cap < 1600) { msg(T('e.full')); wav.value = ''; return; }
       const len = Math.min(cap, Math.floor(dec.duration * 16000));
       const off = new OfflineAudioContext(1, len, 16000);
       const src = off.createBufferSource(); src.buffer = dec; src.connect(off.destination); src.start();
@@ -401,9 +402,10 @@ button.act:hover { background: #33373d; }
       const g = pk ? 0.95 / pk : 1;
       const i8 = new Int8Array(len); for (let i = 0; i < len; i++) i8[i] = Math.max(-128, Math.min(127, Math.round(out[i] * g * 127)));
       M.HEAP8.set(i8, M._bm_web_sampler());
-      if (M._bm_web_sampler_set(len, wavSlot) !== 0) { msg(T('e.slot')); return; }
+      const id = M._bm_web_sampler_set(len, M._bm_web_bpm());
+      if (id < 0) { msg(T('e.slot')); return; }
       persist();
-      msg(T('ok.slot')('AB'[wavSlot], (len / 16000).toFixed(2)));
+      msg(T('ok.slot')(String(id + 1).padStart(2, '0'), (len / 16000).toFixed(2)));
     } catch (e) { msg(T('e.read')); }
     wav.value = '';
   });

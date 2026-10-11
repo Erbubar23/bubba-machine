@@ -2,6 +2,7 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — contexto de audio: cola de comandos, MIDI de entrada y render. */
 #include <string.h>
+#include <stddef.h>
 #include "bm_audio.h"
 #include "bm_util.h"
 
@@ -34,7 +35,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;
         c->eng[t].track = (uint8_t)t;
-        c->eng[t].vt = t == 0 ? &bm_eng_drum : (t == 1 ? &bm_eng_sampler : &bm_eng_wave);
+        c->eng[t].vt = bm_engine_vt_for(pat->trk[t].engine);
         c->eng[t].vt->init(&c->eng[t]);
     }
     bm_seq_set_bpm(c, pat->meta.bpm_x10);
@@ -47,6 +48,44 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->sync_ppqn = 2;
     c->st.queued = 0xFF; c->st.punch = 0xFF; c->st.step = -1;
     c->st.scene = 0xFF; c->st.scene_q = 0xFF;
+    c->st.brk_slice = -1;
+    for (int i = 0; i < 16; i++) c->st.gen_sl[i] = 0xFF;
+}
+
+/* ------------------------------------------------------------ grabadora (arena de 48 KiB) */
+static void smp_voices_off(bm_ctx *c, int src)
+{
+    for (int i = 0; i < BM_VOICES; i++)
+        if (c->voice[i].active && c->voice[i].track == 1 && (src < 0 || c->voice[i].src == src)) { c->voice[i].active = 0; c->voice[i].pend = 0; }
+}
+
+void bm_smp_rec_start(bm_ctx *c)
+{
+    smp_voices_off(c, -1);
+    c->smp_armed = 0; c->st.smp_armed = 0;
+    c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_dec_acc = 0; c->smp_lp = 0;
+    c->punch_cur = c->punch_req = 0xFF;
+    memset(c->mem->arena, 0, sizeof c->mem->arena);
+    c->arena_busy = 1;
+    c->st.smp_rec = 1; c->st.smp_len = 0;
+}
+
+void bm_smp_rec_stop(bm_ctx *c)
+{
+    c->smp_rec = 0; c->st.smp_rec = 0;
+    uint32_t len = c->smp_rec_pos;
+    if (!len) { c->arena_busy = c->st.smp_unsaved; return; }
+    bm_smp_src *m = &c->smp[0];                         /* la toma suena ya como loop A, sin guardar */
+    smp_voices_off(c, 0);
+    memset(m, 0, sizeof *m);
+    m->data = (const int8_t *)c->mem->arena; m->len = len; m->gain = 64;
+    m->bpm_x10 = c->pat->meta.bpm_x10;
+    uint32_t bar = (uint32_t)BM_SMP_RATE * 2400u / m->bpm_x10;     /* muestras por compás */
+    uint32_t bars = (len + bar / 2) / bar;
+    m->bars = (uint8_t)(bars < 1 ? 1 : bars > 8 ? 8 : bars);
+    m->kslice = m->sslice = 0xFF;
+    c->st.smp_unsaved = 1; c->st.smp_len = len;
+    c->gen_blk = 0;
 }
 
 /* ------------------------------------------------------------ MIDI de entrada */
@@ -82,6 +121,7 @@ static void midi_byte(bm_ctx *c, uint8_t b)
     m_have = 0;
     uint8_t ch = m_status & 0x0F, ty = m_status & 0xF0;
     if (ch >= BM_TRACKS) return;           /* canales 1..6 = pistas */
+    if (ch == 1) m_d1 &= 7;                 /* sampler: la nota elige el slice */
     if (ty == 0x90 && b) bm_live_note(c, ch, m_d1, b, 1);
     else if (ty == 0x80 || (ty == 0x90 && !b)) bm_live_note(c, ch, m_d1, 0, 0);
 }
@@ -95,7 +135,8 @@ static void all_off(bm_ctx *c)
         v->pend = 0;
     }
     for (int t = 0; t < BM_TRACKS; t++) { c->arp[t].n = 0; c->arp[t].playing = 0; }
-    for (int t = 0; t < BM_TR_TRACKS; t++) c->roll[t].mask = 0;
+    for (int t = 0; t < BM_TRACKS; t++) c->roll[t].mask = 0;
+    c->brk_live = 0;
     memset(c->strum, 0, sizeof c->strum);
 }
 
@@ -105,29 +146,30 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_NOTE_ON: bm_live_note(c, k->a, k->b, k->c, 1); break;
     case CMD_NOTE_OFF: bm_live_note(c, k->a, k->b, 0, 0); break;
     case CMD_SET_EVENT:
-        if (k->a >= BM_TR_TRACKS && k->a < BM_TRACKS && k->b < BM_STEPS && k->c < BM_EVENTS)
-            c->pat->ev[k->a - BM_TR_TRACKS][k->b][k->c] = k->u.ev;
+        if (k->a >= BM_TR_TRACKS && k->a < BM_TRACKS && k->b < BM_STEPS && k->c < BM_EVENTS && !bm_is_grid(c->pat, k->a))
+            *bm_ev(c->pat, k->a, k->b, k->c) = k->u.ev;
         break;
     case CMD_SET_TRSTEP:
-        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < BM_STEPS) {
+        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < BM_STEPS) {
+            bm_tr *tr = bm_trk_tr(c->pat, k->a);
             uint8_t v = (uint8_t)k->u.i;
-            if (!(v & ST_ON)) { bm_tr_lock_clear_step(&c->pat->tr[k->a], k->c, k->b); v = 0; }
-            else v = (uint8_t)((v & ~ST_LOCK) | (c->pat->tr[k->a].st[k->b][k->c] & ST_LOCK));
-            c->pat->tr[k->a].st[k->b][k->c] = v;
+            if (!(v & ST_ON)) { bm_tr_lock_clear_step(tr, k->c, k->b); v = 0; }
+            else v = (uint8_t)((v & ~ST_LOCK) | (tr->st[k->b][k->c] & ST_LOCK));
+            tr->st[k->b][k->c] = v;
         }
         break;
     case CMD_TR_LOCK:
-        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < BM_STEPS)
-            bm_tr_lock_set(&c->pat->tr[k->a], k->c, k->b, (k->u.i >> 8) & 0xFF, (k->u.i & 0x10000) ? -1 : (k->u.i & 0xFF));
+        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < BM_STEPS)
+            bm_tr_lock_set(bm_trk_tr(c->pat, k->a), k->c, k->b, (k->u.i >> 8) & 0xFF, (k->u.i & 0x10000) ? -1 : (k->u.i & 0xFF));
         break;
     case CMD_SET_LANE:
-        if (k->a < BM_TR_TRACKS && k->b < BM_LANES && k->c < 4) ((uint8_t *)&c->pat->tr[k->a].lane[k->b])[k->c] = (uint8_t)k->u.i;
+        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < 4) ((uint8_t *)&bm_trk_tr(c->pat, k->a)->lane[k->b])[k->c] = (uint8_t)k->u.i;
         break;
     case CMD_LANE_MUTE:
-        if (k->a < BM_TR_TRACKS) c->pat->tr[k->a].mute = (uint16_t)k->u.i;
+        if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;
         break;
     case CMD_SET_TRACK:
-        if (k->a < BM_TRACKS && k->b < sizeof(bm_track)) ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
+        if (k->a < BM_TRACKS && k->b < sizeof(bm_track) && k->b != offsetof(bm_track, engine)) ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
         break;
     case CMD_SET_META:
         if (k->b >= 2 && k->b < sizeof(bm_meta)) ((uint8_t *)&c->pat->meta)[k->b] = k->c;
@@ -135,8 +177,8 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_SET_BPM: c->pat->meta.bpm_x10 = (uint16_t)k->u.i; if (!c->ext_clock) bm_seq_set_bpm(c, (uint16_t)k->u.i); break;
     case CMD_TRACK_BULK:
         if (!k->u.ptr || k->a >= BM_TRACKS) break;
-        if (bm_is_tr(k->a)) memcpy(&c->pat->tr[k->a], k->u.ptr, sizeof(bm_tr));
-        else memcpy(c->pat->ev[k->a - BM_TR_TRACKS], k->u.ptr, sizeof c->pat->ev[0]);
+        if (k->a < BM_TR_TRACKS) memcpy(&c->pat->tr[k->a], k->u.ptr, sizeof(bm_tr));
+        else memcpy(&c->pat->nt[k->a - BM_TR_TRACKS], k->u.ptr, sizeof(bm_notes));
         break;
     case CMD_TRACK_CLEAR:
         if (k->a < BM_TRACKS) bm_track_clear_events(c->pat, k->a);
@@ -146,41 +188,65 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         break;
     case CMD_PUNCH: c->punch_req = k->a; break;
     case CMD_FILL: c->fill = k->a; break;
-    case CMD_QUEUE: c->queued = (k->a == 0xFF) ? -1 : k->a; c->st.queued = k->a; break;
+    case CMD_QUEUE: c->queued = (k->a == 0xFF) ? -1 : k->a; c->st.queued = k->a; c->pchain_n = 0; c->st.pchain_n = 0; break;
     case CMD_LOAD:
         if (c->swap && c->swap(c->swap_user, c->cur_pat, k->a, c->pat) == 0) {
             c->cur_pat = k->a; c->st.pattern = k->a; bm_seq_set_bpm(c, c->pat->meta.bpm_x10);
+            bm_engines_sync(c);
+            c->gen_blk = 0;
         }
         break;
+    case CMD_PCHAIN: if (k->u.ptr) bm_pchain_cmd(c, (const uint8_t *)k->u.ptr, k->a); break;
     case CMD_SONG: c->song_on = k->a; c->st.song_on = k->a; c->song_pos = 0; c->song_rep = 0; break;
     case CMD_SCENE: bm_scene_cmd(c, k->a); break;
     case CMD_CHAIN: if (k->u.ptr) bm_chain_cmd(c, (const uint8_t *)k->u.ptr, k->a); break;
     case CMD_SMP_REC:
-        if (k->a && !c->smp_rec) {
-            for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].active && c->voice[i].track == 1) c->voice[i].active = 0;
-            c->smp_rec = 1; c->smp_rec_pos = 0; c->smp_dec_acc = 0; c->smp_lp = 0;
-            c->smp.data = (const int8_t *)c->mem->arena; c->smp.len = 0; c->smp.nmarks = 0;
-            c->punch_cur = c->punch_req = 0xFF;
-            memset(c->mem->arena, 0, sizeof c->mem->arena);
-            c->arena_busy = 1; c->st.smp_marks = 0;
-        } else if (!k->a && c->smp_rec) {
-            c->smp_rec = 0; c->smp.len = c->smp_rec_pos; c->st.smp_unsaved = c->smp_rec_pos > 0;
+        c->smp_cap = k->u.i > 0 && (uint32_t)k->u.i < BM_SMP_REC_MAX ? (uint32_t)k->u.i : BM_SMP_REC_MAX;
+        c->st.smp_cap = c->smp_cap;
+        if (k->a == 2 && !c->smp_rec) { c->smp_armed = 1; c->st.smp_armed = 1; }
+        else if (k->a == 1 && !c->smp_rec) bm_smp_rec_start(c);
+        else if (k->a == 0) {
+            if (c->smp_rec) bm_smp_rec_stop(c);
+            c->smp_armed = 0; c->st.smp_armed = 0;
         }
-        c->st.smp_rec = c->smp_rec; c->st.smp_len = c->smp_rec ? 0 : c->smp.len;
-        break;
-    case CMD_SMP_MARK:
-        if (c->smp_rec && c->smp.nmarks < BM_SLICES) { c->smp.marks[c->smp.nmarks++] = c->smp_rec_pos; c->st.smp_marks = c->smp.nmarks; }
         break;
     case CMD_SMP_SRC:
+        if (k->a > 2 || (k->a == 0 && (c->smp_rec || c->st.smp_unsaved))) break;   /* la toma sin guardar manda en A */
+        smp_voices_off(c, k->a);
+        if (k->u.ptr) c->smp[k->a] = *(const bm_smp_src *)k->u.ptr; else memset(&c->smp[k->a], 0, sizeof c->smp[0]);
+        c->gen_blk = 0;
+        break;
     case CMD_SMP_SAVED:
+    case CMD_SMP_DISCARD:
         if (c->smp_rec) break;
-        for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].active && c->voice[i].track == 1) c->voice[i].active = 0;
-        if (k->u.ptr) c->smp = *(const bm_smp_src *)k->u.ptr; else memset(&c->smp, 0, sizeof c->smp);
-        c->st.smp_len = c->smp.len; c->st.smp_marks = c->smp.nmarks;
-        if (k->type == CMD_SMP_SAVED || !c->st.smp_unsaved) {
-            c->arena_busy = 0; c->st.smp_unsaved = 0;
-            memset(c->mem->arena, 0, sizeof c->mem->arena);   /* vuelve a ser delay + punch */
-            c->d_out = c->d_acc = 0;
+        smp_voices_off(c, 0);
+        if (k->u.ptr) c->smp[0] = *(const bm_smp_src *)k->u.ptr; else memset(&c->smp[0], 0, sizeof c->smp[0]);
+        c->arena_busy = 0; c->st.smp_unsaved = 0;
+        memset(c->mem->arena, 0, sizeof c->mem->arena);   /* vuelve a ser delay + punch */
+        c->d_out = c->d_acc = 0;
+        c->gen_blk = 0;
+        break;
+    case CMD_BRK_LIVE:
+        if ((k->a & 4) && !(c->brk_live & 4)) c->brk_last_off = 0;
+        c->brk_live = k->a;
+        break;
+    case CMD_BRK_SLICE:
+        bm_live_note(c, 1, (uint8_t)((k->a & 7) | ((k->c & 3) << BRK_SRC_SH)), k->b ? k->b : 110, 1);
+        break;
+    case CMD_ENGINE:
+        if (k->a >= BM_FREE0 && k->a < BM_TRACKS) {
+            for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == k->a) { c->voice[i].active = 0; c->voice[i].pend = 0; }
+            bm_track_set_engine(c->pat, k->a, k->b);
+            bm_engines_sync(c);
+            c->lp[k->a - BM_TR_TRACKS].mode = LOOP_OFF;
+            c->st.edits++;
+        }
+        break;
+    case CMD_MIDI_SEND:
+        if (c->midi_out) {
+            c->midi_out(c->midi_user, k->a);
+            if (k->b != 0xFF) c->midi_out(c->midi_user, k->b);
+            if (k->c != 0xFF) c->midi_out(c->midi_user, k->c);
         }
         break;
     case CMD_MASTER: c->master_target = (uint16_t)k->u.i; break;
@@ -192,7 +258,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         break;
     case CMD_MIDI: midi_byte(c, k->a); break;
     case CMD_ROLL:
-        if (k->a < BM_TR_TRACKS && k->b < BM_LANES) {
+        if (k->a < BM_TRACKS && k->b < BM_LANES) {
             if (k->c) c->roll[k->a].mask |= (uint16_t)(1u << k->b); else c->roll[k->a].mask &= (uint16_t)~(1u << k->b);
             if (k->u.i > 0) c->roll[k->a].rate = (uint8_t)k->u.i;
         }

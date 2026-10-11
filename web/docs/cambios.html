@@ -44,10 +44,55 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
-<h2 id="sin-publicar">[Sin publicar]</h2>
+<h2 id="030---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0">0.3.0</a> - 2026-10-10</h2>
+<p>La interfaz 3.0, completa en el emulador. <strong>No lee los patrones, ajustes ni samples de la 0.2:</strong> al primer arranque los borra y empieza con la demo. El port al FM-1 sigue sin probarse en hardware.</p>
 <h3 id="agregado">Agregado</h3>
 <ul><li>
+<strong>Cuatro gestos por botón</strong> que significan lo mismo en todos: toque (su página; otra vez, la siguiente), mantener (su capa en vivo, con el teclado dibujado en la pantalla), mantener 2 s y <strong>HOME + botón</strong> (su versión global).
+</li><li>
+<strong>HOME en todas partes:</strong> pantalla de inicio con el banco de patrones, <strong>controlador</strong> al mantenerlo en cualquier pantalla (blancas = patrón en cola, dos blancas = cadena, negras = mute o solo, escenas y FILL) y modificador: deshacer y rehacer, volver al paso 1, SONG REC, canción, delay global, escala del proyecto, guardar como y copiar un canal a otro.
+</li><li>
+<strong>ALGORITHM navega:</strong> en HOME, un recuadro con el canal destino y entrada a los 400 ms (0, 250, 400, 800 ms u OFF); dentro de un canal cambia y conserva la página; con HOME sostenido elige canal desde cualquier pantalla.
+</li><li>
+<strong>Pestañas por canal</strong> que SELECT recorre, y la pestaña <strong>MAS</strong> con todo el canal.
+</li><li>
+<strong>3 canales fijos y 3 libres:</strong> T4-T6 eligen motor <strong>SYNTH, MONO, KIT</strong> (una segunda batería TR) o <strong>MIDI</strong> (manda sus notas por MIDI).
+</li><li>
+<strong>Capas nuevas:</strong> SEQ largo y velocidad, ENV pintar acentos, LFO pintar repeticiones o ligaduras, SAVE copiar patrón (o un solo canal) a otro lugar, GLO transponer todo el proyecto con TAP tempo en PLAY.
+</li><li>
+<strong>Sampler 3.0:</strong> un loop en 8 slices que un <strong>generador</strong> rearma compás a compás, con las filas <strong>TU</strong> (silencio, generador o slice fijo) y <strong>SUENA</strong> (lo que eligió), las perillas VARIAR, ANCLAR, REPETIR y ROMPER, bombo y caja detectados (K y S), loop B con su probabilidad, retrigs con pesos, reversa, media velocidad y stutter en vivo, y <strong>CAPTURAR</strong> la variación que suena.
+</li><li>
+<strong>El loop sigue el tempo</strong> y la pantalla dice cuántos semitonos se movió; PITCH lo corrige y MAS &gt; USAR BPM DEL LOOP lleva el proyecto a su tempo.
+</li><li>
+<strong>Grabadora propia</strong> (REC en el sampler): armada al compás, con los segundos que quedan en grande, toma sin guardar que ya suena y se guarda al parar.
+</li><li>
+<strong>Biblioteca de tomas</strong> de largo libre (8.1 s en total, hasta 3 s por toma) con BPM, compases y ganancia, y el editor <strong>CORTAR</strong>: cortes por corchea, en los golpes o iguales.
+</li><li>
+<strong>Acento en tres niveles</strong> en las notas (normal, acento, fantasma) y cuánto acento por canal.
+</li><li>
+<strong>Escala propia por canal</strong>; la del proyecto queda en HOME + SCL.
+</li><li>
+<strong>Preguntas</strong> antes de borrar (OCT+ sí, HOME no).
+</li><li>
 Sitio y documentación también en inglés, con selector de idioma en cada página (el emulador incluido).
+</li></ul>
+<h3 id="cambiado">Cambiado</h3>
+<ul><li>
+<strong>GLO</strong> dejó de ser el modificador: ahora es HOME. GLO abre la lista global y, sostenido, la capa TONO.
+</li><li>
+<strong>REC</strong> se toca al soltar: toque = grabar, mantener = grabar mientras lo sostienes, 2 s = borrar el canal (pregunta).
+</li><li>
+Las negras del canal siguen una sola gramática: 1-8 los elementos, 9 y 10 modifican, 11 FILL o STUTTER.
+</li><li>
+El sampler pasó de 16 chops a 8 slices, y de 2 slots fijos de 4 s a la biblioteca de tomas.
+</li><li>
+El sampler también puede agacharse con el sidechain del bombo, y la demo bajó sus niveles para no saturar con el break sonando.
+</li><li>
+<strong>Formato 3</strong> de patrones, ajustes y tomas.
+</li></ul>
+<h3 id="quitado">Quitado</h3>
+<ul><li>
+La pantalla SAMPLER de la 0.2 (ahora son SONIDO, TOMAS, GRABAR y CORTAR) y los slots A y B.
 </li></ul>
 <h2 id="020---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0">0.2.0</a> - 2026-10-10</h2>
 <p>Primera versión pública. Corre en PC y en el emulador web; el port al FM-1 aún no se ha probado en hardware.</p>
@@ -94,7 +139,7 @@ Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

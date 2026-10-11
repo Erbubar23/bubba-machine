@@ -1,6 +1,6 @@
 # Bubba Machine 3.0: diseño de la interfaz
 
-> **Estado: diseño, sin implementar.** La versión actual (0.2) funciona como se describe en el [manual](MANUAL.md). Este documento es la dirección para la 0.3.
+> **Estado: implementado en la 0.3.0.** El [manual](MANUAL.md) explica cómo se toca. Este documento guarda el porqué de cada decisión.
 
 ## La idea
 
@@ -92,9 +92,9 @@ Grabar, guardar y cortar son tres pantallas, una tarea cada una:
 
 La toma queda sin guardar hasta que paras el transporte, porque escribir la flash detiene el audio.
 
-## Decisiones pendientes
+## Decisiones
 
-- **Tiempo del recuadro de entrada:** 400 ms propuesto, a probar.
-- **Bancos de patrones:** la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones.
-- **Biblioteca de tomas:** hoy son 2 slots fijos de 4 s; una biblioteca de largo libre necesita cambiar el formato de la flash.
-- **Fantasma en la batería:** el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato.
+- **Tiempo del recuadro de entrada:** 400 ms por defecto; se cambia en GLO o SISTEMA (0, 250, 400, 800 ms u OFF). *Resuelta en 0.3.0.*
+- **Biblioteca de tomas:** los 128 KiB de samples pasaron a una biblioteca de tomas de largo libre (formato 3). *Resuelta en 0.3.0.*
+- **Bancos de patrones:** la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones. *Pendiente:* en la 0.3, PRESETS en HOME recorre los 16.
+- **Fantasma en la batería:** el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato. *Pendiente:* en las notas ya hay tres niveles.

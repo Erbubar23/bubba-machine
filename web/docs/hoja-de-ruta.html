@@ -44,13 +44,13 @@
   <main class="doc">
 <h1 id="hoja-de-ruta">Hoja de ruta</h1>
 <p>Lo que viene para Bubba Machine, en el orden en que importa. Las fechas dependen de tener el hardware funcionando.</p>
-<h2 id="ahora-02x-vista-previa-pública">Ahora: 0.2.x, vista previa pública</h2>
+<h2 id="ahora-03x-la-interfaz-30">Ahora: 0.3.x, la interfaz 3.0</h2>
 <ul><li>
-Firmware completo en el emulador web.
-</li><li>
-Documentación, licencia GPL-3.0 y sitio.
+La interfaz 3.0 completa en el emulador web: cuatro gestos por botón, HOME en todas partes, canales fijos y libres, sampler 3.0 y grabadora con biblioteca de tomas.
 </li><li>
 Recibir reportes y opiniones sobre la forma de tocar.
+</li><li>
+Decisiones abiertas: más bancos de patrones (la flash guarda 16) y notas fantasma en la batería.
 </li></ul>
 <h2 id="port-al-fm-1">Port al FM-1</h2>
 <p>El paso más importante: que corra en el aparato. El plan está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a>:</p>
@@ -69,20 +69,15 @@ Instalación por USB-C desde el navegador, con Web MIDI.
 </li><li>
 Respaldo obligatorio antes de instalar y vuelta atrás en un clic.
 </li></ul>
-<h2 id="03-la-interfaz-30">0.3: la interfaz 3.0</h2>
-<p>La nueva forma de tocar, ya diseñada en <a href="diseno-3.html"><code>DISENO_3.0.md</code></a>:</p>
+<h2 id="hecho-03-la-interfaz-30">Hecho: 0.3, la interfaz 3.0</h2>
+<p>Ver el <a href="cambios.html">registro de cambios</a> y el <a href="manual.html">manual</a>. El diseño está en <a href="diseno-3.html"><code>DISENO_3.0.md</code></a>.</p>
+<h2 id="después-de-la-03">Después de la 0.3</h2>
 <ul><li>
-Cuatro gestos por botón que significan lo mismo en todos: toque, mantener, mantener 2 s y HOME + botón.
+<strong>LFO por canal</strong> (el botón ya tiene su capa: repetir y ligar).
 </li><li>
-HOME en todas partes: controlador de la secuencia y modificador global.
+<strong>Bancos de patrones:</strong> ampliar el mapa de flash o achicar los patrones.
 </li><li>
-ALGORITHM navega entre canales, con un recuadro que confirma a dónde entras.
-</li><li>
-3 canales fijos (batería, sampler y bajo) y 3 libres (SYNTH, MONO, KIT o MIDI).
-</li><li>
-Sampler 3.0: un break que el generador rearma, con la fila SUENA para ver lo que eligió.
-</li><li>
-Grabadora propia con biblioteca de tomas y un editor para cortar después.
+<strong>Notas fantasma en la batería:</strong> un P-Lock de nivel o un formato más grande.
 </li></ul>
 <h2 id="más-adelante">Más adelante</h2>
 <ul><li>
@@ -97,7 +92,7 @@ Grabadora propia con biblioteca de tomas y un editor para cortar después.
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.2.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

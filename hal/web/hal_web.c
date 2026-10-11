@@ -4,7 +4,7 @@
 #include <emscripten/emscripten.h>
 #include <string.h>
 #include "../bm_hal_sim.h"
-#include "../../core/bm_sample.h"
+#include "../../core/bm_takes.h"
 
 static bm_sim sim;
 static bm_app app;
@@ -56,21 +56,24 @@ EMSCRIPTEN_KEEPALIVE float *bm_web_render(int frames)
 EMSCRIPTEN_KEEPALIVE uint16_t *bm_web_fb(void) { return sim.fb; }
 EMSCRIPTEN_KEEPALIVE uint8_t *bm_web_leds(void) { return sim.leds; }
 
-/* Sampler: el JS escribe aquí un audio ya convertido a int8 a 16 kHz y lo guarda en un slot
- * de flash, igual que lo haría el editor web por USB en el equipo. */
-static int8_t smp_buf[BM_SMP_MAX];
+/* Tomas: el JS escribe aquí un audio ya convertido a int8 a 16 kHz y lo guarda en la biblioteca
+ * de tomas, igual que lo haría el editor web por USB en el equipo. */
+static int8_t smp_buf[BM_SMP_REC_MAX];
 EMSCRIPTEN_KEEPALIVE int8_t *bm_web_sampler(void) { return smp_buf; }
-EMSCRIPTEN_KEEPALIVE int bm_web_sampler_cap(void) { return BM_SMP_MAX; }
-EMSCRIPTEN_KEEPALIVE int bm_web_sampler_set(int len, int slot)
+EMSCRIPTEN_KEEPALIVE int bm_web_sampler_cap(void) { return (int)bm_app_rec_room(&app); }
+EMSCRIPTEN_KEEPALIVE int bm_web_bpm(void) { return app.pat.meta.bpm_x10; }
+EMSCRIPTEN_KEEPALIVE int bm_web_sampler_set(int len, int bpm_x10)
 {
-    if (len < 1 || len > (int)BM_SMP_MAX || slot < 0 || slot >= BM_SMP_SLOTS) return -1;
+    if (len < 1 || (uint32_t)len > bm_app_rec_room(&app)) return -1;
+    if (bpm_x10 < 400 || bpm_x10 > 2400) bpm_x10 = app.pat.meta.bpm_x10;
+    uint32_t bar = (uint32_t)BM_SMP_RATE * 2400u / (uint32_t)bpm_x10;
+    uint32_t bars = ((uint32_t)len + bar / 2) / bar;
     bm_platform pf;
     bm_sim_platform(&sim, &pf);
-    uint32_t marks[BM_SLICES];
-    for (int i = 0; i < BM_SLICES; i++) marks[i] = (uint32_t)len * (uint32_t)i / BM_SLICES;
-    if (bm_sample_write(pf.flash, slot, smp_buf, (uint32_t)len, marks, BM_SLICES)) return -1;
-    bm_app_samples_reload(&app);
-    return 0;
+    int id = bm_takes_write(pf.flash, pf.flash_map, pf.user, app.take, smp_buf, (uint32_t)len, (uint16_t)bpm_x10, (uint8_t)(bars < 1 ? 1 : bars > 8 ? 8 : bars));
+    if (id < 0) return -1;
+    bm_app_takes_reload(&app);
+    return id;
 }
 
 EMSCRIPTEN_KEEPALIVE int bm_web_midi_out(uint8_t *dst, int cap)
@@ -81,5 +84,5 @@ EMSCRIPTEN_KEEPALIVE int bm_web_midi_out(uint8_t *dst, int cap)
     return n;
 }
 
-EMSCRIPTEN_KEEPALIVE int bm_web_view(void) { return bm_app_eff_view(&app); }
+EMSCRIPTEN_KEEPALIVE int bm_web_view(void) { return app.view; }
 EMSCRIPTEN_KEEPALIVE int bm_web_playing(void) { return app.ctx.st.playing; }

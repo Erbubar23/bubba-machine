@@ -2,11 +2,11 @@
 
 What is coming for Bubba Machine, in order of importance. Dates depend on getting the hardware working.
 
-## Now: 0.2.x, public preview
+## Now: 0.3.x, interface 3.0
 
-- The full firmware in the web emulator.
-- Documentation, GPL-3.0 license and website.
+- The full 3.0 interface in the web emulator: four gestures per button, HOME everywhere, fixed and free tracks, sampler 3.0 and a recorder with a take library.
 - Collecting reports and opinions about how it plays.
+- Open decisions: more pattern banks (the flash holds 16) and ghost notes on drums.
 
 ## Porting to the FM-1
 
@@ -22,16 +22,15 @@ The most important step: making it run on the device. The plan is in [`hal/fm1/R
 - Install over USB-C from the browser, with Web MIDI.
 - Mandatory backup before installing and one-click rollback.
 
-## 0.3: the 3.0 interface
+## Done: 0.3, interface 3.0
 
-The new way to play, already designed in [`DESIGN_3.0.md`](DESIGN_3.0.md):
+See the [changelog](CHANGELOG.md) and the [manual](MANUAL.md). The design is in [`DESIGN_3.0.md`](DESIGN_3.0.md).
 
-- Four gestures per button that mean the same thing on every button: tap, hold, hold 2 s and HOME + button.
-- HOME everywhere: sequence controller and global modifier.
-- ALGORITHM moves between tracks, with a box that confirms where you are going.
-- 3 fixed tracks (drums, sampler and bass) and 3 free ones (SYNTH, MONO, KIT or MIDI).
-- Sampler 3.0: a break the generator rearranges, with a PLAYS row to see what it picked.
-- A dedicated recorder with a take library and an editor to slice later.
+## After 0.3
+
+- **Per-track LFO** (the button already has its layer: repeat and tie).
+- **Pattern banks:** a bigger flash map or smaller patterns.
+- **Ghost notes on drums:** a level P-Lock or a bigger format.
 
 ## Later
 

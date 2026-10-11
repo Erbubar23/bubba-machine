@@ -39,11 +39,15 @@ Bubba Machine se armó **sobre las bibliotecas cerradas del SDK** (el mismo cami
 
 Lo que se encontró en el código cerrado del SDK, desensamblando nuestro propio `sdk.elf`:
 
-- **`__initcall_sdk_meky_check`**: una comprobación de llave de JieLi que se agrega sola al arrancar y corre **cada 8 segundos** (`sdk_meky_check` → `__sys_timer_add(_mkey_check, 8000)`). Busca una estructura con la firma `JKYS` (`0x53594B4A`) y la compara con datos de `boot_info`. Cuando no coincide, escribe sobre la RAM de `0x01C7FE00` y se vuelve a llamar a sí misma. *Inferencia*: un firmware hecho con el SDK público y sin la llave del fabricante se cae a los ~8 s, lo que coincide con los reinicios antes de los 10 s. No se pudo comprobar en el aparato (no hay consola).
+- **`__initcall_sdk_meky_check`**: una comprobación de llave de JieLi que corre cada 8 s. Se sospechó de ella, pero **es inerte en el FM-1**: sin licencia registrada sale enseguida (Lunar Modulator, PR #56), y el modo seguro corre minutos sin problema. Los cuelgues tenían otras causas, encontradas después con la consola y las migas de pan: la ventana sin cifrar de la flash, el formato del codec, el reinicio con dos núcleos y el envío USB que se bloqueaba.
 - El arranque del USB del SDK (`usb_g_sie_init`) hace la misma secuencia de registros que X0X, pero **no fija el reloj del USB** (`CLK_CON1`), que en el SDK depende de su configuración de relojes y de la detección `otg`.
 
-## Conclusión
+## Conclusión (de la primera prueba; ver la actualización abajo)
 
 El camino probado en el aparato es el de Felucca y X0X: **programa propio sin las bibliotecas del SDK**, con el arranque del chip de M-VAVE y los tres archivos de paquete del SDK. El camino del SDK depende de piezas cerradas (llave, detección USB, relojes) que no se pueden ver ni arreglar, y en la prueba falló justo en esas piezas.
 
 Por eso el port pasa a ser **sin SDK**: el núcleo (`core/`, C portable) queda igual y la capa `hal/fm1/` se reescribe a nivel de registro con los hechos de esta tabla, con código propio. Se prueba por partes en el aparato, en este orden: pantalla → teclas → USB-MIDI (lo que permite reinstalar sin el modo del chip) → audio → flash → actualización. Mientras tanto, el modo del chip y `tools/fm1/rescate.py` son la vía para volver al firmware de fábrica.
+
+## Actualización (mismo día, más tarde)
+
+Con la consola, el laboratorio y las migas de pan se encontraron y corrigieron las causas reales, y **el camino del SDK funciona**: USB, instalación con vuelta sola, PLAY estable, audio limpio. Se sigue sobre el SDK, como fm1-nes. El detalle está en el historial de `dev` y en `docs/INVESTIGACION_SONIDO.md`.

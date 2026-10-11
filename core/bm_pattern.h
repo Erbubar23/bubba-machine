@@ -67,7 +67,7 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-enum { ENG_DRUM, ENG_BREAK, ENG_BASS, ENG_SYNTH, ENG_MONO, ENG_KIT, ENG_MIDI, ENG_COUNT };
+enum { ENG_DRUM, ENG_BREAK, ENG_BASS, ENG_SYNTH, ENG_MONO, ENG_KIT, ENG_MIDI, ENG_ACID, ENG_VA, ENG_COUNT };
 enum { KIND_TR, KIND_BRK, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];
 #define BM_FREE0   3           /* T4: primer canal libre */
@@ -161,6 +161,7 @@ void bm_track_defaults(bm_track *t, int track);
 void bm_tr_defaults(bm_tr *tr);
 void bm_pattern_init(bm_pattern *p);
 void bm_track_clear_events(bm_pattern *p, int track);
+bool bm_engine_ok(int track, int engine);       /* T3: BAJO o ACID · T4-T6: cualquiera de notas o KIT */
 void bm_track_set_engine(bm_pattern *p, int track, int engine);   /* entre notas y KIT, el canal empieza vacío */
 int  bm_pattern_count_events(const bm_pattern *p);
 int  bm_master_steps(const bm_meta *m);       /* 0 = infinito */

@@ -6,7 +6,9 @@
 
 #include "bm_types.h"
 
-#define BM_KITS         2
+#define BM_KITS         2        /* kits de la ROM ("acústicos": sonidos grabados) */
+#define BM_KIT_SYN      BM_KITS  /* el kit siguiente es SINTE: batería calculada en vivo */
+#define BM_KITS_ALL     (BM_KITS + 1)
 #define BM_KIT_SOUNDS   16
 #define BM_WAVES        16
 #define BM_WAVE_LEVELS  8

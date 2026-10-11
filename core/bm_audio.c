@@ -241,11 +241,11 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         bm_live_note(c, 1, (uint8_t)((k->a & 7) | ((k->c & 3) << BRK_SRC_SH)), k->b ? k->b : 110, 1);
         break;
     case CMD_ENGINE:
-        if (k->a >= BM_FREE0 && k->a < BM_TRACKS) {
+        if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b)) {
             for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == k->a) { c->voice[i].active = 0; c->voice[i].pend = 0; }
             bm_track_set_engine(c->pat, k->a, k->b);
             bm_engines_sync(c);
-            c->lp[k->a - BM_TR_TRACKS].mode = LOOP_OFF;
+            if (k->a >= BM_TR_TRACKS) c->lp[k->a - BM_TR_TRACKS].mode = LOOP_OFF;
             c->st.edits++;
         }
         break;

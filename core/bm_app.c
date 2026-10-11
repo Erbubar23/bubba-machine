@@ -23,6 +23,24 @@ const char *bm_track_name(const bm_app *a, int t)
     return t < BM_FREE0 ? TRACK_NAMES[t] : bm_engine_names[a->pat.trk[t].engine % ENG_COUNT];
 }
 uint16_t bm_track_color(int t) { return TRACK_COLORS[t % BM_TRACKS]; }
+const char *bm_kit_name(int kit) { return kit % BM_KITS_ALL == BM_KIT_SYN ? "SINTE" : bm_rom_kit_names[kit % BM_KITS]; }
+
+int bm_sound_count(const bm_app *a, int t)
+{
+    if (bm_is_tr(&a->pat, t)) return BM_KITS_ALL;
+    if (a->pat.trk[t].engine == ENG_ACID) return 2;
+    if (a->pat.trk[t].engine == ENG_VA) return BM_VA_TIMBRES;
+    return BM_WAVES;
+}
+
+const char *bm_sound_name(const bm_app *a, int t)
+{
+    int s = a->pat.trk[t].source % bm_sound_count(a, t);
+    if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
+    if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
+    if (a->pat.trk[t].engine == ENG_VA) return bm_va_names[s];
+    return bm_rom_wave_names[s];
+}
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
 int bm_app_layer(const bm_app *a) { return a->layer; }
 int bm_app_enter_ms(const bm_app *a) { return ENTER_MS[a->set.enter % 5]; }

@@ -8,6 +8,7 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 - **Sampler:** mantener un paso hace sonar el loop desde ahí, entero y en bucle, mientras lo sostienes.
 - **Grabación libre en los canales de notas**, como una loopera: en un canal vacío, REC no tiene largo fijo; al cerrarlo, el canal queda en compases completos (1-4) y cada nota guarda lo que la sostuviste.
 - **Largo en compases** en la capa de SEQ (negras 7-10).
+- **Motores de sonido nuevos:** **ACID** (estilo 303: filtro escalera de 4 polos con resonancia, acento y slide) para T3 y los canales libres; **ANALOG** (dos osciladores desafinados, sub y ruido, 6 timbres) para los canales libres; y el kit **SINTE**, una batería calculada en vivo. Los kits grabados KO-808 y KO-909 se quedan.
 - **Memoria de tomas a la vista:** en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
 
 ### Cambiado

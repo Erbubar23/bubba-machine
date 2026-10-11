@@ -203,6 +203,9 @@ void bm_app_draw(bm_gfx *g, void *user);
 void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
 const char *bm_macro_name(const bm_app *a, int track, int i);
 const char *bm_track_name(const bm_app *a, int t);
+const char *bm_kit_name(int kit);                       /* KO-808, KO-909 (ROM) o SINTE */
+const char *bm_sound_name(const bm_app *a, int t);      /* kit, timbre o banco de ondas del canal */
+int  bm_sound_count(const bm_app *a, int t);            /* cuántos hay para PRESETS */
 uint16_t bm_track_color(int t);
 uint16_t bm_knob_color(int i);
 const char *bm_lane_name(const bm_app *a, int t, int lane);

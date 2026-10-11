@@ -151,6 +151,8 @@ typedef struct {
     uint8_t sound, choke;
     uint8_t dir, src, gain;      /* sampler: 1 = reversa, fuente (0 A, 1 B, 2 escucha), ganancia de la toma */
     uint8_t loopv;               /* sampler: el loop sigue sonando entero, en bucle (paso sostenido) */
+    uint32_t ph[3];              /* ANALOG y SINTE: más osciladores */
+    int32_t z[4];                /* ACID: el filtro de 4 polos · SINTE: filtros y envolventes extra */
 } bm_voice;
 
 struct bm_ctx;
@@ -175,7 +177,10 @@ struct bm_engine {
     uint8_t legato_next;
 };
 
-extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_midi;
+extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_midi, bm_eng_acid;
+#define BM_VA_TIMBRES 6
+extern const char *const bm_va_names[BM_VA_TIMBRES];   /* timbres de ANALOG (PRESETS) */
+extern const char *const bm_acid_names[2];             /* sierra o cuadrada */
 const bm_engine_vt *bm_engine_vt_for(int engine);
 
 /* ------------------------------------------------------------ estado por pista */

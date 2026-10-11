@@ -109,9 +109,8 @@ static int src_name(const bm_app *a, int t, char *b, int cap)
 {
     const bm_track *tr = &a->pat.trk[t];
     if (t == 1) { bm_app_src_name(a, tr->source, b, cap); return 0; }
-    if (bm_is_tr(&a->pat, t)) return snprintf(b, (size_t)cap, "%s", bm_rom_kit_names[tr->source % BM_KITS]);
     if (tr->engine == ENG_MIDI) return snprintf(b, (size_t)cap, "CANAL %d", tr->midi_ch + 1);
-    return snprintf(b, (size_t)cap, "%s", bm_rom_wave_names[tr->source % BM_WAVES]);
+    return snprintf(b, (size_t)cap, "%s", bm_sound_name(a, t));
 }
 
 /* ¿el canal tiene golpe/nota en el paso absoluto s? */
@@ -559,6 +558,36 @@ static void draw_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, 
     }
 }
 
+/* ACID y ANALOG: dos ciclos de la forma de onda del oscilador, y el filtro como una curva. */
+static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
+{
+    const bm_track *tr = &a->pat.trk[t];
+    gfx_rect(g, x0, y0, w, h, C_DGREY);
+    gfx_hline(g, x0 + 1, y0 + h / 2, w - 2, C_DDGREY);
+    int timbre = tr->engine == ENG_ACID ? (tr->source & 1) * 2 : tr->source % BM_VA_TIMBRES;
+    int py = -1, cw = (w - 4) / 2;
+    for (int x = 0; x < w - 4; x++) {
+        int ph = (x % cw) * 256 / cw, s;
+        int saw = 127 - ph, sq = ph < 128 ? 100 : -100, pul = ph < 64 ? 100 : -100;
+        switch (timbre) {
+        case 1: s = saw * 3 / 4 + ((x % (2 * cw)) < cw ? 30 : -30); break;
+        case 2: s = sq; break;
+        case 3: s = pul; break;
+        case 4: s = (saw + sq) / 2; break;
+        case 5: s = saw * 3 / 4 + (int)((x * 2654435761u) >> 27) - 16; break;
+        default: s = saw; break;
+        }
+        int y = y0 + h / 2 - s * (h / 2 - 8) / 128;
+        if (py >= 0) gfx_line(g, x0 + 1 + x, py, x0 + 2 + x, y, bm_track_color(t));
+        py = y;
+    }
+    int fx = x0 + 4 + tr->macro[0] * (w - 30) / 127, peak = tr->macro[1] * 18 / 127;   /* el filtro */
+    for (int x = x0 + 4; x < x0 + w - 4; x++) {
+        int y = x < fx - 12 ? y0 + 10 : x < fx ? y0 + 10 - peak * (x - fx + 12) / 12 : y0 + 10 + (x - fx) * 2 / 3;
+        if (y < y0 + h - 2) gfx_fill(g, x, bm_clampi(y, y0 + 1, y0 + h - 2), 1, 2, C_GREY);
+    }
+}
+
 /* Tres carriles, de abajo arriba: graves, medios, agudos. Separados para que el relleno
  * de graves y medios no tape el patrón de los hats. */
 static void draw_bands(bm_gfx *g, const uint8_t wave[3][232], int x0, int y, int w, int h, int c0, int c1, uint16_t sel_lo, uint16_t sel_hi)
@@ -622,11 +651,32 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
     char b[30];
     if (t == 1) { draw_sound_brk(g, a); return; }
     if (bm_is_tr(&a->pat, t)) {
-        if (gfx_strip_hit(g, PY, 9)) { gfx_text(g, 4, PY, "KIT", C_GREY, 1); gfx_text(g, 28, PY, bm_rom_kit_names[tr->source % BM_KITS], C_WHITE, 1); gfx_small(g, 150, PY + 1, "PRESETS = OTRO KIT", C_GREY); }
+        if (gfx_strip_hit(g, PY, 9)) {
+            gfx_text(g, 4, PY, "KIT", C_GREY, 1); gfx_text(g, 28, PY, bm_sound_name(a, t), C_WHITE, 1);
+            gfx_small(g, 100, PY + 1, tr->source % BM_KITS_ALL == BM_KIT_SYN ? "EN VIVO" : "GRABADO", C_YELLOW);
+            gfx_small(g, 150, PY + 1, "PRESETS = OTRO KIT", C_GREY);
+        }
         lane_pads(g, a, t, PY + 12, 37);
         return;
     }
-    if (gfx_strip_hit(g, PY, 9)) { gfx_text(g, 4, PY, "ONDAS", C_GREY, 1); gfx_text(g, 44, PY, bm_rom_wave_names[tr->source % BM_WAVES], C_WHITE, 1); gfx_small(g, 150, PY + 1, "PRESETS = BANCO", C_GREY); }
+    int synth = tr->engine == ENG_ACID || tr->engine == ENG_VA;
+    if (gfx_strip_hit(g, PY, 9)) {
+        gfx_text(g, 4, PY, synth ? bm_track_name(a, t) : "ONDAS", C_GREY, 1);
+        gfx_text(g, synth ? 52 : 44, PY, bm_sound_name(a, t), C_WHITE, 1);
+        gfx_small(g, 150, PY + 1, synth ? "PRESETS = TIMBRE" : "PRESETS = BANCO", C_GREY);
+    }
+    if (synth) {
+        if (gfx_strip_hit(g, PY + 12, 92)) draw_synth(g, a, t, 4, PY + 12, 232, 90);
+        char c0[12], c1[12];
+        bm_fmt_macro(a, t, 0, tr->macro[0], c0, sizeof c0);
+        snprintf(b, sizeof b, "%s %s  RES %d%%", tr->engine == ENG_ACID ? "LP 4 POLOS" : "SVF LP", c0, tr->macro[1] * 100 / 127);
+        hint(g, 150, b);
+        bm_fmt_macro(a, t, 3, tr->macro[3], c1, sizeof c1);
+        snprintf(b, sizeof b, "%s %s", bm_macro_name(a, t, 3), c1);
+        hint(g, 162, b);
+        hint(g, 176, tr->engine == ENG_ACID ? "ACENTO ABRE EL FILTRO - LIGA = SLIDE" : "2 OSCILADORES - POLIFONICO");
+        return;
+    }
     if (gfx_strip_hit(g, PY + 12, 92)) draw_wave(g, a, t, 4, PY + 12, 232, 90);
     char c1[12], c2[12];
     bm_fmt_macro(a, t, 0, tr->macro[0], c1, sizeof c1);

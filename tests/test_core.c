@@ -553,7 +553,9 @@ static void test_free_engines(void)
     CHECK(app.page == PG_MORE && app.more_row == 0);
     enc(ENC_ALGO, 1);                                         /* SYNTH > MONO: notas a notas, sin preguntar */
     CHECK(app.pat.trk[3].engine == ENG_MONO && app.ask == ASK_NONE);
-    enc(ENC_ALGO, 1);                                         /* MONO > KIT: pregunta */
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                       /* > ANALOG > ACID */
+    CHECK(app.pat.trk[3].engine == ENG_ACID && app.ask == ASK_NONE);
+    enc(ENC_ALGO, 1);                                         /* ACID > KIT: pregunta */
     CHECK(app.ask == ASK_ENGINE);
     shot("46-ask-engine");
     btn(BTN_OCT_UP, 20); run_ms(60);
@@ -580,10 +582,14 @@ static void test_free_engines(void)
     for (int i = 0; i + 2 < sim.midi_n; i++) if (sim.midi_out[i] == (0x90 | 5)) on = 1;
     CHECK(on);
     btn(BTN_PLAY, 20);
-    /* los canales fijos no tienen MOTOR */
+    /* T3 elige entre BAJO y ACID; la batería no tiene MOTOR */
     ch(2);
     enc(ENC_SELECT, -1);
     const char *nm; char v[24];
+    bm_app_more_row(&app, 0, &nm, v, sizeof v);
+    CHECK(strcmp(nm, "MOTOR") == 0 && strcmp(v, "BAJO") == 0);
+    ch(0);
+    enc(ENC_SELECT, -1);
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
     CHECK(strcmp(nm, "MOTOR") != 0);
 }
@@ -794,6 +800,76 @@ static void test_free_rec(void)
     page(BTN_SEQ, PG_SEQ);
     shot("52-seq-notes-roll");
     btn(BTN_PLAY, 20);
+}
+
+/* Hace sonar un canal solo y devuelve el pico (0..1). */
+static double solo_peak(int t, const uint8_t *notes, int n, int vel, uint32_t ms)
+{
+    for (int i = 0; i < BM_TRACKS; i++) app.pat.trk[i].mute = (uint8_t)(i != t);
+    bm_cmd c; memset(&c, 0, sizeof c);
+    run_ms(300);
+    peak_abs = 0;
+    for (int i = 0; i < n; i++) {
+        c.type = CMD_NOTE_ON; c.a = (uint8_t)t; c.b = notes[i]; c.c = (uint8_t)vel; bm_cmd_push(&app.cmdq, &c);
+        run_ms(ms);
+        c.type = CMD_NOTE_OFF; bm_cmd_push(&app.cmdq, &c);
+        run_ms(60);
+    }
+    return peak_abs;
+}
+
+static void test_engines(void)
+{
+    printf("motores: ACID, ANALOG y el kit SINTE\n");
+    boot(1);
+    static const uint8_t bass[4] = {36, 43, 48, 39};
+    double p_bass = solo_peak(2, bass, 4, 100, 250);
+    ch(2);
+    enc(ENC_SELECT, -1);
+    enc(ENC_ALGO, 1);                                            /* T3: BAJO > ACID, sin preguntar */
+    CHECK(app.pat.trk[2].engine == ENG_ACID && app.ask == ASK_NONE);
+    page(BTN_EDIT, PG_SOUND);
+    shot("53-acid");
+    double p_acid = solo_peak(2, bass, 4, 100, 250);
+    double p_acc = solo_peak(2, bass, 4, 127, 250);
+    printf("  pico BAJO %.2f · ACID %.2f · ACID con acento %.2f\n", p_bass, p_acid, p_acc);
+    CHECK(p_acid > 0.05 && p_acid < 1.0 && p_acc >= p_acid);
+    enc(ENC_PRESETS, 1);                                         /* cuadrada */
+    CHECK(app.pat.trk[2].source == 1);
+    double p_sq = solo_peak(2, bass, 2, 100, 250);
+    CHECK(p_sq > 0.05);
+    /* ANALOG en T4 */
+    ch(3);
+    enc(ENC_SELECT, -1);
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                          /* SYNTH > MONO > ANALOG */
+    CHECK(app.pat.trk[3].engine == ENG_VA);
+    page(BTN_EDIT, PG_SOUND);
+    shot("54-analog");
+    static const uint8_t chord[3] = {57, 60, 64};
+    for (int tb = 0; tb < BM_VA_TIMBRES; tb++) {
+        app.pat.trk[3].source = (uint8_t)tb;
+        double p = solo_peak(3, chord, 3, 100, 200);
+        CHECK(p > 0.03 && p < 1.0);
+    }
+    /* kit SINTE en T1: los 16 instrumentos suenan */
+    ch(0);
+    page(BTN_EDIT, PG_SOUND);
+    enc(ENC_PRESETS, 1); enc(ENC_PRESETS, 1);                    /* KO-808 > KO-909 > SINTE */
+    CHECK(app.pat.trk[0].source == BM_KIT_SYN);
+    shot("55-kit-sinte");
+    int ok = 0;
+    for (int l = 0; l < BM_KIT_SOUNDS; l++) {
+        uint8_t n = (uint8_t)l;
+        double p = solo_peak(0, &n, 1, 110, 250);
+        if (p > 0.02 && p < 1.0) ok++; else printf("  instrumento %d: pico %.3f\n", l, p);
+    }
+    CHECK(ok == BM_KIT_SOUNDS);
+    for (int i = 0; i < BM_TRACKS; i++) app.pat.trk[i].mute = 0;
+    peak_abs = 0;
+    wav_open("motores.wav");                                    /* la demo con los motores nuevos */
+    btn(BTN_PLAY, 20); run_ms(8000); btn(BTN_PLAY, 20);
+    wav_close();
+    CHECK(peak_abs > 0.05 && peak_abs <= 1.0);
 }
 
 static void test_loop(void)
@@ -1023,6 +1099,7 @@ int main(int argc, char **argv)
     test_loop();
     test_notes();
     test_free_rec();
+    test_engines();
     test_demo_and_persist();
     test_old_version();
     test_spi_budget();

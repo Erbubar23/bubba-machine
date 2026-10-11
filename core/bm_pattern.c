@@ -13,7 +13,7 @@ typedef char bm_assert_notes[(sizeof(bm_tr) <= sizeof(bm_notes)) ? 1 : -1];
 
 const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
 const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
-const char *const bm_engine_names[ENG_COUNT] = {"BATERIA", "SAMPLER", "BAJO", "SYNTH", "MONO", "KIT", "MIDI"};
+const char *const bm_engine_names[ENG_COUNT] = {"BATERIA", "SAMPLER", "BAJO", "SYNTH", "MONO", "KIT", "MIDI", "ACID", "ANALOG"};
 
 void bm_event_clear(bm_event *e)
 {
@@ -75,12 +75,31 @@ void bm_track_clear_events(bm_pattern *p, int track)
             bm_event_clear(bm_ev(p, track, s, e));
 }
 
+static void sound_defaults(bm_track *t, int engine)
+{
+    if (engine == ENG_ACID) { t->macro[0] = 40; t->macro[1] = 96; t->macro[2] = 56; t->macro[3] = 90; t->source = 0; t->glide = 40; }
+    else if (engine == ENG_VA) { t->macro[0] = 84; t->macro[1] = 30; t->macro[2] = 70; t->macro[3] = 40; t->source = 1; }
+}
+
+bool bm_engine_ok(int track, int engine)
+{
+    if (track == 2) return engine == ENG_BASS || engine == ENG_ACID;
+    if (bm_is_free(track)) return engine >= ENG_SYNTH && engine < ENG_COUNT;
+    return false;
+}
+
 void bm_track_set_engine(bm_pattern *p, int track, int engine)
 {
-    if (!bm_is_free(track) || engine < ENG_SYNTH || engine >= ENG_COUNT) return;
+    if (!bm_engine_ok(track, engine)) return;
     bm_track *t = &p->trk[track];
-    int was_tr = t->engine == ENG_KIT;
+    int was_tr = t->engine == ENG_KIT, was = t->engine;
     t->engine = (uint8_t)engine;
+    if (engine == ENG_ACID || engine == ENG_VA) {
+        if (was != engine) sound_defaults(t, engine);
+        if (was_tr) { bm_track_clear_events(p, track); p->loop[track - BM_TR_TRACKS].n = 0; p->loop[track - BM_TR_TRACKS].on = 0; }
+        return;
+    }
+    if (track == 2) { t->macro[0] = 60; t->macro[1] = 70; t->macro[2] = 50; t->macro[3] = 0; t->source = 0; return; }
     if (engine == ENG_KIT) {
         bm_tr_defaults(&p->nt[track - BM_TR_TRACKS].tr);
         t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 127; t->macro[3] = 0; t->source = 1; t->duck = 0;
@@ -284,8 +303,9 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
     for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
         uint8_t e = p->trk[t].engine;
-        if (t < BM_FREE0) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : t == 1 ? ENG_BREAK : ENG_BASS);
-        else if (e < ENG_SYNTH || e >= ENG_COUNT) p->trk[t].engine = ENG_SYNTH;
+        if (t == 2) { if (e != ENG_ACID) p->trk[t].engine = ENG_BASS; }
+        else if (t < BM_FREE0) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);
+        else if (!bm_engine_ok(t, e)) p->trk[t].engine = ENG_SYNTH;
     }
     for (int t = 0; t < BM_TRACKS; t++) {
         if (bm_is_grid(p, t)) { o = unpack_tr(bm_trk_tr(p, t), in, o, len); if (o < 0) return -1; continue; }

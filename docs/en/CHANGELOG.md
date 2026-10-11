@@ -8,6 +8,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Sampler:** holding a step plays the loop from there, whole and looping, while you hold it.
 - **Free recording on note tracks**, like a looper: on an empty track, REC has no fixed length; when you close it, the track gets whole bars (1-4) and every note keeps how long you held it.
 - **Length in bars** on the SEQ layer (black 7-10).
+- **New sound engines:** **ACID** (303-style: 4-pole ladder filter with resonance, accent and slide) for T3 and the free tracks; **ANALOG** (two detuned oscillators, sub and noise, 6 timbres) for the free tracks; and the **SINTE** kit, drums computed live. The recorded KO-808 and KO-909 kits stay.
 - **Take memory in view:** on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
 
 ### Changed

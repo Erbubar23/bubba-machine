@@ -9,6 +9,8 @@
 #include "bm_rom.h"
 
 static const char *const MAC_SYN[4] = {"CUTOFF", "RESO", "DECAY", "ONDA"};
+static const char *const MAC_ACID[4] = {"CUTOFF", "RESO", "DECAY", "ENV MOD"};
+static const char *const MAC_VA[4] = {"CUTOFF", "RESO", "DECAY", "DETUNE"};
 static const char *const MAC_TR[4] = {"TONE", "TUNE", "DECAY", "START"};
 static const char *const GEN_NAMES[4] = {"VARIAR", "ANCLAR", "REPETIR", "ROMPER"};
 static const char *const RT_NAMES[4] = {"2X", "3X", "4X", "8X"};
@@ -27,7 +29,10 @@ enum { ROLE_NONE, ROLE_MUTE, ROLE_FILL, ROLE_PAT, ROLE_SCENE, ROLE_BRKFX, ROLE_L
 const char *bm_macro_name(const bm_app *a, int t, int i)
 {
     if (t == 1) return GEN_NAMES[i & 3];
-    return bm_is_tr(&a->pat, t) ? MAC_TR[i & 3] : MAC_SYN[i & 3];
+    if (bm_is_tr(&a->pat, t)) return MAC_TR[i & 3];
+    if (a->pat.trk[t].engine == ENG_ACID) return MAC_ACID[i & 3];
+    if (a->pat.trk[t].engine == ENG_VA) return MAC_VA[i & 3];
+    return MAC_SYN[i & 3];
 }
 
 /* ------------------------------------------------------------ formato */
@@ -72,6 +77,8 @@ void bm_fmt_macro(const bm_app *a, int t, int i, int v, char *b, int cap)
     case 1: fmt_pct(v, b, cap); break;
     case 2: fmt_ms(bm_decay_ms(v), b, cap); break;
     default: {
+        int e = a->pat.trk[t].engine;
+        if (e == ENG_ACID || e == ENG_VA) { fmt_pct(v, b, cap); break; }
         int p = v * 3 * 256 / 127;
         int w = (a->pat.trk[t].source + (p >> 8)) % BM_WAVES;
         snprintf(b, (size_t)cap, "%s", bm_rom_wave_names[w]);
@@ -97,7 +104,7 @@ enum { ROW_ENGINE, ROW_ACC, ROW_LEN, ROW_SPEED, ROW_TRANSP, ROW_MIDICH, ROW_LOOP
 static int more_rows(const bm_app *a, int t, uint8_t out[10])
 {
     int n = 0;
-    if (bm_is_free(t)) out[n++] = ROW_ENGINE;
+    if (bm_is_free(t) || t == 2) out[n++] = ROW_ENGINE;
     out[n++] = ROW_ACC; out[n++] = ROW_LEN; out[n++] = ROW_SPEED;
     if (app_kind(a, t) == KIND_NOTE) out[n++] = ROW_TRANSP;
     if (app_midi(a, t)) out[n++] = ROW_MIDICH;
@@ -328,7 +335,8 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
             for (int i = 0; i < 3; i++) { bm_fmt_macro(a, t, i, tr->macro[i], b, sizeof b); L4(L, i, MAC_TR[i], b, tr->macro[i] * 2); }
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
         } else {
-            bm_fmt_macro(a, t, 3, tr->macro[3], b, sizeof b); L4(L, 0, "POS ONDA", b, tr->macro[3] * 2);
+            bm_fmt_macro(a, t, 3, tr->macro[3], b, sizeof b);
+            L4(L, 0, tr->engine == ENG_ACID || tr->engine == ENG_VA ? bm_macro_name(a, t, 3) : "POS ONDA", b, tr->macro[3] * 2);
             bm_fmt_macro(a, t, 0, tr->macro[0], b, sizeof b); L4(L, 1, "CUTOFF", b, tr->macro[0] * 2);
             fmt_pct(tr->macro[1], b, sizeof b); L4(L, 2, "RESO", b, tr->macro[1] * 2);
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
@@ -1599,7 +1607,6 @@ static void copy_channel(bm_app *a)
         int want = ks == KIND_TR ? ENG_KIT : (a->pat.trk[s].engine == ENG_BASS ? ENG_MONO : a->pat.trk[s].engine);
         if (a->pat.trk[d].engine != want) {
             app_push(a, CMD_ENGINE, (uint8_t)d, (uint8_t)want, 0);
-            a->pat.trk[d].engine = (uint8_t)want;
         }
     }
     memcpy(&a->clip, app_track_data(a, s), app_track_size(s));
@@ -1624,7 +1631,6 @@ static void ask_yes(bm_app *a)
         a->eng_pending = 0xFF;
         app_undo_snapshot(a, x);
         app_push(a, CMD_ENGINE, (uint8_t)x, (uint8_t)y, 0);
-        a->pat.trk[x].engine = (uint8_t)y;
         app_edited(a);
         snprintf(b, sizeof b, "T%d AHORA ES %s", x + 1, bm_engine_names[y]);
         app_toast(a, b);
@@ -2067,10 +2073,12 @@ static void enc_source(bm_app *a, int t, int d)
         app_overlay(a, -1, "LOOP A", b, "", i * 255 / (n > 1 ? n - 1 : 1), -1, bm_track_color(1));
         return;
     }
-    int lim = kind == KIND_TR ? BM_KITS : BM_WAVES;
-    int v = (a->pat.trk[t].source + (d > 0 ? 1 : lim - 1)) % lim;
+    int lim = bm_sound_count(a, t), e = a->pat.trk[t].engine;
+    int v = (a->pat.trk[t].source % lim + (d > 0 ? 1 : lim - 1)) % lim;
     app_set_track(a, t, TRK_OFF(source), v);
-    app_overlay(a, -1, kind == KIND_TR ? "KIT" : "BANCO DE ONDAS", kind == KIND_TR ? bm_rom_kit_names[v] : bm_rom_wave_names[v], "", v * 255 / (lim - 1), -1, bm_track_color(t));
+    a->pat.trk[t].source = (uint8_t)v;
+    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "ONDA ACID" : e == ENG_VA ? "TIMBRE ANALOG" : "BANCO DE ONDAS",
+                bm_sound_name(a, t), "", v * 255 / (lim - 1), -1, bm_track_color(t));
 }
 
 static void cycle_src(bm_app *a, uint8_t off, uint8_t cur, int d, int allow_none, const char *title)
@@ -2096,14 +2104,18 @@ static void more_change(bm_app *a, int d)
     char b[30];
     switch (rows[a->more_row]) {
     case ROW_ENGINE: {
-        int e = a->eng_pending >= ENG_SYNTH && a->eng_pending < ENG_COUNT ? a->eng_pending : tk->engine;
-        e = ENG_SYNTH + ((e - ENG_SYNTH) + (d > 0 ? 1 : 3)) % 4;
+        static const uint8_t FREE[] = {ENG_SYNTH, ENG_MONO, ENG_VA, ENG_ACID, ENG_KIT, ENG_MIDI};
+        static const uint8_t BASS[] = {ENG_BASS, ENG_ACID};
+        const uint8_t *list = t == 2 ? BASS : FREE;
+        int nl = t == 2 ? 2 : (int)sizeof FREE;
+        int e = a->ask == ASK_ENGINE && a->ask_arg == t && bm_engine_ok(t, a->eng_pending) ? a->eng_pending : tk->engine, i = 0;
+        while (i < nl && list[i] != e) i++;
+        e = list[((i < nl ? i : 0) + (d > 0 ? 1 : nl - 1)) % nl];
         a->eng_pending = (uint8_t)e;
         if (e == tk->engine) { a->ask = ASK_NONE; app_toast(a, "SIN CAMBIO"); return; }
         if ((e == ENG_KIT) == (tk->engine == ENG_KIT)) {          /* notas a notas: las notas se quedan */
             a->ask = ASK_NONE;
             app_push(a, CMD_ENGINE, (uint8_t)t, (uint8_t)e, 0);
-            a->pat.trk[t].engine = (uint8_t)e;
             app_edited(a);
             snprintf(b, sizeof b, "T%d AHORA ES %s", t + 1, bm_engine_names[e]);
             app_toast(a, b);

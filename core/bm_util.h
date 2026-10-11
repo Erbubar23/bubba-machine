@@ -25,6 +25,7 @@ extern int32_t  bm_svf_g[128];        /* tan(pi fc / fs), Q16 */
 extern uint16_t bm_onepole_a[128];    /* 1 - e^(-2 pi fc / fs), Q15 */
 extern uint16_t bm_pan_l[128], bm_pan_r[128]; /* Q15, potencia constante */
 extern uint32_t bm_semi_ratio[49];    /* 2^((i-24)/12), Q16 */
+extern int16_t  bm_sine[256];         /* un ciclo de seno, Q15 */
 
 void bm_tables_init(void);
 

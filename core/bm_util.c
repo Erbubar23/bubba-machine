@@ -11,6 +11,7 @@ int32_t  bm_svf_g[128];
 uint16_t bm_onepole_a[128];
 uint16_t bm_pan_l[128], bm_pan_r[128];
 uint32_t bm_semi_ratio[49];
+int16_t  bm_sine[256];
 
 #define PI 3.14159265358979323846
 
@@ -61,6 +62,8 @@ void bm_tables_init(void)
     }
     for (int i = 0; i < 49; i++)
         bm_semi_ratio[i] = (uint32_t)(pow(2.0, (i - 24) / 12.0) * 65536.0);
+    for (int i = 0; i < 256; i++)
+        bm_sine[i] = (int16_t)(sin(2.0 * PI * i / 256.0) * 32767.0);
 }
 
 int bm_key_white_index(int k)

@@ -78,16 +78,29 @@ Si usaste HOME como modificador, soltarlo **no** te lleva a la pantalla de inici
 
 | Canal | Tipo | Qué es | Pestañas |
 |---|---|---|---|
-| **T1 BATERÍA** | Fijo | Rejilla TR de 16 instrumentos (kit KO-808 o KO-909) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
+| **T1 BATERÍA** | Fijo | Rejilla TR de 16 instrumentos: kits grabados KO-808 y KO-909, o **SINTE** (calculado en vivo) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
 | **T2 SAMPLER** | Fijo | Un loop en 8 slices que un generador rearma | SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS |
-| **T3 BAJO** | Fijo | Wavetable monofónico con glide | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
-| **T4-T6** | Libres | **SYNTH** (polifónico), **MONO**, **KIT** (otra batería) o **MIDI** (manda notas por MIDI) | según el motor |
+| **T3 BAJO** | Fijo | **BAJO** (wavetable monofónico con glide) o **ACID** | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
+| **T4-T6** | Libres | **SYNTH** (wavetable polifónico), **MONO**, **ANALOG**, **ACID**, **KIT** (otra batería) o **MIDI** (manda notas por MIDI) | según el motor |
 
-El motor de un canal libre se elige en **MAS › MOTOR** con ALGORITHM. Entre motores de notas (SYNTH, MONO, MIDI) las notas se quedan; pasar a KIT o volver de KIT pregunta, porque el canal empieza vacío.
+El motor de un canal libre (y el de T3: BAJO o ACID) se elige en **MAS › MOTOR** con ALGORITHM. Entre motores de notas (SYNTH, MONO, MIDI) las notas se quedan; pasar a KIT o volver de KIT pregunta, porque el canal empieza vacío.
 
 **MAS** es la lista con todo el canal: motor, acento, largo, velocidad, transponer, canal MIDI y sonido inicial (en el sampler, además: usar el BPM del loop e interpolación). SELECT elige la fila y ALGORITHM la cambia.
 
 **Las negras siguen una sola gramática en SEQ:** 1-8 son los elementos del canal, 9 y 10 lo modifican y **11 rompe el patrón** (FILL en las baterías y las notas, STUTTER en el sampler).
+
+## Los motores de sonido
+
+| Motor | Qué es | K1-K4 en SEQ | PRESETS |
+|---|---|---|---|
+| **SYNTH** · **MONO** · **BAJO** | Wavetable con filtro SVF y ADSR (MONO y BAJO: una voz con glide) | CUTOFF · RESO · DECAY · ONDA | Banco de ondas |
+| **ACID** | Monofónico estilo 303: oscilador, filtro escalera de 4 polos con resonancia y saturación, envolvente corta. El **acento** abre más el filtro y suena más fuerte; **LIGA** hace slide | CUTOFF · RESO · DECAY · ENV MOD | SIERRA o CUADRADA |
+| **ANALOG** | Polifónico con dos osciladores desafinados entre sí, filtro SVF y ADSR | CUTOFF · RESO · DECAY · DETUNE | SIERRA, SIERRA+SUB, CUADRADA, PULSO, SIERRA+CUADRADA, RUIDO |
+| **KIT SINTE** | Batería calculada en vivo: los mismos 16 instrumentos y en el mismo orden que los kits grabados. TONE, TUNE y DECAY la cambian de verdad (no solo filtran el sonido) | TONE · TUNE · DECAY · START | En la batería: KO-808, KO-909 o SINTE |
+
+Los kits **KO-808 y KO-909** siguen ahí: son sonidos grabados en la ROM, para cuando quieres ese golpe de siempre.
+
+Los osciladores de ACID y ANALOG están hechos para que los agudos no se ensucien (sin alias).
 
 ## Batería (T1 y canales KIT)
 

@@ -80,16 +80,29 @@ If you used HOME as a modifier, letting go does **not** take you to the home scr
 
 | Track | Type | What it is | Tabs |
 |---|---|---|---|
-| **T1 BATERIA** (drums) | Fixed | TR grid of 16 instruments (KO-808 or KO-909 kit) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
+| **T1 BATERIA** (drums) | Fixed | TR grid of 16 instruments: recorded kits KO-808 and KO-909, or **SINTE** (computed live) | SEQ · SONIDO · INSTR · MEZCLA · MAS |
 | **T2 SAMPLER** | Fixed | A loop in 8 slices that a generator rearranges | SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS |
-| **T3 BAJO** (bass) | Fixed | Monophonic wavetable with glide | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
-| **T4-T6** | Free | **SYNTH** (polyphonic), **MONO**, **KIT** (another drum machine) or **MIDI** (sends notes over MIDI) | depends on the engine |
+| **T3 BAJO** (bass) | Fixed | **BAJO** (monophonic wavetable with glide) or **ACID** | SEQ · SONIDO · ENV · MEZCLA · ARP · LOOP · MAS |
+| **T4-T6** | Free | **SYNTH** (polyphonic wavetable), **MONO**, **ANALOG**, **ACID**, **KIT** (another drum machine) or **MIDI** (sends notes over MIDI) | depends on the engine |
 
-A free track's engine is picked in **MAS › MOTOR** (more › engine) with ALGORITHM. Between note engines (SYNTH, MONO, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.
+A free track's engine (and T3's: BAJO or ACID) is picked in **MAS › MOTOR** (more › engine) with ALGORITHM. Between note engines (SYNTH, MONO, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.
 
 **MAS** (more) is the list with everything about the track: engine, accent, length, speed, transpose, MIDI channel and initial sound (on the sampler also: use the loop's BPM, and interpolation). SELECT picks the row and ALGORITHM changes it.
 
 **Black keys follow a single grammar in SEQ:** 1-8 are the track's elements, 9 and 10 modify them and **11 breaks the pattern** (FILL on drums and notes, STUTTER on the sampler).
+
+## The sound engines
+
+| Engine | What it is | K1-K4 on SEQ | PRESETS |
+|---|---|---|---|
+| **SYNTH** · **MONO** · **BAJO** | Wavetable with SVF filter and ADSR (MONO and BAJO: one voice with glide) | CUTOFF · RESO · DECAY · ONDA (wave) | Wave bank |
+| **ACID** | 303-style monophonic: oscillator, 4-pole ladder filter with resonance and saturation, short envelope. The **accent** opens the filter further and plays louder; **LIGA** (tie) slides | CUTOFF · RESO · DECAY · ENV MOD | SIERRA (saw) or CUADRADA (square) |
+| **ANALOG** | Polyphonic with two oscillators detuned against each other, SVF filter and ADSR | CUTOFF · RESO · DECAY · DETUNE | Saw, saw+sub, square, pulse, saw+square, noise |
+| **SINTE kit** | Drums computed live: the same 16 instruments in the same order as the recorded kits. TONE, TUNE and DECAY really change them (not just filter the sound) | TONE · TUNE · DECAY · START | On drums: KO-808, KO-909 or SINTE |
+
+The **KO-808 and KO-909** kits are still there: they are recorded sounds in the ROM, for when you want that familiar hit.
+
+The ACID and ANALOG oscillators are built so the highs stay clean (no aliasing).
 
 ## Drums (T1 and KIT tracks)
 

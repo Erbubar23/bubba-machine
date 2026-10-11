@@ -177,7 +177,11 @@ struct bm_engine {
     uint8_t legato_next;
 };
 
-extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_midi, bm_eng_acid;
+extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_midi, bm_eng_acid, bm_eng_fm;
+/* FM: lo que hacen las macros sobre el patch (para la pantalla) */
+int bm_fm_alg_of(const bm_track *t, int m4);          /* algoritmo 1..32 */
+int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
+void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p);   /* patch con las macros (v NULL = las del canal) */
 #define BM_VA_TIMBRES 6
 extern const char *const bm_va_names[BM_VA_TIMBRES];   /* timbres de ANALOG (PRESETS) */
 extern const char *const bm_acid_names[2];             /* sierra o cuadrada */

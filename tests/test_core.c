@@ -549,7 +549,7 @@ static void test_free_engines(void)
     CHECK(app.page == PG_MORE && app.more_row == 0);
     enc(ENC_ALGO, 1);                                         /* SYNTH > MONO: notas a notas, sin preguntar */
     CHECK(app.pat.trk[3].engine == ENG_MONO && app.ask == ASK_NONE);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                       /* > ANALOG > ACID */
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);     /* > ANALOG > FM > ACID */
     CHECK(app.pat.trk[3].engine == ENG_ACID && app.ask == ASK_NONE);
     enc(ENC_ALGO, 1);                                         /* ACID > KIT: pregunta */
     CHECK(app.ask == ASK_ENGINE);
@@ -812,6 +812,40 @@ static double solo_peak(int t, const uint8_t *notes, int n, int vel, uint32_t ms
         run_ms(60);
     }
     return peak_abs;
+}
+
+static void test_fm(void)
+{
+    printf("motor FM: los 16 patches suenan, sin saturar, y las voces se liberan al soltar\n");
+    boot(1);
+    ch(3);
+    enc(ENC_SELECT, -1);
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);       /* SYNTH > MONO > ANALOG > FM */
+    CHECK(app.pat.trk[3].engine == ENG_FM && app.ask == ASK_NONE);
+    page(BTN_EDIT, PG_SOUND);
+    shot("56-fm");
+    static const uint8_t notes[3] = {48, 60, 67};
+    wav_open("fm.wav");
+    int ok = 0;
+    for (int p = 0; p < BM_FM_PATCHES; p++) {
+        app.pat.trk[3].source = (uint8_t)p;
+        double pk = solo_peak(3, notes, 3, 110, 450);
+        printf("  %-8s pico %.2f\n", bm_fm_names[p], pk);
+        if (pk > 0.03 && pk < 0.99) ok++;
+    }
+    run_ms(4000);
+    wav_close();
+    CHECK(ok == BM_FM_PATCHES);
+    int vivas = 0;
+    for (int v = 0; v < BM_VOICES; v++) if (app.ctx.voice[v].active && app.ctx.voice[v].track == 3) vivas++;
+    CHECK(vivas == 0);
+    /* T3 en FM: mono */
+    ch(2);
+    enc(ENC_SELECT, -1);
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                         /* BAJO > ACID > FM */
+    CHECK(app.pat.trk[2].engine == ENG_FM);
+    static const uint8_t bass[2] = {36, 43};
+    CHECK(solo_peak(2, bass, 2, 100, 250) > 0.03);
 }
 
 static void test_engines(void)
@@ -1096,6 +1130,7 @@ int main(int argc, char **argv)
     test_notes();
     test_free_rec();
     test_engines();
+    test_fm();
     test_demo_and_persist();
     test_old_version();
     test_spi_budget();

@@ -21,6 +21,15 @@ GCC_IMAGE = 'python:3.12-bookworm'
 EMSDK_IMAGE = 'emscripten/emsdk:3.1.74'
 CFLAGS = '-std=c99 -O2 -g -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation'
 SRC = 'core/*.c core/gen/*.c hal/bm_hal_sim.c'
+# C++: los motores de terceros (third_party/) y su envoltorio. Sin excepciones ni RTTI, como en el FM-1.
+MSFA = ['dx7note', 'env', 'exp2', 'fm_core', 'fm_op_kernel', 'freqlut', 'lfo', 'pitchenv', 'porta', 'sin', 'EngineMsfa']
+CXX_SRC = 'core/bm_fm.cpp ' + ' '.join('third_party/msfa/%s.cpp' % f for f in MSFA)
+CXXFLAGS = '-std=c++14 -O2 -fno-exceptions -fno-rtti -Ithird_party/msfa -Icore -w'
+
+
+def cxx_objs(cxx, out):
+    """compila el C++ a out/*.o (comando de shell para el contenedor)"""
+    return (f'mkdir -p {out} && for f in {CXX_SRC}; do {cxx} {CXXFLAGS} -c $f -o {out}/$(basename ${{f%.*}}).o || exit 1; done && ')
 
 
 def docker(image, cmd):
@@ -41,7 +50,8 @@ def assets():
 def test():
     os.makedirs(os.path.join(ROOT, 'build', 'out'), exist_ok=True)
     docker(GCC_IMAGE,
-           f'gcc {CFLAGS} {SRC} tests/test_core.c -lm -o build/test_core && ./build/test_core build/out && '
+           cxx_objs('g++', 'build/obj') +
+           f'gcc {CFLAGS} {SRC} tests/test_core.c build/obj/*.o -lstdc++ -lm -o build/test_core && ./build/test_core build/out && '
            f'gcc {CFLAGS} hal/fm1/fm1_scan.c tests/test_scan.c -o build/test_scan && ./build/test_scan')
     try:
         from PIL import Image
@@ -56,7 +66,8 @@ def test():
 
 def web():
     docker(EMSDK_IMAGE,
-           f'emcc -O2 -std=c99 -Wno-format-truncation {SRC} hal/web/hal_web.c -o web/bm.js '
+           cxx_objs('em++', 'build/wobj') +
+           f'emcc -O2 -std=c99 -Wno-format-truncation {SRC} hal/web/hal_web.c build/wobj/*.o -o web/bm.js '
            '-sMODULARIZE=1 -sEXPORT_NAME=BubbaMachine -sENVIRONMENT=web -sSINGLE_FILE=1 '
            '-sINITIAL_MEMORY=33554432 -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU16,HEAP8,HEAPF32')
     print('emulador listo: abre web/emulador.html')

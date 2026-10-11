@@ -11,6 +11,7 @@
 static const char *const MAC_SYN[4] = {"CUTOFF", "RESO", "DECAY", "ONDA"};
 static const char *const MAC_ACID[4] = {"CUTOFF", "RESO", "DECAY", "ENV MOD"};
 static const char *const MAC_VA[4] = {"CUTOFF", "RESO", "DECAY", "DETUNE"};
+static const char *const MAC_FM[4] = {"BRILLO", "REALIM", "DECAY", "ALGORITMO"};
 static const char *const MAC_TR[4] = {"TONE", "TUNE", "DECAY", "START"};
 static const char *const GEN_NAMES[4] = {"VARIAR", "ANCLAR", "REPETIR", "ROMPER"};
 static const char *const RT_NAMES[4] = {"2X", "3X", "4X", "8X"};
@@ -32,6 +33,7 @@ const char *bm_macro_name(const bm_app *a, int t, int i)
     if (bm_is_tr(&a->pat, t)) return MAC_TR[i & 3];
     if (a->pat.trk[t].engine == ENG_ACID) return MAC_ACID[i & 3];
     if (a->pat.trk[t].engine == ENG_VA) return MAC_VA[i & 3];
+    if (a->pat.trk[t].engine == ENG_FM) return MAC_FM[i & 3];
     return MAC_SYN[i & 3];
 }
 
@@ -70,6 +72,14 @@ void bm_fmt_macro(const bm_app *a, int t, int i, int v, char *b, int cap)
     if (t == 1 || bm_is_tr(&a->pat, t)) {
         if (t != 1 && i == 1) snprintf(b, (size_t)cap, "%+d ST", ((v - 64) * 12) / 64);
         else fmt_pct(v, b, cap);
+        return;
+    }
+    if (a->pat.trk[t].engine == ENG_FM) {
+        const bm_track *tk = &a->pat.trk[t];
+        if (i == 0) snprintf(b, (size_t)cap, "%+d", (v - 64) / 2);
+        else if (i == 1) snprintf(b, (size_t)cap, "FB %d", bm_fm_fb_of(tk, v));
+        else if (i == 2) snprintf(b, (size_t)cap, "%+d", (v - 64) / 3);
+        else snprintf(b, (size_t)cap, (v >= 56 && v <= 72) ? "ALG %d *" : "ALG %d", bm_fm_alg_of(tk, v));
         return;
     }
     switch (i) {
@@ -336,9 +346,10 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
         } else {
             bm_fmt_macro(a, t, 3, tr->macro[3], b, sizeof b);
-            L4(L, 0, tr->engine == ENG_ACID || tr->engine == ENG_VA ? bm_macro_name(a, t, 3) : "POS ONDA", b, tr->macro[3] * 2);
-            bm_fmt_macro(a, t, 0, tr->macro[0], b, sizeof b); L4(L, 1, "CUTOFF", b, tr->macro[0] * 2);
-            fmt_pct(tr->macro[1], b, sizeof b); L4(L, 2, "RESO", b, tr->macro[1] * 2);
+            L4(L, 0, tr->engine == ENG_ACID || tr->engine == ENG_VA || tr->engine == ENG_FM ? bm_macro_name(a, t, 3) : "POS ONDA", b, tr->macro[3] * 2);
+            bm_fmt_macro(a, t, 0, tr->macro[0], b, sizeof b); L4(L, 1, bm_macro_name(a, t, 0), b, tr->macro[0] * 2);
+            if (tr->engine == ENG_FM) bm_fmt_macro(a, t, 1, tr->macro[1], b, sizeof b); else fmt_pct(tr->macro[1], b, sizeof b);
+            L4(L, 2, bm_macro_name(a, t, 1), b, tr->macro[1] * 2);
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACENTO", b, tr->accent * 2);
         }
         return;
@@ -2078,7 +2089,7 @@ static void enc_source(bm_app *a, int t, int d)
     int v = (a->pat.trk[t].source % lim + (d > 0 ? 1 : lim - 1)) % lim;
     app_set_track(a, t, TRK_OFF(source), v);
     a->pat.trk[t].source = (uint8_t)v;
-    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "ONDA ACID" : e == ENG_VA ? "TIMBRE ANALOG" : "BANCO DE ONDAS",
+    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "ONDA ACID" : e == ENG_VA ? "TIMBRE ANALOG" : e == ENG_FM ? "PATCH FM" : "BANCO DE ONDAS",
                 bm_sound_name(a, t), "", v * 255 / (lim - 1), -1, bm_track_color(t));
 }
 
@@ -2105,10 +2116,10 @@ static void more_change(bm_app *a, int d)
     char b[30];
     switch (rows[a->more_row]) {
     case ROW_ENGINE: {
-        static const uint8_t FREE[] = {ENG_SYNTH, ENG_MONO, ENG_VA, ENG_ACID, ENG_KIT, ENG_MIDI};
-        static const uint8_t BASS[] = {ENG_BASS, ENG_ACID};
+        static const uint8_t FREE[] = {ENG_SYNTH, ENG_MONO, ENG_VA, ENG_FM, ENG_ACID, ENG_KIT, ENG_MIDI};
+        static const uint8_t BASS[] = {ENG_BASS, ENG_ACID, ENG_FM};
         const uint8_t *list = t == 2 ? BASS : FREE;
-        int nl = t == 2 ? 2 : (int)sizeof FREE;
+        int nl = t == 2 ? (int)sizeof BASS : (int)sizeof FREE;
         int e = a->ask == ASK_ENGINE && a->ask_arg == t && bm_engine_ok(t, a->eng_pending) ? a->eng_pending : tk->engine, i = 0;
         while (i < nl && list[i] != e) i++;
         e = list[((i < nl ? i : 0) + (d > 0 ? 1 : nl - 1)) % nl];

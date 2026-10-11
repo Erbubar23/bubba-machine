@@ -7,6 +7,9 @@ junta los registros y guarda los resultados (hal/fm1/fm1_bench.c, docs/ARQUITECT
   py -3 tools/fm1/traza.py pruebas          # en modo seguro: código, datos, núcleos, pantalla
   py -3 tools/fm1/traza.py perfil [--play] [--segundos 10]
                                             # con Bubba andando: dónde se va el tiempo del audio
+  py -3 tools/fm1/traza.py motor 9 --canal 4 --fuente 6 [--voces 1,2,4,7]
+                                            # costo de un motor por voz: el canal pasa a ese motor
+                                            # (número de ENG_* en core/bm_pattern.h) y suena por MIDI
 
 Los resultados quedan en build/traza/AAAAMMDD-HHMMSS-*.txt y se imprimen.
 """
@@ -83,18 +86,60 @@ def perfil(p, play, segundos):
     return '\n'.join(out) + '\n'
 
 
+def leer_perfil(p):
+    d = consola.pedir(p, 0x08)
+    w = struct.unpack('<%dI' % (len(d) // 4), d)
+    acc, total, hz = w[:len(SECCIONES)], w[len(SECCIONES)], w[len(SECCIONES) + 1]
+    seg = total / hz if hz else 1
+    return [a / hz * 1000 / seg / 10 for a in acc]          # % de un núcleo por sección
+
+
+def motor(p, eng, canal, fuente, voces, segundos):
+    t = canal - 1
+    consola.pedir(p, 0x10, bytes([26, (t << 4) | eng]))
+    time.sleep(0.3)
+    consola.pedir(p, 0x10, bytes([27, (t << 5) | fuente]))
+    time.sleep(0.3)
+    v = consola.estado(p)
+    out = ['motor %d en el canal %d, fuente %d, reloj %d MHz' % (eng, canal, fuente, v['sys_hz'] // 1000000),
+           '%6s %10s %10s %10s' % ('voces', 'canal %', 'por voz %', 'total %')]
+    notas = [48, 55, 60, 64, 67, 71, 74, 79]
+    for n in voces:
+        for k in range(n):
+            p.corto(0x90 | t, notas[k], 100)
+        time.sleep(0.8)
+        consola.pedir(p, 0x10, bytes([20, 0]))
+        time.sleep(segundos)
+        pct = leer_perfil(p)
+        for k in range(n):
+            p.corto(0x80 | t, notas[k], 0)
+        c = pct[2 + t]
+        out.append('%6d %9.1f%% %9.2f%% %9.1f%%' % (n, c, c / n if n else 0, sum(pct)))
+        time.sleep(2.5)
+    consola.pedir(p, 0x10, bytes([32, 0]))                  # el canal vuelve a como estaba
+    time.sleep(0.5)
+    v = consola.estado(p)
+    out.append('bloques tarde: %d de %d' % (v['late'], v['halves']))
+    return '\n'.join(out) + '\n'
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest='orden', required=True)
     sub.add_parser('pruebas')
     s = sub.add_parser('una'); s.add_argument('n', type=int); s.add_argument('arg', type=int, nargs='?', default=0)
     s = sub.add_parser('perfil'); s.add_argument('--play', action='store_true'); s.add_argument('--segundos', type=float, default=10)
+    s = sub.add_parser('motor'); s.add_argument('eng', type=int); s.add_argument('--canal', type=int, default=4)
+    s.add_argument('--fuente', type=int, default=0); s.add_argument('--voces', default='1,2,4,7')
+    s.add_argument('--segundos', type=float, default=3)
     a = ap.parse_args()
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     with Puerto('Bubba') as p:
         if a.orden == 'pruebas':
             texto = pruebas(p)
+        elif a.orden == 'motor':
+            texto = motor(p, a.eng, a.canal, a.fuente, [int(x) for x in a.voces.split(',')], a.segundos)
         elif a.orden == 'una':
             texto = lab(p, a.n, a.arg, espera=120)
         else:

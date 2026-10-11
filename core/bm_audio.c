@@ -6,6 +6,7 @@
 #include "bm_audio.h"
 #include "bm_prof.h"
 #include "bm_util.h"
+#include "bm_fm.h"
 
 bool bm_cmd_push(bm_cmdq *q, const bm_cmd *c)
 {
@@ -32,6 +33,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->mem = mem;
     memset(mem, 0, sizeof *mem);
     c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
+    bm_fm_init((float)BM_FS);
     c->scene_q = -1;
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;

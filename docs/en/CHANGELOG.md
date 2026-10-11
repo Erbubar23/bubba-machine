@@ -5,6 +5,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 ## [Unreleased]
 
 ### Added
+- **6-operator FM engine** (msfa, the base of Dexed and of the factory firmware) for T3 and the free channels: 16 original patches (E.PIANO, FM BASS, BELL, BRASS, STRINGS, ORGAN, CLAVI, MARIMBA...), with the BRILLO (brightness), REALIM (feedback), DECAY and ALGORITMO (all 32 DX7 algorithms) macros and a screen showing the 6 operators. MORE > ENGINE > FM.
 - **Sampler:** holding a step plays the loop from there, whole and looping, while you hold it.
 - **Free recording on note tracks**, like a looper: on an empty track, REC has no fixed length; when you close it, the track gets whole bars (1-4) and every note keeps how long you held it.
 - **Length in bars** on the SEQ layer (black 7-10).
@@ -16,6 +17,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
 ### Changed
+- **Audio code is compiled for speed:** on the FM-1 the demo with PLAY went from 36.9 % to 27.7 % of a core. Wavetables are built at boot from their spectrum (56 KiB less program).
 - **44.1 kHz audio end to end, with a floating-point bus.** The engines used to run at 22 kHz and the output was doubled; they now run at 44.1 kHz (highs up to 20 kHz, no oversampling images) and the mix, delay, effects and clipper are floating point, block based. The delay and the effects capture (stutter, reverse, tape stop) are now 16-bit (the capture used to be 8-bit μ-law), and sampler recording goes through a Butterworth filter before dropping to 16 kHz. On the FM-1, with PLAY, the mix costs less than before even though it computes twice the samples (docs/TRAZA_FM1.md).
 - **DROP** interpolation (no interpolation) becomes **LINEAR**: at 44.1 kHz, repeating samples sounded lo-fi.
 - The SEQ page of note tracks is only about that track: a piano roll of the page with each note's length, the track's bars and the dotted tempo follower. It no longer shows the other tracks.

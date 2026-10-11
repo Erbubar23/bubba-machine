@@ -13,7 +13,7 @@ typedef char bm_assert_notes[(sizeof(bm_tr) <= sizeof(bm_notes)) ? 1 : -1];
 
 const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
 const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
-const char *const bm_engine_names[ENG_COUNT] = {"BATERIA", "SAMPLER", "BAJO", "SYNTH", "MONO", "KIT", "MIDI", "ACID", "ANALOG"};
+const char *const bm_engine_names[ENG_COUNT] = {"BATERIA", "SAMPLER", "BAJO", "SYNTH", "MONO", "KIT", "MIDI", "ACID", "ANALOG", "FM"};
 
 void bm_event_clear(bm_event *e)
 {
@@ -79,11 +79,12 @@ static void sound_defaults(bm_track *t, int engine)
 {
     if (engine == ENG_ACID) { t->macro[0] = 40; t->macro[1] = 96; t->macro[2] = 56; t->macro[3] = 90; t->source = 0; t->glide = 40; }
     else if (engine == ENG_VA) { t->macro[0] = 84; t->macro[1] = 30; t->macro[2] = 70; t->macro[3] = 40; t->source = 1; }
+    else if (engine == ENG_FM) { t->macro[0] = 64; t->macro[1] = 64; t->macro[2] = 64; t->macro[3] = 64; t->source = 0; t->attack = 0; t->release = 64; }
 }
 
 bool bm_engine_ok(int track, int engine)
 {
-    if (track == 2) return engine == ENG_BASS || engine == ENG_ACID;
+    if (track == 2) return engine == ENG_BASS || engine == ENG_ACID || engine == ENG_FM;
     if (bm_is_free(track)) return engine >= ENG_SYNTH && engine < ENG_COUNT;
     return false;
 }
@@ -94,7 +95,7 @@ void bm_track_set_engine(bm_pattern *p, int track, int engine)
     bm_track *t = &p->trk[track];
     int was_tr = t->engine == ENG_KIT, was = t->engine;
     t->engine = (uint8_t)engine;
-    if (engine == ENG_ACID || engine == ENG_VA) {
+    if (engine == ENG_ACID || engine == ENG_VA || engine == ENG_FM) {
         if (was != engine) sound_defaults(t, engine);
         if (was_tr) { bm_track_clear_events(p, track); p->loop[track - BM_TR_TRACKS].n = 0; p->loop[track - BM_TR_TRACKS].on = 0; }
         return;
@@ -303,7 +304,7 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
     for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
         uint8_t e = p->trk[t].engine;
-        if (t == 2) { if (e != ENG_ACID) p->trk[t].engine = ENG_BASS; }
+        if (t == 2) { if (e != ENG_ACID && e != ENG_FM) p->trk[t].engine = ENG_BASS; }
         else if (t < BM_FREE0) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);
         else if (!bm_engine_ok(t, e)) p->trk[t].engine = ENG_SYNTH;
     }

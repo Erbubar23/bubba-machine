@@ -19,6 +19,7 @@
  * seguro, PLAY arranca Bubba Machine sin salida de audio (el núcleo corre igual, callado): así
  * se separa una falla del audio de una del resto. */
 #include <string.h>
+#include <stddef.h>
 #include "app_config.h"
 #include "system/includes.h"
 #include "os/os_api.h"
@@ -362,6 +363,10 @@ static int prueba_flash(int veces)
 }
 
 /* orden desde la consola: devuelve 0 si se hizo */
+static bm_track lab_trk;                     /* el canal antes de lab 26 */
+static int lab_trk_t = -1;
+static int lab_set;                          /* lab 29: canal*64 + byte de bm_track */
+
 int fm1_lab(int cmd, int arg)
 {
     switch (cmd) {
@@ -394,7 +399,7 @@ int fm1_lab(int cmd, int arg)
         fm1_log("lab: arrancar Bubba completo con audio");
         lab_bubba = 1;
         return 0;
-    case 20: case 21: case 22: case 23: case 24: case 25:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
+    case 20: case 21: case 22: case 23: case 24: case 25: case 28:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
         if (!fm1_scan_ticks()) {             /* el reloj de las mediciones es el barrido */
             fm1_scan_start();
             lab_scan = 1;
@@ -414,6 +419,68 @@ int fm1_lab(int cmd, int arg)
         os_time_dly(10);
         bm_app_button(&app, arg, 0, timer_get_ms());
         return 0;
+    case 26: {                               /* canal (bits 4-6) al motor (bits 0-3), para medir motores; */
+        if (modo != FM1_BOOT_NORMAL)         /* antes guarda el canal como estaba (lab 32 lo vuelve) */
+            return -1;
+        bm_cmd c;
+        memset(&c, 0, sizeof c);
+        c.type = CMD_ENGINE; c.a = (uint8_t)((arg >> 4) & 7); c.b = (uint8_t)(arg & 15);
+        if (c.a >= BM_TRACKS)
+            return -1;
+        if (lab_trk_t < 0) {
+            lab_trk = app.pat.trk[c.a];
+            lab_trk_t = c.a;
+        }
+        log_num("lab: motor ", (uint32_t)arg, "");
+        return bm_cmd_push(&app.cmdq, &c) ? 0 : -1;
+    }
+    case 32: {                               /* vuelve el canal que cambió lab 26 a como estaba */
+        if (modo != FM1_BOOT_NORMAL || lab_trk_t < 0)
+            return -1;
+        bm_cmd c;
+        memset(&c, 0, sizeof c);
+        c.type = CMD_ENGINE; c.a = (uint8_t)lab_trk_t; c.b = lab_trk.engine;
+        bm_cmd_push(&app.cmdq, &c);
+        for (unsigned i = 0; i < sizeof lab_trk; i++) {
+            if (i == offsetof(bm_track, engine))
+                continue;
+            c.type = CMD_SET_TRACK; c.b = (uint8_t)i; c.c = ((const uint8_t *)&lab_trk)[i];
+            while (!bm_cmd_push(&app.cmdq, &c))
+                os_time_dly(1);
+        }
+        log_num("lab: canal ", (uint32_t)lab_trk_t + 1, " como estaba");
+        lab_trk_t = -1;
+        return 0;
+    }
+    case 29: lab_set = arg; return 0;        /* 29 canal*64 + byte de bm_track, luego 31 valor */
+    case 31: {
+        int t = lab_set >> 6, off = lab_set & 63;
+        if (modo != FM1_BOOT_NORMAL || t >= BM_TRACKS || off >= (int)sizeof(bm_track))
+            return -1;
+        bm_cmd c;
+        memset(&c, 0, sizeof c);
+        if (off == offsetof(bm_track, engine)) { c.type = CMD_ENGINE; c.a = (uint8_t)t; c.b = (uint8_t)arg; }
+        else { c.type = CMD_SET_TRACK; c.a = (uint8_t)t; c.b = (uint8_t)off; c.c = (uint8_t)arg; }
+        return bm_cmd_push(&app.cmdq, &c) ? 0 : -1;
+    }
+    case 33: {                               /* el canal arg al registro: motor, fuente y macros */
+        if (arg >= BM_TRACKS)
+            return -1;
+        const bm_track *k = &app.pat.trk[arg];
+        log_num("lab: canal ", (uint32_t)arg + 1, "");
+        log_num("  motor ", k->engine, "");
+        log_num("  fuente ", k->source, "");
+        for (int i = 0; i < 4; i++) log_num("  macro ", k->macro[i], "");
+        return 0;
+    }
+    case 27: {                               /* fuente (patch, kit, banco) del canal (bits 5-7) = bits 0-4 */
+        if (modo != FM1_BOOT_NORMAL)
+            return -1;
+        bm_cmd c;
+        memset(&c, 0, sizeof c);
+        c.type = CMD_SET_TRACK; c.a = (uint8_t)((arg >> 5) & 7); c.b = (uint8_t)offsetof(bm_track, source); c.c = (uint8_t)(arg & 31);
+        return bm_cmd_push(&app.cmdq, &c) ? 0 : -1;
+    }
     }
     return -1;
 }

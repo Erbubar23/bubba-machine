@@ -5,8 +5,9 @@
 
 - Batería: 2 kits x 16 sonidos SINTETIZADOS aquí (sin samples de terceros),
   a BM_FS = 22059 Hz, codificados en mu-law de 8 bits.
-- Wavetables: 16 ondas de 256 muestras, con 8 niveles band-limited (mipmaps),
-  generadas por síntesis aditiva. Con --akwf DIR se reemplazan por ciclos
+- Wavetables: 16 ondas como espectro (127 armónicos, coseno y seno en Q15); el núcleo arma
+  al arrancar los 8 niveles band-limited de 256 muestras (bm_waves_init), así la ROM guarda
+  8 KiB en vez de 64. Con --akwf DIR se reemplazan por ciclos
   únicos de WAV (p. ej. AKWF, CC0): cada ciclo se analiza por DFT y se
   reconstruye a 256 muestras por nivel.
 - Comprueba el presupuesto de ROM de SPEC_V3 §4.4.
@@ -344,16 +345,21 @@ def main():
         for i, f in enumerate(files):
             spectra[i] = akwf_spectrum(os.path.join(args.akwf, f))
             names[i] = os.path.splitext(f)[0].upper().replace('AKWF_', '')[:7]
-    out.append('const int16_t bm_rom_waves[BM_WAVES][BM_WAVE_LEVELS][BM_WAVE_LEN] = {')
+    out.append('const int16_t bm_wave_spec[BM_WAVES][BM_WAVE_HARM][2] = {')
     for sp in spectra:
-        out.append('  {')
-        for lvl in build_levels(sp):
-            out.append('    {\n%s\n    },' % c_array(list(lvl), 16))
-        out.append('  },')
+        hs = [[0.0, 0.0] for _ in range(127)]
+        for n, a, ph in sp:
+            if 1 <= n <= 127 and a:
+                hs[n - 1] = [a * math.cos(ph), a * math.sin(ph)]   # sin(x + ph) = cos ph sin x + sin ph cos x
+        m = max(max(abs(c), abs(s)) for c, s in hs) or 1.0
+        vals = []
+        for c, s in hs:
+            vals += [int(round(c / m * 32767)), int(round(s / m * 32767))]
+        out.append('  {\n%s\n  },' % c_array(vals, 16).replace('  ', '    ', 1))
     out.append('};')
     out.append('const char bm_rom_wave_names[BM_WAVES][8] = {%s};' % ','.join('"%s"' % n[:7] for n in names))
 
-    waves_bytes = 16 * LEVELS * WAVE_LEN * 2
+    waves_bytes = 16 * 127 * 2 * 2
     out.append('')
     out.append('/* ROM: batería %d B (presupuesto %d), ondas %d B (presupuesto %d) */' %
                (total_drum, BUDGET_DRUMS, waves_bytes, BUDGET_WAVES))

@@ -17,6 +17,7 @@
 #include "fm1_hw.h"
 #include "bm_prof.h"
 #include "bm_rom.h"
+#include "bm_fm.h"
 
 void fm1_log(const char *s);
 
@@ -310,6 +311,18 @@ static void bench_pantalla(int solo)
     JL_SPI1->BAUD = 4;                                    /* vuelve a lo de siempre (12 MHz) */
 }
 
+/* El motor FM por piezas: un operador, uno modulado, uno con realimentación y la voz entera
+ * (msfa, core/bm_fm.cpp), en ns por muestra. */
+static void bench_fm(int patch)
+{
+    enum { REPS = 2000 };
+    uint32_t t[5];
+    bm_fm_bench(bm_fm_rom[patch % BM_FM_PATCHES], fm1_scan_now_ticks, t, REPS);
+    static const char *const NOM[5] = {"FM operador solo      ", "FM operador modulado  ", "FM operador realiment.",
+                                       "FM voz entera (6 op)  ", "bucle vacio           "};
+    for (int i = 0; i < 5; i++) log_mil(NOM[i], ns(t[i], REPS * 64u), "ns/muestra");
+}
+
 int fm1_bench(int cmd, int arg)
 {
     switch (cmd) {
@@ -319,6 +332,7 @@ int fm1_bench(int cmd, int arg)
     case 23: fm1_log("prueba: tamano de la cache de datos"); bench_cache(); return 0;
     case 24: fm1_log("prueba: dos nucleos"); bench_nucleos(); return 0;
     case 25: fm1_log("prueba: pantalla"); bench_pantalla(arg ? arg - 1 : -1); return 0;
+    case 28: fm1_log("prueba: motor FM"); bench_fm(arg); return 0;
     }
     return -1;
 }

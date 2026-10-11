@@ -10,6 +10,7 @@
 #include "bm_app_int.h"
 #include "bm_rom.h"
 #include "bm_util.h"
+#include "bm_fm.h"
 
 #define PY 40   /* primera fila útil de una página de canal (debajo de las pestañas) */
 
@@ -588,6 +589,41 @@ static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w,
     }
 }
 
+/* FM: los seis operadores como barras de nivel (con las macros ya aplicadas). Las portadoras, las
+ * que se oyen, en el color del canal; los moduladores, que dan el timbre, en gris. Abajo, la
+ * relación de frecuencia de cada uno. */
+static void draw_fm(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
+{
+    uint8_t p[BM_FM_PATCH];
+    bm_fm_patch_of(&a->pat.trk[t], NULL, p);
+    uint8_t car = bm_fm_carriers(p[BM_FM_ALG]);
+    gfx_rect(g, x0, y0, w, h, C_DGREY);
+    int cw = (w - 8) / 6, bh = h - 24;
+    char b[12];
+    for (int k = 0; k < 6; k++) {                         /* OP1 a la izquierda (el dato 5) */
+        const uint8_t *o = p + (5 - k) * BM_FM_OP;
+        int x = x0 + 4 + k * cw, lv = o[FMO_OL] * bh / 99;
+        bool c = (car >> (5 - k)) & 1;
+        gfx_fill(g, x + 3, y0 + 4, cw - 6, bh, C_DDGREY);
+        if (lv > 0) gfx_fill(g, x + 3, y0 + 4 + bh - lv, cw - 6, lv, c ? bm_track_color(t) : C_GREY);
+        snprintf(b, sizeof b, "%d", k + 1);
+        gfx_text(g, x + cw / 2 - 3, y0 + 6, b, c ? C_WHITE : C_DGREY, 1);
+        int fc = o[FMO_FC], ff = o[FMO_FF];
+        if (o[FMO_MODE]) snprintf(b, sizeof b, "FIJO");
+        else {
+            int r100 = (fc ? fc * 100 : 50) * (100 + ff) / 100;      /* relación x100 */
+            if (r100 % 100) snprintf(b, sizeof b, "%d.%02d", r100 / 100, r100 % 100);
+            else snprintf(b, sizeof b, "%d", r100 / 100);
+        }
+        gfx_small(g, x + 2, y0 + h - 16, b, c ? C_WHITE : C_GREY);
+    }
+    snprintf(b, sizeof b, "ALG %d", p[BM_FM_ALG] + 1);
+    gfx_small(g, x0 + 4, y0 + h - 8, b, C_YELLOW);
+    snprintf(b, sizeof b, "FB %d", p[BM_FM_FB]);
+    gfx_small(g, x0 + 60, y0 + h - 8, b, C_YELLOW);
+    gfx_small(g, x0 + 110, y0 + h - 8, "EN COLOR SE OYEN", C_GREY);
+}
+
 /* Tres carriles, de abajo arriba: graves, medios, agudos. Separados para que el relleno
  * de graves y medios no tape el patrón de los hats. */
 static void draw_bands(bm_gfx *g, const uint8_t wave[3][232], int x0, int y, int w, int h, int c0, int c1, uint16_t sel_lo, uint16_t sel_hi)
@@ -657,6 +693,23 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
             gfx_small(g, 150, PY + 1, "PRESETS = OTRO KIT", C_GREY);
         }
         lane_pads(g, a, t, PY + 12, 37);
+        return;
+    }
+    if (tr->engine == ENG_FM) {
+        if (gfx_strip_hit(g, PY, 9)) {
+            gfx_text(g, 4, PY, "FM", C_GREY, 1);
+            gfx_text(g, 24, PY, bm_sound_name(a, t), C_WHITE, 1);
+            gfx_small(g, 150, PY + 1, "PRESETS = PATCH", C_GREY);
+        }
+        if (gfx_strip_hit(g, PY + 12, 92)) draw_fm(g, a, t, 4, PY + 12, 232, 90);
+        char c0[12], c1[12], c3[12];
+        bm_fmt_macro(a, t, 0, tr->macro[0], c0, sizeof c0);
+        bm_fmt_macro(a, t, 1, tr->macro[1], c1, sizeof c1);
+        bm_fmt_macro(a, t, 3, tr->macro[3], c3, sizeof c3);
+        snprintf(b, sizeof b, "BRILLO %s  %s  %s", c0, c1, c3);
+        hint(g, 150, b);
+        hint(g, 162, "* EL ALGORITMO DEL PATCH");
+        hint(g, 176, t == 2 ? "MONO + GLIDE (LIGA)" : "POLIFONICO (POOL 7 VOCES)");
         return;
     }
     int synth = tr->engine == ENG_ACID || tr->engine == ENG_VA;

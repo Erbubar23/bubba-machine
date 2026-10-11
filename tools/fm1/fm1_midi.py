@@ -77,6 +77,10 @@ class Puerto:
         if r:
             raise OSError('no se pudo enviar (%d)' % r)
 
+    def corto(self, st, d1=0, d2=0):
+        """un mensaje MIDI corto (nota, CC...)"""
+        self.w.midiOutShortMsg(self.hout, st | (d1 << 8) | (d2 << 16))
+
     def recibir(self, espera=1.0, hasta=None):
         """SysEx completos que llegan en `espera` s; corta antes si `hasta(msg)` es verdadero"""
         fin, out = time.time() + espera, []

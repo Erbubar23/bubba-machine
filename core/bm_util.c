@@ -2,7 +2,10 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — utilidades. */
 #include <math.h>
+#include <string.h>
+#include <stddef.h>
 #include "bm_util.h"
+#include "bm_rom.h"
 
 uint32_t bm_note_inc[128];
 uint32_t bm_decay_coef[128];
@@ -41,8 +44,53 @@ uint32_t bm_cutoff_hz(int v) { return (uint32_t)(cutoff_hz_d(bm_clampi(v, 0, 127
 uint32_t bm_decay_ms(int v) { return (uint32_t)(decay_s(bm_clampi(v, 0, 127)) * 1000.0 + 0.5); }
 uint32_t bm_attack_ms(int v) { return (uint32_t)(attack_s(bm_clampi(v, 0, 127)) * 1000.0 + 0.5); }
 
+/* Wavetables: los 8 niveles band-limited de cada onda, desde su espectro. Se suman los armónicos
+ * en orden y cada nivel se guarda cuando se llega a su máximo (como tools/gen_assets.py). Dos
+ * pasadas por onda: la primera mide el pico. Unos ms al arrancar. */
+int16_t bm_rom_waves[BM_WAVES][BM_WAVE_LEVELS][BM_WAVE_LEN];
+
+static float wave_y[BM_WAVE_LEN], wave_sn[BM_WAVE_LEN], wave_cs[BM_WAVE_LEN];
+
+/* suma los armónicos de la onda w; con out, guarda cada nivel escalado por g. Devuelve el pico. */
+static float wave_sum(int w, float g, int16_t (*out)[BM_WAVE_LEN])
+{
+    static const uint8_t MAXH[BM_WAVE_LEVELS] = {127, 64, 32, 16, 8, 4, 2, 1};
+    float peak = 0.0f;
+    memset(wave_y, 0, sizeof wave_y);
+    for (int h = 1; h <= BM_WAVE_HARM; h++) {
+        float c = bm_wave_spec[w][h - 1][0], s = bm_wave_spec[w][h - 1][1];   /* sin(x + ph) = c sin x + s cos x */
+        if (c != 0.0f || s != 0.0f)
+            for (int i = 0; i < BM_WAVE_LEN; i++) {
+                int k = (h * i) & (BM_WAVE_LEN - 1);
+                wave_y[i] += c * wave_sn[k] + s * wave_cs[k];
+            }
+        for (int l = 0; l < BM_WAVE_LEVELS; l++) {
+            if (MAXH[l] != h) continue;
+            for (int i = 0; i < BM_WAVE_LEN; i++) {
+                float v = wave_y[i], a = v < 0 ? -v : v;
+                if (a > peak) peak = a;
+                if (out) { v *= g; out[l][i] = (int16_t)(v + (v >= 0.0f ? 0.5f : -0.5f)); }
+            }
+        }
+    }
+    return peak;
+}
+
+void bm_waves_init(void)
+{
+    for (int i = 0; i < BM_WAVE_LEN; i++) {
+        wave_sn[i] = (float)sin(2.0 * PI * i / BM_WAVE_LEN);
+        wave_cs[i] = (float)cos(2.0 * PI * i / BM_WAVE_LEN);
+    }
+    for (int w = 0; w < BM_WAVES; w++) {
+        float peak = wave_sum(w, 0.0f, NULL);
+        wave_sum(w, 0.9f * 32767.0f / (peak > 0.0f ? peak : 1.0f), bm_rom_waves[w]);
+    }
+}
+
 void bm_tables_init(void)
 {
+    bm_waves_init();
     for (int n = 0; n < 128; n++) {
         double f = 440.0 * pow(2.0, (n - 69) / 12.0);
         bm_note_inc[n] = (uint32_t)(f / BM_FS * 4294967296.0);

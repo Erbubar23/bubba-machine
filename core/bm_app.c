@@ -30,6 +30,7 @@ int bm_sound_count(const bm_app *a, int t)
     if (bm_is_tr(&a->pat, t)) return BM_KITS_ALL;
     if (a->pat.trk[t].engine == ENG_ACID) return 2;
     if (a->pat.trk[t].engine == ENG_VA) return BM_VA_TIMBRES;
+    if (a->pat.trk[t].engine == ENG_FM) return BM_FM_PATCHES;
     return BM_WAVES;
 }
 
@@ -39,6 +40,7 @@ const char *bm_sound_name(const bm_app *a, int t)
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
     if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
     if (a->pat.trk[t].engine == ENG_VA) return bm_va_names[s];
+    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_names[s];
     return bm_rom_wave_names[s];
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }

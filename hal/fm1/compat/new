@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Erbubar23
+// Bubba Machine: placement new (sin memoria dinámica), para el toolchain de JieLi.
+#ifndef BM_COMPAT_NEW
+#define BM_COMPAT_NEW
+#include <stddef.h>
+inline void *operator new(size_t, void *p) noexcept { return p; }
+inline void operator delete(void *, void *) noexcept { }
+#endif

@@ -67,7 +67,7 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-enum { ENG_DRUM, ENG_BREAK, ENG_BASS, ENG_SYNTH, ENG_MONO, ENG_KIT, ENG_MIDI, ENG_ACID, ENG_VA, ENG_COUNT };
+enum { ENG_DRUM, ENG_BREAK, ENG_BASS, ENG_SYNTH, ENG_MONO, ENG_KIT, ENG_MIDI, ENG_ACID, ENG_VA, ENG_FM, ENG_COUNT };
 enum { KIND_TR, KIND_BRK, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];
 #define BM_FREE0   3           /* T4: primer canal libre */
@@ -82,9 +82,9 @@ extern const char *const bm_speed_names[SPD_COUNT];
 #define BM_SRC_ROM   0x80u
 
 typedef struct {
-    uint8_t macro[4];      /* notas: CUTOFF RESO DECAY WAVE · batería: TONE TUNE DECAY START */
+    uint8_t macro[4];      /* notas: CUTOFF RESO DECAY WAVE · FM: BRILLO REALIM DECAY ALGORITMO · batería: TONE TUNE DECAY START */
     uint8_t level, pan, send, duck;
-    uint8_t source;        /* batería: kit · sampler: loop A · notas: banco de ondas */
+    uint8_t source;        /* batería: kit · sampler: loop A · notas: banco de ondas · FM: patch */
     uint8_t attack, sustain, release, env_amt, glide;
     uint8_t interp;        /* 0 = lineal, 1 = HERMITE */
     uint8_t mute;

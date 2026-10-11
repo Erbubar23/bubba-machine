@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Erbubar23
+// Bubba Machine: lo mínimo de <algorithm> para compilar msfa con el toolchain de JieLi, que no
+// trae la biblioteca de C++ (solo std::min y std::max).
+#ifndef BM_COMPAT_ALGORITHM
+#define BM_COMPAT_ALGORITHM
+namespace std {
+template <typename T> inline const T &min(const T &a, const T &b) { return b < a ? b : a; }
+template <typename T> inline const T &max(const T &a, const T &b) { return a < b ? b : a; }
+}
+#endif

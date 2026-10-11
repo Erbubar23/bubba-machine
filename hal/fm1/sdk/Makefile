@@ -119,7 +119,19 @@ LFLAGS := --plugin-opt=-pi32v2-always-use-itblock=false --plugin-opt=-enable-ipr
 	--plugin-opt=-pi32v2-large-program=true
 
 SDK_OBJS := $(addprefix $(OUT)/sdk/,$(SDK_C:.c=.o) $(SDK_S:.S=.o))
-OWN_OBJS := $(addprefix $(OUT)/own/,$(OWN_C:.c=.o))
+# C++ (motores de terceros): sin excepciones, RTTI ni biblioteca de C++ (hal/fm1/compat).
+ifeq ($(APP),bubba)
+MSFA := dx7note env exp2 fm_core fm_op_kernel freqlut lfo pitchenv porta sin EngineMsfa
+OWN_CXX := core/bm_fm.cpp $(addprefix third_party/msfa/,$(addsuffix .cpp,$(MSFA)))
+endif
+CXX := $(TOOL_DIR)/clang++
+# Los motores se compilan para velocidad (-O2) y sin LTO: el enlazador del SDK optimiza para tamaño
+# con inlining casi apagado, y el núcleo de la FM vive de funciones en línea (docs/TRAZA_FM1.md).
+FAST := $(filter-out -Oz -flto -ffunction-sections -fdata-sections,$(CFLAGS)) -O2
+CXXFLAGS := $(FAST) -std=gnu++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics -DBM_NO_CXXLIB 	-I$(REPO)/hal/fm1/compat -I$(REPO)/third_party/msfa -I$(REPO)/core -isystem $(SDK)/include_lib/newlib/include
+OWN_OBJS := $(addprefix $(OUT)/own/,$(OWN_C:.c=.o) $(OWN_CXX:.cpp=.o))
+# el cálculo de audio del núcleo, también para velocidad
+FAST_C := core/bm_audio.c core/bm_dsp.c core/bm_engines.c core/bm_seq.c
 CPP := $(CC) $(CFLAGS) $(DEFINES) $(INCLUDES) -D__LD__ -E -P
 
 .PHONY: all
@@ -141,7 +153,11 @@ $(OUT)/sdk/%.o: $(SDK)/%.S
 
 $(OUT)/own/%.o: $(REPO)/%.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(OWN_WARN) $(DEFINES) $(INCLUDES) -c $< -o $@
+	$(CC) $(if $(filter $(FAST_C),$*.c),$(FAST),$(CFLAGS)) $(OWN_WARN) $(DEFINES) $(INCLUDES) -c $< -o $@
+
+$(OUT)/own/%.o: $(REPO)/%.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter -c $< -o $@
 
 $(OUT)/sdk.elf: $(OUT)/sdk.ld $(SDK_OBJS) $(OWN_OBJS)
 	$(LD) -o $@ $(SDK_OBJS) $(OWN_OBJS) $(LFLAGS) $(LIBS)

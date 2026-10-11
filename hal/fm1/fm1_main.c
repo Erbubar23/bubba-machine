@@ -58,8 +58,12 @@ static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3
 static void render(int32_t *lr, uint32_t frames)
 {
     bm_app_audio(&app, lr, frames);
-    for (uint32_t i = 0; i < frames * 2u; i++)
-        lr[i] = (int32_t)((uint32_t)lr[i] << 8);     /* 24 bits a la izquierda de la palabra */
+    /* el codec toma los 24 bits de abajo de cada palabra, con signo (dato de Felucca: Q15 * 2^7,
+     * audio.c). Antes se corrían 8 bits hacia arriba y en el aparato sonaba como una alarma. */
+    for (uint32_t i = 0; i < frames * 2u; i++) {
+        int32_t v = lr[i];
+        lr[i] = v > 8388607 ? 8388607 : v < -8388608 ? -8388608 : v;
+    }
 }
 
 /* ------------------------------------------------------------------ MIDI */
@@ -269,14 +273,14 @@ uint32_t fm1_log_read(uint32_t off, uint8_t *dst, uint32_t max)
 }
 
 static uint32_t fase;
-static void tono(int32_t *lr, uint32_t frames)         /* triángulo de 440 Hz, -12 dB, 24 bits a la izquierda */
+static void tono(int32_t *lr, uint32_t frames)         /* triángulo de 440 Hz, -12 dB */
 {
     for (uint32_t i = 0; i < frames; i++) {
         fase += 42838u * 1000u;                         /* 440 / 44118 * 2^32 */
         int32_t v = (int32_t)(fase >> 8) - (1 << 23);   /* diente de sierra de 24 bits */
         v = (v < 0 ? -v : v) * 2 - (1 << 23);           /* triángulo */
-        v >>= 2;
-        lr[2 * i] = lr[2 * i + 1] = (int32_t)((uint32_t)v << 8);
+        v >>= 2;                                        /* -12 dB, en los 24 bits de abajo */
+        lr[2 * i] = lr[2 * i + 1] = v;
     }
 }
 
@@ -337,6 +341,14 @@ int fm1_lab(int cmd, int arg)
     case 6:
         fm1_log("lab: arrancar Bubba completo con audio");
         lab_bubba = 1;
+        return 0;
+    case 7:                                  /* pulsar un botón (0..13) como si fuera la mano */
+        if (modo != FM1_BOOT_NORMAL || arg >= BTN_COUNT)
+            return -1;
+        log_num("lab: boton ", (uint32_t)arg, " pulsado");
+        bm_app_button(&app, arg, 1, timer_get_ms());
+        os_time_dly(10);
+        bm_app_button(&app, arg, 0, timer_get_ms());
         return 0;
     }
     return -1;
@@ -414,6 +426,7 @@ static void bubba_task(void *p)
     }
 
     bm_platform pf = {fm1_lcd_blit, led, midi_out, mapa, &FLASH, NULL};
+    fm1_flash_plain_window();                /* por si el SDK la volvió a poner desde su almacén */
     t0 = timer_get_ms();
     fm1_stat[FM1_STAT_VERSION] = 0x000300u | (uint32_t)sin_audio << 24;
     bm_app_init(&app, &pf, t0);

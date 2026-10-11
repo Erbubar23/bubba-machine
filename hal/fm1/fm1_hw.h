@@ -59,6 +59,7 @@ enum {
 #define FM1_VM_LEN      0x008000u      /* empaquetador para que no se mezcle con los datos */
 
 int  fm1_flash_init(void);
+void fm1_flash_plain_window(void);                        /* la zona de datos se lee sin descifrar por XIP */
 int  fm1_flash_read(uint32_t a, void *d, uint32_t n);
 int  fm1_flash_erase(uint32_t a);                         /* sector de 4 KiB */
 int  fm1_flash_prog(uint32_t a, const void *s, uint32_t n);
@@ -91,7 +92,7 @@ int  fm1_scan_is_down(int id);
 void fm1_scan_led(int id, uint8_t level);                 /* LED_OFF..LED_BREATH (core/bm_types.h) */
 
 /* ---------------------------------------------------------------- audio: ALNK0 -> codec */
-typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 24 bits a la izquierda */
+typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 24 bits abajo, con signo */
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* dma: 2 mitades */
 void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* sin ALNK0 */
 void fm1_audio_stop(void);

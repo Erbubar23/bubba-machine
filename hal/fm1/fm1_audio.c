@@ -3,8 +3,9 @@
 /* Salida de audio del FM-1: ALNK0 (I2S) hacia el codec externo, con DMA de doble buffer.
  *
  * Hechos de la placa (medidos y publicados por Felucca, hugelton/Felucca, fm1_audio.h):
- *   - el codec cuelga de ALNK0, canal 3, estéreo de 24 bits alineados a la izquierda en
- *     palabras de 32; la frecuencia queda en 24 MHz / 544 ≈ 44 117.6 Hz (BM_FS_OUT);
+ *   - el codec cuelga de ALNK0, canal 3, estéreo de 24 bits: cada muestra es un int32 con el
+ *     valor en los 24 bits de abajo (Felucca escribe Q15 * 2^7, audio.c); la frecuencia queda
+ *     en 24 MHz / 544 ≈ 44 117.6 Hz (BM_FS_OUT);
  *   - las líneas de control del codec son PC0, PC1 y PC2 (en alto) y PC6 (habilitación: en
  *     bajo unos ms antes de configurar ALNK0, en alto después);
  *   - ALNK0 usa el grupo de pines 0 (IOMAP_CON5 bits 6-7) y el reloj de audio con la fuente 0
@@ -75,6 +76,8 @@ static void audio_task(void *p)
             memset(h, 0, half_words * 4u);
         halves++;
         uint32_t dt = fm1_scan_now_us() - t0;
+        if (dt > 1000000u)
+            dt = 0;                                       /* el reloj no anda (barrido apagado) */
         fm1_stat[FM1_STAT_RENDER_LAST] = dt;
         if (dt > fm1_stat[FM1_STAT_RENDER_MAX])
             fm1_stat[FM1_STAT_RENDER_MAX] = dt;

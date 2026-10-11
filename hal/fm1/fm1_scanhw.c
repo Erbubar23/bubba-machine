@@ -174,12 +174,15 @@ uint32_t fm1_scan_ticks(void) { return ticks; }
 /* microsegundos desde que arrancó el barrido: interrupciones * 250 + lo que va de la actual */
 uint32_t fm1_scan_now_us(void)
 {
-    uint32_t a, c, b;
+    uint32_t a, c, b, pend;
     do {
         a = ticks;
         c = JL_TIMER5->CNT;
+        pend = JL_TIMER5->CON & BIT(15);
         b = ticks;
     } while (a != b);
+    if (pend && c < prd / 2u)                 /* dio la vuelta y la interrupción todavía no la contó */
+        a++;
     return a * 250u + c * 250u / prd;
 }
 

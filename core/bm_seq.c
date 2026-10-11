@@ -216,7 +216,7 @@ static void fire_brk(bm_ctx *c, uint32_t n, int tps, bool fill)
     const bm_tr *tr = &c->pat->tr[1];
     uint32_t blk = n / 16u;
     bm_gen_decide(c, blk);                                   /* siempre al día con las perillas */
-    if (c->pat->trk[1].mute || (c->brk_live & 4)) return;
+    if (c->pat->trk[1].mute || (c->brk_live & (4 | 8))) return;      /* stutter o paso sostenido: manda el directo */
     int len = tr->lane[BRK_GEN].len ? tr->lane[BRK_GEN].len : 16;
     int s = (int)(n % (uint32_t)len);
     uint8_t b;

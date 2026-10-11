@@ -62,6 +62,8 @@ static int8_t smp_buf[BM_SMP_REC_MAX];
 EMSCRIPTEN_KEEPALIVE int8_t *bm_web_sampler(void) { return smp_buf; }
 EMSCRIPTEN_KEEPALIVE int bm_web_sampler_cap(void) { return (int)bm_app_rec_room(&app); }
 EMSCRIPTEN_KEEPALIVE int bm_web_bpm(void) { return app.pat.meta.bpm_x10; }
+EMSCRIPTEN_KEEPALIVE int bm_web_takes_free(void) { return (int)bm_takes_free(app.take); }      /* bytes = muestras */
+EMSCRIPTEN_KEEPALIVE int bm_web_takes_total(void) { return (int)(BM_TAKE_HI - BM_TAKE_LO); }
 EMSCRIPTEN_KEEPALIVE int bm_web_sampler_set(int len, int bpm_x10)
 {
     if (len < 1 || (uint32_t)len > bm_app_rec_room(&app)) return -1;

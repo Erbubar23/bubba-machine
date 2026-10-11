@@ -2,6 +2,18 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [Sin publicar]
+
+### Agregado
+- **Sampler:** mantener un paso hace sonar el loop desde ahí, entero y en bucle, mientras lo sostienes.
+- **Grabación libre en los canales de notas**, como una loopera: en un canal vacío, REC no tiene largo fijo; al cerrarlo, el canal queda en compases completos (1-4) y cada nota guarda lo que la sostuviste.
+- **Largo en compases** en la capa de SEQ (negras 7-10).
+- **Memoria de tomas a la vista:** en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
+
+### Cambiado
+- La página SEQ de los canales de notas es solo de ese canal: piano roll de la página con el largo de cada nota, los compases del canal y el seguidor de tempo punteado. Ya no muestra los otros canales.
+- Las notas grabadas pueden durar hasta 4 compases (antes, 1).
+
 ## [0.3.0] - 2026-10-10
 
 La interfaz 3.0, completa en el emulador. **No lee los patrones, ajustes ni samples de la 0.2:** al primer arranque los borra y empieza con la demo. El port al FM-1 sigue sin probarse en hardware.

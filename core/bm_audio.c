@@ -226,9 +226,16 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         c->d_out = c->d_acc = 0;
         c->gen_blk = 0;
         break;
+    case CMD_BRK_HOLD:
+        if (k->a) { c->brk_live |= 8; bm_brk_hold(c, (uint32_t)k->u.i); }
+        else {
+            c->brk_live &= (uint8_t)~8;
+            for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].active && c->voice[i].track == 1 && c->voice[i].loopv) bm_voice_fade(&c->voice[i]);
+        }
+        break;
     case CMD_BRK_LIVE:
         if ((k->a & 4) && !(c->brk_live & 4)) c->brk_last_off = 0;
-        c->brk_live = k->a;
+        c->brk_live = (uint8_t)((k->a & 7) | (c->brk_live & 8));
         break;
     case CMD_BRK_SLICE:
         bm_live_note(c, 1, (uint8_t)((k->a & 7) | ((k->c & 3) << BRK_SRC_SH)), k->b ? k->b : 110, 1);

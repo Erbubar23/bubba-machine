@@ -139,6 +139,9 @@ button.act:hover { background: #33373d; }
         <button class="act" id="midibtn" type="button" data-i18n="b.midi">Activar MIDI IN</button>
         <button class="act" id="wipe" type="button" data-i18n="b.wipe">Borrar memoria</button>
       </div>
+      <div class="stat"><span data-i18n="hw.takes">Memoria de tomas libre</span><span id="tfree">-</span></div>
+      <div class="meter"><div id="tmeter"></div></div>
+      <div class="stat"><span data-i18n="hw.take1">Máximo por toma</span><span>3.0 s · 48 KB</span></div>
       <p id="msg" style="color:var(--yellow)"></p>
     </div>
   </aside>
@@ -184,6 +187,8 @@ button.act:hover { background: #33373d; }
     'hw.spi': 'SPI to the screen (per frame)',
     'hw.budget': 'Budget at 12 MHz',
     'hw.writes': 'Flash writes',
+    'hw.takes': 'Free take memory',
+    'hw.take1': 'Maximum per take',
     'h.smp': 'Sampler and memory',
     smp: 'On the FM-1 the recorder (GRABADORA) records the mix (REC on T2): up to 3 s per take and 8.1 s in total. Here you can also load audio as a new take; it is set to the current tempo and cut into 8 equal slices. Use it from T2 &gt; TOMAS (EDIT 2 s): N1 = loop A, N2 = loop B, EDIT = slice.',
     'b.wava': 'WAV to TAKES',
@@ -238,7 +243,13 @@ button.act:hover { background: #33373d; }
     if (saved) REG.forEach(([lo], i) => M.HEAPU8.set(unb64(saved[i]), flashPtr + lo));
   } catch (e) { /* sin almacenamiento: arranca vacío */ }
   let lastWrites = 0;
+  const showTakes = () => {
+    const free = M._bm_web_takes_free(), total = M._bm_web_takes_total();
+    document.getElementById('tfree').textContent = (free / 16000).toFixed(1) + ' s · ' + Math.round(free / 1024) + ' KB / ' + (total / 16000).toFixed(1) + ' s';
+    document.getElementById('tmeter').style.width = (100 * (total - free) / total) + '%';
+  };
   const persist = () => {
+    showTakes();
     const w = M._bm_web_flash_writes();
     document.getElementById('fw').textContent = w;
     if (w === lastWrites) return;

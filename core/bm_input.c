@@ -535,7 +535,7 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         snprintf(title, (size_t)cap, "LARGO Y VELOCIDAD");
         *color = bm_track_color(t);
         *h1 = "BLANCA = LARGO - NEGRAS 1-6 = VELOCIDAD";
-        *h2 = "OCT-/OCT+ = LARGOS 17-64 - 2 S = TIEMPO";
+        *h2 = "NEGRAS 7-10 = 1-4 COMPASES - OCT-/+ = 17-64";
         int len = bm_trk_len(&a->pat, t, kind == KIND_NOTE ? -1 : (t == 1 ? 0 : tr_lane(a)));
         for (int w = 0; w < 16; w++) {
             int v = a->len_page * 16 + w + 1;
@@ -544,6 +544,8 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         }
         static const char *const SP[SPD_COUNT] = {"X2", "3/2", "X1", "3/4", "1/2", "1/4"};
         for (int s = 0; s < SPD_COUNT; s++) KB(K, s, SP[s], a->pat.trk[t].speed == s ? LED_ON : LED_DIM, C_WHITE);
+        int spb = BM_BAR_TICKS / bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
+        for (int c = 1; c <= 4; c++) { snprintf(b, sizeof b, "%dC", c); KB(K, 5 + c, b, len == c * spb ? LED_ON : LED_DIM, C_YELLOW); }
         return;
     }
     case L_ERASE:
@@ -1086,6 +1088,56 @@ static void song_delete(bm_app *a)
     a->song_dirty = 1; a->t_edit = a->now;
 }
 
+/* Grabación libre (como una loopera): en un canal de notas vacío, REC no tiene largo fijo.
+ * Al parar REC, el canal queda con los compases completos que tocaste (1-4) y cada nota
+ * con lo que la sostuviste. */
+static int notes_empty(const bm_app *a, int t)
+{
+    for (int s = 0; s < BM_STEPS; s++)
+        for (int k = 0; k < BM_EVENTS; k++) if (!bm_event_empty(bm_evc(&a->pat, t, s, k))) return 0;
+    return 1;
+}
+
+static void free_rec_start(bm_app *a)
+{
+    int t = a->track;
+    if (app_kind(a, t) != KIND_NOTE || !notes_empty(a, t)) return;
+    a->rec_free = (uint8_t)(t + 1);
+    a->rec_free_t0 = app_playing(a) ? a->ctx.st.btick : 0xFFFFFFFFu;
+    app_set_track(a, t, TRK_OFF(length), BM_STEPS);
+    app_toast(a, "REC LIBRE: REC OTRA VEZ CIERRA");
+}
+
+static void free_rec_close(bm_app *a)
+{
+    int t = a->rec_free - 1;
+    a->rec_free = 0;
+    int spb = BM_BAR_TICKS / bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
+    int bars = 1;
+    if (a->rec_free_t0 != 0xFFFFFFFFu) {
+        uint32_t el = a->ctx.st.btick - a->rec_free_t0;
+        bars = bm_clampi((int)((el + BM_BAR_TICKS / 2) / BM_BAR_TICKS), 1, 4);
+    }
+    int len = bm_clampi(bars * spb, 1, BM_STEPS);
+    /* lo grabado se dobla sobre el largo nuevo, en su mismo lugar del compás */
+    bm_notes *nb = &a->redo.nt;
+    a->redo_track = -1;
+    for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) bm_event_clear(&nb->ev[s][k]);
+    for (int s = 0; s < BM_STEPS; s++)
+        for (int k = 0; k < BM_EVENTS; k++) {
+            const bm_event *e = bm_evc(&a->pat, t, s, k);
+            if (bm_event_empty(e)) continue;
+            int d = s % len;
+            for (int j = 0; j < BM_EVENTS; j++)
+                if (bm_event_empty(&nb->ev[d][j])) { nb->ev[d][j] = *e; break; }
+                else if (nb->ev[d][j].note == e->note) break;
+        }
+    app_push_ptr(a, CMD_TRACK_BULK, (uint8_t)t, nb);
+    app_set_track(a, t, TRK_OFF(length), len);
+    char b[30]; snprintf(b, sizeof b, "T%d: %d COMPAS%s", t + 1, bars, bars > 1 ? "ES" : "");
+    app_toast(a, b);
+}
+
 static void toggle_mute(bm_app *a, int t)
 {
     app_set_track(a, t, TRK_OFF(mute), a->pat.trk[t].mute ? 0 : 1);
@@ -1159,7 +1211,7 @@ static void key_release(bm_app *a, int k, int w, int b)
         if (app_kind(a, t) == KIND_NOTE) for (int i = 0; i < a->key_nn[k]; i++) app_push(a, CMD_NOTE_OFF, (uint8_t)t, a->key_notes[k][i], 0);
         if (a->key_rec_step[k] >= 0 && a->key_rec_slot[k] >= 0 && app_kind(a, t) == KIND_NOTE) {
             int tps = bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
-            int steps = bm_clampi((int)((a->ctx.st.rtick - a->key_rec_tick[k] + (uint32_t)tps / 2) / (uint32_t)tps), 1, 16);
+            int steps = bm_clampi((int)((a->ctx.st.rtick - a->key_rec_tick[k] + (uint32_t)tps / 2) / (uint32_t)tps), 1, BM_STEPS);   /* lo que la sostuviste */
             int s = a->key_rec_step[k];
             for (int e = 0; e < BM_EVENTS; e++) {
                 bm_event ev = *bm_evc(&a->pat, t, s, e);
@@ -1211,7 +1263,10 @@ static void layer_key(bm_app *a, int k, int w, int b)
     case L_HOME: home_key(a, k, w, b); return;
     case L_LEN:
         if (w >= 0) set_len(a, t, a->len_page * 16 + w + 1);
-        else if (b < SPD_COUNT) {
+        else if (b >= 6 && b <= 9) {                                 /* compases completos */
+            int spb = BM_BAR_TICKS / bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
+            set_len(a, t, (b - 5) * spb);
+        } else if (b < SPD_COUNT) {
             app_set_track(a, t, TRK_OFF(speed), b);
             char s[24]; snprintf(s, sizeof s, "T%d VELOCIDAD %s", t + 1, bm_speed_names[b]);
             app_toast(a, s);
@@ -1666,6 +1721,8 @@ void app_on_gesture(void *u, int id, bm_gkind k)
                 app_push(a, CMD_REC, a->rec, 0, 0);
                 if (a->rec) app_undo_snapshot(a, a->track);
                 app_toast(a, a->rec ? "REC ON" : "REC OFF");
+                if (a->rec) free_rec_start(a);
+                else if (a->rec_free) free_rec_close(a);
             }
         } else if (k == G_HOLD) {                           /* grabar solo mientras lo sostienes */
             if (a->view == V_CH && a->page == PG_REC) {     /* en la GRABADORA: la mezcla, ya */
@@ -2509,6 +2566,18 @@ void app_input_tick(bm_app *a)
 {
     uint32_t now = a->now;
     if (a->held_white >= 0 && !a->held_long && now - a->step_t0 >= UI_HOLD_MS) a->held_long = 1;
+    if (a->rec_free && a->rec_free_t0 == 0xFFFFFFFFu && app_playing(a)) a->rec_free_t0 = a->ctx.st.btick;   /* empieza con PLAY */
+    bool brk_held = a->view == V_CH && a->page == PG_SEQ && a->track == 1 && a->held_step >= 0 && a->held_long && !a->layer;
+    if (brk_held && !a->hold_play) {                          /* sampler: el loop suena desde el paso sostenido */
+        const bm_smp_src *m = &a->ctx.smp[0];
+        int spl = 16 * (m->bars ? m->bars : 1);
+        uint32_t pos = (uint32_t)((uint64_t)m->len * (uint32_t)(a->held_step % spl) / (uint32_t)spl);
+        app_push_i(a, CMD_BRK_HOLD, 1, 0, 0, (int32_t)pos);
+        a->hold_play = 1;
+    } else if (!brk_held && a->hold_play) {
+        app_push(a, CMD_BRK_HOLD, 0, 0, 0);
+        a->hold_play = 0;
+    }
     for (int k = 0; k < BM_KEYS; k++) {
         if (!a->keys_down[k] || !a->key_t0[k] || now - a->key_t0[k] < UI_HOLD_MS) continue;
         if (a->key_role[k] == ROLE_LMUTE && !a->layer && bm_is_tr(&a->pat, a->track)) a->layer = L_LANEMUTE;

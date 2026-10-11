@@ -44,6 +44,23 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="unreleased">[Unreleased]</h2>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Sampler:</strong> holding a step plays the loop from there, whole and looping, while you hold it.
+</li><li>
+<strong>Free recording on note tracks</strong>, like a looper: on an empty track, REC has no fixed length; when you close it, the track gets whole bars (1-4) and every note keeps how long you held it.
+</li><li>
+<strong>Length in bars</strong> on the SEQ layer (black 7-10).
+</li><li>
+<strong>Take memory in view:</strong> on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+The SEQ page of note tracks is only about that track: a piano roll of the page with each note's length, the track's bars and the dotted tempo follower. It no longer shows the other tracks.
+</li><li>
+Recorded notes can last up to 4 bars (before, 1).
+</li></ul>
 <h2 id="030---2026-10-10"><a href="https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0">0.3.0</a> - 2026-10-10</h2>
 <p>Interface 3.0, complete in the emulator. <strong>It does not read 0.2 patterns, settings or samples:</strong> on first boot it erases them and starts with the demo. The FM-1 port is still untested on hardware.</p>
 <h3 id="added">Added</h3>

@@ -224,7 +224,7 @@ static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel
     memcpy(v->lk, lk, 4);
     v->active = 1; v->track = 1; v->note = (uint8_t)sl; v->vel = vel;
     v->stage = ENV_DEC; v->gate = 1; v->fade = 0; v->pend = 0; v->age = ++c->age;
-    v->sound = (uint8_t)sl; v->src = (uint8_t)src; v->dir = (note & BRK_REV) ? 1 : 0;
+    v->sound = (uint8_t)sl; v->src = (uint8_t)src; v->dir = (note & BRK_REV) ? 1 : 0; v->loopv = 0;
     v->gain = m->gain ? m->gain : 64;
     uint32_t ratio = bm_brk_rate(c, m);
     if (note & BRK_HALF) ratio >>= 1;
@@ -257,6 +257,28 @@ static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel)
 
 static void smp_note_off(bm_engine *e, uint8_t note) { (void)e; (void)note; }
 
+/* Paso sostenido: el loop A suena entero desde pos y vuelve a empezar, hasta que se suelta. */
+void bm_brk_hold(bm_ctx *c, uint32_t pos)
+{
+    const bm_smp_src *m = &c->smp[0];
+    if (!m->len || !m->data || c->smp_rec) return;
+    for (int i = 0; i < BM_VOICES; i++)
+        if (c->voice[i].active && c->voice[i].track == 1) bm_voice_fade(&c->voice[i]);
+    uint8_t lk[4] = {BM_LOCK_NONE, BM_LOCK_NONE, BM_LOCK_NONE, BM_LOCK_NONE};
+    bm_voice *v = NULL;
+    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N && !v; i++) if (!c->voice[i].active && !c->voice[i].pend) v = &c->voice[i];
+    if (!v) v = bm_voice_get(c, 1, 0, 110, lk, 0);
+    if (!v) return;
+    memcpy(v->lk, lk, 4);
+    v->active = 1; v->track = 1; v->note = 0; v->vel = 110; v->stage = ENV_DEC; v->gate = 1;
+    v->fade = 0; v->pend = 0; v->age = ++c->age; v->sound = 0; v->src = 0; v->dir = 0; v->loopv = 1;
+    v->gain = m->gain ? m->gain : 64;
+    v->step = (uint32_t)(((uint64_t)c->smp_base_inc * bm_brk_rate(c, m)) >> 16);
+    v->start = 0; v->end = m->len;
+    v->pos = (pos < m->len ? pos : 0) << 16;
+    v->env = 1 << 30; v->lp = 0;
+}
+
 static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
 {
     bm_ctx *c = e->ctx;
@@ -274,18 +296,19 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
         uint32_t span = v->end - v->start;
         for (uint16_t i = 0; i < frames && v->active; i++) {
             uint32_t off = v->pos >> 16;
+            if (off >= span && v->loopv) { v->pos -= span << 16; off = v->pos >> 16; }   /* vuelve al principio */
             if (off >= span) { v->active = 0; v->pend = 0; break; }
             int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
             int32_t s;
             if (herm && !v->dir) s = hermite(smp_at(m, idx - 1), smp_at(m, idx), smp_at(m, idx + 1), smp_at(m, idx + 2), v->pos & 0xFFFF);
             else s = smp_at(m, idx);
             v->lp += ((s - v->lp) * a) >> 15;
-            v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
+            if (!v->loopv) v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
             int32_t out = (int32_t)(((int64_t)v->lp * (v->env >> 14)) >> 16);
             out = ((out * v->vel) >> 7) * v->gain >> 6;
             /* micro-fade de salida al final del slice para que no haga click */
             uint32_t left = span - off;
-            if (left < 64) out = out * (int32_t)left / 64;
+            if (left < 64 && !v->loopv) out = out * (int32_t)left / 64;
             int fading = v->fade != 0;
             buf[i] += voice_fade_step(c, v, out);
             if (fading && v->fade == 0) break;     /* la voz cambió de dueño o terminó */

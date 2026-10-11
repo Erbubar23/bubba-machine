@@ -2,6 +2,18 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [Unreleased]
+
+### Added
+- **Sampler:** holding a step plays the loop from there, whole and looping, while you hold it.
+- **Free recording on note tracks**, like a looper: on an empty track, REC has no fixed length; when you close it, the track gets whole bars (1-4) and every note keeps how long you held it.
+- **Length in bars** on the SEQ layer (black 7-10).
+- **Take memory in view:** on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
+
+### Changed
+- The SEQ page of note tracks is only about that track: a piano roll of the page with each note's length, the track's bars and the dotted tempo follower. It no longer shows the other tracks.
+- Recorded notes can last up to 4 bars (before, 1).
+
 ## [0.3.0] - 2026-10-10
 
 Interface 3.0, complete in the emulator. **It does not read 0.2 patterns, settings or samples:** on first boot it erases them and starts with the demo. The FM-1 port is still untested on hardware.

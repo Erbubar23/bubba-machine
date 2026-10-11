@@ -130,6 +130,9 @@ typedef struct bm_app {
     uint8_t key_role[BM_KEYS];    /* qué hizo la tecla al bajar (para soltarla bien) */
     uint16_t home_done;
     uint8_t eng_pending, rec_now, solo_mask;
+    uint8_t hold_play;            /* sampler: un paso sostenido está haciendo sonar el loop */
+    uint8_t rec_free;             /* canal + 1 que graba en libre: el largo se cierra al parar REC */
+    uint32_t rec_free_t0;         /* btick del inicio (0xFFFFFFFF = empieza con PLAY) */
     uint8_t chord_mod;
     int8_t last_pad;
     uint8_t prev_chord[4], prev_chord_n;

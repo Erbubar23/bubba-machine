@@ -121,6 +121,7 @@ The idea comes from X0X's BREAK (a loop in slices that a generator reorders), wi
 | Control | Does |
 |---|---|
 | **White key** | Silence ↔ generator. On a pinned step, gives it back to the generator |
+| **White key held** | The loop plays from that step, whole and looping, while you hold it (the sampler's sequencer goes quiet). Useful to hear where you are before pinning a slice |
 | **White held + black 1-8** | Pins that step to that slice |
 | **Black 1-8** | Play that slice. With REC held they are written as pinned steps |
 | **Black 9 · 10 · 11** | Reverse · half speed · STUTTER, while held |
@@ -142,14 +143,19 @@ The generator decides each bar with a seed: the SUENA row is exactly what is goi
 Recording, keeping and slicing are three screens, one job each.
 
 1. **GRABAR** (record): REC on T2 opens the recorder **armed**. It starts at the next bar (K1 = INICIO: COMPAS = bar, or YA = now). A big number says the seconds **left**: the smaller of the recording RAM (3 s) and the free take memory. White lines mark how many bars fit and the amber one is the limit. REC again = stop; it also stops by itself at the limit. Holding REC on the recorder records only while held.
+   - Below the number: the free take memory in seconds and KB, and the maximum per take (3 s).
    - While recording **the keys are silent** and the delay and buffer-based punch-ins pause (they share the memory).
    - The take stays **SIN GUARDAR** (unsaved) and already plays as loop A. **It is saved when you stop** the transport, because writing flash stops the audio. HOME = discard.
 2. **TOMAS** (takes; EDIT 2 s on T2, or the tab): the library, with the factory loops (FAB) first. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys 1-8 play its slices. **N1** = use as loop A, **N2** = as loop B, **N11** = delete (asks). At the bottom, the free memory out of 8.1 s.
+**How much fits:** each take, up to 3 s (the recording RAM, 48 KB); all together, about 8.1 s (128 KiB of flash, 8 bits at 16 kHz = 16 KB per second). Factory loops don't use that space. The emulator shows the free memory next to the button for loading audio.
+
 3. **CORTAR** (slice; EDIT on a take): **white keys** set or remove a cut on that eighth note, **black 9** puts the cuts on the hits and **black 10** goes back to 8 equal parts. Black 1-8 play each slice. SELECT or K1 pick the cut, K2 moves it, K3 = zoom, K4 = snap to 1/16 or 1/8. It is saved when you leave.
 
 ## Note tracks (T3 and SYNTH, MONO, MIDI)
 
-- **SEQ:** white keys are the steps (up to 4 notes per step). **Hold a step** and play **black 1-8** to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
+- **SEQ:** the page is only about this track. On top, the page's 16 steps as a **piano roll**: each note at its pitch and with its length; white keys are those steps (up to 4 notes per step). Below, the track's bars and the **dotted tempo follower**. **Hold a step** and play **black 1-8** to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
+- **Free recording, like a looper:** on an **empty** note track, REC records with no fixed length (the screen says REC LIBRE and counts the bars). REC again closes it: the track keeps the whole bars you played (1 to 4) and **every note keeps how long you held it** (up to 4 bars). If the track already has notes, REC records over it with its length.
+- **Length in bars:** SEQ held + black 7-10 = 1, 2, 3 or 4 bars.
 - **Held step + knobs:** K1-K4 = P-Lock · SELECT = hit (NORMAL › ACENTO = accent › FANTASMA = ghost) · ALGORITHM = probability or fill · PRESETS = length or LIGA (tie, glide).
 - **SONIDO** (sound): K1 = wave position, K2-K3 = filter, K4 = accent. PRESETS = wave bank.
 - **LOOP (SEQ again):** unquantized looper. K1 ON/OFF · K2 bars (1, 2 or 4). **REC** arms (starts at the bar) › when the loop closes it goes to PLAY › REC again: OVERDUB › REC: PLAY. **REC 2 s** erases the loop.
@@ -162,7 +168,7 @@ While you hold, the screen draws the keyboard with what each key does and its LE
 | Hold | Layer | The keys |
 |---|---|---|
 | **HOME** | Controller | White = queue pattern · black 1-6 = mute / solo · 7-10 = scenes · 11 = FILL. ALGORITHM = go to a track when you let go |
-| **SEQ** | Length and speed | White = track length (1-16; OCT−/+ = 17-64) · black 1-6 = speed ×2 to ×1/4 |
+| **SEQ** | Length and speed | White = track length (1-16; OCT−/+ = 17-64) · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars |
 | **EDIT** | Erase | Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the track · sampler: black 4 = CAPTURAR · OCT−/+ = undo / redo |
 | **ENV** | Accent | White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACENTO › FANTASMA). K1 = how much accent |
 | **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide) |

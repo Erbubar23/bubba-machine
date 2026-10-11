@@ -47,6 +47,7 @@ typedef enum {
     CMD_ENGINE,         /* a=canal libre b=motor (borra sus notas) */
     CMD_PCHAIN,         /* a=largo, ptr=uint8_t[8] patrones (dos blancas en HOME) */
     CMD_MIDI_SEND,      /* a,b,c = bytes MIDI de salida (b o c = 0xFF: no se mandan) */
+    CMD_BRK_HOLD,       /* a=1: el loop A suena desde la muestra i hasta que llega a=0 (paso sostenido) */
     CMD_MASTER,         /* i=0..1023 */
     CMD_DRIVE,          /* a=0..127 */
     CMD_SYNC,           /* a=modo b=ppqn c=latencia ms */
@@ -149,6 +150,7 @@ typedef struct {
     int32_t lp;
     uint8_t sound, choke;
     uint8_t dir, src, gain;      /* sampler: 1 = reversa, fuente (0 A, 1 B, 2 escucha), ganancia de la toma */
+    uint8_t loopv;               /* sampler: el loop sigue sonando entero, en bucle (paso sostenido) */
 } bm_voice;
 
 struct bm_ctx;
@@ -258,7 +260,7 @@ typedef struct bm_ctx {
     uint8_t smp_rec, smp_armed;
     uint32_t smp_rec_pos, smp_dec_acc, smp_cap;
     int32_t smp_lp;
-    uint8_t brk_live;            /* negras 9-11: reversa, media velocidad, stutter */
+    uint8_t brk_live;            /* negras 9-11: reversa, media velocidad, stutter · 8 = paso sostenido */
     uint8_t brk_next_flags;      /* para el próximo note_on del sampler */
     uint16_t brk_next_off;       /* posición dentro del slice, Q16 */
     uint8_t brk_last, brk_last_flags;
@@ -300,5 +302,6 @@ int  bm_vel(const bm_ctx *c, int t, int acc);     /* velocidad de un paso normal
 void bm_pchain_cmd(bm_ctx *c, const uint8_t *list, int n);
 void bm_smp_rec_start(bm_ctx *c);
 void bm_smp_rec_stop(bm_ctx *c);                 /* la toma queda como loop A, sin guardar */
+void bm_brk_hold(bm_ctx *c, uint32_t pos);       /* el loop A desde pos, sin parar, hasta soltar */
 
 #endif

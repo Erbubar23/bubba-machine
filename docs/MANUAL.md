@@ -119,6 +119,7 @@ La idea viene del BREAK de X0X (un loop en slices que un generador reordena), co
 | Control | Hace |
 |---|---|
 | **Blanca** | Silencio ↔ generador. En un paso fijo, lo suelta al generador |
+| **Blanca sostenida** | El loop suena desde ese paso, entero y en bucle, mientras la sostienes (el secuenciador del sampler se calla). Sirve para escuchar dónde estás antes de fijar un slice |
 | **Blanca sostenida + negra 1-8** | Fija ese paso a ese slice |
 | **Negras 1-8** | Tocan ese slice. Con REC sostenido se escriben como pasos fijos |
 | **Negras 9 · 10 · 11** | Reversa · media velocidad · STUTTER, mientras las sostienes |
@@ -140,14 +141,19 @@ El generador decide cada compás con una semilla: la fila SUENA es exactamente l
 Grabar, guardar y cortar son tres pantallas, una tarea cada una.
 
 1. **GRABAR:** REC en T2 abre la grabadora **armada**. Empieza en el siguiente compás (K1 = INICIO: COMPÁS o YA). Un número grande dice los segundos que **quedan**: el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Las rayas blancas marcan cuántos compases caben y la ámbar, el tope. REC otra vez = parar; también se para sola en el tope. Mantener REC en la grabadora graba solo mientras lo sostienes.
+   - Debajo del número: la memoria libre de tomas en segundos y KB, y el máximo por toma (3 s).
    - Mientras graba, **las teclas no suenan** y el delay y los punch-in con buffer se pausan (comparten la memoria).
    - La toma queda **SIN GUARDAR** y ya suena como loop A. **Se guarda al parar** el transporte, porque escribir la flash detiene el audio. HOME = descartar.
 2. **TOMAS** (EDIT 2 s en T2, o la pestaña): la biblioteca, con los loops de fábrica (FAB) primero. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas 1-8 escuchan sus slices. **N1** = usar como loop A, **N2** = como loop B, **N11** = borrar (pregunta). Abajo, la memoria libre de 8.1 s.
+**Cuánto cabe:** cada toma, hasta 3 s (la RAM de grabación, 48 KB); todas juntas, unos 8.1 s (128 KiB de flash, 8 bits a 16 kHz = 16 KB por segundo). Los loops de fábrica no gastan ese espacio. El emulador muestra la memoria libre junto al botón para cargar audio.
+
 3. **CORTAR** (EDIT sobre una toma): las **blancas** ponen o quitan un corte en esa corchea, la **negra 9** pone los cortes en los golpes y la **10** vuelve a 8 partes iguales. Las negras 1-8 escuchan cada slice. SELECT o K1 eligen el corte, K2 lo mueve, K3 = zoom, K4 = pegar a 1/16 o 1/8. Se guarda al salir.
 
 ## Canales de notas (T3 y SYNTH, MONO, MIDI)
 
-- **SEQ:** las blancas son los pasos (hasta 4 notas por paso). **Mantener un paso** y tocar **negras 1-8** escribe esas notas de la escala del canal (otra vez la misma: la quita). Negras 9 y 10 bajan o suben su octava; 11 = FILL.
+- **SEQ:** la página es solo del canal. Arriba, los 16 pasos de la página como **piano roll**: cada nota a su altura y con lo que dura; las blancas son esos pasos (hasta 4 notas por paso). Abajo, los compases del canal y el **seguidor de tempo punteado**. **Mantener un paso** y tocar **negras 1-8** escribe esas notas de la escala del canal (otra vez la misma: la quita). Negras 9 y 10 bajan o suben su octava; 11 = FILL.
+- **Grabación libre, como una loopera:** en un canal de notas **vacío**, REC graba sin largo fijo (la pantalla dice REC LIBRE y cuenta los compases). REC otra vez lo cierra: el canal queda con los compases completos que tocaste (1 a 4) y **cada nota con lo que la sostuviste** (hasta 4 compases). Si el canal ya tiene notas, REC graba encima con su largo.
+- **Largo en compases:** SEQ sostenido + negras 7-10 = 1, 2, 3 o 4 compases.
 - **Paso sostenido + perillas:** K1-K4 = P-Lock · SELECT = golpe (NORMAL › ACENTO › FANTASMA) · ALGORITHM = probabilidad o fill · PRESETS = largo o LIGA (glide).
 - **SONIDO:** K1 = posición de la onda, K2-K3 = filtro, K4 = acento. PRESETS = banco de ondas.
 - **LOOP (SEQ otra vez):** loopera sin cuantizar. K1 ON/OFF · K2 compases (1, 2 o 4). **REC** arma (empieza en el compás) › al cerrar pasa a PLAY › REC otra vez: OVERDUB › REC: PLAY. **REC 2 s** borra el loop.
@@ -160,7 +166,7 @@ Mientras sostienes, la pantalla dibuja el teclado con lo que hace cada tecla y s
 | Mantener | Capa | Las teclas |
 |---|---|---|
 | **HOME** | Controlador | Blancas = patrón en cola · negras 1-6 = mute / solo · 7-10 = escenas · 11 = FILL. ALGORITHM = ir a un canal al soltar |
-| **SEQ** | Largo y velocidad | Blanca = largo del canal (1-16; OCT−/+ = 17-64) · negras 1-6 = velocidad ×2 a ×1/4 |
+| **SEQ** | Largo y velocidad | Blanca = largo del canal (1-16; OCT−/+ = 17-64) · negras 1-6 = velocidad ×2 a ×1/4 · negras 7-10 = 1-4 compases |
 | **EDIT** | Borrar | Sonando: mantener una blanca borra lo que pasa bajo el cabezal; parado: borra la línea o el paso · negras 1-3 = copiar, pegar, limpiar el canal · sampler: negra 4 = CAPTURAR · OCT−/+ = deshacer / rehacer |
 | **ENV** | Acento | Blanca = acento sí / no (paso vacío = nuevo con acento; en notas: NORMAL › ACENTO › FANTASMA). K1 = cuánto acento |
 | **LFO** | Repetir · ligar | Rejillas: blanca = ×1 › ×2 › ×3 › ×4 › FLAM. Notas: blanca = liga la nota con la siguiente (K1 = glide) |

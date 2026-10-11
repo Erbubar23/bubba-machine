@@ -626,6 +626,21 @@ static void test_sampler3(void)
     CHECK(bm_brk_step(&app.pat.tr[1], 3, NULL) == 7);        /* paso 4 fijo al slice 7 */
     white(3, 40);
     CHECK(bm_brk_step(&app.pat.tr[1], 3, NULL) == 0);        /* fijo -> vuelve al generador */
+    /* mantener un paso: el loop suena desde ahí mientras lo sostienes */
+    kdown(bm_white_key(8)); run_ms(500);
+    int held = 0;
+    for (int i = 0; i < BM_VOICES; i++) if (app.ctx.voice[i].active && app.ctx.voice[i].track == 1 && app.ctx.voice[i].loopv) held = 1;
+    CHECK(held && (app.ctx.brk_live & 8) && app.hold_play);
+    run_ms(2500);                                             /* más largo que el loop: sigue en bucle */
+    held = 0;
+    for (int i = 0; i < BM_VOICES; i++) if (app.ctx.voice[i].active && app.ctx.voice[i].track == 1 && app.ctx.voice[i].loopv) held = 1;
+    CHECK(held);
+    shot("31c-sampler-hold");
+    kup(bm_white_key(8)); run_ms(100);
+    held = 0;
+    for (int i = 0; i < BM_VOICES; i++) if (app.ctx.voice[i].active && app.ctx.voice[i].track == 1 && app.ctx.voice[i].loopv) held = 1;
+    CHECK(!held && !(app.ctx.brk_live & 8) && !app.hold_play);
+    CHECK(bm_brk_step(&app.pat.tr[1], 8, NULL) == 0);        /* sostener no cambia el paso */
     /* tocar slices y efectos en vivo */
     black(2, 40);
     CHECK(app.ctx.st.brk_slice == 2);
@@ -747,6 +762,40 @@ static void test_recorder(void)
     btn(BTN_PLAY, 20);
 }
 
+static void test_free_rec(void)
+{
+    printf("grabación libre: el largo se cierra en compases y cada nota guarda lo que se sostuvo\n");
+    boot(1);
+    ch(5);
+    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);       /* vaciar T6 */
+    btn(BTN_OCT_UP, 20);
+    page(BTN_EDIT, PG_SOUND);
+    btn(BTN_PLAY, 20); run_ms(200);
+    btn(BTN_REC, 30);
+    CHECK(app.rec && app.rec_free == 6 && app.pat.trk[5].length == 64);
+    uint32_t bar = 60000u * 4u / 112u;                           /* ms por compás a 112 BPM */
+    key(bm_white_key(4), 600);                                  /* nota larga */
+    run_ms(bar / 2);
+    key(bm_white_key(7), 150);
+    run_ms(bar + bar / 4);
+    shot("51-seq-free-rec");
+    btn(BTN_REC, 30);                                           /* cierra: unos 2 compases */
+    run_ms(100);
+    CHECK(!app.rec && !app.rec_free && app.pat.trk[5].length == 32);
+    int n = 0, longest = 0;
+    for (int s = 0; s < BM_STEPS; s++)
+        for (int k = 0; k < BM_EVENTS; k++) {
+            const bm_event *e = bm_evc(&app.pat, 5, s, k);
+            if (bm_event_empty(e)) continue;
+            n++;
+            if ((int)(e->len & BM_LEN_MASK) > longest) longest = (int)(e->len & BM_LEN_MASK);
+        }
+    CHECK(n >= 2 && longest >= 4);                              /* la nota larga dura lo que se sostuvo */
+    page(BTN_SEQ, PG_SEQ);
+    shot("52-seq-notes-roll");
+    btn(BTN_PLAY, 20);
+}
+
 static void test_loop(void)
 {
     printf("loopera: graba, cierra y vuelve a sonar\n");
@@ -788,6 +837,10 @@ static void test_notes(void)
         if (!bm_event_empty(e)) { n++; if (e->vel == BM_VEL_ACC) acc++; }
     }
     CHECK(n == 2 && acc == 2);
+    /* capa LARGO: negras 7-10 = compases completos */
+    down(BTN_SEQ); run_ms(400); black(7, 40); up(BTN_SEQ); run_ms(60);
+    CHECK(app.pat.trk[2].length == 32);
+    shot("06b-seq-notes");
     /* REC sostenido: graba solo mientras lo sostienes */
     btn(BTN_PLAY, 20); run_ms(200);
     down(BTN_REC); run_ms(400);
@@ -969,6 +1022,7 @@ int main(int argc, char **argv)
     test_recorder();
     test_loop();
     test_notes();
+    test_free_rec();
     test_demo_and_persist();
     test_old_version();
     test_spi_budget();

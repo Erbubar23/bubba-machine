@@ -58,6 +58,8 @@ static struct {
 
 static bm_screen scr;
 
+void fm1_paso(const char *c) { (void)c; }
+
 static void txt(bm_gfx *g, int x, int y, const char *s, uint16_t c) { gfx_text(g, x, y, s, c, 1); }
 
 static void num(char *b, int v)

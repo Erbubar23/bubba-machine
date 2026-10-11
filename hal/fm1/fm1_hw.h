@@ -61,7 +61,12 @@ enum {
 int  fm1_flash_init(void);
 void fm1_flash_plain_window(void);
 void fm1_quiet(int on);
-void fm1_miga(const char *c);                             /* paso actual, en una esquina de la pantalla */                                   /* pausa barrido y audio mientras se escribe la flash */                        /* la zona de datos se lee sin descifrar por XIP */
+void fm1_miga(const char *c);                             /* paso actual, en una esquina de la pantalla */
+void fm1_paso(const char *c);                             /* sub-paso (sin dibujar): dentro de la pantalla, la flash… */
+void fm1_latido(void);                                    /* el bucle principal sigue vivo */
+void fm1_perro(int on);                                   /* perro guardián del bucle (apagado en actualizaciones) */
+int  fm1_cuelgue_previo(char out[5]);                     /* lo que anotó el perro antes de reiniciar, 0 si nada */
+void fm1_boot_note(const char c[4]);                      /* anota 4 caracteres en el registro de este arranque */                                   /* pausa barrido y audio mientras se escribe la flash */                        /* la zona de datos se lee sin descifrar por XIP */
 int  fm1_flash_read(uint32_t a, void *d, uint32_t n);
 int  fm1_flash_erase(uint32_t a);                         /* sector de 4 KiB */
 int  fm1_flash_prog(uint32_t a, const void *s, uint32_t n);

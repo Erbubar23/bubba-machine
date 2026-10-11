@@ -109,14 +109,61 @@ static uint8_t filas_led(uint32_t c, uint32_t v, uint8_t *todas)
     return lleno;
 }
 
+/* Perro guardián del bucle principal. Si el bucle no late en 3 s, se anotan la miga y el
+ * sub-paso en los últimos 8 bytes del bloque del SDK para actualizaciones (UPDATA_BEG + 120 =
+ * 0x01C7FDF8: el registro de actualización ocupa 8 + 112 bytes; esa RAM sobrevive a un reinicio
+ * por software, igual que la marca del modo del chip) y se reinicia. El próximo arranque lo
+ * anota y lo muestra la consola. Así un cuelgue se recupera solo y dice dónde fue. */
+#define PERRO_ADR  0x01C7FDF8u
+#define PERRO_MAG  0xB0BAu
+volatile char fm1_miga_act[4] = {'-', '-', '-', '-'};
+static volatile uint32_t latido, perro_on;
+static uint32_t visto, quieto;
+
+void fm1_latido(void) { latido++; }
+void fm1_perro(int on) { perro_on = (uint32_t)on; quieto = 0; }
+
+static void perro(void)
+{
+    if (!perro_on || latido != visto) {
+        visto = latido;
+        quieto = 0;
+        return;
+    }
+    if (++quieto < 3u)
+        return;
+    volatile uint8_t *m = (volatile uint8_t *)PERRO_ADR;
+    m[0] = (uint8_t)PERRO_MAG; m[1] = (uint8_t)(PERRO_MAG >> 8);
+    for (int i = 0; i < 4; i++)
+        m[2 + i] = (uint8_t)fm1_miga_act[i];
+    m[6] = m[7] = 0;
+    cpu_reset();
+}
+
+int fm1_cuelgue_previo(char out[5])
+{
+    volatile uint8_t *m = (volatile uint8_t *)PERRO_ADR;
+    int hay = m[0] == (uint8_t)PERRO_MAG && m[1] == (uint8_t)(PERRO_MAG >> 8);
+    if (hay)
+        for (int i = 0; i < 4; i++)
+            out[i] = (char)m[2 + i];
+    out[4] = 0;
+    m[0] = m[1] = 0;
+    return hay;
+}
+
 static ___interrupt void scan_isr(void)
 {
     if (!(JL_TIMER5->CON & BIT(15)))
         return;
     JL_TIMER5->CON |= BIT(14);
     isr_n++;
+    /* el tramo siguiente se mide desde ahora: si la interrupción llegó tarde (USB o flash con las
+     * interrupciones apagadas), la cuenta ya habría pasado el límite y el temporizador seguiría
+     * hasta dar la vuelta (en el aparato el barrido bajó a ~180 columnas/s después de PLAY) */
+    JL_TIMER5->CNT = 0;
     if (tramo == 1) {                         /* últimos ~31 us de la columna: se suman los tenues */
-        JL_TIMER5->PRD = prd_tenue;           /* primero el tiempo: la cuenta ya corre */
+        JL_TIMER5->PRD = prd_tenue;
         leds(leds_llenos | leds_tenues);
         tramo = 0;
         return;
@@ -128,6 +175,8 @@ static ___interrupt void scan_isr(void)
     ticks++;
     if (sig == 0)
         vueltas++;
+    if ((ticks & 4095u) == 0)                 /* ~1 vez por segundo */
+        perro();
     leds_llenos = filas_led(sig, vueltas, &todas);
     leds_tenues = (uint8_t)(todas & ~leds_llenos);
     leds(leds_llenos);

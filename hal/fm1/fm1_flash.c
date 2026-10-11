@@ -28,6 +28,7 @@ static int abierta;
  * siguiente). Por eso se pausan antes y se reanudan después, como hacen Felucca y X0X. */
 __attribute__((weak)) void fm1_quiet(int on) { (void)on; }
 __attribute__((weak)) void fm1_miga(const char *c) { (void)c; }
+__attribute__((weak)) void fm1_paso(const char *c) { (void)c; }
 
 void fm1_flash_plain_window(void)
 {
@@ -73,15 +74,15 @@ int fm1_flash_erase(uint32_t a)
     if ((a & 0xFFFu) || !dentro(a, 0x1000u))
         return -1;
     fm1_flash_init();
-    fm1_miga("E1");
+    fm1_paso("E1");
     fm1_quiet(1);
-    fm1_miga("E2");
+    fm1_paso("E2");
     norflash_ioctl(NULL, IOCTL_SET_WRITE_PROTECT, 0);
     int r = norflash_ioctl(NULL, IOCTL_ERASE_SECTOR, a) < 0 ? -1 : 0;
-    fm1_miga("E3");
+    fm1_paso("E3");
     inval(a, 0x1000u);
     fm1_quiet(0);
-    fm1_miga("E4");
+    fm1_paso("E4");
     return r;
 }
 
@@ -92,15 +93,15 @@ int fm1_flash_prog(uint32_t a, const void *s, uint32_t n)
     if (!dentro(a, n))
         return -1;
     fm1_flash_init();
-    fm1_miga("W1");
+    fm1_paso("W1");
     fm1_quiet(1);
-    fm1_miga("W2");
+    fm1_paso("W2");
     norflash_ioctl(NULL, IOCTL_SET_WRITE_PROTECT, 0);
     int r = norflash_write(NULL, (void *)s, n, a) < 0 ? -1 : 0;
-    fm1_miga("W3");
+    fm1_paso("W3");
     inval(a, n);
     fm1_quiet(0);
-    fm1_miga("W4");
+    fm1_paso("W4");
     return r;
 }
 

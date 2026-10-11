@@ -116,6 +116,14 @@ void fm1_boot_ok(void)
         wr(slot * REC + 1u, 0);
 }
 
+void fm1_boot_note(const char c[4])
+{
+    if (slot >= SLOTS)
+        return;
+    for (int i = 0; i < 4; i++)
+        wr(slot * REC + 4u + (uint32_t)i, (uint8_t)c[i]);
+}
+
 void fm1_boot_stage(int n)                   /* etapa n (1..8) alcanzada en este arranque */
 {
     uint8_t v;

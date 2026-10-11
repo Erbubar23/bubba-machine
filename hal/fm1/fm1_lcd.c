@@ -53,7 +53,9 @@ void fm1_lcd_blit(void *u, int x, int y, int w, int h, const uint16_t *px)
         return;
     if (filas < 1)
         filas = 1;
+    fm1_paso("S1");
     ventana(x, y, x + w - 1, y + h - 1);
+    fm1_paso("S2");
     for (r = 0; r < h; r += filas) {
         int n = (h - r < filas ? h - r : filas) * w;
         const uint16_t *s = px + r * w;
@@ -63,6 +65,7 @@ void fm1_lcd_blit(void *u, int x, int y, int w, int h, const uint16_t *px)
         }
         data(tx, (uint32_t)n * 2u);
     }
+    fm1_paso("S0");
 }
 
 void fm1_lcd_init(void)

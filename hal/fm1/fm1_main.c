@@ -137,9 +137,20 @@ static void midi_bombear(void)
  * único que se puede leer). Solo desde la tarea principal: es la que usa la pantalla. */
 static int migas_on;
 
+extern volatile char fm1_miga_act[4];
+
+void fm1_paso(const char *c)
+{
+    fm1_miga_act[2] = c[0];
+    fm1_miga_act[3] = c[1];
+}
+
 void fm1_miga(const char *c)
 {
     static uint16_t px[9 * 12];
+    fm1_miga_act[0] = c[0];
+    fm1_miga_act[1] = c[1];
+    fm1_miga_act[2] = fm1_miga_act[3] = '-';
     if (!migas_on)
         return;
     for (int i = 0; i < 9 * 12; i++)
@@ -237,6 +248,7 @@ static void paso_actualizacion(int step, int code)
     upd_code = code;
     if (modo == FM1_BOOT_NORMAL && !en_actualizacion && step != 9) {
         en_actualizacion = 1;                /* empieza una sesión: silencio y la pantalla es suya */
+        fm1_perro(0);
         fm1_audio_stop();
         fm1_scan_stop();
         scr.force = 1;
@@ -252,6 +264,7 @@ static void paso_actualizacion(int step, int code)
         else
             fm1_audio_start(dma, HALF_FRAMES, render);
         app.scr.force = 1;
+        fm1_perro(1);
     }
 }
 
@@ -458,6 +471,18 @@ static void bubba_task(void *p)
     adc_add_sample_ch(FM1_ADC_MASTER);
     adc_add_sample_ch(FM1_ADC_BATT);
     fm1_boot_stage(E_PANTALLA);
+    {
+        char c[5];
+        if (fm1_cuelgue_previo(c)) {
+            char l[40] = "reinicio por cuelgue en ";
+            for (int i = 0; i < 4; i++) l[24 + i] = c[i];
+            l[28] = 0;
+            fm1_log(l);
+            fm1_boot_note(c);
+            fm1_stat[FM1_STAT_LOOP_MAX] = (uint32_t)(uint8_t)c[0] | (uint32_t)(uint8_t)c[1] << 8 |
+                                          (uint32_t)(uint8_t)c[2] << 16 | (uint32_t)(uint8_t)c[3] << 24;
+        }
+    }
     if (modo == FM1_BOOT_SAFE) {
         modo_seguro();                       /* vuelve solo con PLAY (o el laboratorio) */
         sin_audio = !lab_bubba;
@@ -488,6 +513,7 @@ static void bubba_task(void *p)
     else
         fm1_audio_start(dma, HALF_FRAMES, render);
     fm1_miga("A6");
+    fm1_perro(1);                            /* desde aquí, un bucle quieto 3 s reinicia y lo anota */
     fm1_log(sin_audio ? "audio sin salida" : "audio ALNK0 en marcha");
     fm1_boot_stage(E_AUDIO);
     fm1_miga("A7");
@@ -546,6 +572,7 @@ static void bubba_task(void *p)
         if (t - t0 > 5000u)
             fm1_boot_stage(E_5S);
         fm1_miga("L8");
+        fm1_latido();
         if (!ok && t - t0 > OK_MS) {         /* 10 s andando: este arranque fue bueno */
             fm1_boot_ok();
             ok = 1;

@@ -1,8 +1,8 @@
 [
  {
   "archivo": "bubba-machine-0.3.0.bin",
-  "sha256": "7505ab1e21dcf044926e690c760b0c7a7835309d6e3ae2ba45bdffe57c2e5a44",
-  "bytes": 563972,
+  "sha256": "6c3ec2fdb77db75877dd20551194d51ffdc7f1339d516d6b175dcfee722de2ff",
+  "bytes": 564424,
   "nombre": "Bubba Machine 0.3.0",
   "nombre_en": "Bubba Machine 0.3.0",
   "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. En pruebas.",
@@ -10,8 +10,8 @@
  },
  {
   "archivo": "bubba-diag-0.3.0.bin",
-  "sha256": "f0e93bd7932328cebbddc6558aae511463cac7cf3615d285f0ec200fe463884f",
-  "bytes": 124392,
+  "sha256": "ff89b8fb8db28cd2f7f55d6377aeb75562225285fc6135bc41d30d7e8cabe160",
+  "bytes": 124840,
   "nombre": "Diagnóstico 0.3.0",
   "nombre_en": "Diagnostic 0.3.0",
   "detalle": "Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.",

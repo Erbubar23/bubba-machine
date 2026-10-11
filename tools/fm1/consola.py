@@ -72,6 +72,9 @@ def mostrar(v):
     print('USB: %s | MIDI recibidos %d, enviados %d | arranques fallidos seguidos: %d' % (
         'configurado' if v['usb'] & 1 else ('encendido' if v['usb'] & 2 else 'apagado'), v['midi_in'], v['midi_out'],
         v['fails']))
+    if v['loop_max']:
+        c = v['loop_max'].to_bytes(4, 'little').decode('ascii', 'replace')
+        print('cuelgue antes de este arranque (perro guardián): paso %s, sub-paso %s' % (c[:2], c[2:]))
     for k in range(1, 5):
         x = v['past%d' % k]
         if x >> 24:

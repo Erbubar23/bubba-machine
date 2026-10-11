@@ -7,6 +7,9 @@
   py -3 tools/build.py test     compila y corre las pruebas en PC (gcc) y guarda capturas
   py -3 tools/build.py web      compila el emulador a WebAssembly (web/bm.js)
   py -3 tools/build.py site     genera la documentación del sitio (web/docs/) desde los .md
+  py -3 tools/build.py fm1      compila el núcleo y el port con el compilador de JieLi (pi32v2) y mide
+                                cuánto ocupa. Necesita el toolchain de JieLi en el volumen de Docker
+                                "jieli-opt" (ver hal/fm1/README_PORT.md). No genera nada instalable.
   py -3 tools/build.py all      todo lo anterior
 """
 import glob, os, subprocess, sys
@@ -58,6 +61,47 @@ def web():
     print('emulador listo: abre web/emulador.html')
 
 
+JIELI_VOLUME = 'jieli-opt'
+JIELI_FLAGS = ('-target pi32v2 -integrated-as -mcpu=r3 -mfprev1 -fno-common -Os -fallow-pointer-null '
+               '-fprefer-gnu-section -mllvm -pi32v2-large-program=true -ffunction-sections -fdata-sections '
+               '-std=c99 -Wall -Wno-unused-parameter -I/opt/jieli/pi32v2/include')
+
+SIZE_SCRIPT = r"""
+import re, collections, sys
+tot = collections.Counter(); per = {}; cur = None
+for line in open(sys.argv[1]):
+    m = re.match(r'/tmp/o/(\S+)\.o:', line)
+    if m: cur = m.group(1); per[cur] = collections.Counter(); continue
+    p = line.split()
+    if len(p) >= 3 and p[0].isdigit() and p[1].startswith('.'):
+        n, s = p[1], int(p[2], 16)
+        k = 'bss' if n.startswith('.bss') else 'rodata' if n.startswith('.rodata') else 'data' if n.startswith('.data') else 'text' if n.startswith('.text') else None
+        if k: per[cur][k] += s; tot[k] += s
+for f, c in sorted(per.items()):
+    print('  %-12s text %7d  rodata %7d  data %6d  bss %6d' % (f, c['text'], c['rodata'], c['data'], c['bss']))
+print('  TOTAL        text %7d  rodata %7d  data %6d  bss %6d' % (tot['text'], tot['rodata'], tot['data'], tot['bss']))
+print('  flash (text + rodata + data): %d KB de ~604 KiB para el firmware' % ((tot['text'] + tot['rodata'] + tot['data']) // 1024))
+"""
+
+
+def fm1():
+    r = subprocess.run(['docker', 'volume', 'inspect', JIELI_VOLUME], capture_output=True)
+    if r.returncode:
+        sys.exit('falta el toolchain de JieLi en el volumen de Docker "%s" (ver hal/fm1/README_PORT.md)' % JIELI_VOLUME)
+    vol = ROOT.replace('\\', '/') + ':/src'
+    env = dict(os.environ, MSYS_NO_PATHCONV='1')
+    cmd = ('mkdir -p /tmp/o && for f in core/*.c core/gen/*.c hal/fm1/fm1_scan.c hal/fm1/fm1_main.c; do '
+           '/opt/jieli/pi32v2/bin/clang %s -c $f -o /tmp/o/$(basename $f .c).o || exit 1; done && '
+           'for o in /tmp/o/*.o; do /opt/jieli/pi32v2/bin/objdump -section-headers $o; done > /tmp/h.txt && '
+           'python3 -c "$SIZE_SCRIPT" /tmp/h.txt' % JIELI_FLAGS)
+    env['SIZE_SCRIPT'] = SIZE_SCRIPT
+    r = subprocess.run(['docker', 'run', '--rm', '-e', 'SIZE_SCRIPT', '-v', vol, '-v', JIELI_VOLUME + ':/opt/jieli:ro',
+                        '-w', '/src', GCC_IMAGE, 'sh', '-c', cmd], env=env)
+    if r.returncode:
+        sys.exit(r.returncode)
+    print('compilado para el FM-1 (pi32v2). Solo mide: todavía no hay firmware instalable.')
+
+
 def site():
     r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'gen_site.py')])
     if r.returncode:
@@ -72,6 +116,8 @@ def main():
         test()
     if what in ('web', 'all'):
         web()
+    if what == 'fm1':
+        fm1()
     if what in ('site', 'all'):
         site()
 

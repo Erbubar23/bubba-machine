@@ -4,8 +4,9 @@
  * completos por segundo) y LEDs de botones y teclas con brillo por tiempo encendido.
  *
  * Brillo: cada columna dura 250 us en tres tramos. Al empezar se cambia de columna y se prenden
- * los LEDs encendidos (100 %); en los últimos 125 us se suman los medios (50 %) y en los últimos
- * ~31 us los tenues (1/8). Sin parpadeo: cada LED se prende en cada barrido. El tiempo de cada tramo se programa apenas
+ * los LEDs encendidos (100 %); en los últimos ~37 us se suman los medios (15 %) y en los últimos
+ * ~10 us los tenues (~4 %). Sin parpadeo: cada LED se prende en cada barrido. (El ojo ve el brillo
+ * en escala logarítmica: un medio al 50 % casi no se distinguía del 100 % en el aparato.) El tiempo de cada tramo se programa apenas
  * entra la interrupción (cambiar de columna tarda ~30 us: programarlo después hacía que el
  * temporizador se pasara de largo y el barrido bajó a ~70 columnas por segundo). (Antes el tenue se hacía saltando
  * barridos: a 1/16 parpadeaba y a 1/2 no se distinguía del encendido; en el aparato las teclas
@@ -165,7 +166,7 @@ static ___interrupt void scan_isr(void)
      * interrupciones apagadas), la cuenta ya habría pasado el límite y el temporizador seguiría
      * hasta dar la vuelta (en el aparato el barrido bajó a ~180 columnas/s después de PLAY) */
     JL_TIMER5->CNT = 0;
-    if (tramo == 1) {                         /* mitad de la columna: se suman los medios */
+    if (tramo == 1) {                         /* últimos ~37 us: se suman los medios */
         JL_TIMER5->PRD = prd_medio - prd_tenue;
         leds(leds_llenos | leds_medios);
         tramo = 2;
@@ -177,7 +178,7 @@ static ___interrupt void scan_isr(void)
         tramo = 0;
         return;
     }
-    JL_TIMER5->PRD = prd - prd_medio;         /* columna nueva: la primera mitad, solo los encendidos */
+    JL_TIMER5->PRD = prd - prd_medio;         /* columna nueva: casi todo el tiempo, solo los encendidos */
     uint8_t todas, sig = fm1_scan_column(&scan, filas());
     leds(0);
     columna(sig);
@@ -209,8 +210,8 @@ void fm1_scan_start(void)
         psc = 1;
     }
     prd = prd ? prd : 1;
-    prd_tenue = prd / 8u ? prd / 8u : 1u;
-    prd_medio = prd / 2u;
+    prd_tenue = prd / 25u ? prd / 25u : 1u;  /* ~4 %: lo disponible */
+    prd_medio = prd * 15u / 100u;            /* 15 %: lo que tiene contenido (al 50 % casi no se distinguía del 100 %) */
     cnt_us = prd / 250u ? prd / 250u : 1u;
     tramo = 0;
     request_irq(IRQ_TIMER5_IDX, 3, scan_isr, 0);

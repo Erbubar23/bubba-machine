@@ -30,7 +30,7 @@ enum { ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3, ENC_K4, ENC_PRESETS, ENC_CO
 #define BM_LEDS          41
 
 /* Niveles de LED. */
-/* Luces: OFF vacío · DIM (~12 %) disponible · MID (50 %) tiene contenido · ON (100 %) activo o elegido ·
+/* Luces: OFF vacío · DIM (~4 %) disponible · MID (15 %) tiene contenido · ON (100 %) activo o elegido ·
  * BLINK el paso que suena · BREATH armado o con algo especial (P-Lock). */
 enum { LED_OFF, LED_DIM, LED_ON, LED_BLINK, LED_BREATH, LED_MID };
 

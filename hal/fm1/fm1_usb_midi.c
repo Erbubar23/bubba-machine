@@ -170,6 +170,11 @@ static void usb_arranca(void)
     JL_USB->CON0 = 0;
     JL_USB->CON1 = 0;
     JL_USB_IO->CON0 = 0x0Cu;
+    /* Reloj del USB = PLL de 48 MHz (CLK_CON1 bits 0-1 en 0; dato de X0X, fm1_usb_attach). El SDK
+     * no lo fija al encender el USB: depende de lo que dejó el arranque. Sin esto el USB anduvo
+     * solo después del modo del chip (que lo configura) y falló al prender en frío ("error de
+     * solicitud de descriptor", 2026-10-11). */
+    JL_CLOCK->CLK_CON1 &= ~3u;
     os_time_dly(10);                          /* 100 ms */
     usb_add_desc_config(USB_ID, MAX_INTERFACE_NUM, NULL);
     usb_add_desc_config(USB_ID, 0, midi_desc);

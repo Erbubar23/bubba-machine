@@ -118,6 +118,9 @@ enum {
 };
 extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
 void fm1_consola(const uint8_t *sysex, uint32_t n);
+void fm1_log(const char *s);                        /* registro de texto en RAM (consola: log) */
+uint32_t fm1_log_read(uint32_t off, uint8_t *dst, uint32_t max);
+int  fm1_lab(int cmd, int arg);                     /* pruebas por partes (fm1_main.c) */
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
 
 /* ---------------------------------------------------------------- actualización */

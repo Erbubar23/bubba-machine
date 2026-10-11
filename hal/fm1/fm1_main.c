@@ -212,6 +212,136 @@ static void paso_actualizacion(int step, int code)
     }
 }
 
+
+/* ------------------------------------------------------------------ laboratorio */
+/* Pruebas por partes lanzadas desde la computadora (tools/fm1/consola.py lab …) mientras el
+ * aparato está en modo seguro, con un registro de texto en RAM que la consola lee. Así cada
+ * pieza (barrido, audio, flash, núcleo) se prueba sola y, si algo se cuelga, se sabe qué fue. */
+static char logbuf[4096];
+static volatile uint32_t log_n;
+static int lab_scan, lab_audio, lab_bubba;
+
+static char *pon_num(char *p, uint32_t v)
+{
+    char t[11];
+    int n = 0;
+    do { t[n++] = (char)('0' + v % 10u); v /= 10u; } while (v);
+    while (n) *p++ = t[--n];
+    return p;
+}
+
+void fm1_log(const char *s)
+{
+    char l[96], *p = l;
+    uint32_t t = timer_get_ms();
+    *p++ = '[';
+    p = pon_num(p, t / 1000u);
+    *p++ = '.';
+    uint32_t ms = t % 1000u;
+    *p++ = (char)('0' + ms / 100u); *p++ = (char)('0' + ms / 10u % 10u); *p++ = (char)('0' + ms % 10u);
+    *p++ = ']'; *p++ = ' ';
+    while (*s && p < l + sizeof l - 2) *p++ = *s++;
+    *p++ = '\n';
+    CPU_CRITICAL_ENTER();
+    for (char *q = l; q < p && log_n < sizeof logbuf; q++)
+        logbuf[log_n++] = *q;
+    CPU_CRITICAL_EXIT();
+}
+
+static void log_num(const char *a, uint32_t v, const char *b)
+{
+    char l[80], *p = l;
+    while (*a) *p++ = *a++;
+    p = pon_num(p, v);
+    while (*b) *p++ = *b++;
+    *p = 0;
+    fm1_log(l);
+}
+
+uint32_t fm1_log_read(uint32_t off, uint8_t *dst, uint32_t max)
+{
+    uint32_t n = 0;
+    while (off + n < log_n && n < max) {
+        dst[n] = (uint8_t)logbuf[off + n];
+        n++;
+    }
+    return n;
+}
+
+static uint32_t fase;
+static void tono(int32_t *lr, uint32_t frames)         /* triángulo de 440 Hz, -12 dB, 24 bits a la izquierda */
+{
+    for (uint32_t i = 0; i < frames; i++) {
+        fase += 42838u * 1000u;                         /* 440 / 44118 * 2^32 */
+        int32_t v = (int32_t)(fase >> 8) - (1 << 23);   /* diente de sierra de 24 bits */
+        v = (v < 0 ? -v : v) * 2 - (1 << 23);           /* triángulo */
+        v >>= 2;
+        lr[2 * i] = lr[2 * i + 1] = (int32_t)((uint32_t)v << 8);
+    }
+}
+
+#define LAB_SECTOR 0x0E1000u                            /* en la zona del cargador en espera: libre fuera de una actualización */
+
+static int prueba_flash(int veces)
+{
+    static uint8_t pat[256], back[256];
+    int malas = 0;
+    uint32_t peor = 0;
+    for (int k = 0; k < veces; k++) {
+        for (int i = 0; i < 256; i++)
+            pat[i] = (uint8_t)(i * 7 + k);
+        uint32_t t0 = fm1_scan_now_us();
+        if (fm1_flash_erase(LAB_SECTOR) || fm1_flash_prog(LAB_SECTOR, pat, 256) ||
+            fm1_flash_read(LAB_SECTOR, back, 256) || memcmp(pat, back, 256))
+            malas++;
+        uint32_t dt = fm1_scan_now_us() - t0;
+        if (dt > peor)
+            peor = dt;
+        os_time_dly(1);
+    }
+    fm1_flash_erase(LAB_SECTOR);
+    log_num("flash: escrituras malas ", (uint32_t)malas, "");
+    log_num("flash: la mas lenta (us) ", peor, "");
+    return malas;
+}
+
+/* orden desde la consola: devuelve 0 si se hizo */
+int fm1_lab(int cmd, int arg)
+{
+    switch (cmd) {
+    case 1:
+        fm1_log("lab: barrido (TIMER5) en marcha");
+        fm1_scan_start();
+        lab_scan = 1;
+        return 0;
+    case 2:
+        fm1_log("lab: audio ALNK0 en silencio");
+        fm1_audio_stop();
+        fm1_audio_start(dma, HALF_FRAMES, NULL);
+        lab_audio = 1;
+        return 0;
+    case 3:
+        fm1_log("lab: audio ALNK0 con tono de 440 Hz");
+        fm1_audio_stop();
+        fm1_audio_start(dma, HALF_FRAMES, tono);
+        lab_audio = 1;
+        return 0;
+    case 4:
+        log_num("lab: prueba de flash, veces ", (uint32_t)arg, "");
+        return prueba_flash(arg ? arg : 10);
+    case 5:
+        fm1_log("lab: audio detenido");
+        fm1_audio_stop();
+        lab_audio = 0;
+        return 0;
+    case 6:
+        fm1_log("lab: arrancar Bubba completo con audio");
+        lab_bubba = 1;
+        return 0;
+    }
+    return -1;
+}
+
 /* ------------------------------------------------------------------ modo seguro */
 /* vuelve solo si se pulsa PLAY (arrancar sin salida de audio) */
 static void modo_seguro(void)
@@ -221,11 +351,20 @@ static void modo_seguro(void)
     int ok = 0;
     fm1_keys_init();
     scr.force = 1;
+    fm1_log("modo seguro");
     for (;;) {
         uint32_t t = timer_get_ms();
-        fm1_keys_frame(raw, NULL);
-        if ((raw[10] >> 2) & 1u) {           /* PLAY (12): fila 2, columna 10 */
+        if (lab_scan) {                      /* el barrido por interrupción ya lee la matriz */
+            memset(raw, 0, sizeof raw);
+            if (fm1_scan_is_down(BTN_PLAY)) raw[10] |= 4u;
+            if (fm1_scan_is_down(BTN_OCT_DN)) raw[0] |= 16u;
+            if (fm1_scan_is_down(BTN_OCT_UP)) raw[1] |= 16u;
+        } else {
+            fm1_keys_frame(raw, NULL);
+        }
+        if (((raw[10] >> 2) & 1u) || lab_bubba) {   /* PLAY (12): fila 2, columna 10 */
             fm1_boot_ok();                   /* esta prueba no suma arranques fallidos */
+            fm1_audio_stop();
             return;
         }
         if (((raw[0] >> 4) & 1u) && ((raw[1] >> 4) & 1u)) {      /* OCT- (0) y OCT+ (1): fila 4 */
@@ -254,7 +393,7 @@ static void bubba_task(void *p)
 {
     uint8_t raw[FM1_NCOL];
     uint32_t t0, next_adc = 0;
-    int ok = 0, id, down;
+    int ok = 0, id, down, seen = 0;
     (void)p;
 
     fm1_flash_init();
@@ -269,8 +408,8 @@ static void bubba_task(void *p)
     adc_add_sample_ch(FM1_ADC_BATT);
     fm1_boot_stage(E_PANTALLA);
     if (modo == FM1_BOOT_SAFE) {
-        modo_seguro();                       /* vuelve solo con PLAY */
-        sin_audio = 1;
+        modo_seguro();                       /* vuelve solo con PLAY (o el laboratorio) */
+        sin_audio = !lab_bubba;
         modo = FM1_BOOT_NORMAL;
     }
 
@@ -281,13 +420,17 @@ static void bubba_task(void *p)
     fm1_boot_stage(E_NUCLEO);
     bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
     bm_app_battery(&app, 100);               /* sin curva medida todavía: ver README_PORT.md */
-    fm1_scan_start();
+    if (!lab_scan)
+        fm1_scan_start();
     fm1_boot_stage(E_TECLAS);
+    fm1_log("nucleo listo, barrido en marcha");
     if (sin_audio)
         fm1_audio_start_mute(dma, HALF_FRAMES, render);
     else
         fm1_audio_start(dma, HALF_FRAMES, render);
+    fm1_log(sin_audio ? "audio sin salida" : "audio ALNK0 en marcha");
     fm1_boot_stage(E_AUDIO);
+    fm1_log("etapa AUDIO anotada");
 
     for (;;) {
         uint32_t t = timer_get_ms();
@@ -325,8 +468,12 @@ static void bubba_task(void *p)
         fm1_stat[FM1_STAT_UI_LAST] = du;
         if (du > fm1_stat[FM1_STAT_UI_MAX])
             fm1_stat[FM1_STAT_UI_MAX] = du;
-        if (fm1_audio_halves() > 20u)
+        if (fm1_audio_halves() > 20u && !(seen & 1)) {
+            fm1_log("audio: 20 bloques calculados");
             fm1_boot_stage(E_SONANDO);
+            fm1_log("etapa SONANDO anotada");
+            seen |= 1;
+        }
         if (t - t0 > 1000u)
             fm1_boot_stage(E_1S);
         if (t - t0 > 5000u)

@@ -288,9 +288,12 @@ static void sesion(fm1_update_show show)
     os_time_dly(30);
     local_irq_disable();
     memcpy((void *)UPDATA_FLAG_ADDR, parm, sizeof parm);
-    *(volatile uint32_t *)0x1EEE004u |= 0x2u;      /* el segundo núcleo, quieto mientras escribe */
-    *(volatile uint32_t *)0x1EEE004u &= ~0x8u;
-    JL_CLOCK->PWR_CON |= BIT(4);                    /* reinicio del núcleo: el arranque corre el cargador */
+    /* Reinicio del chip: el arranque encuentra el registro y corre el cargador. Con cpu_reset()
+     * del SDK, el mismo que usa la entrada al modo del chip (comprobado en el aparato). La
+     * secuencia de X0X (parar el núcleo 1 y reiniciar el núcleo) supone un solo núcleo: en este
+     * firmware la tarea puede correr en el núcleo 1 y se paraba a sí misma (2026-10-11: paso 1
+     * aceptado, el cargador nunca apareció y el USB quedó mudo). */
+    cpu_reset();
     while (1)
         ;
 }

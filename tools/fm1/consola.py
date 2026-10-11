@@ -7,8 +7,13 @@
   py -3 tools/fm1/consola.py leer 0x1C7FD80 32    memoria o registros
   py -3 tools/fm1/consola.py flash 0xBF000 64     flash
   py -3 tools/fm1/consola.py cero                 pone a cero los máximos
+  py -3 tools/fm1/consola.py log                  el registro de texto del firmware
+  py -3 tools/fm1/consola.py lab N [ARG]          laboratorio (en modo seguro): 1 barrido, 2 audio en
+                                                  silencio, 3 tono, 4 flash ARG veces, 5 audio detenido,
+                                                  6 arrancar Bubba con audio
 
-Cierra antes el instalador web u otro programa que use el MIDI del FM-1.
+Cierra antes el instalador web u otro programa que use el MIDI del FM-1. Lee el aparato y no
+escribe nada, salvo la prueba de flash del laboratorio (sector de prueba 0xE1000).
 """
 import argparse, os, struct, sys, time
 
@@ -34,6 +39,17 @@ def pedir(p, cmd, datos=b''):
             n = m[5:-1]
             return bytes((n[i] << 4) | n[i + 1] for i in range(0, len(n) - 1, 2))
     raise SystemExit('consola: el FM-1 no contestó (¿Bubba Machine con consola? ¿puerto libre?)')
+
+
+def leer_log(p):
+    texto, off = b'', 0
+    while True:
+        d = pedir(p, 0x07, off.to_bytes(2, 'big'))
+        n = d[2]
+        texto += d[3:3 + n]
+        off += n
+        if n < 64:
+            return texto.decode('utf-8', 'replace')
 
 
 def estado(p):
@@ -71,6 +87,8 @@ def main():
     for n in ('leer', 'flash'):
         s = sub.add_parser(n); s.add_argument('adr'); s.add_argument('n', type=int)
     sub.add_parser('cero')
+    sub.add_parser('log')
+    s = sub.add_parser('lab'); s.add_argument('n', type=int); s.add_argument('arg', type=int, nargs='?', default=0)
     a = ap.parse_args()
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -93,6 +111,19 @@ def main():
             data = d[5:]
             for i in range(0, len(data), 16):
                 print('%08X  %s' % (adr + i, data[i:i + 16].hex(' ')))
+        elif a.orden == 'log':
+            print(leer_log(p), end='')
+        elif a.orden == 'lab':
+            pedir(p, 0x10, bytes([a.n, a.arg]))
+            antes = len(leer_log(p))
+            time.sleep(0.5)
+            fin = time.time() + 60
+            texto = leer_log(p)
+            while time.time() < fin and len(texto) == antes:
+                time.sleep(0.5)
+                texto = leer_log(p)
+            time.sleep(0.5)
+            print(leer_log(p)[antes:], end='')
         else:
             pedir(p, 0x04)
             print('máximos en cero')

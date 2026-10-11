@@ -10,7 +10,11 @@
  *   02 adr32 n8   leer n bytes (<= 64) de memoria o registros desde adr
  *   03 adr32 n8   leer n bytes (<= 64) de la flash desde adr
  *   04            poner a cero los máximos
- * Es solo lectura: no escribe memoria ni flash. La herramienta es tools/fm1/consola.py. */
+ *   07 off16      64 bytes del registro de texto desde off (respuesta: off16 n8 texto)
+ *   10 cmd8 arg8  laboratorio (fm1_lab): 1 barrido, 2 audio en silencio, 3 tono, 4 flash arg
+ *                 veces, 5 audio detenido, 6 arrancar Bubba con audio (respuesta: resultado8)
+ * Lee y no escribe nada, salvo la prueba de flash del laboratorio (solo en el sector de prueba
+ * 0xE1000, dentro de la zona del cargador en espera). La herramienta es tools/fm1/consola.py. */
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -86,6 +90,23 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         cab[0] = (uint8_t)(adr >> 24); cab[1] = (uint8_t)(adr >> 16); cab[2] = (uint8_t)(adr >> 8); cab[3] = (uint8_t)adr;
         cab[4] = (uint8_t)cnt;
         responder(m[4], cab, 5, buf, cnt);
+        break;
+    }
+    case 0x07: {
+        if (n < 5 + 4 + 1)
+            return;
+        uint32_t off = nib_in(m + 5, 4), cnt = fm1_log_read(off, buf, sizeof buf);
+        cab[0] = (uint8_t)(off >> 8); cab[1] = (uint8_t)off; cab[2] = (uint8_t)cnt;
+        responder(0x07, cab, 3, buf, cnt);
+        break;
+    }
+    case 0x10: {
+        if (n < 5 + 4 + 1)
+            return;
+        int c = (int)nib_in(m + 5, 2), a = (int)nib_in(m + 7, 2);
+        cab[0] = 0xEE;
+        responder(0x10, cab, 1, NULL, 0);           /* recibido; el resultado queda en el registro */
+        cab[0] = (uint8_t)fm1_lab(c, a);
         break;
     }
     case 0x04:

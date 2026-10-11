@@ -41,6 +41,9 @@ DEFINES := -DSUPPORT_MS_EXTENSIONS -DCONFIG_RELEASE_ENABLE -DCONFIG_CPU_WL82 -DC
 	-DVM_MAX_PAGE_ALIGN_SIZE_CONFIG=64*1024 -DVM_MAX_SECTOR_ALIGN_SIZE_CONFIG=64*1024 \
 	-DVM_ITEM_MAX_NUM=256 -DCONFIG_UPDATA_ENABLE -DCONFIG_OTA_UPDATA_ENABLE -DCONFIG_ITEM_FORMAT_VM \
 	-D_XOPEN_SOURCE=700 -D_GNU_SOURCE -D__ELF__ -D__SHELL__ -DBM_APP_$(APP)=1
+ifeq ($(APP),bubba)
+DEFINES += -DBM_PROF
+endif
 
 INCLUDES := -I$(HERE)/include -I$(REPO)/hal/fm1 -I$(REPO)/core \
 	-I$(SDK)/include_lib/newlib/include -I$(SDK)/include_lib -I$(SDK)/include_lib/driver \
@@ -52,6 +55,12 @@ INCLUDES := -I$(HERE)/include -I$(REPO)/hal/fm1 -I$(REPO)/core \
 	-I$(SDK)/include_lib/media/cpu/wl82 -I$(SDK)/apps -I$(SDK)/include_lib/system/os \
 	-I$(SDK)/apps/common/usb -I$(SDK)/apps/common/usb/device -I$(SDK)/include_lib/driver/device/usb \
 	-I$(SDK)/include_lib/driver/device/usb/device
+
+# Caché de datos completa (32 KiB): la variante del guion de enlace del SDK que no convierte 7 de
+# las 8 vías de la caché de datos en RAM (FREE_DACHE_WAY = 0; las tablas del sistema van a la RAM
+# normal). Con el valor por defecto la caché de datos efectiva es de 4 KiB (medido en el aparato:
+# lecturas al azar en la flash de ~110 ns hasta 4 KiB y de 700-1270 ns desde 8 KiB).
+LD_DEFS ?= -DCONFIG_DYNAMIC_SDRAM_ONOFF_ENABLE
 
 # del SDK: arranque y sistema (lo mismo que demo_hello, sin los benchmarks)
 SDK_C := \
@@ -81,7 +90,7 @@ OWN_C := hal/fm1/sdk/board.c hal/fm1/fm1_boot.c hal/fm1/fm1_lcd.c hal/fm1/fm1_ke
 ifeq ($(APP),diag)
 OWN_C += hal/fm1/fm1_diag.c
 else
-OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	$(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
+OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_bench.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	$(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
 endif
 
 LIBS := --start-group $(SDK)/include_lib/newlib/pi32v2-lib/libm.a $(SDK)/include_lib/newlib/pi32v2-lib/libc.a \
@@ -120,7 +129,7 @@ $(OUT)/sdk.ld: $(HERE)/include/app_config.h
 	@mkdir -p $(OUT)
 	$(CPP) $(SDK)/cpu/wl82/sdk_used_list.c -o $(OUT)/sdk_used_list.used
 	$(CPP) $(SDK)/apps/common/movable/section.c -o $(OUT)/section.txt
-	$(CPP) $(SDK)/cpu/wl82/sdk_ld.c -o $@
+	$(CPP) $(LD_DEFS) $(SDK)/cpu/wl82/sdk_ld.c -o $@
 
 $(OUT)/sdk/%.o: $(SDK)/%.c
 	@mkdir -p $(@D)

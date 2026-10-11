@@ -11,6 +11,7 @@
  *   03 adr32 n8   leer n bytes (<= 64) de la flash desde adr
  *   04            poner a cero los máximos
  *   07 off16      64 bytes del registro de texto desde off (respuesta: off16 n8 texto)
+ *   08            perfil del audio: BM_P_N acumulados, ticks transcurridos, ticks por segundo
  *   10 cmd8 arg8  laboratorio (fm1_lab): 1 barrido, 2 audio en silencio, 3 tono, 4 flash arg
  *                 veces, 5 audio detenido, 6 arrancar Bubba con audio (respuesta: resultado8)
  * Lee y no escribe nada, salvo la prueba de flash del laboratorio (solo en el sector de prueba
@@ -107,6 +108,17 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         cab[0] = 0xEE;
         responder(0x10, cab, 1, NULL, 0);           /* recibido; el resultado queda en el registro */
         cab[0] = (uint8_t)fm1_lab(c, a);
+        break;
+    }
+    case 0x08: {
+        static uint32_t w[16];
+        int k = fm1_prof_read(w);
+        static uint8_t b8[64];
+        for (int i = 0; i < k; i++) {
+            b8[i * 4] = (uint8_t)w[i]; b8[i * 4 + 1] = (uint8_t)(w[i] >> 8);
+            b8[i * 4 + 2] = (uint8_t)(w[i] >> 16); b8[i * 4 + 3] = (uint8_t)(w[i] >> 24);
+        }
+        responder(0x08, b8, (uint32_t)k * 4u, NULL, 0);
         break;
     }
     case 0x04:

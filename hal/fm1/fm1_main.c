@@ -394,6 +394,18 @@ int fm1_lab(int cmd, int arg)
         fm1_log("lab: arrancar Bubba completo con audio");
         lab_bubba = 1;
         return 0;
+    case 20: case 21: case 22: case 23: case 24: case 25:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
+        if (!fm1_scan_ticks()) {             /* el reloj de las mediciones es el barrido */
+            fm1_scan_start();
+            lab_scan = 1;
+            os_time_dly(2);
+        }
+        {
+            fm1_perro(0);                    /* una prueba larga no es un cuelgue */
+            int r = fm1_bench(cmd, arg);
+            fm1_perro(1);
+            return r;
+        }
     case 7:                                  /* pulsar un botón (0..13) como si fuera la mano */
         if (modo != FM1_BOOT_NORMAL || arg >= BTN_COUNT)
             return -1;

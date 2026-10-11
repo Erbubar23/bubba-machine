@@ -133,6 +133,11 @@ void fm1_log(const char *s);                        /* registro de texto en RAM 
 uint32_t fm1_log_read(uint32_t off, uint8_t *dst, uint32_t max);
 int  fm1_lab(int cmd, int arg);                     /* pruebas por partes (fm1_main.c) */
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
+uint32_t fm1_scan_now_ticks(void);                  /* ticks del timer (~60 MHz), para tramos cortos */
+uint32_t fm1_scan_ticks_hz(void);
+int  fm1_bench(int cmd, int arg);                   /* pruebas de la arquitectura (fm1_bench.c) */
+void fm1_prof_reset(void);
+int  fm1_prof_read(uint32_t *out);                  /* perfil del audio por sección (core/bm_prof.h) */
 
 /* ---------------------------------------------------------------- actualización */
 typedef void (*fm1_update_show)(int step, int code);

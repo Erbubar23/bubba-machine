@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stddef.h>
 #include "bm_audio.h"
+#include "bm_prof.h"
 #include "bm_util.h"
 
 bool bm_cmd_push(bm_cmdq *q, const bm_cmd *c)
@@ -307,10 +308,13 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
 {
     bm_cmd k;
     int guard = 0;
+    BM_PROF_T0();
     while (guard++ < BM_CMDQ_LEN && bm_cmd_pop(c->cmdq, &k)) apply(c, &k);
+    BM_PROF_LAP(BM_P_CMD);
 
     uint32_t n_eng = out_frames / BM_OVERSAMPLE;
     bm_seq_strum_block(c, n_eng);
+    BM_PROF_LAP(BM_P_SEQ);
     while (n_eng) {
         uint32_t n = n_eng < BM_BLOCK ? n_eng : BM_BLOCK;
         for (int t = 0; t < BM_TRACKS; t++) memset(c->tbuf[t], 0, n * sizeof(int32_t));
@@ -322,7 +326,9 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 c->acc_q16 -= c->spt_q16;
                 if (c->ext_clock) c->ext_budget--;
                 c->blk_off = (uint16_t)done;
+                BM_PROF_RESTART();
                 bm_seq_tick(c);
+                BM_PROF_LAP(BM_P_SEQ);
                 continue;
             }
             uint32_t k2 = n - done;
@@ -331,14 +337,19 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 if (until < 1) until = 1;
                 if (until < k2) k2 = until;
             }
-            for (int t = 0; t < BM_TRACKS; t++)
+            BM_PROF_RESTART();
+            for (int t = 0; t < BM_TRACKS; t++) {
                 c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)k2);
+                BM_PROF_LAP(BM_P_T0 + t);
+            }
             c->acc_q16 += k2 << 16;
             if (!can_tick && c->acc_q16 > c->spt_q16) c->acc_q16 = c->spt_q16;   /* externo: espera el próximo pulso */
             c->sample_clock += k2;
             done += k2;
         }
+        BM_PROF_RESTART();
         bm_dsp_mix(c, out, n);
+        BM_PROF_LAP(BM_P_MIX);
         out += n * 2u * BM_OVERSAMPLE;
         n_eng -= n;
     }

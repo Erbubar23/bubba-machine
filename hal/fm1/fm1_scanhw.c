@@ -268,6 +268,30 @@ int fm1_scan_is_down(int id)
 
 uint32_t fm1_scan_ticks(void) { return ticks; }
 
+/* ticks del timer (clk_get("timer"), 60 MHz) desde que arrancó el barrido: para medir tramos
+ * cortos con resolución de ~17 ns (fm1_bench.c, core/bm_prof.h). Da la vuelta cada ~71 s. */
+uint32_t fm1_scan_now_ticks(void)
+{
+    uint32_t a, c, b, pend, f, t;
+    do {
+        a = isr_n;
+        c = JL_TIMER5->CNT;
+        pend = JL_TIMER5->CON & BIT(15);
+        f = tramo;
+        t = ticks * prd;
+        b = isr_n;
+    } while (a != b);
+    if (f == 1)
+        t += pend ? prd - prd_medio : c;
+    else if (f == 2)
+        t += pend ? prd - prd_tenue : prd - prd_medio + c;
+    else
+        t += pend ? prd : prd - prd_tenue + c;
+    return t;
+}
+
+uint32_t fm1_scan_ticks_hz(void) { return prd * 4000u; }
+
 /* microsegundos desde que arrancó el barrido: columnas * 250 + lo que va de la actual */
 uint32_t fm1_scan_now_us(void)
 {

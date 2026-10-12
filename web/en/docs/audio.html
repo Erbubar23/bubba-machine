@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/en/AUDIO.md: no editar a mano. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine&#x27;s audio · Bubba Machine</title>
+<link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/docs/audio.html">
+<link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/docs/audio.html">
+<link rel="icon" href="../../icon.png">
+<link rel="stylesheet" href="../../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Site">
+      <a href="../../emulador.html?lang=en">Emulator</a>
+      <a href="manual.html">Manual</a>
+      <a href="install.html">Install</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="contributing.html">Contribute</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
+      <a class="lang" href="../../docs/audio.html" hreflang="es" lang="es" data-lang="es">Español</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentation"><div class="grp">Use</div>
+    <a href="manual.html">Manual</a>
+    <a href="install.html">Install</a>
+    <a href="changelog.html">Changelog</a>
+    <div class="grp">Project</div>
+    <a href="design-3.html">Design 3.0</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="contributing.html">Contributing</a>
+    <a href="conduct.html">Code of conduct</a>
+    <a href="credits.html">Credits</a>
+    <div class="grp">Technical</div>
+    <a href="audio.html" aria-current="page">Audio</a>
+    <a href="development.html">Development</a>
+    <a href="../../docs/spec.html">Specification (ES)</a>
+    <a href="../../docs/memoria.html">Memory budget (ES)</a>
+    <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
+  <main class="doc">
+<h1 id="bubba-machines-audio">Bubba Machine's audio</h1>
+<p>Bubba Machine has one goal: <strong>the best audio quality the FM-1 allows</strong>. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, <strong>what isn't there yet</strong>.</p>
+<p>All CPU figures were measured on the author's FM-1 with the firmware console (<code>tools/fm1/traza.py</code>). The details of each measurement are in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> and <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a> (Spanish).</p>
+<h2 id="the-device">The device</h2>
+<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>116 KiB of flash for sampler takes</td></tr></tbody></table></div>
+<h2 id="what-improved">What improved</h2>
+<h3 id="1-everything-at-441-khz">1. Everything at 44.1 kHz</h3>
+<p>In 0.3 the engines ran at 22 kHz and every sample was repeated twice to reach the output. That cuts everything above 11 kHz and leaves images (false highs) above it.</p>
+<p>Now <strong>the engines and the mix run at the codec's real rate</strong>, 44,117.6 Hz, with no oversampling. Highs reach 20 kHz and tuning is exact, because it is computed with the true rate, not with 44,100.</p>
+<h3 id="2-floating-point-mixing">2. Floating-point mixing</h3>
+<div class="tbl"><table><thead><tr><th></th><th>0.3</th><th>0.4</th></tr></thead><tbody><tr><td>Mix bus</td><td>integer, one division per sample and track</td><td><strong>float</strong>, gains computed once per block</td></tr><tr><td>Silent tracks</td><td>still computed</td><td>skipped</td></tr><tr><td>Live effects capture (stutter, reverse, tape stop)</td><td>8-bit μ-law</td><td><strong>16-bit</strong></td></tr><tr><td>Delay</td><td>8-bit μ-law</td><td><strong>16-bit</strong> with interpolated reads</td></tr><tr><td>Mix cost with PLAY</td><td>8.6 % of a core</td><td><strong>7.3 %</strong>, computing twice the samples</td></tr></tbody></table></div>
+<p>Measured on the device, the FPU is <strong>1.5× faster</strong> than the 64-bit integer math 0.3 used, so moving to float was both faster and cleaner.</p>
+<h3 id="3-sounds-computed-live-no-low-resolution-recordings">3. Sounds computed live, no low-resolution recordings</h3>
+<p>0.3 had drum kits recorded at 22 kHz in 8-bit μ-law (nothing above 11 kHz) and low-resolution wavetables. <strong>They are all gone.</strong> Every sound is now computed on the spot with proven synthesis libraries:</p>
+<div class="tbl"><table><thead><tr><th>Engine</th><th>What it uses</th><th>License</th></tr></thead><tbody><tr><td><strong>Modeled drums</strong></td><td>kick, snare and hi-hat models from <strong>Plaits</strong> (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion</td><td>MIT</td></tr><tr><td><strong>ANALOG</strong></td><td><strong>polyBLEP</strong> oscillators (anti-aliasing), LP 24/12, BP or HP filter with resonance and drive, ADSR, LFO, sync and ring</td><td>own and MIT (Plaits/stmlib)</td></tr><tr><td><strong>6-operator FM</strong></td><td><strong>msfa</strong>, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms</td><td>Apache-2.0</td></tr><tr><td><strong>ACID</strong></td><td>4-pole ladder filter with resonance, accent and slide</td><td>own</td></tr></tbody></table></div>
+<p>Accent doesn't just raise the level: it changes the hit, like a real drum machine.</p>
+<h3 id="4-an-output-without-clicks-or-steps">4. An output without clicks or steps</h3>
+<ul><li>
+<strong>Soft clipper</strong> with DRIVE (a polynomial, not a hard cut) and a <strong>−1 dBFS ceiling</strong> before the codec.
+</li><li>
+The <strong>MASTER volume ramps</strong> inside each block: turning the knob makes no steps.
+</li><li>
+When the firmware writes the flash, audio has to stop: it goes out and back with a <strong>5 ms fade</strong>, no click.
+</li><li>
+<strong>Sampler recording goes through a Butterworth filter</strong> before dropping to 16 kHz, so highs don't fold back while recording.
+</li><li>
+No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler also has <strong>Hermite</strong>.
+</li></ul>
+<h3 id="5-exact-timing">5. Exact timing</h3>
+<p>The sequencer counts <strong>96 PPQN from the audio sample counter</strong>: there is no separate clock to drift, and every note lands on its exact sample inside the block.</p>
+<h3 id="6-performance-what-makes-room-for-quality">6. Performance: what makes room for quality</h3>
+<p>Computing twice the samples with better engines only fits if the code is fast. What was measured and changed:</p>
+<div class="tbl"><table><thead><tr><th>Change</th><th>Before</th><th>After</th></tr></thead><tbody><tr><td>Data cache (SDK setting)</td><td>4 KiB effective</td><td><strong>32 KiB</strong>: random reads 6-10× faster</td></tr><tr><td>Audio compiled for speed (<code>-O2</code>)</td><td>demo with PLAY: 36.9 % of a core</td><td><strong>27.7 %</strong></td></tr><tr><td>FM, one voice (E.PIANO)</td><td>6.6 %</td><td><strong>3.3 %</strong></td></tr><tr><td>ANALOG, one voice</td><td>1757 ns per sample (10 %)</td><td><strong>654 ns (4.1 %)</strong>: 7 voices fit with no late blocks</td></tr></tbody></table></div>
+<p>Removing the recorded kits and wavetables made the program 148 KiB smaller and freed 64 KiB of RAM.</p>
+<h2 id="what-isnt-there-yet">What isn't there yet</h2>
+<p>This is a beta. What limits quality today, plainly:</p>
+<ul><li>
+<strong>The sampler records at 16 kHz and 8 bits.</strong> The FM-1's flash leaves 116 KiB for takes (7.4 s in total); at 16 bits it would be half that. With the filter before recording and the dither in <code>toma.py</code> it sounds clean, but <strong>it stops around 7 kHz</strong> and has 8-bit noise. It is the weakest point and the next one to solve.
+</li><li>
+<strong>The delay runs at 22 kHz:</strong> repeats reach 11 kHz, like a tape delay. That is on purpose, so 1.5 s fits in RAM, but it isn't hi-fi.
+</li><li>
+<strong>The clipper has no oversampling:</strong> with very high DRIVE it can alias a little.
+</li><li>
+<strong>ACID is our own engine, not Open303.</strong> The plan is to move to Open303 (MIT) in float.
+</li><li>
+<strong>msfa's FM is fixed point</strong>, like the original DX7. That's part of its character, not a flaw, but it isn't float.
+</li><li>
+<strong>No reverb, chorus or master compressor yet.</strong> Only the soft clipper.
+</li><li>
+<strong>Audio uses a single core.</strong> The second one gives 1.83× (measured); using it is what will allow more voices and effects.
+</li><li>
+<strong>We haven't measured the analog output</strong> (noise, distortion and response of the FM-1's codec and amplifier). Everything above is the digital side.
+</li><li>
+<strong>Tested on a single FM-1.</strong>
+</li></ul>
+<h2 id="whats-next">What's next</h2>
+<ol><li>
+Audio on <strong>both cores</strong>.
+</li><li>
+<strong>Master effects</strong>: Mutable Instruments reverb and chorus, tape delay, compressor and leveler.
+</li><li>
+<strong>ACID with Open303</strong> in float.
+</li><li>
+A <strong>higher-quality sampler</strong>, within what the flash allows.
+</li><li>
+<strong>Measure the analog output</strong> with an audio interface.
+</li></ol>
+<p>See also: <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md">sound engines</a> · <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/INVESTIGACION_SONIDO.md">sound research</a> · <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md">FM-1 measurements</a> (Spanish) · <a href="changelog.html">changelog</a>.</p>
+    <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/AUDIO.md">docs/en/AUDIO.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

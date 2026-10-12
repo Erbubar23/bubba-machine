@@ -74,10 +74,10 @@
     <h2 class="big">Six tracks to play live</h2>
     <p class="sub">Everything is designed around the FM-1 controls: three big knobs, four small ones, fourteen buttons and 27 keys with LEDs.</p>
     <div class="cards">
-      <div class="card track" style="--c: var(--orange)"><span class="tag" style="color: var(--orange)">T1</span><h3>TR drums</h3><p>Two synthesized kits. Accent, repeats, flam, per-step P-Locks and steps that only play in the fill. Roll and erase while playing.</p></div>
-      <div class="card track" style="--c: var(--yellow)"><span class="tag" style="color: var(--yellow)">T2</span><h3>Sampler 3.0</h3><p>A loop in 8 slices that a generator rearranges bar by bar: vary, anchor, repeat and break. A dedicated recorder and a take library.</p></div>
-      <div class="card track" style="--c: var(--green)"><span class="tag" style="color: var(--green)">T3</span><h3>Bass</h3><p>Monophonic wavetable with filter and glide, plus an unquantized note looper.</p></div>
-      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>Three free tracks</h3><p>SYNTH, MONO, KIT (another drum machine) or MIDI. Arpeggiator, a scale per track and a chord grid that shows what goes with what.</p></div>
+      <div class="card track" style="--c: var(--orange)"><span class="tag" style="color: var(--orange)">T1</span><h3>TR drums</h3><p>Modeled drums (808, 909 and SINTE), computed live. Accent, repeats, flam, per-step P-Locks and steps that only play in the fill. Roll and erase while playing.</p></div>
+      <div class="card track" style="--c: var(--yellow)"><span class="tag" style="color: var(--yellow)">T2</span><h3>Sampler 3.0</h3><p>A take in 16 slices, with a SLICER to play them and a generator that rearranges them bar by bar. A dedicated recorder and a take library.</p></div>
+      <div class="card track" style="--c: var(--green)"><span class="tag" style="color: var(--green)">T3</span><h3>Bass</h3><p>ANALOG with glide, 303-style ACID or 6-operator FM, plus an unquantized note looper.</p></div>
+      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>Three free tracks</h3><p>ANALOG, FM, ACID, KIT (another drum machine) or MIDI. Arpeggiator, a scale per track and a chord grid that shows what goes with what.</p></div>
       <div class="card track" style="--c: var(--violet)"><span class="tag" style="color: var(--violet)">HOME</span><h3>Four gestures per button</h3><p>Tap, hold (with the keyboard drawn), 2 s and HOME + button. Holding HOME is the controller on any screen.</p></div>
       <div class="card track" style="--c: var(--pink)"><span class="tag" style="color: var(--pink)">LIVE</span><h3>Scenes and effects</h3><p>Four scenes with chains and song recording, automatic fills and 16 punch-in effects.</p></div>
     </div>
@@ -90,8 +90,8 @@
     <div class="cards">
       <div class="card"><span class="pill ok">Available</span><h3>Web emulator</h3><p>The full firmware in your browser, compiled to WebAssembly. Nothing to install.</p><a class="more" href="../emulador.html?lang=en">Open the emulator</a></div>
       <div class="card"><span class="pill ok">Available</span><h3>Manual</h3><p>How to play it, button by button, with the four gestures of each one.</p><a class="more" href="docs/manual.html">Read the manual</a></div>
-      <div class="card"><span class="pill dev">In development</span><h3>FM-1 firmware</h3><p>The core is complete and tested on PC. The hardware port is still missing: screen, buttons, audio and flash.</p><a class="more" href="docs/roadmap.html">See the plan</a></div>
-      <div class="card"><span class="pill plan">Planned</span><h3>Web installer</h3><p>Install over USB-C from the browser, with a mandatory backup and one-click rollback.</p><a class="more" href="docs/install.html">How it will work</a></div>
+      <div class="card"><span class="pill dev">Beta</span><h3>FM-1 firmware</h3><p>Runs on the device since 0.4.0-beta. Tested on a single FM-1; an update may erase what you saved.</p><a class="more" href="docs/install.html">Install</a></div>
+      <div class="card"><span class="pill ok">Available</span><h3>Audio quality</h3><p>44.1 kHz end to end, a floating-point mix and sounds computed live. What improved, what it costs and what is missing.</p><a class="more" href="docs/audio.html">The details</a></div>
       <div class="card"><span class="pill ok">Available</span><h3>Interface 3.0</h3><p>Four gestures per button, HOME everywhere, a sampler with a generator and a recorder with a take library. In the emulator since 0.3.0.</p><a class="more" href="docs/design-3.html">Why it works this way</a></div>
       <div class="card"><span class="pill plan">Planned</span><h3>Editor and sound packs</h3><p>Load patterns, samples and loops over USB, and free kit and loop packs made by the community.</p><a class="more" href="docs/roadmap.html">Roadmap</a></div>
     </div>
@@ -109,9 +109,9 @@
     </div>
     <ul>
       <li><b>Original code, written from scratch.</b> Only hardware facts from public FM-1 reverse engineering were used. <a href="docs/credits.html">Credits</a>.</li>
-      <li><b>Original sounds.</b> Kits, waves and factory loops are synthesized in the repository: the firmware ships no third-party audio.</li>
+      <li><b>Original sounds.</b> Drums and synths are computed live: the firmware ships no third-party audio.</li>
       <li><b>Always with its source.</b> Any version that is distributed, modified ones included, has to publish its code.</li>
-      <li><b>Tested.</b> Over 300 automated checks run on every change.</li>
+      <li><b>Tested.</b> Over 500 automated checks run on every change.</li>
     </ul>
   </section>
 

@@ -38,6 +38,8 @@ PAGES = [
                             'en': ('conduct', 'Code of conduct', 'docs/en/CODE_OF_CONDUCT.md')}),
     ('credits', 'project', {'es': ('creditos', 'Créditos', 'CREDITOS.md'),
                             'en': ('credits', 'Credits', 'docs/en/CREDITS.md')}),
+    ('audio', 'tech', {'es': ('audio', 'Audio', 'docs/AUDIO.md'),
+                       'en': ('audio', 'Audio', 'docs/en/AUDIO.md')}),
     ('dev', 'tech', {'es': ('desarrollo', 'Desarrollo', 'docs/DESARROLLO.md'),
                      'en': ('development', 'Development', 'docs/en/DEVELOPMENT.md')}),
     ('spec', 'tech', {'es': ('spec', 'Especificación', 'docs/SPEC_V3.md')}),

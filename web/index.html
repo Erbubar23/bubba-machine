@@ -80,10 +80,10 @@ try {
     <h2 class="big">Seis canales para tocar en vivo</h2>
     <p class="sub">Todo pensado para los controles del FM-1: tres perillas grandes, cuatro pequeñas, catorce botones y 27 teclas con LED.</p>
     <div class="cards">
-      <div class="card track" style="--c: var(--orange)"><span class="tag" style="color: var(--orange)">T1</span><h3>Batería TR</h3><p>Dos kits sintetizados. Acento, repetición, flam, P-Locks por paso y pasos que solo suenan en el fill. Roll y borrado mientras suena.</p></div>
-      <div class="card track" style="--c: var(--yellow)"><span class="tag" style="color: var(--yellow)">T2</span><h3>Sampler 3.0</h3><p>Un loop en 8 slices que un generador rearma compás a compás: VARIAR, ANCLAR, REPETIR y ROMPER. Grabadora propia y biblioteca de tomas.</p></div>
-      <div class="card track" style="--c: var(--green)"><span class="tag" style="color: var(--green)">T3</span><h3>Bajo</h3><p>Wavetable monofónico con filtro y glide, y una loopera de notas sin cuantizar.</p></div>
-      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>Tres canales libres</h3><p>SYNTH, MONO, KIT (otra batería) o MIDI. Arpegiador, escala propia y una cuadrícula de acordes que enseña qué va con qué.</p></div>
+      <div class="card track" style="--c: var(--orange)"><span class="tag" style="color: var(--orange)">T1</span><h3>Batería TR</h3><p>Batería modelada (808, 909 y SINTE), calculada en vivo. Acento, repetición, flam, P-Locks por paso y pasos que solo suenan en el fill. Roll y borrado mientras suena.</p></div>
+      <div class="card track" style="--c: var(--yellow)"><span class="tag" style="color: var(--yellow)">T2</span><h3>Sampler 3.0</h3><p>Una toma en 16 cortes, con SLICER para tocarlos y un generador que los rearma compás a compás. Grabadora propia y biblioteca de tomas.</p></div>
+      <div class="card track" style="--c: var(--green)"><span class="tag" style="color: var(--green)">T3</span><h3>Bajo</h3><p>ANALOG con glide, ACID estilo 303 o FM de 6 operadores, y una loopera de notas sin cuantizar.</p></div>
+      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>Tres canales libres</h3><p>ANALOG, FM, ACID, KIT (otra batería) o MIDI. Arpegiador, escala propia y una cuadrícula de acordes que enseña qué va con qué.</p></div>
       <div class="card track" style="--c: var(--violet)"><span class="tag" style="color: var(--violet)">HOME</span><h3>Cuatro gestos por botón</h3><p>Toque, mantener (con el teclado dibujado), 2 s y HOME + botón. HOME sostenido es el controlador en cualquier pantalla.</p></div>
       <div class="card track" style="--c: var(--pink)"><span class="tag" style="color: var(--pink)">DIRECTO</span><h3>Escenas y efectos</h3><p>Cuatro escenas con cadenas y grabación de la canción, fills automáticos y 16 efectos punch-in.</p></div>
     </div>
@@ -96,8 +96,8 @@ try {
     <div class="cards">
       <div class="card"><span class="pill ok">Disponible</span><h3>Emulador web</h3><p>El firmware completo en el navegador, compilado a WebAssembly. Sin instalar nada.</p><a class="more" href="emulador.html?lang=es">Abrir el emulador</a></div>
       <div class="card"><span class="pill ok">Disponible</span><h3>Manual</h3><p>Cómo se toca, botón por botón, con los cuatro gestos de cada uno.</p><a class="more" href="docs/manual.html">Leer el manual</a></div>
-      <div class="card"><span class="pill dev">En desarrollo</span><h3>Firmware para el FM-1</h3><p>El núcleo está completo y probado en PC. Falta el port al hardware: pantalla, botones, audio y flash.</p><a class="more" href="docs/hoja-de-ruta.html">Ver el plan</a></div>
-      <div class="card"><span class="pill plan">Planeado</span><h3>Instalador web</h3><p>Instalar por USB-C desde el navegador, con respaldo obligatorio y vuelta atrás en un clic.</p><a class="more" href="docs/instalar.html">Cómo será</a></div>
+      <div class="card"><span class="pill dev">Beta</span><h3>Firmware para el FM-1</h3><p>Corre en el aparato desde la 0.4.0-beta. Probado en un solo FM-1; una actualización puede borrar lo guardado.</p><a class="more" href="docs/instalar.html">Instalar</a></div>
+      <div class="card"><span class="pill ok">Disponible</span><h3>Calidad de audio</h3><p>44.1 kHz de punta a punta, mezcla en coma flotante y sonidos calculados en vivo. Qué se mejoró, cuánto cuesta y qué falta.</p><a class="more" href="docs/audio.html">Los detalles</a></div>
       <div class="card"><span class="pill ok">Disponible</span><h3>Interfaz 3.0</h3><p>Cuatro gestos por botón, HOME en todas partes, sampler con generador y grabadora con biblioteca. En el emulador desde la 0.3.0.</p><a class="more" href="docs/diseno-3.html">Por qué es así</a></div>
       <div class="card"><span class="pill plan">Planeado</span><h3>Editor y packs de sonidos</h3><p>Cargar patrones, samples y loops por USB, y packs de kits y loops libres hechos por la comunidad.</p><a class="more" href="docs/hoja-de-ruta.html">Hoja de ruta</a></div>
     </div>
@@ -115,9 +115,9 @@ try {
     </div>
     <ul>
       <li><b>Código propio, escrito desde cero.</b> De la ingeniería inversa pública del FM-1 solo se usaron hechos de hardware. <a href="docs/creditos.html">Créditos</a>.</li>
-      <li><b>Sonidos propios.</b> Los kits, las ondas y los loops de fábrica se sintetizan en el repositorio: el firmware no lleva audio de terceros.</li>
+      <li><b>Sonidos propios.</b> La batería y los sintetizadores se calculan en vivo: el firmware no lleva audio de terceros.</li>
       <li><b>Siempre con su fuente.</b> Cualquier versión que se distribuya, incluidas las modificadas, tiene que publicar su código.</li>
-      <li><b>Probado.</b> Más de 300 comprobaciones automáticas corren en cada cambio.</li>
+      <li><b>Probado.</b> Más de 500 comprobaciones automáticas corren en cada cambio.</li>
     </ul>
   </section>
 

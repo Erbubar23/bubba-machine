@@ -227,6 +227,26 @@ static void apply(bm_ctx *c, const bm_cmd *k)
             c->smp_armed = 0; c->st.smp_armed = 0;
         }
         break;
+    case CMD_SMP_IMPORT:                                  /* una toma que llega por la consola: queda como recién grabada */
+        if (k->a == 0) {
+            if (c->smp_rec) bm_smp_rec_stop(c);
+            smp_voices_off(c, -1);
+            c->smp_armed = 0; c->st.smp_armed = 0;
+            c->punch_cur = c->punch_req = 0xFF;
+            memset(c->mem->arena, 0, sizeof c->mem->arena);
+            c->arena_busy = 1; c->st.smp_unsaved = 0;
+        } else if (c->arena_busy && !c->smp_rec && k->u.i > 0) {
+            c->smp_rec_pos = (uint32_t)k->u.i < BM_SMP_REC_MAX ? (uint32_t)k->u.i : BM_SMP_REC_MAX;
+            bm_smp_rec_stop(c);
+            uint16_t bpm = (uint16_t)(k->b << 8 | k->c);
+            bm_smp_src *m = &c->smp[0];
+            if (bpm >= 400 && bpm <= 2400 && m->len) {
+                m->bpm_x10 = bpm;
+                uint32_t bar = (uint32_t)BM_SMP_RATE * 2400u / bpm, bars = (m->len + bar / 2) / bar;
+                m->bars = (uint8_t)(bars < 1 ? 1 : bars > 8 ? 8 : bars);
+            }
+        }
+        break;
     case CMD_SMP_SRC:
         if (k->a > 2 || (k->a == 0 && (c->smp_rec || c->st.smp_unsaved))) break;   /* la toma sin guardar manda en A */
         smp_voices_off(c, k->a);

@@ -132,6 +132,17 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         responder(0x08, b8, (uint32_t)k * 4u, NULL, 0);
         break;
     }
+    case 0x20: {                                    /* toma: sub (1 byte), a (4), b (2), datos */
+        if (n < 5 + 2 + 8 + 4 + 1)
+            return;
+        int sub = (int)nib_in(m + 5, 2);
+        uint32_t a = nib_in(m + 7, 8), b = nib_in(m + 15, 4);
+        int r = fm1_toma(sub, a, b, m + 19, n - 19 - 1);
+        cab[0] = (uint8_t)sub; cab[1] = (uint8_t)(r == 0);
+        cab[2] = (uint8_t)(a >> 16); cab[3] = (uint8_t)(a >> 8); cab[4] = (uint8_t)a;
+        responder(0x20, cab, 5, NULL, 0);
+        break;
+    }
     case 0x04:
         fm1_stat[FM1_STAT_RENDER_MAX] = 0;
         fm1_stat[FM1_STAT_UI_MAX] = 0;

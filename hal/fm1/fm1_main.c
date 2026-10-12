@@ -367,6 +367,28 @@ static bm_track lab_trk;                     /* el canal antes de lab 26 */
 static int lab_trk_t = -1;
 static int lab_set;                          /* lab 29: canal*64 + byte de bm_track */
 
+int fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn)
+{
+    bm_cmd c;
+    memset(&c, 0, sizeof c);
+    if (sub == 1) {                                       /* datos: a la arena, que el audio ya soltó */
+        uint32_t n = nn / 2;
+        if (a > BM_SMP_REC_MAX || n > BM_SMP_REC_MAX - a)
+            return -1;
+        uint8_t *d = app.amem.arena + a;
+        for (uint32_t i = 0; i < n; i++)
+            d[i] = (uint8_t)((nib[2 * i] & 15u) << 4 | (nib[2 * i + 1] & 15u));
+        return 0;
+    }
+    c.type = CMD_SMP_IMPORT;
+    c.a = (uint8_t)(sub == 2);
+    if (sub == 2) { c.u.i = (int32_t)a; c.b = (uint8_t)(b >> 8); c.c = (uint8_t)b; }
+    else if (sub != 0) return -1;
+    if (sub == 0) fm1_log("consola: llega una toma");
+    else log_num("consola: toma lista, muestras ", a, "");
+    return bm_cmd_push(&app.cmdq, &c) ? 0 : -1;
+}
+
 int fm1_lab(int cmd, int arg)
 {
     switch (cmd) {

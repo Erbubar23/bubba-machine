@@ -133,6 +133,9 @@ void fm1_consola(const uint8_t *sysex, uint32_t n);
 void fm1_log(const char *s);                        /* registro de texto en RAM (consola: log) */
 uint32_t fm1_log_read(uint32_t off, uint8_t *dst, uint32_t max);
 int  fm1_lab(int cmd, int arg);                     /* pruebas por partes (fm1_main.c) */
+/* toma que llega por la consola (tools/fm1/toma.py): sub 0 preparar · 1 datos (a = desde) · 2 lista
+ * (a = muestras, b = bpm_x10). Devuelve 0 si se aceptó. Se guarda en la flash al parar, como una grabada. */
+int  fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn);
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
 uint32_t fm1_scan_now_ticks(void);                  /* ticks del timer (~60 MHz), para tramos cortos */
 uint32_t fm1_scan_ticks_hz(void);

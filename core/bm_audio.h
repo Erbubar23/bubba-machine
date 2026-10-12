@@ -62,6 +62,7 @@ typedef enum {
     CMD_FADE,           /* a=0 subir, 1 bajar (antes de escribir flash) */
     CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
     CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
+    CMD_SMP_IMPORT      /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
 } bm_cmd_type;
 
 typedef struct {

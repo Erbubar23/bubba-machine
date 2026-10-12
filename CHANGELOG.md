@@ -2,9 +2,11 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
-## [Sin publicar]
+## [0.4.0-beta] - 2026-10-11
 
-Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se calcula en vivo con bibliotecas de síntesis probadas. **Hasta la v1 no hay compatibilidad hacia atrás:** los patrones de 0.3 no se leen; al primer arranque se borran (con la canción y los ajustes) y arranca la demo. Las tomas del sampler se quedan.
+**Beta: la primera versión que corre en el FM-1.** Se probó en un solo aparato (el del autor) y todavía cambia mucho. **Una actualización puede borrar lo que guardaste** (patrones, canción, ajustes y tomas del sampler): hasta la v1 no hay compatibilidad hacia atrás, y cuando cambia un formato lo anterior se borra al arrancar y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.
+
+Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se calcula en vivo con bibliotecas de síntesis probadas. Lo guardado con la 0.3 (patrones, canción, ajustes **y tomas**) no se lee: se borra al primer arranque y arranca la demo.
 
 ### Agregado
 - **Batería modelada** (T1 y los canales KIT): 16 instrumentos, cada uno con su **modelo**: bombo, caja y hat de la 808 y versiones sintéticas al estilo 909 (los modelos de Plaits, de Mutable Instruments), hat metálico y platillos, palmas, tom y conga, cencerro, resonador (rim, clave, bloque), ruido (maracas) y percusión FM. Kits **808**, **909** y **SINTE**. Cada instrumento se edita en INSTR: AFINA, DECAY, TONO, COLOR (lo que corresponda al modelo), MODELO, NIVEL, grupo de corte (choke) y LARGO. El acento pega distinto, no solo más fuerte. Seis voces para la batería (antes cuatro).
@@ -16,8 +18,13 @@ Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se
 - **Largo en compases** en la capa de SEQ (negras 7-10).
 - **Motores de sonido nuevos:** **ACID** (estilo 303: filtro escalera de 4 polos con resonancia, acento y slide) para T3 y los canales libres; **ANALOG** (dos osciladores desafinados, sub y ruido, 6 timbres) para los canales libres; y el kit **SINTE**, una batería calculada en vivo. Los kits grabados KO-808 y KO-909 se quedan.
 - **Memoria de tomas a la vista:** en la grabadora (segundos y KB libres, máximo por toma) y en el emulador, junto a la carga de audio.
-- **FM-1, Bubba Machine completo para el aparato** (en pruebas, sin probar todavía en hardware): el núcleo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, pantalla, USB-MIDI, guardado, modo seguro y servicio de actualización.
-- **FM-1, firmware de diagnóstico** (en pruebas): sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
+- **SLICER** (SEQ otra vez en T2): el sampler corta la toma en **16 cortes**, uno por blanca. Las blancas tocan los cortes y, con REC y PLAY, los fijan en el paso; K1 elige, K2 mueve, K3 sensibilidad, K4 ganancia; negras 1-3: cortes en los golpes, 16 u 8 iguales; 9-11 reversa, media velocidad y stutter. Los cortes en los golpes buscan los ataques (sirven también para voces).
+- **Tira de teclas en pantalla:** cada página de canal, MEZCLA y ESCENAS dibuja las 11 negras y las 16 blancas con su nombre corto y el mismo estado que su luz (las luces son blancas y no dicen qué hace la tecla). En HOME la tira es grande. Donde las blancas ya se ven en la pantalla (SEQ, CORTAR, SLICER), la tira muestra solo las negras.
+- **Batería por secciones de 8:** el SEQ de la batería muestra 8 instrumentos con su nombre en letra normal; la negra 9 cambia de sección.
+- **Subir una toma desde la computadora:** `tools/fm1/toma.py` convierte cualquier audio (con ffmpeg) y lo manda al FM-1 por USB-MIDI; queda como una toma recién grabada.
+- **Demo nueva:** acid techno a 160 BPM (909, una línea 303 con acentos y slides y el sampler cortando la primera toma).
+- **FM-1, Bubba Machine completo para el aparato** (beta, probado en el FM-1 del autor): el núcleo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, pantalla, USB-MIDI, guardado, modo seguro y servicio de actualización.
+- **FM-1, firmware de diagnóstico**: sin sonido que muestra cada botón, tecla y perilla, el MASTER, la batería y el USB-MIDI, con modo seguro, salida al modo del chip y el servicio de actualización.
 - **Instalador web** (`instalar.html`): arma el paquete en el navegador sobre el FM-1 V15 de M-VAVE (que cada quien descarga) y lo instala con el cargador oficial; lee el FM-1 solo (dice qué firmware tiene, o por qué no lo encuentra), se elige qué instalar (Bubba Machine, diagnóstico o firmware de fábrica) y queda un botón; también vuelve al firmware de fábrica y continúa una instalación cortada. `tools/fm1/servir.py` lo sirve en la computadora con el V15 ya cargado.
 - **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
@@ -26,7 +33,8 @@ Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se
 - **ALGORITHM dentro de un canal** también pasa por el recuadro con el número antes de cambiar; en INSTR elige instrumento y lo hace sonar.
 - **HOME explica las negras** (mutes, solo, escenas, fill, y las pantallas de la batería).
 - **Fuera los motores viejos:** BAJO, SYNTH (wavetable), MONO y el ANALOG de 6 timbres pasan al ANALOG nuevo; los kits grabados KO-808 y KO-909 y el kit SINTE, a la batería modelada. El programa del FM-1 ocupa 148 KiB menos y se liberan 64 KiB de RAM.
-- Patrones en **formato 4**: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe.
+- Patrones en **formato 5**: cada canal guarda 32 ajustes de sonido, cada instrumento de batería su modelo y su golpe, y la nota del sampler su corte (4 bits). Las tomas pasan a la firma **BMT4** (16 cortes en la cabecera).
+- **Fuera los loops de fábrica:** el sampler toca solo tomas (grabadas o subidas con `tools/fm1/toma.py`).
 - **ANALOG en el FM-1:** 4.1 % de un núcleo por voz (oscilador polyBLEP propio, filtro recalculado cada 8 muestras, saturación sin división y el cálculo por pasadas cortas; la primera versión costaba 10 %).
 - **El audio se compila para velocidad:** en el FM-1 la demo con PLAY pasó de 36.9 % a 27.7 % de un núcleo. Las wavetables se arman al arrancar desde su espectro (el programa ocupa 56 KiB menos).
 - **Audio a 44.1 kHz de punta a punta, con el bus en coma flotante.** Los motores calculaban a 22 kHz y la salida se duplicaba; ahora calculan a 44.1 kHz (agudos hasta 20 kHz, sin imágenes del sobremuestreo) y la mezcla, el delay, los efectos y el clipper son de coma flotante, por bloques. El delay y la captura de los efectos (stutter, reversa, tape stop) pasan a 16 bits (antes la captura era μ-law de 8 bits), y la grabación del sampler se filtra con un Butterworth antes de bajar a 16 kHz. En el FM-1, con PLAY, la mezcla cuesta menos que antes aunque calcula el doble de muestras (docs/TRAZA_FM1.md).
@@ -95,6 +103,7 @@ Primera versión interna.
 - Simulador de PC con pruebas automáticas y emulador web en WebAssembly.
 - Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
 
+[0.4.0-beta]: https://github.com/Erbubar23/bubba-machine/releases/tag/v0.4.0-beta
 [0.3.0]: https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Erbubar23/bubba-machine/commit/3118530

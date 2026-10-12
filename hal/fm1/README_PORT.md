@@ -1,6 +1,6 @@
 # Port al FM-1
 
-**Estado (0.3.x, octubre de 2026):** compilan y se empaquetan dos firmwares, los dos **todavía sin probar en un FM-1**:
+**Estado (0.4.0-beta, octubre de 2026):** compilan y se empaquetan dos firmwares, que corren en el FM-1 del autor (beta: un solo aparato probado):
 
 - **Bubba Machine** (`fm1_main.c`): el núcleo completo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, la pantalla, USB-MIDI, el guardado y el servicio de actualización. `app.bin` de 559 008 bytes (quedan 23 KB).
 - **Diagnóstico** (`fm1_diag.c`): sin sonido, muestra cada botón, tecla y perilla con su cruce en la matriz. Sirve para comprobar el aparato o calibrar.

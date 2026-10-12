@@ -43,8 +43,10 @@
     <a href="diseno-0-2.html">Diseño 0.2</a></aside>
   <main class="doc">
 <h1 id="instalar-bubba-machine">Instalar Bubba Machine</h1>
-<h2 id="estado-actual-en-pruebas">Estado actual: en pruebas</h2>
-<p>Bubba Machine para el FM-1 ya tiene <strong>firmware completo, con sonido</strong>, un <strong>firmware de diagnóstico</strong> y un <strong>instalador web</strong>. Todavía <strong>no se ha probado en un aparato</strong>: la primera prueba la hace el autor. El avance técnico está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a>.</p>
+<h2 id="estado-actual-beta-040-beta">Estado actual: beta (0.4.0-beta)</h2>
+<p>Bubba Machine para el FM-1 tiene <strong>firmware completo, con sonido</strong>, un <strong>firmware de diagnóstico</strong> y un <strong>instalador web</strong>. Corre en el FM-1 del autor, pero es una <strong>beta</strong>: se probó en un solo aparato y todavía cambia mucho. El avance técnico está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a>.</p>
+<blockquote><p><strong>Lo que guardes puede perderse al actualizar.</strong> Hasta la v1 no hay compatibilidad hacia atrás: si una versión nueva cambia cómo se guardan los patrones, la canción, los ajustes o las tomas, al primer arranque lo anterior se borra y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.</p></blockquote>
+<p>Cada versión también se publica como <code>bubba-machine-&lt;versión&gt;.fwsc</code> en las <a href="https://github.com/Erbubar23/bubba-machine/releases">releases de GitHub</a>, para los instaladores que usan ese paquete (como el <a href="https://fm1.designburgapps.com/">FM-1 Firmware Hub</a>).</p>
 <p>Si no quieres arriesgar tu FM-1, usa el emulador (abajo): corre el mismo código.</p>
 <h2 id="mientras-tanto-el-emulador">Mientras tanto: el emulador</h2>
 <ol><li>
@@ -120,7 +122,7 @@ py -3 tools/fm1/rescate.py restaurar FM-1.fwsc</code></pre>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

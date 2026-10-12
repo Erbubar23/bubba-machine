@@ -44,8 +44,9 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
-<h2 id="unreleased">[Unreleased]</h2>
-<p>The sounds were rebuilt: <strong>no more recorded sounds or wavetables</strong>, everything is computed live with proven synthesis libraries. <strong>Until v1 there is no backward compatibility:</strong> 0.3 patterns are not read; on first boot they are erased (with the song and settings) and the demo starts. Sampler takes are kept.</p>
+<h2 id="040-beta---2026-10-11"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.4.0-beta">0.4.0-beta</a> - 2026-10-11</h2>
+<p><strong>Beta: the first version that runs on the FM-1.</strong> It was tested on a single device (the author's) and still changes a lot. <strong>An update may erase what you saved</strong> (patterns, song, settings and sampler takes): until v1 there is no backward compatibility, and when a format changes the old data is erased at boot and the demo comes back. If something matters to you, record it from the audio output before updating.</p>
+<p>The sounds were rebuilt: <strong>no more recorded sounds or wavetables</strong>, everything is computed live with proven synthesis libraries. What 0.3 saved (patterns, song, settings <strong>and takes</strong>) is not read: it is erased on first boot and the demo starts.</p>
 <h3 id="added">Added</h3>
 <ul><li>
 <strong>Modeled drums</strong> (T1 and KIT tracks): 16 instruments, each with its own <strong>model</strong>: 808 kick, snare and hat plus 909-style synthetic versions (the Plaits models by Mutable Instruments), metallic hat and cymbals, clap, tom and conga, cowbell, resonator (rim, clave, block), noise (maracas) and FM percussion. Kits <strong>808</strong>, <strong>909</strong> and <strong>SINTE</strong>. Each instrument is edited in INSTR: TUNE, DECAY, TONE, COLOR (whatever fits the model), MODEL, LEVEL, choke group and LENGTH. Accents hit differently, not just louder. Six drum voices (was four).
@@ -66,9 +67,19 @@
 </li><li>
 <strong>Take memory in view:</strong> on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
 </li><li>
-<strong>FM-1, full Bubba Machine for the device</strong> (in testing, not yet tried on hardware): the core with sound through the codec (ALNK0), matrix and LEDs on interrupts, screen, USB-MIDI, saving, safe mode and the update service.
+<strong>SLICER</strong> (SEQ again on T2): the sampler cuts the take into <strong>16 slices</strong>, one per white key. White keys play the slices and, with REC and PLAY, set them on the step; K1 picks, K2 moves, K3 sensitivity, K4 gain; black 1-3: slices on the hits, 16 or 8 equal; 9-11 reverse, half speed and stutter. Slicing on the hits looks for the attacks (it also works for vocals).
 </li><li>
-<strong>FM-1, diagnostic firmware</strong> (in testing): no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
+<strong>Key strip on screen:</strong> every track page, MEZCLA (mix) and ESCENAS (scenes) draws the 11 black and 16 white keys with a short name and the same state as their light (the lights are white and don't say what a key does). On HOME the strip is large. Where the white keys are already on screen (SEQ, CORTAR, SLICER), the strip shows only the black keys.
+</li><li>
+<strong>Drums in sections of 8:</strong> the drum SEQ shows 8 instruments with their names in regular type; black 9 switches section.
+</li><li>
+<strong>Upload a take from the computer:</strong> <code>tools/fm1/toma.py</code> converts any audio (with ffmpeg) and sends it to the FM-1 over USB-MIDI; it arrives as a freshly recorded take.
+</li><li>
+<strong>New demo:</strong> acid techno at 160 BPM (909, a 303 line with accents and slides and the sampler slicing the first take).
+</li><li>
+<strong>FM-1, full Bubba Machine for the device</strong> (beta, tested on the author's FM-1): the core with sound through the codec (ALNK0), matrix and LEDs on interrupts, screen, USB-MIDI, saving, safe mode and the update service.
+</li><li>
+<strong>FM-1, diagnostic firmware</strong>: no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
 </li><li>
 <strong>Web installer</strong> (<code>instalar.html</code>): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it reads the FM-1 by itself (says which firmware it runs, or why it can't find it), you choose what to install (Bubba Machine, diagnostic or factory firmware) and press one button; it also goes back to the factory firmware and resumes an interrupted install. <code>tools/fm1/servir.py</code> serves it on the computer with V15 already loaded.
 </li><li>
@@ -84,7 +95,9 @@
 </li><li>
 <strong>Old engines removed:</strong> BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
 </li><li>
-Patterns in <strong>format 4</strong>: each track stores 32 sound settings and each drum instrument its model and hit.
+Patterns in <strong>format 5</strong>: each track stores 32 sound settings, each drum instrument its model and hit, and each sampler note its slice (4 bits). Takes move to the <strong>BMT4</strong> signature (16 slices in the header).
+</li><li>
+<strong>Factory loops removed:</strong> the sampler plays only takes (recorded or uploaded with <code>tools/fm1/toma.py</code>).
 </li><li>
 <strong>ANALOG on the FM-1:</strong> 4.1 % of a core per voice (own polyBLEP oscillator, filter coefficients every 8 samples, division-free saturation and short per-block passes; the first version cost 10 %).
 </li><li>
@@ -195,7 +208,7 @@ FM-1 port skeleton (structure, pins and matrix scanning).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.3.0 · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

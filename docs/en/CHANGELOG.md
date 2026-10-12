@@ -2,9 +2,11 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
-## [Unreleased]
+## [0.4.0-beta] - 2026-10-11
 
-The sounds were rebuilt: **no more recorded sounds or wavetables**, everything is computed live with proven synthesis libraries. **Until v1 there is no backward compatibility:** 0.3 patterns are not read; on first boot they are erased (with the song and settings) and the demo starts. Sampler takes are kept.
+**Beta: the first version that runs on the FM-1.** It was tested on a single device (the author's) and still changes a lot. **An update may erase what you saved** (patterns, song, settings and sampler takes): until v1 there is no backward compatibility, and when a format changes the old data is erased at boot and the demo comes back. If something matters to you, record it from the audio output before updating.
+
+The sounds were rebuilt: **no more recorded sounds or wavetables**, everything is computed live with proven synthesis libraries. What 0.3 saved (patterns, song, settings **and takes**) is not read: it is erased on first boot and the demo starts.
 
 ### Added
 - **Modeled drums** (T1 and KIT tracks): 16 instruments, each with its own **model**: 808 kick, snare and hat plus 909-style synthetic versions (the Plaits models by Mutable Instruments), metallic hat and cymbals, clap, tom and conga, cowbell, resonator (rim, clave, block), noise (maracas) and FM percussion. Kits **808**, **909** and **SINTE**. Each instrument is edited in INSTR: TUNE, DECAY, TONE, COLOR (whatever fits the model), MODEL, LEVEL, choke group and LENGTH. Accents hit differently, not just louder. Six drum voices (was four).
@@ -16,8 +18,13 @@ The sounds were rebuilt: **no more recorded sounds or wavetables**, everything i
 - **Length in bars** on the SEQ layer (black 7-10).
 - **New sound engines:** **ACID** (303-style: 4-pole ladder filter with resonance, accent and slide) for T3 and the free tracks; **ANALOG** (two detuned oscillators, sub and noise, 6 timbres) for the free tracks; and the **SINTE** kit, drums computed live. The recorded KO-808 and KO-909 kits stay.
 - **Take memory in view:** on the recorder (free seconds and KB, maximum per take) and in the emulator, next to audio loading.
-- **FM-1, full Bubba Machine for the device** (in testing, not yet tried on hardware): the core with sound through the codec (ALNK0), matrix and LEDs on interrupts, screen, USB-MIDI, saving, safe mode and the update service.
-- **FM-1, diagnostic firmware** (in testing): no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
+- **SLICER** (SEQ again on T2): the sampler cuts the take into **16 slices**, one per white key. White keys play the slices and, with REC and PLAY, set them on the step; K1 picks, K2 moves, K3 sensitivity, K4 gain; black 1-3: slices on the hits, 16 or 8 equal; 9-11 reverse, half speed and stutter. Slicing on the hits looks for the attacks (it also works for vocals).
+- **Key strip on screen:** every track page, MEZCLA (mix) and ESCENAS (scenes) draws the 11 black and 16 white keys with a short name and the same state as their light (the lights are white and don't say what a key does). On HOME the strip is large. Where the white keys are already on screen (SEQ, CORTAR, SLICER), the strip shows only the black keys.
+- **Drums in sections of 8:** the drum SEQ shows 8 instruments with their names in regular type; black 9 switches section.
+- **Upload a take from the computer:** `tools/fm1/toma.py` converts any audio (with ffmpeg) and sends it to the FM-1 over USB-MIDI; it arrives as a freshly recorded take.
+- **New demo:** acid techno at 160 BPM (909, a 303 line with accents and slides and the sampler slicing the first take).
+- **FM-1, full Bubba Machine for the device** (beta, tested on the author's FM-1): the core with sound through the codec (ALNK0), matrix and LEDs on interrupts, screen, USB-MIDI, saving, safe mode and the update service.
+- **FM-1, diagnostic firmware**: no sound that shows every button, key and knob, MASTER, the battery and USB-MIDI, with safe mode, a way into chip mode and the update service.
 - **Web installer** (`instalar.html`): builds the package in the browser on top of M-VAVE's FM-1 V15 (which each user downloads) and installs it with the official loader; it reads the FM-1 by itself (says which firmware it runs, or why it can't find it), you choose what to install (Bubba Machine, diagnostic or factory firmware) and press one button; it also goes back to the factory firmware and resumes an interrupted install. `tools/fm1/servir.py` serves it on the computer with V15 already loaded.
 - **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
@@ -26,7 +33,8 @@ The sounds were rebuilt: **no more recorded sounds or wavetables**, everything i
 - **ALGORITHM inside a track** also goes through the box with the number before switching; in INSTR it picks an instrument and plays it.
 - **HOME explains the black keys** (mutes, solo, scenes, fill and the drum screens).
 - **Old engines removed:** BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
-- Patterns in **format 4**: each track stores 32 sound settings and each drum instrument its model and hit.
+- Patterns in **format 5**: each track stores 32 sound settings, each drum instrument its model and hit, and each sampler note its slice (4 bits). Takes move to the **BMT4** signature (16 slices in the header).
+- **Factory loops removed:** the sampler plays only takes (recorded or uploaded with `tools/fm1/toma.py`).
 - **ANALOG on the FM-1:** 4.1 % of a core per voice (own polyBLEP oscillator, filter coefficients every 8 samples, division-free saturation and short per-block passes; the first version cost 10 %).
 - **Audio code is compiled for speed:** on the FM-1 the demo with PLAY went from 36.9 % to 27.7 % of a core. Wavetables are built at boot from their spectrum (56 KiB less program).
 - **44.1 kHz audio end to end, with a floating-point bus.** The engines used to run at 22 kHz and the output was doubled; they now run at 44.1 kHz (highs up to 20 kHz, no oversampling images) and the mix, delay, effects and clipper are floating point, block based. The delay and the effects capture (stutter, reverse, tape stop) are now 16-bit (the capture used to be 8-bit μ-law), and sampler recording goes through a Butterworth filter before dropping to 16 kHz. On the FM-1, with PLAY, the mix costs less than before even though it computes twice the samples (docs/TRAZA_FM1.md).
@@ -95,6 +103,7 @@ First internal version.
 - PC simulator with automated tests and a WebAssembly web emulator.
 - FM-1 port skeleton (structure, pins and matrix scanning).
 
+[0.4.0-beta]: https://github.com/Erbubar23/bubba-machine/releases/tag/v0.4.0-beta
 [0.3.0]: https://github.com/Erbubar23/bubba-machine/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Erbubar23/bubba-machine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Erbubar23/bubba-machine/commits/main

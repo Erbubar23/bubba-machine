@@ -110,8 +110,8 @@ def fm1(app):
                         os.path.join(out, 'app-%s.bin' % app), pkg, '--vm', '0xE5000:0x8000'])
     if r.returncode:
         sys.exit(r.returncode)
-    # para el instalador web: solo app.bin (lo nuestro); el paquete lo arma el navegador sobre el
-    # V15 de cada quien, así lo de M-VAVE nunca se publica
+    # el .fwsc va a la release de GitHub (lo pide el FM-1 Firmware Hub); el instalador web publica
+    # solo app.bin y arma el paquete en el navegador sobre el V15 de cada quien
     pub = os.path.join(ROOT, 'web', 'fm1')
     os.makedirs(pub, exist_ok=True)
     nombre = base + '.bin'
@@ -124,14 +124,16 @@ def fm1(app):
         if n.endswith('.bin'):
             d = open(os.path.join(pub, n), 'rb').read()
             diag = '-diag-' in n
-            v = n.rsplit('-', 1)[1][:-4]
+            v = n[len('bubba-diag-' if diag else 'bubba-machine-'):-4]
             lista.append({'archivo': n, 'sha256': hashlib.sha256(d).hexdigest(), 'bytes': len(d),
                           'nombre': ('Diagnóstico %s' if diag else 'Bubba Machine %s') % v,
                           'nombre_en': ('Diagnostic %s' if diag else 'Bubba Machine %s') % v,
                           'detalle': 'Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.' if diag else
-                          'El groovebox completo: 6 canales, secuenciador, sampler y sonido. En pruebas.',
+                          'El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una '
+                          'actualización puede borrar lo guardado.',
                           'detalle_en': 'No sound: shows every button, key and knob to check the device.' if diag else
-                          'The full groovebox: 6 channels, sequencer, sampler and sound. In testing.'})
+                          'The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may '
+                          'erase what you saved.'})
     lista.sort(key=lambda x: ('-diag-' in x['archivo'], x['archivo']))
     with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(lista, f, ensure_ascii=False, indent=1)

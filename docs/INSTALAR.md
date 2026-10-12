@@ -1,8 +1,12 @@
 # Instalar Bubba Machine
 
-## Estado actual: en pruebas
+## Estado actual: beta (0.4.0-beta)
 
-Bubba Machine para el FM-1 ya tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Todavía **no se ha probado en un aparato**: la primera prueba la hace el autor. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
+Bubba Machine para el FM-1 tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Corre en el FM-1 del autor, pero es una **beta**: se probó en un solo aparato y todavía cambia mucho. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
+
+> **Lo que guardes puede perderse al actualizar.** Hasta la v1 no hay compatibilidad hacia atrás: si una versión nueva cambia cómo se guardan los patrones, la canción, los ajustes o las tomas, al primer arranque lo anterior se borra y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.
+
+Cada versión también se publica como `bubba-machine-<versión>.fwsc` en las [releases de GitHub](https://github.com/Erbubar23/bubba-machine/releases), para los instaladores que usan ese paquete (como el [FM-1 Firmware Hub](https://fm1.designburgapps.com/)).
 
 Si no quieres arriesgar tu FM-1, usa el emulador (abajo): corre el mismo código.
 

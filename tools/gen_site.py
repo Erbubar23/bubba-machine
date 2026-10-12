@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, 'web')
 REPO = 'https://github.com/Erbubar23/bubba-machine/blob/main/'
 SITE = 'https://erbubar23.github.io/bubba-machine/'
-VERSION = '0.3.0'
+VERSION = '0.4.0-beta'
 
 LANGS = {'es': 'docs', 'en': 'en/docs'}          # carpeta de salida dentro de web/
 

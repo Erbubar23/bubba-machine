@@ -1,39 +1,62 @@
 # Hoja de ruta
 
-Lo que viene para Bubba Machine, en el orden en que importa. Las fechas dependen de tener el hardware funcionando.
+Todo lo que está contemplado para Bubba Machine. **Se va a hacer todo, poco a poco**, sin fechas: cada paso sale cuando está probado en el FM-1. El orden dentro de cada lista es el orden en que importa hoy y puede cambiar.
 
-## Ahora: 0.3.x, la interfaz 3.0
+Lo marcado ✓ ya está en la versión actual (0.4.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver [instalar](INSTALAR.md)).
 
-- La interfaz 3.0 completa en el emulador web: cuatro gestos por botón, HOME en todas partes, canales fijos y libres, sampler 3.0 y grabadora con biblioteca de tomas.
-- Recibir reportes y opiniones sobre la forma de tocar.
-- Decisiones abiertas: más bancos de patrones (la flash guarda 16) y notas fantasma en la batería.
+## Audio
 
-## Port al FM-1
+El objetivo es la mejor calidad que permite el FM-1. Qué se mejoró, cuánto cuesta y qué limita hoy: [audio](AUDIO.md).
 
-El paso más importante: que corra en el aparato. El plan está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md):
+**Hecho**
+- ✓ Motores y mezcla a 44.1 kHz, bus en coma flotante, delay y captura de efectos a 16 bits.
+- ✓ Batería modelada (Plaits), ANALOG con polyBLEP, FM de 6 operadores (msfa) y ACID.
+- ✓ Caché de datos de 32 KiB y audio compilado para velocidad.
 
-1. Respaldo completo de la flash y vuelta al firmware de fábrica comprobada.
-2. Arranque, reloj, pantalla y matriz de botones.
-3. Audio por I2S, flash y USB-MIDI.
-4. Medir CPU, RAM y voces reales, y ajustar.
+**Contemplado**
+1. **Audio en los dos núcleos.** El segundo núcleo rinde 1.83× (medido): más voces y lugar para efectos.
+2. **Efectos de master:** reverb y chorus (de Mutable Instruments), delay de cinta, compresor y nivelador.
+3. **ACID 2.0:** Open303 en coma flotante, con un generador de líneas acid.
+4. **Sampler de más calidad y más segundos**, dentro de lo que deja la flash (hoy graba a 16 kHz y 8 bits).
+5. **Morph A/B por instrumento de batería:** dos versiones de cada golpe y una perilla que pasa de una a otra.
+6. **Motores CUERDA y MODAL** (modelado físico de Plaits): ya tienen lugar en el formato, falta elegirlos.
+7. **Clipper con sobremuestreo**, para que el DRIVE alto no genere aliasing.
+8. **Pantalla más rápida:** SPI a 30 MHz (2.2× medido) y envío por DMA, que libera tiempo de procesador para el audio.
+9. **Medir la salida analógica** del FM-1 (ruido, distorsión, respuesta) con una interfaz de audio.
 
-## Instalador web
+## Interfaz: Live 0.5
 
-- Instalación por USB-C desde el navegador, con Web MIDI.
-- Respaldo obligatorio antes de instalar y vuelta atrás en un clic.
+La 0.5 ordena el FM-1 en dos lugares: **tocar en vivo** (HOME y sus vueltas) y **trabajar la pista** (dentro de un canal). Las luces de las teclas son solo blancas y no dicen qué hace cada tecla, así que cada pantalla lo muestra en la tira de teclas.
 
-## Hecho: 0.3, la interfaz 3.0
+**Hecho**
+- ✓ **Tira de teclas en pantalla:** las 11 negras y las 16 blancas con su nombre corto y la misma intensidad que su luz.
+- ✓ **SLICER:** una toma en 16 cortes que se tocan con las blancas.
+- ✓ Pantallas de **MUTES** y **FILL**, y la batería por secciones de 8.
 
-Ver el [registro de cambios](../CHANGELOG.md) y el [manual](MANUAL.md). El diseño está en [`DISENO_3.0.md`](DISENO_3.0.md).
+**Contemplado: tocar en vivo (HOME otra vez = la página siguiente)**
+1. **PERFORM:** K1-K4 como macros de show que nunca cambian de lugar (FILTRO DJ, DELAY, REVERB, MORPH). En todas las páginas de HOME, las mismas negras: 1-6 mutes (mantener = solo), 7-10 escenas, 11 FILL.
+2. **MORPH A·B:** pasar de un estado del sonido a otro con una perilla.
+3. **FX MASTER:** los efectos del master en una página.
+4. **ESCENAS Y CANCIÓN:** armar y tocar la canción con las escenas.
 
-## Después de la 0.3
+**Contemplado: trabajar la pista (el botón otra vez = la página siguiente)**
+1. **SEQ › LOOP › DADOS:** variaciones al azar controladas, y el generador ACID para las líneas de bajo.
+2. **EDIT › SONIDO › INSTR:** el instrumento A/B de la batería.
+3. **LFO › MOVIMIENTO:** un secuenciador de modulación y grabar el movimiento de las perillas.
+4. **FX › PISTA:** mezcla y efectos por pista.
 
-- **LFO por canal** (el botón ya tiene su capa: repetir y ligar).
-- **Bancos de patrones:** ampliar el mapa de flash o achicar los patrones.
+**Otros**
+- **Bancos de patrones:** más de 20 patrones, ampliando el mapa de la flash o achicando los patrones.
 - **Notas fantasma en la batería:** un P-Lock de nivel o un formato más grande.
 
-## Más adelante
+## Herramientas y ecosistema
 
-- **Editor web:** cargar y bajar patrones, samples y loops por USB.
-- **Packs de loops y kits libres** (CC0 o GPL), hechos por la comunidad.
-- **Bluetooth MIDI**, si el hardware y el CPU lo permiten.
+- **Respaldo de lo guardado desde el navegador** (patrones, canción y tomas), para no perder nada al actualizar.
+- **Editor web:** cargar y bajar patrones y tomas por USB (hoy las tomas se suben con `tools/fm1/toma.py`), y bancos de FM en formato `.syx` de la DX7.
+- **Packs de kits y tomas libres** (CC0 o GPL), hechos por la comunidad.
+- **Bluetooth MIDI**, si el hardware y el procesador lo permiten (sin promesa: ningún firmware libre lo ha demostrado).
+
+## Hecho
+
+- **0.4.0-beta:** la primera versión para el FM-1, sonidos calculados en vivo y audio a 44.1 kHz. Ver el [registro de cambios](../CHANGELOG.md).
+- **0.3:** la interfaz 3.0, con cuatro gestos por botón y HOME en todas partes. El diseño está en [`DISENO_3.0.md`](DISENO_3.0.md).

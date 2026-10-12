@@ -45,7 +45,7 @@ Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) 
 | [Manual](docs/MANUAL.md) | Cómo se toca, botón por botón |
 | [Instalar](docs/INSTALAR.md) | Estado del instalador y cómo será la instalación |
 | [Desarrollo](docs/DESARROLLO.md) | Compilar, probar, generar los sonidos y el sitio |
-| [Hoja de ruta](docs/HOJA_DE_RUTA.md) | Qué viene: el port al FM-1 y el instalador |
+| [Hoja de ruta](docs/HOJA_DE_RUTA.md) | Todo lo contemplado, de audio y de interfaz |
 | [Diseño 3.0](docs/DISENO_3.0.md) | Por qué la interfaz es así: cuatro gestos por botón y HOME en todas partes |
 | [Audio](docs/AUDIO.md) | Calidad de audio: qué se mejoró, cuánto cuesta en el FM-1 y qué falta |
 | [Especificación](docs/SPEC_V3.md) | Hardware, memoria, audio y decisiones técnicas |

@@ -2870,6 +2870,108 @@ static uint8_t lane_led(const bm_tr *tr, int ln, int sel)
     return LED_OFF;
 }
 
+/* Qué hace cada tecla ahora y cómo está su luz. Las luces del FM-1 son blancas: solo dicen si la
+ * tecla está activa o disponible, así que la pantalla muestra estos mismos nombres (tira de teclas)
+ * y la luz y el dibujo salen siempre de aquí. */
+static void KL(bm_keyfn *K, int k, const char *l) { snprintf(K[k].label, sizeof K[k].label, "%s", l); }
+
+void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
+{
+    const bm_status *st = &a->ctx.st;
+    int t = a->track, kind = app_kind(a, t);
+    char title[24]; uint16_t col; const char *h1, *h2;
+    bool mapped = a->layer || a->view == V_HOME || a->view == V_MIX || (a->view == V_CH && a->page == PG_CHORDS);
+    if (mapped) { bm_app_keymap(a, K, title, sizeof title, &col, &h1, &h2); return; }
+    memset(K, 0, sizeof(bm_keyfn) * BM_KEYS);
+    char b8[8];
+    for (int k = 0; k < BM_KEYS; k++) {
+        int w = bm_key_white_index(k), b = bm_key_black_index(k);
+        uint8_t l = LED_OFF;
+        if (a->view == V_CH && a->page == PG_SEQ) {
+            if (w >= 0) { snprintf(b8, sizeof b8, "%d", a->step_page * 16 + w + 1); KL(K, k, b8); }
+            if (kind == KIND_NOTE) {
+                if (w >= 0) {
+                    int s = a->step_page * 16 + w, idx[4];
+                    if (s < a->pat.trk[t].length) {
+                        l = syn_step_events(a, t, s, idx) ? LED_ON : LED_OFF;
+                        if (s == bm_app_track_step(a, t, -1)) l = LED_BLINK;
+                    }
+                } else if (b < 8) {
+                    int root, sc = app_scale(a, t, &root);
+                    KL(K, k, bm_note_names[bm_scale_note(root, sc, b, base_oct(a, t) + a->note_oct) % 12]);
+                    l = LED_DIM;
+                } else { KL(K, k, b == 8 ? "OCT-" : b == 9 ? "OCT+" : "FILL"); l = LED_OFF; }
+            } else if (t == 1) {
+                const bm_tr *tr = &a->pat.tr[1];
+                if (w >= 0) {
+                    int s = a->step_page * 16 + w;
+                    if (s < tr->lane[0].len) {
+                        int p = bm_brk_step(tr, s, NULL);
+                        l = p > 0 ? LED_ON : p == 0 ? LED_BREATH : LED_OFF;
+                        if (s == bm_app_track_step(a, 1, 0)) l = LED_BLINK;
+                    }
+                } else if (b < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); l = st->brk_slice == b && st->playing ? LED_ON : LED_MID; }
+                else { KL(K, k, b == 8 ? "REV" : b == 9 ? "MEDIA" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
+            } else {
+                const bm_tr *tr = bm_trk_trc(&a->pat, t);
+                int lane = tr_lane(a);
+                if (w >= 0) {
+                    int s = a->step_page * 16 + w, len = tr->lane[lane].len;
+                    if (s < len) {
+                        uint8_t bb = tr->st[lane][s];
+                        l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_OFF;
+                        if (s == bm_app_track_step(a, t, lane)) l = LED_BLINK;
+                    }
+                } else if (b < 8) {
+                    int ln = (lane / 8) * 8 + b;
+                    snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, ln)); KL(K, k, b8);
+                    l = lane_led(tr, ln, lane);
+                } else {
+                    KL(K, k, b == 8 ? (lane < 8 ? "9-16" : "1-8") : b == 9 ? "MUTES" : "FILL");
+                    l = (b == 8 && lane >= 8) ? LED_ON : LED_DIM;
+                }
+            }
+        } else if (a->view == V_SCENES) {
+            static const char *const SL[8] = {"A", "B", "C", "D", "GU A", "GU B", "GU C", "GU D"};
+            if (w >= 0 && w < 8) KL(K, k, SL[w]);
+            if (w >= 0 && w < 4) l = w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_MID : LED_OFF));
+            else if (w >= 4 && w < 8) l = LED_DIM;
+            else if (b >= 0 && b < 6) { snprintf(b8, sizeof b8, "T%d", b + 1); KL(K, k, b8); l = a->pat.trk[b].mute ? LED_OFF : LED_ON; }
+            else if (b >= 6 && b < 10) { snprintf(b8, sizeof b8, "%c", 'A' + b - 6); KL(K, k, b8); l = LED_DIM; }
+            else if (b == 10) { KL(K, k, "FILL"); l = LED_DIM; }
+        } else if (a->view == V_CH && a->page == PG_CUT) {
+            const bm_take *tk = &a->take[a->cut_take % BM_TAKES];
+            if (w >= 0 && tk->valid) {
+                uint32_t bpm = tk->bpm_x10 ? tk->bpm_x10 : a->pat.meta.bpm_x10, e8 = (uint32_t)BM_SMP_RATE * 300u / bpm;
+                uint32_t pos = (uint32_t)w * e8;
+                snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8);
+                l = pos < tk->len ? LED_MID : LED_OFF;
+                for (int i = 0; i < tk->nmarks; i++) if ((tk->marks[i] > pos ? tk->marks[i] - pos : pos - tk->marks[i]) < e8 / 2) l = LED_ON;
+            } else if (b >= 0 && b < 10) {
+                if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); } else KL(K, k, b == 8 ? "GOLPE" : "IGUAL");
+                l = LED_DIM;
+            }
+        } else if (a->view == V_CH && a->page == PG_TAKES) {
+            if (w >= 0 && w < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", w + 1); KL(K, k, b8); l = LED_DIM; }
+            else if (b == 0 || b == 1) { KL(K, k, b == 0 ? "LOOPA" : "LOOPB"); l = LED_MID; }
+            else if (b == 10) { KL(K, k, "BORRA"); l = LED_DIM; }
+        } else if (a->view == V_CH && kind == KIND_TR) {
+            if (w >= 0) { snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, w)); KL(K, k, b8); l = lane_led(bm_trk_trc(&a->pat, t), w, tr_lane(a)); }
+        } else if (a->view == V_CH && kind == KIND_BRK) {
+            int sl = w >= 0 ? w : b;
+            if (sl >= 0 && sl < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", sl + 1); KL(K, k, b8); l = LED_DIM; }
+        } else if (a->view == V_CH && kind == KIND_NOTE) {
+            int root, sc = app_scale(a, t, &root);
+            if (a->pat.meta.scale_lock || a->page == PG_SCL) {
+                if (w >= 0) { KL(K, k, bm_note_names[bm_scale_note(root, sc, w, base_oct(a, t)) % 12]); l = (w % bm_scale_len(sc)) == 0 ? LED_ON : LED_DIM; }
+                else if (b < 7) { static const char *const R[7] = {"I", "II", "III", "IV", "V", "VI", "VII"}; KL(K, k, R[b]); l = LED_DIM; }
+                else { static const char *const X[4] = {"+7", "+9", "SUS2", "SUS4"}; KL(K, k, X[b - 7]); }
+            } else KL(K, k, bm_note_names[(BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0) + 120) % 12]);
+        }
+        K[k].led = l;
+    }
+}
+
 void app_leds(bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
@@ -2902,70 +3004,7 @@ void app_leds(bm_app *a)
         if (a->ask && i == BTN_OCT_UP) l = LED_BLINK;
         led(a, i, l);
     }
-    int t = a->track, kind = app_kind(a, t);
     bm_keyfn K[BM_KEYS];
-    char title[24]; uint16_t col; const char *h1, *h2;
-    bool mapped = a->layer || a->view == V_HOME || a->view == V_MIX || (a->view == V_CH && a->page == PG_CHORDS);
-    if (mapped) bm_app_keymap(a, K, title, sizeof title, &col, &h1, &h2);
-    for (int k = 0; k < BM_KEYS; k++) {
-        int w = bm_key_white_index(k), b = bm_key_black_index(k);
-        uint8_t l = LED_OFF;
-        if (a->keys_down[k]) l = LED_ON;
-        else if (mapped) l = K[k].led;
-        else if (a->view == V_CH && a->page == PG_SEQ) {
-            if (kind == KIND_NOTE) {
-                if (w >= 0) {
-                    int s = a->step_page * 16 + w, idx[4];
-                    if (s < a->pat.trk[t].length) {
-                        l = syn_step_events(a, t, s, idx) ? LED_ON : LED_OFF;
-                        if (s == bm_app_track_step(a, t, -1)) l = LED_BLINK;
-                    }
-                } else l = b < 8 ? LED_DIM : LED_OFF;
-            } else if (t == 1) {
-                const bm_tr *tr = &a->pat.tr[1];
-                if (w >= 0) {
-                    int s = a->step_page * 16 + w;
-                    if (s < tr->lane[0].len) {
-                        int p = bm_brk_step(tr, s, NULL);
-                        l = p > 0 ? LED_ON : p == 0 ? LED_BREATH : LED_OFF;
-                        if (s == bm_app_track_step(a, 1, 0)) l = LED_BLINK;
-                    }
-                } else if (b < BM_SLICES) l = st->brk_slice == b && st->playing ? LED_ON : LED_MID;
-                else l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM;
-            } else {
-                const bm_tr *tr = bm_trk_trc(&a->pat, t);
-                int lane = tr_lane(a);
-                if (w >= 0) {
-                    int s = a->step_page * 16 + w, len = tr->lane[lane].len;
-                    if (s < len) {
-                        uint8_t bb = tr->st[lane][s];
-                        l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_OFF;
-                        if (s == bm_app_track_step(a, t, lane)) l = LED_BLINK;
-                    }
-                } else if (b < 8) {
-                    l = lane_led(tr, (lane / 8) * 8 + b, lane);
-                } else l = (b == 8 && lane >= 8) ? LED_ON : LED_DIM;
-            }
-        } else if (a->view == V_SCENES) {
-            if (w >= 0 && w < 4) l = w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_MID : LED_OFF));
-            else if (w >= 4 && w < 8) l = LED_DIM;
-            else if (b >= 0 && b < 6) l = a->pat.trk[b].mute ? LED_OFF : LED_ON;
-        } else if (a->view == V_CH && a->page == PG_CUT) {
-            const bm_take *tk = &a->take[a->cut_take % BM_TAKES];
-            if (w >= 0 && tk->valid) {
-                uint32_t bpm = tk->bpm_x10 ? tk->bpm_x10 : a->pat.meta.bpm_x10, e8 = (uint32_t)BM_SMP_RATE * 300u / bpm;
-                uint32_t pos = (uint32_t)w * e8;
-                l = pos < tk->len ? LED_MID : LED_OFF;
-                for (int i = 0; i < tk->nmarks; i++) if ((tk->marks[i] > pos ? tk->marks[i] - pos : pos - tk->marks[i]) < e8 / 2) l = LED_ON;
-            } else if (b >= 0 && b < 10) l = LED_DIM;
-        } else if (kind == KIND_TR && w >= 0) {
-            l = lane_led(bm_trk_trc(&a->pat, t), w, tr_lane(a));
-        } else if (kind == KIND_NOTE && (a->pat.meta.scale_lock || (a->view == V_CH && a->page == PG_SCL))) {
-            int root, sc = app_scale(a, t, &root);
-            (void)root;
-            if (w >= 0) l = (w % bm_scale_len(sc)) == 0 ? LED_ON : LED_DIM;
-            else if (b < 7) l = LED_DIM;
-        }
-        led(a, BM_LED_KEY0 + k, l);
-    }
+    bm_app_keys(a, K);
+    for (int k = 0; k < BM_KEYS; k++) led(a, BM_LED_KEY0 + k, a->keys_down[k] ? LED_ON : K[k].led);
 }

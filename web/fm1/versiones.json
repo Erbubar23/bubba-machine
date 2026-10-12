@@ -1,8 +1,8 @@
 [
  {
   "archivo": "bubba-machine-0.3.0.bin",
-  "sha256": "7be7c32b50fe06cbdc18e65e69245855747bf1060453493adda340c2d830854c",
-  "bytes": 392492,
+  "sha256": "a38924ac07c12a61932b94d5f4485fecbe1aa44d5a9df95848df2eb1274cf43a",
+  "bytes": 393004,
   "nombre": "Bubba Machine 0.3.0",
   "nombre_en": "Bubba Machine 0.3.0",
   "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. En pruebas.",

@@ -203,6 +203,8 @@ int  bm_app_tabs(const bm_app *a, int t, uint8_t out[8]);   /* pestañas de un c
 const char *bm_page_name(int page);
 void bm_app_legend(const bm_app *a, bm_legend out[4]);
 void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
+/* qué hace cada tecla ahora (nombre corto) y su luz: lo mismo que se ve en la tira de teclas */
+void bm_app_keys(const bm_app *a, bm_keyfn out[BM_KEYS]);
 void bm_app_draw(bm_gfx *g, void *user);
 void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
 const char *bm_macro_name(const bm_app *a, int track, int i);

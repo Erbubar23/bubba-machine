@@ -180,20 +180,46 @@ static void draw_tabs(bm_gfx *g, const bm_app *a)
 }
 
 /* ------------------------------------------------------------ HOME */
-static void draw_bank(bm_gfx *g, const bm_app *a, int y)
+/* ------------------------------------------------------------ tira de teclas
+ * Las luces de las teclas son blancas: dicen si una tecla está activa, no qué hace. La tira dibuja
+ * las 11 negras y las 16 blancas con su nombre corto y el mismo estado que su luz:
+ * relleno = encendida, borde claro = media, borde oscuro = tenue, sin borde = apagada. */
+static void key_cell(bm_gfx *g, const bm_app *a, int x, int y, int w, int h, const bm_keyfn *f, int down, int big)
 {
-    const bm_status *st = &a->ctx.st;
-    if (!gfx_strip_hit(g, y, 24)) return;
-    gfx_small(g, 4, y, "BANCO A", C_GREY);
-    if (st->queued != 0xFF && st->queued != st->pattern) { char b[20]; snprintf(b, sizeof b, "EN COLA A%02d", st->queued + 1); gfx_small(g, 150, y, b, C_CYAN); }
-    for (int i = 0; i < BM_PATTERNS; i++) {
-        int x = 2 + i * 15, yy = y + 8;
-        bool cur = i == st->pattern, q = i == st->queued;
-        bool has = bm_store_has(&a->store, (uint8_t)i) || cur || a->pend_obj == i;
-        gfx_fill(g, x, yy, 13, 14, cur ? C_WHITE : has ? C_DGREY : C_DDGREY);
-        if (q && !cur) gfx_rect(g, x, yy, 13, 14, C_CYAN);
-        char b[4]; snprintf(b, sizeof b, "%d", i + 1);
-        gfx_small(g, x + 7 - gfx_small_w(b) / 2, yy + 5, b, cur ? C_BLACK : has ? C_WHITE : C_GREY);
+    uint8_t st = down ? LED_ON : f->led;
+    if (st == LED_BLINK) st = ((a->now / 250u) & 1u) ? LED_ON : LED_MID;
+    uint16_t bg = C_BLACK, fg = C_GREY, edge = 0;      /* apagada: el nombre igual se lee */
+    switch (st) {
+    case LED_ON: bg = C_WHITE; fg = C_BLACK; break;
+    case LED_BREATH: bg = C_GREY; fg = C_BLACK; break;
+    case LED_MID: edge = C_GREY; fg = C_WHITE; break;
+    case LED_DIM: edge = C_DGREY; fg = C_GREY; break;
+    default: break;
+    }
+    if (bg != C_BLACK) gfx_fill(g, x, y, w, h, bg);
+    else if (edge) gfx_rect(g, x, y, w, h, edge);
+    if (!f->label[0]) return;
+    char l[6];
+    int maxc = big ? (w - 2) / 6 : (w - 1) / 4;
+    snprintf(l, sizeof l, "%.*s", maxc < 1 ? 1 : maxc > 5 ? 5 : maxc, f->label);
+    if (big) gfx_text_c(g, x + w / 2, y + (h - 7) / 2, l, fg, 1);
+    else gfx_small(g, x + (w - gfx_small_w(l)) / 2 + 1, y + (h - 5) / 2, l, fg);
+}
+
+static void draw_keystrip(bm_gfx *g, const bm_app *a, int y, int hb, int hw, int big)
+{
+    if (!gfx_strip_hit(g, y, hb + hw + 2)) return;
+    bm_keyfn K[BM_KEYS];
+    bm_app_keys(a, K);
+    gfx_fill(g, 0, y, BM_LCD_W, hb + hw + 2, C_BLACK);
+    int wy = y + hb + 2;
+    for (int i = 0; i < BM_WHITES; i++) {
+        int k = bm_white_key(i);
+        key_cell(g, a, i * 15, wy, 14, hw, &K[k], a->keys_down[k], big);
+    }
+    for (int i = 0; i < BM_BLACKS; i++) {
+        int k = bm_black_key(i), wi = bm_key_white_index(k - 1);
+        key_cell(g, a, (wi + 1) * 15 - 7, y, 14, hb, &K[k], a->keys_down[k], 0);
     }
 }
 
@@ -228,12 +254,8 @@ static void draw_home(bm_gfx *g, const bm_app *a)
         if (a->now < a->trig_until[t]) gfx_disc(g, 226, y + 11, 5, col);
         else gfx_disc(g, 226, y + 11, 2, C_DGREY);
     }
-    /* guía de las teclas: en HOME y dentro de los canales */
-    if (gfx_strip_hit(g, 159, 14)) {
-        gfx_small(g, 4, 160, "NEGRAS: 1-6 MUTE (MANTENER = SOLO) - 7-10 ESCENA - 11 FILL", C_GREY);
-        gfx_small(g, 4, 167, "BATERIA: NEGRA 10 = MUTES - 11 = FILL - TOQUE O MANTENER", C_GREY);
-    }
-    draw_bank(g, a, 176);
+    /* las teclas de HOME: blancas = los 16 patrones, negras = mutes, escenas y FILL */
+    draw_keystrip(g, a, 161, 14, 22, 1);
 }
 
 static void draw_mix(bm_gfx *g, const bm_app *a)
@@ -277,14 +299,14 @@ static void draw_seq_tr(bm_gfx *g, const bm_app *a)
         gfx_text_r(g, 236, PY, b, C_GREY, 1);
     }
     for (int l = 0; l < BM_LANES; l++) {
-        int y = PY + 10 + l * 9;
-        if (!gfx_strip_hit(g, y, 9)) continue;
+        int y = PY + 10 + l * 8;
+        if (!gfx_strip_hit(g, y, 8)) continue;
         bool muted = (tr->mute >> l) & 1;
         int len = tr->lane[l].len ? tr->lane[l].len : 16;
         int ps = bm_app_track_step(a, t, l);
-        if (l == sel) gfx_fill(g, 0, y, 240, 9, C_DDGREY);
+        if (l == sel) gfx_fill(g, 0, y, 240, 8, C_DDGREY);
         char nm[5]; snprintf(nm, sizeof nm, "%s", bm_lane_name(a, t, l));
-        gfx_small(g, 1, y + 2, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_RED : (l == sel ? C_WHITE : C_GREY)));
+        gfx_small(g, 1, y + 1, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_RED : (l == sel ? C_WHITE : C_GREY)));
         for (int s = 0; s < 16; s++) {
             int ab = a->step_page * 16 + s, x = 20 + s * 13 + (s / 4);
             if (ab >= len) { gfx_fill(g, x + 5, y + 3, 2, 2, C_DDGREY); continue; }
@@ -292,29 +314,29 @@ static void draw_seq_tr(bm_gfx *g, const bm_app *a)
             uint16_t c = muted ? C_DGREY : (l == sel ? col : dim(col));
             if (v & ST_ON) {
                 int cond = (v & ST_COND_MASK) >> ST_COND_SH;
-                if (cond) gfx_rect(g, x, y, 12, 8, cond == 1 ? C_ORANGE : C_GREY);
-                else gfx_fill(g, x, y, 12, 8, (v & ST_ACC) ? C_WHITE : c);
+                if (cond) gfx_rect(g, x, y, 12, 7, cond == 1 ? C_ORANGE : C_GREY);
+                else gfx_fill(g, x, y, 12, 7, (v & ST_ACC) ? C_WHITE : c);
                 if (cond && (v & ST_ACC)) gfx_fill(g, x + 2, y + 2, 8, 4, C_WHITE);
                 int rat = (v & ST_RAT_MASK) >> ST_RAT_SH;
                 for (int r = 0; r < rat; r++) gfx_fill(g, x + 2 + r * 3, y + 6, 2, 2, C_BLACK);
                 if (v & ST_FLAM) gfx_fill(g, x + 9, y + 1, 2, 2, C_BLACK);
                 if (v & ST_LOCK) gfx_fill(g, x + 1, y + 1, 2, 2, C_BLACK);
             } else {
-                gfx_fill(g, x, y, 12, 8, l == sel ? C_DGREY : C_BLACK);
+                gfx_fill(g, x, y, 12, 7, l == sel ? C_DGREY : C_BLACK);
                 if (s % 4 == 0) gfx_fill(g, x + 5, y + 3, 2, 2, C_DGREY);
             }
-            if (ab == ps) gfx_fill(g, x, y + 7, 12, 2, (v & ST_ON) && !muted ? C_WHITE : C_GREY);
-            if (l == sel && ab == a->held_step && a->held_long) gfx_rect(g, x - 1, y - 1, 14, 10, C_YELLOW);
+            if (ab == ps) gfx_fill(g, x, y + 6, 12, 2, (v & ST_ON) && !muted ? C_WHITE : C_GREY);
+            if (l == sel && ab == a->held_step && a->held_long) gfx_rect(g, x - 1, y - 1, 14, 9, C_YELLOW);
         }
     }
-    if (a->held_step >= 0 && a->held_long && gfx_strip_hit(g, 188, 12)) {
+    if (a->held_step >= 0 && a->held_long && gfx_strip_hit(g, 172, 11)) {
         uint8_t v = tr->st[sel][a->held_step];
         int rat = (v & ST_FLAM) ? 4 : ((v & ST_RAT_MASK) >> ST_RAT_SH);
         static const char *const R[5] = {"X1", "X2", "X3", "X4", "FLAM"};
         static const char *const C[3] = {"SIEMPRE", "FILL", "SIN FILL"};
         snprintf(b, sizeof b, "%s %s %s", (v & ST_ACC) ? "ACENTO" : "NORMAL", R[rat], C[(v & ST_COND_MASK) >> ST_COND_SH]);
-        gfx_fill(g, 0, 188, 240, 12, C_DGREY);
-        gfx_text(g, 4, 190, b, C_WHITE, 1);
+        gfx_fill(g, 0, 172, 240, 11, C_DGREY);
+        gfx_text(g, 4, 174, b, C_WHITE, 1);
     }
 }
 
@@ -408,8 +430,7 @@ static void draw_seq_brk(bm_gfx *g, const bm_app *a)
         if (gfx_strip_hit(g, 172, 10)) { gfx_fill(g, 0, 172, 240, 10, C_CYAN); gfx_text_c(g, 120, 173, b, C_BLACK, 1); }
     } else {
         hint_s(g, 174, "BLANCA: GENERADOR SI/NO - BLANCA+NEGRA: SLICE FIJO");
-        hint_s(g, 182, "NEGRAS 1-8 TOCAN - 9 REVERSA 10 MEDIA 11 STUTTER");
-        hint_s(g, 190, "EDIT SOSTENIDO + NEGRA 4: CAPTURAR LO QUE SUENA");
+        hint_s(g, 181, "EDIT SOSTENIDO + NEGRA 4: CAPTURAR LO QUE SUENA");
     }
 }
 
@@ -959,7 +980,7 @@ static void draw_more(bm_gfx *g, const bm_app *a)
         bm_app_more_row(a, i, &nm, v, sizeof v);
         row(g, PY + 2 + i * 17, i == a->more_row, nm, v);
     }
-    hint(g, 182, "SELECT = FILA - ALGORITHM = CAMBIA");
+    hint(g, 172, "SELECT = FILA - ALGORITHM = CAMBIA");
 }
 
 static void draw_retrig(bm_gfx *g, const bm_app *a)
@@ -979,8 +1000,8 @@ static void draw_retrig(bm_gfx *g, const bm_app *a)
         snprintf(b, sizeof b, "%u%%", sum ? (unsigned)(tk->rt[i] * 100u / sum) : (i == 0 ? 100u : 0u));
         gfx_small(g, x + 10, PY + 108, b, C_GREY);
     }
-    hint(g, 166, "CUANDO EL GENERADOR REPITE,");
-    hint(g, 178, "ELIGE CON ESTOS PESOS");
+    hint(g, 160, "CUANDO EL GENERADOR REPITE,");
+    hint(g, 171, "ELIGE CON ESTOS PESOS");
 }
 
 static void draw_takes(bm_gfx *g, const bm_app *a)
@@ -1022,8 +1043,7 @@ static void draw_takes(bm_gfx *g, const bm_app *a)
         int used = (int)((total - freeb) * 232u / total);
         gfx_fill(g, 4, 168, used, 5, C_GREY);
     }
-    hint_s(g, 178, "ALGORITHM ELIGE - N1 = LOOP A - N2 = LOOP B");
-    hint_s(g, 186, "BLANCAS 1-8 ESCUCHAN - EDIT = CORTAR - N11 BORRA");
+    hint_s(g, 176, "ALGORITHM ELIGE - EDIT = CORTAR");
 }
 
 static void draw_rec(bm_gfx *g, const bm_app *a)
@@ -1073,10 +1093,10 @@ static void draw_rec(bm_gfx *g, const bm_app *a)
         gfx_small(g, 4, y + 17, b, C_GREY);
         gfx_small(g, 236 - gfx_small_w(room < cap ? "TOPE: MEMORIA" : "TOPE: RAM DE GRABACION"), y + 17, room < cap ? "TOPE: MEMORIA" : "TOPE: RAM DE GRABACION", C_YELLOW);
     }
-    if (st->smp_rec) { hint(g, 154, "REC = PARAR"); hint(g, 166, "SE PARA SOLA EN EL TOPE"); hint_s(g, 180, "DELAY Y PUNCH-IN EN PAUSA MIENTRAS GRABAS"); }
-    else if (st->smp_armed) { hint(g, 154, "EMPIEZA EN EL COMPAS"); hint(g, 166, "REC OTRA VEZ = CANCELAR"); hint_s(g, 180, "LAS TECLAS NO SUENAN EN LA GRABADORA"); }
-    else if (st->smp_unsaved) { hint(g, 154, "SE GUARDA AL PARAR (STOP)"); hint(g, 166, "YA SUENA COMO LOOP A"); hint_s(g, 180, "HOME = DESCARTAR - REC = OTRA TOMA"); }
-    else { hint(g, 154, "REC = ARMAR (K1: COMPAS O YA)"); hint(g, 166, "MANTEN REC = GRABA MIENTRAS"); hint_s(g, 180, "EDIT = CORTAR LA ULTIMA TOMA"); }
+    if (st->smp_rec) { hint(g, 154, "REC = PARAR"); hint(g, 166, "SE PARA SOLA EN EL TOPE"); hint_s(g, 176, "DELAY Y PUNCH-IN EN PAUSA MIENTRAS GRABAS"); }
+    else if (st->smp_armed) { hint(g, 154, "EMPIEZA EN EL COMPAS"); hint(g, 166, "REC OTRA VEZ = CANCELAR"); hint_s(g, 176, "LAS TECLAS NO SUENAN EN LA GRABADORA"); }
+    else if (st->smp_unsaved) { hint(g, 154, "SE GUARDA AL PARAR (STOP)"); hint(g, 166, "YA SUENA COMO LOOP A"); hint_s(g, 176, "HOME = DESCARTAR - REC = OTRA TOMA"); }
+    else { hint(g, 154, "REC = ARMAR (K1: COMPAS O YA)"); hint(g, 166, "MANTEN REC = GRABA MIENTRAS"); hint_s(g, 176, "EDIT = CORTAR LA ULTIMA TOMA"); }
 }
 
 static void draw_cut(bm_gfx *g, const bm_app *a)
@@ -1121,10 +1141,8 @@ static void draw_cut(bm_gfx *g, const bm_app *a)
         }
     }
     hint_s(g, 158, "BLANCAS = CORTE EN ESA CORCHEA (SI / NO)");
-    hint_s(g, 166, "NEGRA 9 = EN LOS GOLPES - 10 = IGUALES");
-    hint_s(g, 174, "NEGRAS 1-8 ESCUCHAN CADA SLICE");
-    hint_s(g, 182, "SELECT/K1 ELIGE EL CORTE - K2 LO MUEVE");
-    hint_s(g, 190, app_playing(a) ? "SE GUARDA AL PARAR" : "SE GUARDA SOLO AL SALIR");
+    hint_s(g, 166, "SELECT/K1 ELIGE EL CORTE - K2 LO MUEVE");
+    hint_s(g, 174, app_playing(a) ? "SE GUARDA AL PARAR" : "SE GUARDA SOLO AL SALIR");
 }
 
 /* ------------------------------------------------------------ ENV, LFO, FX */
@@ -1249,7 +1267,6 @@ static void draw_scl(bm_gfx *g, const bm_app *a, int project)
     if (app_kind(a, a->track) == KIND_NOTE || project) draw_keyboard(g, a, y + 32, 84);
     else gfx_text_c(g, 120, 100, "ELIGE UN CANAL DE NOTAS", C_GREY, 1);
     hint_s(g, 174, project ? "VALE PARA LOS CANALES SIN ESCALA PROPIA" : "SCL OTRA VEZ: ACORDES - HOME + SCL: PROYECTO");
-    hint_s(g, 182, "NEGRAS 1-7: ACORDES - 8-11: +7 +9 SUS2 SUS4");
 }
 
 static void draw_chords(bm_gfx *g, const bm_app *a, int y0)
@@ -1492,13 +1509,12 @@ static void draw_scenes(bm_gfx *g, const bm_app *a)
         }
     }
     if (a->chain_n > 1) {
-        gfx_text(g, 6, 178, "CADENA:", C_GREY, 1);
+        gfx_text(g, 6, 172, "CADENA:", C_GREY, 1);
         for (int i = 0; i < a->chain_n; i++) {
             snprintf(b, sizeof b, "%c", 'A' + a->chain[i]);
-            gfx_text(g, 52 + i * 12, 178, b, i == st->chain_pos ? C_YELLOW : C_WHITE, 1);
+            gfx_text(g, 52 + i * 12, 172, b, i == st->chain_pos ? C_YELLOW : C_WHITE, 1);
         }
-    } else hint(g, 178, "MANTEN UNA + OTRAS = CADENA");
-    hint_s(g, 190, "EN HOME: NEGRAS 7-10 LANZAN A-D");
+    } else hint(g, 172, "MANTEN UNA + OTRAS = CADENA");
 }
 
 static void draw_copych(bm_gfx *g, const bm_app *a)
@@ -1670,6 +1686,7 @@ static void draw_channel(bm_gfx *g, const bm_app *a)
     case PG_CUT: draw_cut(g, a); break;
     default: break;
     }
+    draw_keystrip(g, a, 183, 6, 9, 0);
 }
 
 void bm_app_draw(bm_gfx *g, void *user)
@@ -1686,8 +1703,8 @@ void bm_app_draw(bm_gfx *g, void *user)
     else if (a->layer == L_CHORDS) { gfx_text(g, 4, 28, "ACORDES EN VIVO", C_GREEN, 1); draw_chords(g, a, 40); }
     else switch (a->view) {
     case V_HOME: draw_home(g, a); break;
-    case V_MIX: draw_mix(g, a); break;
-    case V_SCENES: draw_scenes(g, a); break;
+    case V_MIX: draw_mix(g, a); draw_keystrip(g, a, 183, 6, 9, 0); break;
+    case V_SCENES: draw_scenes(g, a); draw_keystrip(g, a, 183, 6, 9, 0); break;
     case V_SONG: draw_song(g, a); break;
     case V_CH: draw_channel(g, a); break;
     case V_GLO: draw_glo(g, a); break;

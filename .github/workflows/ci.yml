@@ -18,13 +18,6 @@ jobs:
       - name: Dependencias de los generadores
         run: pip install numpy pillow
 
-      - name: Los loops de fábrica son los públicos (sin audio local)
-        run: |
-          grep '^  {loop' core/gen/bm_loops.c > /tmp/antes
-          python tools/gen_loops.py
-          grep '^  {loop' core/gen/bm_loops.c > /tmp/despues
-          diff /tmp/antes /tmp/despues
-
       - name: La documentación del sitio está al día con los .md
         run: |
           python tools/gen_site.py

@@ -3,6 +3,7 @@
 /* Bubba Machine — primitivas gráficas y render por tiles. */
 #include <string.h>
 #include "bm_gfx.h"
+#include "bm_lang.h"
 
 static uint16_t strip_buf[BM_LCD_W * BM_STRIP_H];
 static uint16_t tile_buf[BM_TILE_W * BM_STRIP_H];
@@ -79,16 +80,21 @@ void gfx_disc(bm_gfx *g, int cx, int cy, int r, uint16_t c)
 
 static int glyph(int ch) { return (ch < 32 || ch > 127) ? 0 : ch - 32; }
 
-int gfx_text_w(const char *s, int scale)
+/* Los textos se traducen al dibujarlos (bm_lang.h): una frase en inglés que tiene traducción en
+ * el paquete activo se ve traducida, también la que viene de una tabla o de un búfer. */
+static int text_w(const char *s, int scale)
 {
     int n = (int)strlen(s);
     return n ? (n * 6 - 1) * scale : 0;
 }
 
+int gfx_text_w(const char *s, int scale) { return text_w(bm_txt(s), scale); }
+
 int gfx_text(bm_gfx *g, int x, int y, const char *s, uint16_t c, int scale)
 {
     int x0 = x;
-    if (y >= g->cy1 || y + 7 * scale <= g->cy0) return gfx_text_w(s, scale);
+    s = bm_txt(s);
+    if (y >= g->cy1 || y + 7 * scale <= g->cy0) return text_w(s, scale);
     for (; *s; s++) {
         const uint8_t *gl = bm_font5x7[glyph((unsigned char)*s)];
         for (int r = 0; r < 7; r++) {
@@ -117,14 +123,14 @@ int gfx_text_c(bm_gfx *g, int xc, int y, const char *s, uint16_t c, int scale)
 
 int gfx_small_w(const char *s)
 {
-    int n = (int)strlen(s);
+    int n = (int)strlen(bm_txt(s));
     return n ? n * 4 - 1 : 0;
 }
 
 int gfx_small(bm_gfx *g, int x, int y, const char *s, uint16_t c)
 {
     int x0 = x;
-    for (; *s; s++) {
+    for (s = bm_txt(s); *s; s++) {
         const uint8_t *gl = bm_font3x5[glyph((unsigned char)*s)];
         for (int r = 0; r < 5; r++)
             for (int col = 0; col < 3; col++)

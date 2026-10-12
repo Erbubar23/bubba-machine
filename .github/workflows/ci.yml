@@ -23,6 +23,11 @@ jobs:
           python tools/gen_site.py
           git diff --exit-code -- web/docs web/en/docs
 
+      - name: Los paquetes de idioma están al día con el código
+        run: |
+          python tools/gen_lang.py
+          git diff --exit-code -- lang web/lang
+
       - name: Pruebas del núcleo
         run: python tools/build.py test
 

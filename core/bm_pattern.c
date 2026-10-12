@@ -16,7 +16,7 @@ typedef char bm_assert_prm[(AN_NPRM <= BM_PRM) ? 1 : -1];
 
 const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
 const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
-const char *const bm_engine_names[ENG_COUNT] = {"BATERIA", "SAMPLER", "ANALOG", "FM", "ACID", "CUERDA", "MODAL", "KIT", "MIDI"};
+const char *const bm_engine_names[ENG_COUNT] = {"DRUMS", "SAMPLER", "ANALOG", "FM", "ACID", "STRING", "MODAL", "KIT", "MIDI"};
 
 void bm_event_clear(bm_event *e)
 {
@@ -46,10 +46,10 @@ void bm_track_defaults(bm_track *t, int track)
     t->engine = track == 0 ? ENG_DRUM : track == 1 ? ENG_BREAK : ENG_ANALOG;
     t->loop_b = BM_SRC_NONE; t->pitch = 24;
     if (track == 0) { t->macro[0] = t->macro[1] = t->macro[2] = t->macro[3] = 64; }   /* batería: 64 = el kit tal cual */
-    if (track == 1) {
-        t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 127;
-        t->source = BM_SRC_ROM; t->chance_b = 25;
-        t->gen[0] = 30; t->gen[1] = 90; t->gen[2] = 20; t->gen[3] = 10;
+    if (track == 1) {                                          /* pads: FILTER abierto, PITCH 0, DECAY nada, START 0 */
+        t->macro[0] = 127; t->macro[1] = 64; t->macro[2] = 127; t->macro[3] = 0;
+        t->source = BM_SRC_NONE;
+        t->gen[0] = t->gen[1] = t->gen[2] = t->gen[3] = 0;    /* BREAK apagado: suena la rejilla */
         t->rt[0] = 100; t->rt[1] = 20; t->rt[2] = 40; t->rt[3] = 10;
     }
     /* canales de notas: preset de ANALOG (bm_params.c), lo carga bm_pattern_init */
@@ -130,6 +130,7 @@ void bm_pattern_init(bm_pattern *p)
     p->meta.chord_oct = 3; p->meta.fmt = BM_PAT_FMT; p->meta.transpose = 24;
     for (int t = 0; t < BM_TRACKS; t++) bm_track_defaults(&p->trk[t], t);
     for (int t = 0; t < BM_TR_TRACKS; t++) bm_tr_defaults(&p->tr[t]);
+    for (int i = 0; i < BM_LANES; i++) bm_pad_clear(&p->pad[i]);
     for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) bm_track_clear_events(p, t);
     for (int i = 0; i < BM_SYN_TRACKS; i++) p->loop[i].bars = 2;
     bm_kit_apply(&p->tr[0], 0);
@@ -154,12 +155,10 @@ int bm_pattern_count_events(const bm_pattern *p)
     return n;
 }
 
-int bm_brk_step(const bm_tr *tr, int s, uint8_t *b)
+void bm_pad_clear(bm_pad *p)
 {
-    if (tr->st[BRK_FIX][s] & ST_ON) { if (b) *b = tr->st[BRK_FIX][s]; return (tr->st[BRK_FIXSL][s] & 15) + 1; }
-    if (tr->st[BRK_GEN][s] & ST_ON) { if (b) *b = tr->st[BRK_GEN][s]; return 0; }
-    if (b) *b = 0;
-    return -1;
+    memset(p, 0, sizeof *p);
+    p->src = BM_SRC_NONE; p->pitch = 24; p->release = 20;
 }
 
 /* ------------------------------------------------------------ P-Locks TR */
@@ -208,7 +207,8 @@ void bm_tr_lock_clear_step(bm_tr *tr, int step, int lane)
  *   rejilla (T1, T2, KIT): líneas 16x8 + mute 2 | n u16 + n x (pos u16 = lane<<6|paso, valor u8) |
  *                          m u8 + m x 4 (P-Locks)
  *   notas: n u16 + n x (pos u8 = slot<<6|paso, evento 8)
- * loop x4: on, bars, n + n x (tick u16, nota, vel) */
+ * loop x4: on, bars, n + n x (tick u16, nota, vel)
+ * pads de T2: 16 x 12 */
 #define NEED(k) do { if (o + (k) > cap) return -1; } while (0)
 
 static int pack_tr(const bm_tr *tr, uint8_t *out, int o, int cap)
@@ -273,6 +273,8 @@ int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap)
             out[o++] = lp->ev[i].note; out[o++] = lp->ev[i].vel;
         }
     }
+    NEED((int)sizeof p->pad);
+    memcpy(out + o, p->pad, sizeof p->pad); o += (int)sizeof p->pad;
     return o;
 }
 
@@ -322,7 +324,7 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
     memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
     for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
         uint8_t e = p->trk[t].engine;
-        if (t < 2) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);
+        if (t < 2) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);   /* T2: ENG_BREAK = el motor de pads */
         else if (!bm_engine_ok(t, e)) { p->trk[t].engine = ENG_ANALOG; bm_preset_apply(p, t, 0); }
     }
     for (int t = 0; t < BM_TRACKS; t++) {
@@ -354,6 +356,14 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
             o += 4;
         }
         if (lp->bars != 1 && lp->bars != 2 && lp->bars != 4) lp->bars = 2;
+    }
+    GET((int)sizeof p->pad);
+    memcpy(p->pad, in + o, sizeof p->pad); o += (int)sizeof p->pad;
+    for (int i = 0; i < BM_LANES; i++) {
+        bm_pad *d = &p->pad[i];
+        if (d->src >= 8) bm_pad_clear(d);
+        if (d->mode >= PAD_MODES) d->mode = PAD_ONESHOT;
+        if (d->pitch > 48) d->pitch = 24;
     }
     if (p->meta.bpm_x10 < 400 || p->meta.bpm_x10 > 2400) p->meta.bpm_x10 = 1200;
     if (p->meta.swing < 50 || p->meta.swing > 75) p->meta.swing = 50;
@@ -444,7 +454,7 @@ void bm_note_str(int note, char *buf, int cap)
 }
 
 /* ------------------------------------------------------------ cuadrícula de acordes */
-const char *const bm_chord_set_names[BM_CHORD_SETS] = {"DIATONICO", "PROGRESIONES", "NEO SOUL"};
+const char *const bm_chord_set_names[BM_CHORD_SETS] = {"DIATONIC", "PROGRESSIONS", "NEO SOUL"};
 
 static const bm_pad_chord SETS[BM_CHORD_SETS][16] = {
     {{0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, {6, 0}, {7, 0},

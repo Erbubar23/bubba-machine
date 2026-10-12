@@ -8,6 +8,7 @@ You can write in **English or Spanish**.
 
 - **Test and report.** Use the web emulator and open an *issue* with what happened, what you expected and how to reproduce it. Screenshots help a lot.
 - **Interface ideas.** Open an *idea* issue. The current direction is in [`DESIGN_3.0.md`](DESIGN_3.0.md).
+- **Translations.** The screen is in English and each language is a pack: copy `lang/plantilla.txt` to `lang/<code>.txt`, translate under each phrase and check it with `py -3 tools/gen_lang.py` (see [`DEVELOPMENT.md`](DEVELOPMENT.md#screen-languages)).
 - **Documentation.** The manual lives in [`docs/en/MANUAL.md`](MANUAL.md) (and the Spanish one in `docs/MANUAL.md`); the website is generated from the `.md` files.
 - **Code.** Read [`DEVELOPMENT.md`](DEVELOPMENT.md) to build and test.
 - **Hardware.** If you have an FM-1 and experience with the JieLi SDK, the port in [`hal/fm1/`](../../hal/fm1/README_PORT.md) is what needs help the most.
@@ -18,7 +19,8 @@ You can write in **English or Spanish**.
 2. **Third-party code only with a GPL-3.0-compatible license**, and listed in the [credits](CREDITS.md).
 3. **Sounds:** only synthesized in `tools/`, made by you, or under a free compatible license (CC0, CC-BY or GPL). No samples from records or commercial packs. To test with third-party audio use `assets/loops/loops.local.json`, which is never pushed.
 4. **Dependency-free C99** in `core/`: no `malloc`, no floating point in the audio path and nothing that depends on the hardware. Everything hardware-related goes in `hal/`.
-5. **Every new file** starts with the license identifier:
+5. **Screen text in English**, in capitals and without accents. If it is built with `snprintf`, the format goes in `TF("...")` and the words joined with `%s` in `T(...)`; everything else is translated when drawn. Then add its translation to `lang/es.txt`.
+6. **Every new file** starts with the license identifier:
    ```c
    /* SPDX-License-Identifier: GPL-3.0-or-later
     * Copyright (C) 2026 Your Name */

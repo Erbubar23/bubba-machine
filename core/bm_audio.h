@@ -39,15 +39,14 @@ typedef enum {
     CMD_SCENE,          /* a=escena (0xFF cancela) */
     CMD_CHAIN,          /* a=largo, ptr=uint8_t[8] escenas */
     CMD_SMP_REC,        /* a: 0 parar, 1 grabar ya, 2 armar (empieza en el compás) · i=tope en muestras */
-    CMD_SMP_SRC,        /* a=0 loop A, 1 loop B, 2 escucha (CORTAR) · ptr=bm_smp_src */
-    CMD_SMP_SAVED,      /* ptr=bm_smp_src: la toma ya está en flash (es el loop A), se libera la arena */
+    CMD_SMP_TAKES,      /* ptr=bm_smp_src[BM_TAKES]: las tomas guardadas que leen los pads */
+    CMD_SMP_SAVED,      /* ptr=bm_smp_src: la toma nueva ya está en flash, se libera la arena */
     CMD_SMP_DISCARD,    /* descarta la toma sin guardar y vuelve al loop A del patrón (ptr) */
     CMD_BRK_LIVE,       /* a=bits: 1 reversa, 2 media velocidad, 4 stutter (negras 9-11 del sampler) */
-    CMD_BRK_SLICE,      /* a=slice b=vel c=fuente (0 A, 2 escucha): tocar un slice */
+    CMD_SMP_PREVIEW,    /* a=1 escuchar la toma b (BM_TAKE_NEW = la nueva) desde i&0xFFFF, i>>16 muestras · a=0 soltar */
     CMD_ENGINE,         /* a=canal libre b=motor (borra sus notas) */
     CMD_PCHAIN,         /* a=largo, ptr=uint8_t[8] patrones (dos blancas en HOME) */
     CMD_MIDI_SEND,      /* a,b,c = bytes MIDI de salida (b o c = 0xFF: no se mandan) */
-    CMD_BRK_HOLD,       /* a=1: el loop A suena desde la muestra i hasta que llega a=0 (paso sostenido) */
     CMD_MASTER,         /* i=0..1023 */
     CMD_DRIVE,          /* a=0..127 */
     CMD_SYNC,           /* a=modo b=ppqn c=latencia ms */
@@ -62,7 +61,8 @@ typedef enum {
     CMD_FADE,           /* a=0 subir, 1 bajar (antes de escribir flash) */
     CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
     CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
-    CMD_SMP_IMPORT      /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
+    CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
+    CMD_PAD_KEY         /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
 } bm_cmd_type;
 
 typedef struct {
@@ -94,15 +94,15 @@ typedef struct {
 #define GEN_RT_MASK 0x07u       /* 0 nada, 1..4 retrig 2X 3X 4X 8X */
 #define GEN_REV     0x08u
 #define GEN_HALF    0x10u
-#define GEN_PIN     0x20u       /* slice fijo (fila TU) */
-#define GEN_ACC     0x40u
+
+
 #define GEN_SKIP    0x80u       /* ROMPER: silencio */
 
-/* Nota del motor del sampler: slice (bits 0-3), fuente (4-5), reversa, media velocidad. */
+/* Nota del motor del sampler: el pad (bits 0-3), reversa y media velocidad. */
 #define BRK_SL_MASK 0x0Fu
-#define BRK_SRC_SH  4
 #define BRK_REV     0x40u
 #define BRK_HALF    0x80u
+#define BM_TAKE_NEW 8u          /* la toma recién grabada, todavía sin guardar (smp[0]) */
 
 /* ------------------------------------------------------------ estado DSP -> UI */
 typedef struct {
@@ -122,9 +122,11 @@ typedef struct {
     volatile uint8_t fill;
     volatile uint8_t smp_rec, smp_armed, smp_unsaved;
     volatile uint32_t smp_len, smp_cap;
-    volatile uint8_t gen_sl[16], gen_fx[16];   /* sampler: slice elegido (0xFF silencio) y efectos */
-    volatile uint8_t gen_b, gen_blk;           /* el compás usa el loop B · bloque de 16 pasos */
-    volatile int8_t brk_slice;                 /* último slice que sonó */
+    volatile uint8_t gen_sl[16], gen_fx[16];   /* BREAK: el pad que suena en cada paso del compás (0xFF nada) y su efecto */
+    volatile uint8_t gen_blk;                  /* bloque de 16 pasos */
+    volatile int8_t brk_slice;                 /* último pad que sonó */
+    volatile int8_t smp_pos_src;               /* cabezal del sampler: fuente que suena (-1 nada) */
+    volatile uint32_t smp_pos;                 /* y la muestra donde va */
     volatile uint8_t pchain_n, pchain_pos;
     volatile uint8_t punch;
     volatile uint8_t ext_ok;
@@ -154,7 +156,7 @@ typedef struct {
     int32_t lp;
     uint8_t sound, choke;
     uint8_t dir, src, gain;      /* sampler: 1 = reversa, fuente (0 A, 1 B, 2 escucha), ganancia de la toma */
-    uint8_t loopv;               /* sampler: el loop sigue sonando entero, en bucle (paso sostenido) */
+    uint8_t loopv;               /* sampler: 1 = el loop entero en bucle (paso sostenido) · 2 = corte sostenido */
     uint32_t ph[3];              /* ANALOG y SINTE: más osciladores */
     int32_t z[4];                /* ACID: el filtro de 4 polos · SINTE: filtros y envolventes extra */
 } bm_voice;
@@ -266,17 +268,16 @@ typedef struct bm_ctx {
     uint32_t peak_acc[BM_TRACKS];
 
     /* sampler */
-    bm_smp_src smp[3];           /* loop A, loop B y escucha de CORTAR */
+    bm_smp_src smp[1];           /* la toma recién grabada (en la arena, hasta que se guarda) */
+    bm_smp_src takes[BM_TAKES];  /* las tomas guardadas (flash XIP), para los pads */
+    bm_pad preview_pad;          /* lo que suena al escuchar una toma (TAKES, grabadora) */
     uint32_t smp_base_inc;       /* 16 kHz -> BM_FS en Q16 */
     uint8_t smp_rec, smp_armed;
     uint32_t smp_rec_pos, smp_dec_acc, smp_cap;
     float smp_z[4];              /* pasa-bajos antes de diezmar la grabación (biquad) */
-    uint8_t brk_live;            /* negras 9-11: reversa, media velocidad, stutter · 8 = paso sostenido */
-    uint8_t brk_next_flags;      /* para el próximo note_on del sampler */
-    uint16_t brk_next_off;       /* posición dentro del slice, Q16 */
-    uint8_t brk_last, brk_last_flags;
-    uint16_t brk_last_off;
-    uint8_t gen_sl[16], gen_fx[16], gen_sub[16], gen_b, gen_sps;
+    uint8_t brk_live;            /* negras 9-11 de PADS: reversa, media velocidad, stutter */
+    uint8_t brk_last;            /* última nota del sampler (la repite el stutter) */
+    uint8_t gen_sl[16], gen_fx[16];   /* BREAK: pad que reemplaza (0xFF = el de la rejilla) y efectos */
     uint32_t gen_blk;            /* bloque de 16 pasos que ya se decidió (+1; 0 = ninguno) */
     uint8_t pchain[8], pchain_n, pchain_pos;
 
@@ -307,12 +308,13 @@ void bm_scene_cmd(bm_ctx *c, int idx);
 void bm_chain_cmd(bm_ctx *c, const uint8_t *chain, int n);
 void bm_strum_cmd(bm_ctx *c, int t, const uint8_t *notes, int n, uint8_t vel);
 void bm_engines_sync(bm_ctx *c);                  /* motor de cada canal según el patrón */
-uint32_t bm_brk_rate(const bm_ctx *c, const bm_smp_src *m);   /* Q16: velocidad del loop */
-void bm_gen_decide(bm_ctx *c, uint32_t blk);      /* generador del sampler: decide un bloque de 16 pasos */
+void bm_gen_decide(bm_ctx *c, uint32_t blk);      /* BREAK del sampler: decide un bloque de 16 pasos */
 int  bm_vel(const bm_ctx *c, int t, int acc);     /* velocidad de un paso normal / con acento */
 void bm_pchain_cmd(bm_ctx *c, const uint8_t *list, int n);
 void bm_smp_rec_start(bm_ctx *c);
 void bm_smp_rec_stop(bm_ctx *c);                 /* la toma queda como loop A, sin guardar */
-void bm_brk_hold(bm_ctx *c, uint32_t pos);       /* el loop A desde pos, sin parar, hasta soltar */
+const bm_smp_src *bm_smp_take(const bm_ctx *c, int src);   /* toma 0..7, BM_TAKE_NEW o NULL */
+void bm_pad_key(bm_ctx *c, int pad, uint8_t vel, int on);   /* tecla de un pad: sostenida según su modo */
+void bm_smp_preview(bm_ctx *c, int src, uint32_t start, uint32_t len, int on);   /* escuchar un trozo de una toma */
 
 #endif

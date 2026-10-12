@@ -14,32 +14,32 @@ float bm_lfo_hz(int v) { return 0.05f * exp2f((float)v * (9.0f / 127.0f)); }
 float bm_reso_q(int v) { float x = (float)v / 127.0f; return 0.5f + 24.5f * x * x * x; }
 
 /* ------------------------------------------------------------ ANALOG */
-static const char *const WAVES1[AN_WAVES] = {"SIERRA", "CUADRADA", "TRIANG", "SENO", "3 SIERRAS"};
-static const char *const WAVES2[4] = {"SIERRA", "CUADRADA", "TRIANG", "SENO"};
+static const char *const WAVES1[AN_WAVES] = {"SAW", "SQUARE", "TRI", "SINE", "3 SAWS"};
+static const char *const WAVES2[4] = {"SAW", "SQUARE", "TRI", "SINE"};
 static const char *const FILTERS[AN_FILTERS] = {"LP 24", "LP 12", "BP", "HP"};
-static const char *const LSHAPES[AN_LSHAPES] = {"SENO", "TRIANG", "SIERRA", "CUADRADA", "AZAR"};
-static const char *const LDESTS[AN_LDESTS] = {"TONO", "CORTE", "FORMA", "NIVEL"};
-static const char *const MODES[AN_MODES] = {"POLI", "MONO", "LEGATO"};
+static const char *const LSHAPES[AN_LSHAPES] = {"SINE", "TRI", "SAW", "SQUARE", "RANDOM"};
+static const char *const LDESTS[AN_LDESTS] = {"PITCH", "CUTOFF", "SHAPE", "LEVEL"};
+static const char *const MODES[AN_MODES] = {"POLY", "MONO", "LEGATO"};
 
 #define P(n, s, d, m, f, l) {n, s, d, m, f, l}
 const bm_ppage bm_an_pages[BM_AN_PAGES] = {
-    {"OSC 1", 4, {P("ONDA", AN_W1, AN_WAVE_SAW, AN_WAVES - 1, PF_LIST, WAVES1), P("FORMA", PS_M0 + 3, 0, 127, PF_PCT, 0),
-                  P("SUB", AN_SUB, 0, 127, PF_PCT, 0), P("RUIDO", AN_NOISE, 0, 127, PF_PCT, 0)}},
-    {"OSC 2", 4, {P("ONDA", AN_W2, AN_WAVE_SAW, 3, PF_LIST, WAVES2), P("AFINA", AN_SEMI2, 64, 127, PF_SEMI, 0),
-                  P("FINO", AN_FINE2, 70, 127, PF_CENT, 0), P("NIVEL", AN_MIX2, 0, 127, PF_PCT, 0)}},
-    {"CRUCE", 4, {P("SYNC", AN_SYNC, 0, 1, PF_ONOFF, 0), P("RING", AN_RING, 0, 127, PF_PCT, 0),
+    {"OSC 1", 4, {P("WAVE", AN_W1, AN_WAVE_SAW, AN_WAVES - 1, PF_LIST, WAVES1), P("SHAPE", PS_M0 + 3, 0, 127, PF_PCT, 0),
+                  P("SUB", AN_SUB, 0, 127, PF_PCT, 0), P("NOISE", AN_NOISE, 0, 127, PF_PCT, 0)}},
+    {"OSC 2", 4, {P("WAVE", AN_W2, AN_WAVE_SAW, 3, PF_LIST, WAVES2), P("TUNE", AN_SEMI2, 64, 127, PF_SEMI, 0),
+                  P("FINE", AN_FINE2, 70, 127, PF_CENT, 0), P("LEVEL", AN_MIX2, 0, 127, PF_PCT, 0)}},
+    {"CROSS", 4, {P("SYNC", AN_SYNC, 0, 1, PF_ONOFF, 0), P("RING", AN_RING, 0, 127, PF_PCT, 0),
                   P("ENV>OSC2", AN_PENV2, 64, 127, PF_BIP, 0), P("GLIDE", AN_GLIDE, 0, 127, PF_TIME, 0)}},
-    {"FILTRO", 4, {P("TIPO", AN_FTYPE, AN_F_LP24, AN_FILTERS - 1, PF_LIST, FILTERS), P("CORTE", PS_M0 + 0, 90, 127, PF_HZ, 0),
+    {"FILTER", 4, {P("TYPE", AN_FTYPE, AN_F_LP24, AN_FILTERS - 1, PF_LIST, FILTERS), P("CUTOFF", PS_M0 + 0, 90, 127, PF_HZ, 0),
                    P("RESO", PS_M0 + 1, 20, 127, PF_PCT, 0), P("DRIVE", AN_DRIVE, 0, 127, PF_PCT, 0)}},
-    {"FILTRO +", 3, {P("ENVOLV", PS_M0 + 2, 94, 127, PF_BIP, 0), P("TECLADO", AN_KEYT, 64, 127, PF_PCT, 0),
-                     P("VELOCID", AN_VELF, 30, 127, PF_PCT, 0)}},
-    {"ENV FILTRO", 4, {P("ATAQUE", AN_FA, 0, 127, PF_TIME, 0), P("DECAY", AN_FD, 60, 127, PF_TIME, 0),
-                       P("SUSTAIN", AN_FS, 40, 127, PF_PCT, 0), P("SALIDA", AN_FR, 50, 127, PF_TIME, 0)}},
-    {"ENV NIVEL", 4, {P("ATAQUE", AN_AA, 0, 127, PF_TIME, 0), P("DECAY", AN_AD, 60, 127, PF_TIME, 0),
-                      P("SUSTAIN", AN_AS, 100, 127, PF_PCT, 0), P("SALIDA", AN_AR, 50, 127, PF_TIME, 0)}},
-    {"LFO", 4, {P("FORMA", AN_LSHAPE, AN_L_TRI, AN_LSHAPES - 1, PF_LIST, LSHAPES), P("VELOC", AN_LRATE, 60, 127, PF_RATE, 0),
-                P("DESTINO", AN_LDEST, AN_D_PITCH, AN_LDESTS - 1, PF_LIST, LDESTS), P("CANTIDAD", AN_LAMT, 0, 127, PF_PCT, 0)}},
-    {"VOZ", 2, {P("MODO", AN_MODE, AN_M_POLY, AN_MODES - 1, PF_LIST, MODES), P("VEL>NIVEL", AN_VELA, 64, 127, PF_PCT, 0)}},
+    {"FILTER +", 3, {P("ENV AMT", PS_M0 + 2, 94, 127, PF_BIP, 0), P("KEYTRACK", AN_KEYT, 64, 127, PF_PCT, 0),
+                     P("VELOCITY", AN_VELF, 30, 127, PF_PCT, 0)}},
+    {"FILTER ENV", 4, {P("ATTACK", AN_FA, 0, 127, PF_TIME, 0), P("DECAY", AN_FD, 60, 127, PF_TIME, 0),
+                       P("SUSTAIN", AN_FS, 40, 127, PF_PCT, 0), P("RELEASE", AN_FR, 50, 127, PF_TIME, 0)}},
+    {"AMP ENV", 4, {P("ATTACK", AN_AA, 0, 127, PF_TIME, 0), P("DECAY", AN_AD, 60, 127, PF_TIME, 0),
+                      P("SUSTAIN", AN_AS, 100, 127, PF_PCT, 0), P("RELEASE", AN_AR, 50, 127, PF_TIME, 0)}},
+    {"LFO", 4, {P("SHAPE", AN_LSHAPE, AN_L_TRI, AN_LSHAPES - 1, PF_LIST, LSHAPES), P("RATE", AN_LRATE, 60, 127, PF_RATE, 0),
+                P("TARGET", AN_LDEST, AN_D_PITCH, AN_LDESTS - 1, PF_LIST, LDESTS), P("AMOUNT", AN_LAMT, 0, 127, PF_PCT, 0)}},
+    {"VOICE", 2, {P("MODE", AN_MODE, AN_M_POLY, AN_MODES - 1, PF_LIST, MODES), P("VEL>LEVEL", AN_VELA, 64, 127, PF_PCT, 0)}},
 };
 
 /* Presets: la base es la primera definición de cada parámetro y encima van los cambios. */
@@ -71,34 +71,34 @@ static const uint8_t D_ACIDISH[] = {AN_MODE, AN_M_LEGATO, AN_FTYPE, AN_F_LP24, A
 
 /* macros: CORTE, RESO, ENVOLV (64 = nada), FORMA */
 const bm_preset bm_an_presets[] = {
-    {"SIERRA", {90, 20, 94, 0}, D_SAW},
-    {"BAJO", {45, 40, 100, 0}, D_BASS},
-    {"SUB BAJO", {60, 10, 80, 0}, D_SUB},
+    {"SAW", {90, 20, 94, 0}, D_SAW},
+    {"BASS", {45, 40, 100, 0}, D_BASS},
+    {"SUB BASS", {60, 10, 80, 0}, D_SUB},
     {"PLUCK", {50, 35, 110, 40}, D_PLUCK},
     {"PAD", {75, 25, 80, 0}, D_PAD},
-    {"CUERDAS", {85, 10, 74, 60}, D_STRINGS},
+    {"STRINGS", {85, 10, 74, 60}, D_STRINGS},
     {"SYNC", {100, 15, 80, 0}, D_SYNC},
-    {"SOLISTA", {88, 30, 86, 30}, D_LEAD},
-    {"METALES", {60, 20, 104, 0}, D_BRASS},
-    {"ORGANO", {110, 0, 64, 50}, D_ORGAN},
-    {"CAMPANA", {120, 0, 64, 0}, D_BELL},
+    {"LEAD", {88, 30, 86, 30}, D_LEAD},
+    {"BRASS", {60, 20, 104, 0}, D_BRASS},
+    {"ORGAN", {110, 0, 64, 50}, D_ORGAN},
+    {"BELL", {120, 0, 64, 0}, D_BELL},
     {"PWM", {95, 20, 74, 40}, D_PWM},
     {"STAB", {58, 45, 108, 0}, D_STAB},
     {"SUPER", {96, 15, 80, 70}, D_SUPER},
-    {"VIENTO", {70, 90, 96, 0}, D_NOISE},
-    {"CHIRRIDO", {35, 95, 112, 20}, D_ACIDISH},
+    {"WIND", {70, 90, 96, 0}, D_NOISE},
+    {"SQUEAL", {35, 95, 112, 20}, D_ACIDISH},
 };
 const int bm_an_npresets = (int)(sizeof bm_an_presets / sizeof bm_an_presets[0]);
 
 /* ------------------------------------------------------------ batería */
-static const char *const DRM_LIST[DRM_COUNT] = {"BD 808", "BD 909", "SD 808", "SD 909", "HAT 808", "METAL", "PALMAS",
-                                                "TOM", "CENCERRO", "RESON", "RUIDO", "FM"};
+static const char *const DRM_LIST[DRM_COUNT] = {"BD 808", "BD 909", "SD 808", "SD 909", "HAT 808", "METAL", "CLAP",
+                                                "TOM", "COWBELL", "RESON", "NOISE", "FM"};
 static const char *const CHOKES[4] = {"NO", "1", "2", "3"};
 const bm_ppage bm_lane_pages[BM_LANE_PAGES] = {
-    {"GOLPE", 4, {P("AFINA", LN_TUNE, 64, 127, PF_DSEMI, 0), P("DECAY", LN_DECAY, 64, 127, PF_PCT, 0),
-                  P("TONO", LN_TONE, 64, 127, PF_PCT, 0), P("COLOR", LN_COLOR, 64, 127, PF_PCT, 0)}},
-    {"INSTRUMENTO", 4, {P("MODELO", LN_MODEL, 0, DRM_COUNT - 1, PF_LIST, DRM_LIST), P("NIVEL", LN_LEVEL, 100, 127, PF_INT, 0),
-                        P("CORTA A", LN_CHOKE, 0, 3, PF_LIST, CHOKES), P("LARGO", LN_LEN, 16, 64, PF_INT, 0)}},
+    {"HIT", 4, {P("TUNE", LN_TUNE, 64, 127, PF_DSEMI, 0), P("DECAY", LN_DECAY, 64, 127, PF_PCT, 0),
+                  P("TONE", LN_TONE, 64, 127, PF_PCT, 0), P("COLOR", LN_COLOR, 64, 127, PF_PCT, 0)}},
+    {"INSTRUMENT", 4, {P("MODEL", LN_MODEL, 0, DRM_COUNT - 1, PF_LIST, DRM_LIST), P("LEVEL", LN_LEVEL, 100, 127, PF_INT, 0),
+                        P("CHOKE", LN_CHOKE, 0, 3, PF_LIST, CHOKES), P("LENGTH", LN_LEN, 16, 64, PF_INT, 0)}},
 };
 
 /* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz) */
@@ -122,13 +122,13 @@ const bm_kit bm_kits[BM_KITS_N] = {
         L("RIDE", DRM_HH_METAL, 72, 100, 120, 30, 70, 0), L("CRASH", DRM_HH_METAL, 60, 120, 100, 90, 70, 0),
         L("SHAKE", DRM_NOISE, 64, 20, 110, 40, 75, 0), L("CLAVE", DRM_RESON, 82, 35, 10, 0, 127, 0),
         L("CONGA", DRM_TOM, 104, 40, 60, 20, 95, 0), L("ZAP", DRM_FM, 96, 30, 100, 30, 85, 0)}},
-    {"SINTE", {
+    {"SYNTH", {
         L("KICK", DRM_BD_SINTE, 56, 90, 30, 80, 110, 0), L("SUB", DRM_BD_ANALOG, 52, 110, 40, 10, 127, 0),
         L("HAT", DRM_HH_ANALOG, 70, 15, 110, 90, 80, 1), L("OHAT", DRM_HH_METAL, 66, 70, 100, 40, 75, 1),
         L("SNARE", DRM_SD_SINTE, 76, 40, 100, 100, 95, 0), L("CLAP", DRM_CLAP, 70, 70, 90, 110, 95, 0),
         L("BLIP", DRM_FM, 100, 10, 50, 80, 85, 0), L("ZAP", DRM_FM, 70, 30, 120, 40, 90, 0),
-        L("METAL", DRM_FM, 80, 60, 100, 110, 80, 0), L("BLOQ", DRM_RESON, 40, 30, 30, 30, 90, 0),
-        L("COWB", DRM_COWBELL, 70, 40, 70, 60, 85, 0), L("RUIDO", DRM_NOISE, 64, 60, 40, 0, 80, 0),
+        L("METAL", DRM_FM, 80, 60, 100, 110, 80, 0), L("BLOCK", DRM_RESON, 40, 30, 30, 30, 90, 0),
+        L("COWB", DRM_COWBELL, 70, 40, 70, 60, 85, 0), L("NOISE", DRM_NOISE, 64, 60, 40, 0, 80, 0),
         L("SHAK", DRM_NOISE, 64, 15, 110, 70, 80, 0), L("TOM", DRM_TOM, 60, 70, 60, 40, 100, 0),
         L("PERC", DRM_TOM, 100, 40, 90, 120, 90, 0), L("KICK3", DRM_BD_ANALOG, 80, 30, 80, 127, 100, 0)}},
 };
@@ -208,7 +208,7 @@ void bm_prm_fmt(const bm_pdef *d, int v, char *b, int cap)
         break;
     case PF_RATE: x = bm_lfo_hz(v); snprintf(b, (size_t)cap, x < 10.0f ? "%.2f HZ" : "%.1f HZ", (double)x); break;
     case PF_LIST: snprintf(b, (size_t)cap, "%s", d->list && v <= d->max ? d->list[v] : "?"); break;
-    case PF_ONOFF: snprintf(b, (size_t)cap, "%s", v ? "SI" : "NO"); break;
+    case PF_ONOFF: snprintf(b, (size_t)cap, "%s", v ? "YES" : "NO"); break;
     default: snprintf(b, (size_t)cap, "%d", v); break;
     }
 }

@@ -4,9 +4,9 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.4.0-beta"
+#define BM_VERSION_STR "0.5.0-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
-#define BM_PAT_FMT       5        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
+#define BM_PAT_FMT       6        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           32       /* parámetros de sonido por canal, además de las 4 macros */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
@@ -82,11 +82,13 @@
 #define BM_SECTOR        0x1000u
 #define BM_PAGE          0x100u
 /* Mapa de la zona de datos (hal/fm1/fm1_hw.h): patrones, registro de arranques (0xBF000),
- * tomas, globales, cargador en espera (0xE0000) y ajustes del SDK (0xE5000-0xECFFF). */
+ * tomas, idioma (0xD9000), globales, cargador en espera (0xE0000) y ajustes del SDK (0xE5000-0xECFFF). */
 #define BM_STORE_LO      0x097000u
 #define BM_STORE_HI      0x0BF000u  /* log de patrones: 20 slots de 8 KiB */
-#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 116 KiB ≈ 7.4 s a 16 kHz */
-#define BM_TAKE_HI       0x0DD000u
+#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 100 KiB ≈ 6.4 s a 16 kHz */
+#define BM_TAKE_HI       0x0D9000u
+#define BM_LANG_LO       0x0D9000u  /* paquete de idioma (bm_lang.h): 16 KiB */
+#define BM_LANG_HI       0x0DD000u
 #define BM_TAKE_HDR      128u       /* cabecera al inicio del primer sector de cada toma */
 #define BM_TAKES         8          /* tomas como máximo */
 #define BM_GLOB_LO       0x0DD000u

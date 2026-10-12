@@ -85,7 +85,7 @@ SDK_S := include_lib/driver/version.z.S include_lib/system/version.z.S include_l
 
 # nuestro
 OWN_C := hal/fm1/sdk/board.c hal/fm1/fm1_boot.c hal/fm1/fm1_lcd.c hal/fm1/fm1_keys.c \
-	hal/fm1/fm1_usb_midi.c hal/fm1/fm1_update.c hal/fm1/fm1_flash.c core/bm_gfx.c core/gen/bm_font.c \
+	hal/fm1/fm1_usb_midi.c hal/fm1/fm1_update.c hal/fm1/fm1_flash.c core/bm_gfx.c core/bm_lang.c core/gen/bm_font.c \
 	core/gen/bm_logo.c
 ifeq ($(APP),diag)
 OWN_C += hal/fm1/fm1_diag.c

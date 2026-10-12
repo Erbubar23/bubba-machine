@@ -1,0 +1,6 @@
+# Cadenas del código que no son de pantalla (o que no se traducen): tools/gen_lang.py no las junta.
+BMT3
+BMT4
+BMLG
+KOP3
+ENGLISH

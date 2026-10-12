@@ -77,7 +77,7 @@ button.act:hover { background: #33373d; }
 <div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button" data-i18n="on">Encender</button><span data-i18n="onnote">El audio arranca al pulsar (regla del navegador).</span></div></div>
 <header>
   <a id="homelink" href="index.html"><img src="logo.svg" alt="Bubba Machine"></a>
-  <div><b data-i18n="title">Emulador del firmware 0.4.0-beta</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
+  <div><b data-i18n="title">Emulador del firmware 0.5.0-beta</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
   <nav class="sitenav" aria-label="Sitio" data-i18n="nav"><a href="index.html">Inicio</a><a href="docs/manual.html">Manual</a><a href="docs/instalar.html">Instalar</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" data-lang="en" lang="en" class="lang">English</a></nav>
 </header>
 <main>
@@ -132,13 +132,15 @@ button.act:hover { background: #33373d; }
     </div>
     <div class="card">
       <h2 data-i18n="h.smp">Sampler y memoria</h2>
-      <p data-i18n="smp">En el FM-1 la GRABADORA graba la mezcla (REC en T2): hasta 3 s por toma y 7.4 s en total. Aquí además puedes cargar un audio como toma nueva; queda al tempo actual y en 8 slices iguales. Úsala desde T2 &gt; TOMAS (EDIT 2 s): N1 = loop A, N2 = loop B, EDIT = cortar.</p>
+      <p data-i18n="smp">En el FM-1 la GRABADORA graba la mezcla (REC en T2): hasta 3 s por toma y 6.4 s en total. Aquí además puedes cargar un audio como toma nueva. Úsala desde T2 &gt; TOMAS (EDIT 2 s): N1 = un kit de pads con la toma, N4 = la toma en un pad, EDIT = PADS.</p>
       <div class="acts">
         <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV a TOMAS</button>
         <input type="file" id="wav" accept="audio/*" hidden>
         <button class="act" id="midibtn" type="button" data-i18n="b.midi">Activar MIDI IN</button>
         <button class="act" id="wipe" type="button" data-i18n="b.wipe">Borrar memoria</button>
+        <button class="act" id="langbtn" type="button">-</button>
       </div>
+      <p data-i18n="fwlang">La pantalla del FM-1 viene en inglés. El español es un paquete de idioma que se carga aparte (en el aparato, con <code>tools/fm1/idioma.py</code>); después se cambia en SISTEMA (HOME 2 s) &gt; LANGUAGE.</p>
       <div class="stat"><span data-i18n="hw.takes">Memoria de tomas libre</span><span id="tfree">-</span></div>
       <div class="meter"><div id="tmeter"></div></div>
       <div class="stat"><span data-i18n="hw.take1">Máximo por toma</span><span>3.0 s · 48 KB</span></div>
@@ -156,7 +158,7 @@ button.act:hover { background: #33373d; }
   if (q) { try { localStorage.setItem('bm-lang', lang); } catch (e) {} }
   var ES = {
     'e.slot': 'No se pudo guardar la toma.',
-    'ok.slot': function (s, t) { return 'Toma ' + s + ' guardada (' + t + ' s). En T2 > TOMAS (EDIT 2 s), N1 la pone como loop A.'; },
+    'ok.slot': function (s, t) { return 'Toma ' + s + ' guardada (' + t + ' s). En T2 > TOMAS (EDIT 2 s), N1 arma un kit de pads con ella.'; },
     'e.full': 'No cabe: la biblioteca de tomas está llena (borra una con N11 en TOMAS).',
     'e.read': 'No se pudo leer ese archivo de audio.',
     'e.midi': 'Este navegador no tiene Web MIDI (usa Chrome o Edge).',
@@ -164,10 +166,15 @@ button.act:hover { background: #33373d; }
     'e.nomidi': 'No hay entradas MIDI conectadas.',
     'e.perm': 'Permiso de MIDI denegado.',
     'q.wipe': '¿Borrar patrones, song y ajustes guardados en este navegador?',
-    'ok.wipe': 'Memoria borrada: vuelve la demo.'
+    'ok.wipe': 'Memoria borrada: vuelve la demo.',
+    'b.es': 'Cargar español en la pantalla',
+    'b.en': 'Pantalla en inglés',
+    'ok.es': 'Paquete de español cargado: la pantalla del FM-1 está en español.',
+    'ok.en': 'Paquete quitado: la pantalla del FM-1 está en inglés.',
+    'e.lang': 'Para el transporte (PLAY) y prueba otra vez: escribir la flash corta el audio.'
   };
   var EN = {
-    title: 'Firmware emulator 0.4.0-beta',
+    title: 'Firmware emulator 0.5.0-beta',
     sub: 'The same C99 code that will run on the FM-1, compiled to WebAssembly. The firmware screens are in Spanish for now.',
     nav: '<a href="en/index.html">Home</a><a href="en/docs/manual.html">Manual</a><a href="en/docs/install.html">Install</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="?lang=es" data-lang="es" lang="es" class="lang">Español</a>',
     on: 'Power on',
@@ -190,20 +197,26 @@ button.act:hover { background: #33373d; }
     'hw.takes': 'Free take memory',
     'hw.take1': 'Maximum per take',
     'h.smp': 'Sampler and memory',
-    smp: 'On the FM-1 the recorder (GRABADORA) records the mix (REC on T2): up to 3 s per take and 7.4 s in total. Here you can also load audio as a new take; it is set to the current tempo and cut into 8 equal slices. Use it from T2 &gt; TOMAS (EDIT 2 s): N1 = loop A, N2 = loop B, EDIT = slice.',
+    smp: 'On the FM-1 the recorder (RECORD) records the mix (REC on T2): up to 3 s per take and 6.4 s in total. Here you can also load audio as a new take. Use it from T2 &gt; TAKES (EDIT 2 s): N1 = a pad kit from the take, N4 = the take on one pad, EDIT = PADS.',
+    fwlang: 'The FM-1 screen is in English. Other languages are packs loaded separately (on the device, with <code>tools/fm1/idioma.py</code>); then you switch in SYSTEM (HOME 2 s) &gt; LANGUAGE.',
     'b.wava': 'WAV to TAKES',
     'b.midi': 'Enable MIDI IN',
     'b.wipe': 'Erase memory',
     'e.slot': 'Could not save the take.',
-    'ok.slot': function (s, t) { return 'Take ' + s + ' saved (' + t + ' s). On T2 > TOMAS (EDIT 2 s), N1 makes it loop A.'; },
-    'e.full': 'It does not fit: the take library is full (delete one with N11 on TOMAS).',
+    'ok.slot': function (s, t) { return 'Take ' + s + ' saved (' + t + ' s). On T2 > TAKES (EDIT 2 s), N1 builds a pad kit from it.'; },
+    'e.full': 'It does not fit: the take library is full (delete one with N11 on TAKES).',
     'e.read': 'Could not read that audio file.',
     'e.midi': 'This browser has no Web MIDI (use Chrome or Edge).',
-    'ok.midi': 'MIDI IN on: channels 1-6 = tracks, clock if SISTEMA > RELOJ = EXTERNO.',
+    'ok.midi': 'MIDI IN on: channels 1-6 = tracks, clock if SYSTEM > CLOCK = EXTERNAL.',
     'e.nomidi': 'No MIDI inputs connected.',
     'e.perm': 'MIDI permission denied.',
     'q.wipe': 'Erase the patterns, song and settings saved in this browser?',
-    'ok.wipe': 'Memory erased: the demo is back.'
+    'ok.wipe': 'Memory erased: the demo is back.',
+    'b.es': 'Load Spanish on the screen',
+    'b.en': 'Screen in English',
+    'ok.es': 'Spanish pack loaded: the FM-1 screen is in Spanish.',
+    'ok.en': 'Pack removed: the FM-1 screen is in English.',
+    'e.lang': 'Stop the transport (PLAY) and try again: writing the flash cuts the audio.'
   };
   var D = lang === 'en' ? EN : ES;
   window.T = function (k) { return k in D ? D[k] : ES[k]; };
@@ -256,7 +269,27 @@ button.act:hover { background: #33373d; }
     lastWrites = w;
     try { localStorage.setItem(KEY, JSON.stringify(REG.map(([lo, hi]) => b64(M.HEAPU8.subarray(flashPtr + lo, flashPtr + hi))))); } catch (e) {}
   };
+  const fresh = !localStorage.getItem(KEY);
   M._bm_web_init(now());
+
+  /* ---------------- idioma de la pantalla del FM-1 ---------------- */
+  const langBtn = document.getElementById('langbtn');
+  const showLang = () => { langBtn.textContent = M._bm_web_lang_on() ? T('b.en') : T('b.es'); };
+  const loadEs = async () => {
+    const raw = new Uint8Array(await (await fetch('lang/es.bmlang', { cache: 'no-cache' })).arrayBuffer());
+    M.HEAPU8.set(raw, M._bm_web_lang_buf());
+    return M._bm_web_lang_load(raw.length);
+  };
+  langBtn.addEventListener('click', async () => {
+    try {
+      const r = M._bm_web_lang_on() ? M._bm_web_lang_load(0) : await loadEs();
+      msg(r ? T('e.lang') : (M._bm_web_lang_on() ? T('ok.es') : T('ok.en')));
+    } catch (e) { msg(T('e.read')); }
+    persist(); showLang();
+  });
+  /* en la página en español, la primera vez la pantalla también arranca en español */
+  if (fresh && document.documentElement.lang === 'es') { try { await loadEs(); persist(); } catch (e) {} }
+  showLang();
 
   /* ---------------- botones ---------------- */
   const btnEls = [];

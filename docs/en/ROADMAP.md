@@ -2,7 +2,7 @@
 
 Everything planned for Bubba Machine. **All of it will be done, step by step**, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.
 
-Items marked ✓ are already in the current version (0.4.0-beta). Until v1, any version may erase what you saved (see [install](INSTALL.md)).
+Items marked ✓ are already in the current version (0.5.0-beta). Until v1, any version may erase what you saved (see [install](INSTALL.md)).
 
 ## Audio
 
@@ -30,7 +30,8 @@ The goal is the best quality the FM-1 allows. What improved, what it costs and w
 
 **Done**
 - ✓ **Key strip on screen:** the 11 black and 16 white keys with a short name and the same intensity as their light.
-- ✓ **SLICER:** a take in 16 slices played with the white keys.
+- ✓ **English screen, with language packs:** Spanish is loaded separately (`tools/fm1/idioma.py`) and switched in SYSTEM › LANGUAGE.
+- ✓ **Pad sampler:** 16 pads made from your takes, like a KO II or an OP-1 field, on a grid like the drums, with BREAK to vary it.
 - ✓ **MUTES** and **FILL** screens, and drums in sections of 8.
 
 **Planned: playing live (HOME again = the next page)**
@@ -52,11 +53,14 @@ The goal is the best quality the FM-1 allows. What improved, what it costs and w
 ## Tools and ecosystem
 
 - **Back up what you saved from the browser** (patterns, song and takes), so nothing is lost when updating.
+- **Recording straight onto a pad** (REC + pad, like the KO II) and undo for pad edits.
+- **Language packs from the web installer**, without the command line, and more languages made by the community.
 - **Web editor:** load and download patterns and takes over USB (today takes are uploaded with `tools/fm1/toma.py`), and DX7 `.syx` FM banks.
 - **Free kit and take packs** (CC0 or GPL), made by the community.
 - **Bluetooth MIDI**, if the hardware and processor allow it (no promise: no free firmware has shown it yet).
 
 ## Done
 
+- **0.5.0-beta:** the pad sampler and the English screen, with Spanish as a language pack.
 - **0.4.0-beta:** the first version for the FM-1, sounds computed live and 44.1 kHz audio. See the [changelog](CHANGELOG.md).
 - **0.3:** interface 3.0, with four gestures per button and HOME everywhere. The design is in [`DESIGN_3.0.md`](DESIGN_3.0.md).

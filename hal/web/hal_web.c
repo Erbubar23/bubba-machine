@@ -5,12 +5,14 @@
 #include <string.h>
 #include "../bm_hal_sim.h"
 #include "../../core/bm_takes.h"
+#include "../../core/bm_app_int.h"
 
 static bm_sim sim;
 static bm_app app;
 static int32_t ibuf[4096 * 2];
 static float fbuf[4096 * 2];
 static int ready;
+static uint8_t lang_buf[BM_LANG_HI - BM_LANG_LO];
 
 EMSCRIPTEN_KEEPALIVE uint8_t *bm_web_flash(void) { return sim.flash; }
 EMSCRIPTEN_KEEPALIVE int bm_web_flash_size(void) { return BM_FLASH_SIZE; }
@@ -75,6 +77,7 @@ EMSCRIPTEN_KEEPALIVE int bm_web_sampler_set(int len, int bpm_x10)
     int id = bm_takes_write(pf.flash, pf.flash_map, pf.user, app.take, smp_buf, (uint32_t)len, (uint16_t)bpm_x10, (uint8_t)(bars < 1 ? 1 : bars > 8 ? 8 : bars));
     if (id < 0) return -1;
     bm_app_takes_reload(&app);
+    if (app_kit_empty(&app)) app_kit_from_take(&app, id, 0);   /* con el kit vacío, la toma lo arma */
     return id;
 }
 
@@ -85,6 +88,18 @@ EMSCRIPTEN_KEEPALIVE int bm_web_midi_out(uint8_t *dst, int cap)
     sim.midi_n = 0;
     return n;
 }
+
+/* Idioma de la pantalla: el JS deja un paquete .bmlang en lang_buf y lo carga (n = 0: lo quita). */
+EMSCRIPTEN_KEEPALIVE uint8_t *bm_web_lang_buf(void) { return lang_buf; }
+EMSCRIPTEN_KEEPALIVE int bm_web_lang_load(int n)
+{
+    if (!ready) return -1;
+    if (n <= 0) return bm_app_lang_load(&app, 3, 0, NULL, 0);
+    if ((uint32_t)n > sizeof lang_buf) return -1;
+    if (bm_app_lang_load(&app, 0, 0, NULL, 0) || bm_app_lang_load(&app, 1, 0, lang_buf, (uint32_t)n)) return -1;
+    return bm_app_lang_load(&app, 2, 0, NULL, 0);
+}
+EMSCRIPTEN_KEEPALIVE int bm_web_lang_on(void) { return ready && app.set.lang && bm_app_lang_pack(&app) != NULL; }
 
 EMSCRIPTEN_KEEPALIVE int bm_web_view(void) { return app.view; }
 EMSCRIPTEN_KEEPALIVE int bm_web_playing(void) { return app.ctx.st.playing; }

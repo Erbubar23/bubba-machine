@@ -2,6 +2,29 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [0.5.0-beta] - 2026-10-12
+
+**Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador.
+
+**La pantalla pasa al inglés**, para que Bubba Machine se entienda en todo el mundo. El español sigue disponible como paquete de idioma, que no viene cargado. **La memoria de tomas baja de 7.4 s a 6.4 s**: 16 KiB de la flash son ahora del paquete de idioma, y una toma que usaba ese lugar se pierde. **El sampler pasa a ser de pads** y el formato de los patrones cambia: los patrones guardados se borran al primer arranque (las tomas se quedan).
+
+### Agregado
+- **Paquetes de idioma.** Las frases de la pantalla están en inglés y un paquete (`.bmlang`) las traduce. Vive en su propia zona de la flash (`0xD9000`, 16 KiB), así que no toca patrones ni tomas y una actualización del firmware no lo borra. **SISTEMA › LANGUAGE** cambia entre el inglés y el paquete cargado. Lo que el paquete no traduce se ve en inglés.
+  - **Español** (`lang/es.txt`, armado en `lang/es.bmlang`): la pantalla queda como antes.
+  - Se carga en el FM-1 con `tools/fm1/idioma.py` (por la consola USB-MIDI, con el transporte parado) y en el emulador con un botón; en la página del emulador en español, la primera vez ya arranca en español.
+  - `tools/gen_lang.py` junta todas las frases en `lang/plantilla.txt`, revisa cada traducción (solo ASCII, los mismos `%`) y arma los paquetes. Cualquiera puede hacer otro idioma.
+
+### Cambiado
+- **T2 es un sampler de 16 pads**, como un KO II o el drum sampler de un OP-1 field. Reemplaza al loop en slices con generador (y a SLICER, CORTAR y CHOPS).
+  - **Cada pad es un trozo de una toma**, con su inicio y su largo (se pueden encimar), tono, nivel, modo de tecla (**ONESHOT**, **KEY**, **THRU**: sostenido sigue por la toma, **LOOP**), sentido, ataque, salida, grupo de corte y si sigue el tempo. Un kit puede mezclar tomas.
+  - **La toma arma el kit:** al guardarse una toma con el kit vacío, se corta en los golpes, cada corte va a un pad y la rejilla queda escrita para que suene como la toma. En **TAKES**: N1 kit en los golpes, N2 en 16, N3 en 8, N4 la toma entera en el pad elegido; las blancas la escuchan en 16 partes.
+  - **SEQ es una rejilla como la de la batería:** una línea por pad, con su largo, acentos, repeticiones, condiciones, mutes, fill y P-Lock por paso de FILTER, PITCH, DECAY y START. Se acabaron los números sueltos: se ve qué pad suena en qué paso.
+  - **PADS** (EDIT): la onda de la toma con el pad entre corchetes y los demás pads marcados, y tres páginas (TRIM, SOUND, ENV; EDIT otra vez pasa). Negras: copiar, pegar, vaciar, el inicio al golpe; 9-11 reversa, media velocidad y stutter.
+  - **BREAK** (SEQ otra vez): el generador de antes, ahora sobre la rejilla y apagado de fábrica. VARY cambia pads, ANCHOR deja los tiempos fuertes, REPEAT y BREAK. La fila PLAYS muestra lo que va a sonar y EDIT + negra 4 lo escribe en la rejilla.
+  - En la grabadora, las blancas escuchan la toma nueva antes de guardarla.
+- El dibujo del sampler (SOUND) es la misma onda espejada; ya no hay tres carriles por frecuencia.
+- Los nombres de los modelos de batería, los patches de FM y las ondas también pasan al inglés (con su traducción en el paquete).
+
 ## [0.4.0-beta] - 2026-10-11
 
 **Beta: la primera versión que corre en el FM-1.** Se probó en un solo aparato (el del autor) y todavía cambia mucho. **Una actualización puede borrar lo que guardaste** (patrones, canción, ajustes y tomas del sampler): hasta la v1 no hay compatibilidad hacia atrás, y cuando cambia un formato lo anterior se borra al arrancar y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.

@@ -5,8 +5,8 @@
  * Un patrón tiene 6 canales: 3 fijos y 3 libres.
  *   T1 batería: estilo TR, 16 instrumentos con su línea de 64 pasos (un byte por paso)
  *               y P-Locks en una lista dispersa.
- *   T2 sampler: un loop en 8 slices que un generador rearma. Usa la misma rejilla TR:
- *               la línea 0 son los pasos del generador y las líneas 1-8, los slices fijos.
+ *   T2 sampler: 16 pads (trozos de las tomas, como un KO II o un OP-1 field) en una rejilla TR
+ *               como la de T1: una línea por pad. La página BREAK varía lo que suena.
  *   T3 bajo:    pasos con hasta 4 notas de 8 bytes + loopera.
  *   T4-T6:      libres. SYNTH, MONO, MIDI (notas, como T3) o KIT (rejilla TR, como T1).
  * Cada canal tiene su largo y su velocidad; cada instrumento TR, su largo. */
@@ -56,12 +56,20 @@ typedef struct {
     bm_lock lk[BM_LANE_LOCKS];
 } bm_tr;
 
-/* Sampler: línea 0 = el generador elige; línea 1 = paso fijo (bits de paso) y línea 2 = qué slice
- * (0..15) suena en ese paso fijo. */
-#define BRK_GEN     0
-#define BRK_FIX     1
-#define BRK_FIXSL   2
-#define BRK_LANES   3
+/* T2: un pad del sampler = un trozo de una toma guardada. El nivel y el grupo de corte del pad son
+ * los de su línea (bm_lane.level, bm_lane.choke). */
+enum { PAD_ONESHOT, PAD_KEY, PAD_THRU, PAD_LOOP, PAD_MODES };
+#define PAD_REV     0x01u      /* flags: suena al revés */
+#define PAD_TEMPO   0x02u      /* sigue el tempo: velocidad = BPM del proyecto / BPM de la toma */
+typedef struct {
+    uint8_t src;               /* toma 0..7; BM_SRC_NONE = pad vacío */
+    uint8_t mode;              /* PAD_*: cómo responde a la tecla sostenida */
+    uint8_t pitch;             /* 24 = 0 semitonos (0..48) */
+    uint8_t flags;
+    uint8_t attack, release;   /* 0..127 */
+    uint16_t start, len;       /* muestras dentro de la toma */
+    uint8_t rsv[2];
+} bm_pad;                      /* 12 bytes */
 
 /* ------------------------------------------------------------ loopera de los canales de notas */
 typedef struct { uint16_t tick; uint8_t note, vel; } bm_loopev;   /* vel 0 = note off */
@@ -74,7 +82,7 @@ typedef struct {
 /* ------------------------------------------------------------ motores y tipos de canal */
 /* 0.4: ANALOG reemplaza a BAJO, SYNTH, MONO y el ANALOG viejo; CUERDA y MODAL aún no se eligen. */
 enum { ENG_DRUM, ENG_BREAK, ENG_ANALOG, ENG_FM, ENG_ACID, ENG_CUERDA, ENG_MODAL, ENG_KIT, ENG_MIDI, ENG_COUNT };
-enum { KIND_TR, KIND_BRK, KIND_NOTE };
+enum { KIND_TR, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];
 #define BM_FREE0   3           /* T4: primer canal libre */
 
@@ -102,9 +110,9 @@ typedef struct {
     uint8_t accent;        /* cuánto más fuerte suena un acento (0 = igual) */
     uint8_t midi_ch;       /* MIDI: canal 0..15 */
     uint8_t scl_root, scl; /* escala propia del canal; scl 0xFF = la del proyecto */
-    uint8_t gen[4];        /* sampler: VARIAR ANCLAR REPETIR ROMPER (0..127) */
-    uint8_t rt[4];         /* sampler: peso de los retrig 2X 3X 4X 8X */
-    uint8_t loop_b, chance_b, pitch;   /* sampler: loop B, % de compases con B, tono (24 = 0) */
+    uint8_t gen[4];        /* sampler, BREAK: VARY ANCHOR REPEAT BREAK (0..127; todo en 0 = la rejilla tal cual) */
+    uint8_t rt[4];         /* sampler, BREAK: peso de los retrig 2X 3X 4X 8X */
+    uint8_t loop_b, chance_b, pitch;   /* sin uso desde los pads */
     uint8_t rsv[9];
 } bm_track;
 
@@ -130,7 +138,8 @@ typedef union { bm_event ev[BM_STEPS][BM_EVENTS]; bm_tr tr; } bm_notes;
 typedef struct {
     bm_meta  meta;
     bm_track trk[BM_TRACKS];
-    bm_tr    tr[BM_TR_TRACKS];                       /* T1, T2 */
+    bm_tr    tr[BM_TR_TRACKS];                       /* T1, T2 (una línea por pad) */
+    bm_pad   pad[BM_LANES];                          /* T2: los 16 pads */
     bm_notes nt[BM_SYN_TRACKS];                      /* T3..T6 */
     bm_loop  loop[BM_SYN_TRACKS];
     uint8_t  prm[BM_TRACKS][BM_PRM];                 /* parámetros del motor de cada canal (bm_params.h) */
@@ -148,12 +157,12 @@ typedef struct {
 /* ------------------------------------------------------------ acceso según el tipo de canal */
 static inline int bm_kind(const bm_pattern *p, int t)
 {
-    if (t == 1) return KIND_BRK;
-    if (t == 0 || p->trk[t].engine == ENG_KIT) return KIND_TR;
+    if (t <= 1 || p->trk[t].engine == ENG_KIT) return KIND_TR;
     return KIND_NOTE;
 }
-static inline bool bm_is_tr(const bm_pattern *p, int t) { return bm_kind(p, t) == KIND_TR; }
-static inline bool bm_is_grid(const bm_pattern *p, int t) { return bm_kind(p, t) != KIND_NOTE; }   /* TR o sampler */
+static inline bool bm_is_pads(int t) { return t == 1; }                                         /* T2: rejilla de pads */
+static inline bool bm_is_tr(const bm_pattern *p, int t) { return bm_kind(p, t) == KIND_TR && !bm_is_pads(t); }   /* batería */
+static inline bool bm_is_grid(const bm_pattern *p, int t) { return bm_kind(p, t) == KIND_TR; }   /* batería o pads */
 static inline bool bm_is_free(int t) { return t >= BM_FREE0; }
 static inline bm_tr *bm_trk_tr(bm_pattern *p, int t) { return t < BM_TR_TRACKS ? &p->tr[t] : &p->nt[t - BM_TR_TRACKS].tr; }
 static inline const bm_tr *bm_trk_trc(const bm_pattern *p, int t) { return t < BM_TR_TRACKS ? &p->tr[t] : &p->nt[t - BM_TR_TRACKS].tr; }
@@ -182,9 +191,9 @@ int  bm_tr_lock_get(const bm_tr *tr, int step, int lane, int param);   /* -1 si 
 bool bm_tr_lock_set(bm_tr *tr, int step, int lane, int param, int val); /* val < 0 borra */
 void bm_tr_lock_clear_step(bm_tr *tr, int step, int lane);
 
-/* Sampler: qué hay en el paso s de la fila TU. Devuelve -1 silencio, 0 generador o 1..8 slice fijo;
- * en *b deja el byte del paso (acento, repetición...). */
-int  bm_brk_step(const bm_tr *tr, int s, uint8_t *b);
+/* Pads: vacía uno · ¿suena? (tiene toma y largo) */
+void bm_pad_clear(bm_pad *p);
+static inline bool bm_pad_ok(const bm_pad *p) { return p->src < 8 && p->len > 0; }
 
 /* Escalas y acordes */
 #define BM_SCALES 9

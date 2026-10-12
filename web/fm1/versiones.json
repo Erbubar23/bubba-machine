@@ -1,19 +1,19 @@
 [
  {
-  "archivo": "bubba-machine-0.4.0-beta.bin",
-  "sha256": "300fa9e57c2bb5ab1c25f1ce6ac327bc88f30099f2f8e1dcf4c2dc2ca03b1b13",
-  "bytes": 341932,
-  "nombre": "Bubba Machine 0.4.0-beta",
-  "nombre_en": "Bubba Machine 0.4.0-beta",
+  "archivo": "bubba-machine-0.5.0-beta.bin",
+  "sha256": "61d0decff3d3cfe8e91229631fafe96015920de86a3ba5754d661dc1d2040ea0",
+  "bytes": 340492,
+  "nombre": "Bubba Machine 0.5.0-beta",
+  "nombre_en": "Bubba Machine 0.5.0-beta",
   "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
   "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
  },
  {
-  "archivo": "bubba-diag-0.4.0-beta.bin",
-  "sha256": "6dbb08537ff7f59db806f5ce48f204aae311f2542b6e84d83d3712eddfbaebdc",
+  "archivo": "bubba-diag-0.5.0-beta.bin",
+  "sha256": "3df9767bdf47266fccf70613827a60e32609fbb6a2efcc1851b87f3d600e823f",
   "bytes": 124840,
-  "nombre": "Diagnóstico 0.4.0-beta",
-  "nombre_en": "Diagnostic 0.4.0-beta",
+  "nombre": "Diagnóstico 0.5.0-beta",
+  "nombre_en": "Diagnostic 0.5.0-beta",
   "detalle": "Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.",
   "detalle_en": "No sound: shows every button, key and knob to check the device."
  }

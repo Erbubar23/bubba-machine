@@ -47,7 +47,7 @@
 <p>Bubba Machine has one goal: <strong>the best audio quality the FM-1 allows</strong>. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, <strong>what isn't there yet</strong>.</p>
 <p>All CPU figures were measured on the author's FM-1 with the firmware console (<code>tools/fm1/traza.py</code>). The details of each measurement are in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> and <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a> (Spanish).</p>
 <h2 id="the-device">The device</h2>
-<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>116 KiB of flash for sampler takes</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>100 KiB of flash for sampler takes</td></tr></tbody></table></div>
 <h2 id="what-improved">What improved</h2>
 <h3 id="1-everything-at-441-khz">1. Everything at 44.1 kHz</h3>
 <p>In 0.3 the engines ran at 22 kHz and every sample was repeated twice to reach the output. That cuts everything above 11 kHz and leaves images (false highs) above it.</p>
@@ -80,7 +80,7 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 <h2 id="what-isnt-there-yet">What isn't there yet</h2>
 <p>This is a beta. What limits quality today, plainly:</p>
 <ul><li>
-<strong>The sampler records at 16 kHz and 8 bits.</strong> The FM-1's flash leaves 116 KiB for takes (7.4 s in total); at 16 bits it would be half that. With the filter before recording and the dither in <code>toma.py</code> it sounds clean, but <strong>it stops around 7 kHz</strong> and has 8-bit noise. It is the weakest point and the next one to solve.
+<strong>The sampler records at 16 kHz and 8 bits.</strong> The FM-1's flash leaves 100 KiB for takes (6.4 s in total); at 16 bits it would be half that. With the filter before recording and the dither in <code>toma.py</code> it sounds clean, but <strong>it stops around 7 kHz</strong> and has 8-bit noise. It is the weakest point and the next one to solve.
 </li><li>
 <strong>The delay runs at 22 kHz:</strong> repeats reach 11 kHz, like a tape delay. That is on purpose, so 1.5 s fits in RAM, but it isn't hi-fi.
 </li><li>
@@ -116,7 +116,7 @@ A <strong>higher-quality sampler</strong>, within what the flash allows.
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

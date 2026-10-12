@@ -51,7 +51,14 @@ def assets():
             sys.exit(r.returncode)
 
 
+def lang():
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'gen_lang.py')])
+    if r.returncode:
+        sys.exit(r.returncode)
+
+
 def test():
+    lang()
     os.makedirs(os.path.join(ROOT, 'build', 'out'), exist_ok=True)
     docker(GCC_IMAGE,
            cxx_objs('g++', 'build/obj') +
@@ -69,6 +76,7 @@ def test():
 
 
 def web():
+    lang()
     docker(EMSDK_IMAGE,
            cxx_objs('em++', 'build/wobj') +
            f'emcc -O2 -std=c99 -Wno-format-truncation {SRC} hal/web/hal_web.c build/wobj/*.o -o web/bm.js '

@@ -2,7 +2,7 @@
 
 Todo lo que está contemplado para Bubba Machine. **Se va a hacer todo, poco a poco**, sin fechas: cada paso sale cuando está probado en el FM-1. El orden dentro de cada lista es el orden en que importa hoy y puede cambiar.
 
-Lo marcado ✓ ya está en la versión actual (0.4.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver [instalar](INSTALAR.md)).
+Lo marcado ✓ ya está en la versión actual (0.5.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver [instalar](INSTALAR.md)).
 
 ## Audio
 
@@ -30,7 +30,8 @@ La 0.5 ordena el FM-1 en dos lugares: **tocar en vivo** (HOME y sus vueltas) y *
 
 **Hecho**
 - ✓ **Tira de teclas en pantalla:** las 11 negras y las 16 blancas con su nombre corto y la misma intensidad que su luz.
-- ✓ **SLICER:** una toma en 16 cortes que se tocan con las blancas.
+- ✓ **Pantalla en inglés, con paquetes de idioma:** el español se carga aparte (`tools/fm1/idioma.py`) y se cambia en SISTEMA › LANGUAGE.
+- ✓ **Sampler de pads:** 16 pads hechos con tus tomas, como un KO II o un OP-1 field, en una rejilla como la de la batería, con BREAK para variarla.
 - ✓ Pantallas de **MUTES** y **FILL**, y la batería por secciones de 8.
 
 **Contemplado: tocar en vivo (HOME otra vez = la página siguiente)**
@@ -52,11 +53,14 @@ La 0.5 ordena el FM-1 en dos lugares: **tocar en vivo** (HOME y sus vueltas) y *
 ## Herramientas y ecosistema
 
 - **Respaldo de lo guardado desde el navegador** (patrones, canción y tomas), para no perder nada al actualizar.
+- **Grabar directo a un pad** (REC + pad, como el KO II) y deshacer los cambios de un pad.
+- **Paquetes de idioma desde el instalador web**, sin usar la línea de comandos, y más idiomas hechos por la comunidad.
 - **Editor web:** cargar y bajar patrones y tomas por USB (hoy las tomas se suben con `tools/fm1/toma.py`), y bancos de FM en formato `.syx` de la DX7.
 - **Packs de kits y tomas libres** (CC0 o GPL), hechos por la comunidad.
 - **Bluetooth MIDI**, si el hardware y el procesador lo permiten (sin promesa: ningún firmware libre lo ha demostrado).
 
 ## Hecho
 
+- **0.5.0-beta:** el sampler de pads y la pantalla en inglés, con el español como paquete de idioma.
 - **0.4.0-beta:** la primera versión para el FM-1, sonidos calculados en vivo y audio a 44.1 kHz. Ver el [registro de cambios](../CHANGELOG.md).
 - **0.3:** la interfaz 3.0, con cuatro gestos por botón y HOME en todas partes. El diseño está en [`DISENO_3.0.md`](DISENO_3.0.md).

@@ -67,32 +67,30 @@
 <p>Si se usó HOME como modificador, soltarlo <strong>no</strong> te lleva a la pantalla de inicio: HOME solo navega con un toque limpio.</p>
 <p><strong>Teclas en HOME:</strong> negras 1-6 mutean T1-T6 (mantener = solo), 7-10 lanzan las escenas A-D y 11 es FILL. Las blancas ponen en cola el patrón del banco; dos blancas encadenan del primero al segundo.</p>
 <h2 id="canales-3-fijos-y-3-libres">Canales: 3 fijos y 3 libres</h2>
-<div class="tbl"><table><thead><tr><th>Canal</th><th>Tipo</th><th>Qué es</th></tr></thead><tbody><tr><td>T1 BATERÍA</td><td>Fijo</td><td>Rejilla TR de 16 instrumentos</td></tr><tr><td>T2 SAMPLER</td><td>Fijo</td><td>Loop en 8 slices que un generador rearma</td></tr><tr><td>T3 BAJO</td><td>Fijo</td><td>Wavetable monofónico con glide</td></tr><tr><td>T4-T6</td><td>Libres</td><td>SYNTH, MONO, KIT o MIDI, elegido en la pestaña MAS</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Canal</th><th>Tipo</th><th>Qué es</th></tr></thead><tbody><tr><td>T1 BATERÍA</td><td>Fijo</td><td>Rejilla TR de 16 instrumentos</td></tr><tr><td>T2 SAMPLER</td><td>Fijo</td><td>16 pads hechos con las tomas, en una rejilla</td></tr><tr><td>T3 BAJO</td><td>Fijo</td><td>Wavetable monofónico con glide</td></tr><tr><td>T4-T6</td><td>Libres</td><td>SYNTH, MONO, KIT o MIDI, elegido en la pestaña MAS</td></tr></tbody></table></div>
 <p>Cada canal muestra sus pestañas arriba: SELECT las recorre y los botones saltan directo. La última, <strong>MAS</strong>, es la lista con todo el canal.</p>
-<p><strong>Las negras siguen una sola gramática:</strong> 1-8 son los elementos del canal, 9 y 10 lo modifican, y <strong>11 rompe el patrón</strong> (FILL en las baterías, STUTTER en el sampler).</p>
-<h2 id="sampler-30">Sampler 3.0</h2>
-<p>La idea viene del BREAK de X0X (un loop en slices que un generador reordena) con una interfaz que deja ver lo que pasa:</p>
+<p><strong>Las negras siguen una sola gramática:</strong> 1-8 son los elementos del canal, 9 y 10 lo modifican, y <strong>11 rompe el patrón</strong> (FILL).</p>
+<h2 id="sampler-de-pads">Sampler de pads</h2>
+<p>El sampler de 0.3 y 0.4 era un loop en slices que un generador reordenaba (la idea del BREAK de X0X). En el aparato no se entendía: tocabas un corte y en la pantalla aparecía otro número, porque la fila de lo que suena mezclaba lo programado con lo que elegía el generador. Desde la 0.5.0-beta, T2 es un <strong>sampler de pads</strong>, como un KO II o el drum sampler de un OP-1 field:</p>
 <ul><li>
-<strong>Dos filas de pasos:</strong> TU (lo que programaste: hueco = el generador elige, lleno = slice fijo) y <strong>SUENA</strong> (el slice que eligió el generador en este compás).
+<strong>Pads, no slices:</strong> cada pad es un trozo de una toma, con su inicio y su largo (pueden encimarse), tono, nivel, modo de tecla (ONESHOT, KEY, THRU, LOOP), ataque, salida, grupo de corte y tempo. Un kit puede mezclar tomas.
 </li><li>
-<strong>Perillas con nombres claros:</strong> VARIAR, ANCLAR, REPETIR y ROMPER.
+<strong>La misma rejilla que la batería:</strong> una línea por pad. Todo lo que se aprende en T1 sirve en T2: pasos, acentos, repeticiones, mutes, fill, P-Lock.
 </li><li>
-<strong>CAPTURAR:</strong> mantener EDIT + negra 4 deja fija la variación que está sonando.
+<strong>La toma arma el kit:</strong> al guardar una toma con el kit vacío se corta en los golpes y la rejilla queda escrita para que suene como la toma. TAKES arma otros kits o pone una toma entera en un pad.
 </li><li>
-<strong>Fijar slices tocando:</strong> con REC, las negras 1-8 se escriben como pasos fijos.
+<strong>El generador queda como BREAK:</strong> una página aparte, apagada de fábrica, que varía la rejilla compás a compás. La fila PLAYS muestra exactamente lo que va a sonar y CAPT lo escribe en la rejilla.
 </li><li>
-<strong>El tono a la vista:</strong> BPM original del loop y cuántos semitonos se movió.
-</li><li>
-<strong>Dibujo por frecuencias:</strong> graves, medios y agudos en carriles separados (ya funciona en 0.2).
+<strong>La onda como en un sampler:</strong> espejada y grande, al estilo de X0X, con el pico en tono oscuro y el RMS encima. Reemplaza al dibujo en tres carriles por frecuencia de 0.2, que se leía mal.
 </li></ul>
 <h2 id="grabadora">Grabadora</h2>
-<p>Grabar, guardar y cortar son tres pantallas, una tarea cada una:</p>
+<p>Grabar, guardar y armar el kit son pasos separados:</p>
 <ol><li>
-<strong>GRABAR:</strong> un número grande con los segundos que quedan, que es el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Rayas marcan cuántos compases caben.
+<strong>GRABAR:</strong> un número grande con los segundos que quedan, que es el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Rayas marcan cuántos compases caben. Las blancas escuchan la toma nueva.
 </li><li>
-<strong>TOMAS:</strong> biblioteca de grabaciones con su BPM y sus compases. Los loops de fábrica no gastan memoria.
+<strong>TOMAS:</strong> biblioteca de grabaciones con su BPM, sus compases y su onda. De ahí salen los kits.
 </li><li>
-<strong>CORTAR:</strong> después, con calma. Las blancas ponen cortes por corchea, la negra 9 los pone en los golpes y la 10 los reparte iguales.
+<strong>PADS:</strong> después, con calma, cada pad sobre la onda de su toma.
 </li></ol>
 <p>La toma queda sin guardar hasta que paras el transporte, porque escribir la flash detiene el audio.</p>
 <h2 id="decisiones">Decisiones</h2>
@@ -103,6 +101,8 @@
 </li><li>
 <strong>Bancos de patrones:</strong> la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones. <em>Pendiente:</em> en la 0.3, PRESETS en HOME recorre los 16.
 </li><li>
+<strong>Del loop en slices a los pads:</strong> SLICER, CORTAR y después CORTES intentaron editar los cortes de un loop; ninguna se entendía en el aparato junto al generador. El sampler pasó a ser de pads (arriba). <em>Resuelta en 0.5.0-beta.</em>
+</li><li>
 <strong>Fantasma en la batería:</strong> el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato. <em>Pendiente:</em> en las notas ya hay tres niveles.
 </li></ul>
     <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_3.0.md">docs/DISENO_3.0.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
@@ -110,7 +110,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

@@ -83,13 +83,17 @@ static void rq_tick(bm_ctx *c)
             bm_retrig *r = &c->rq[t][i];
             if (r->ticks && --r->ticks == 0) {
                 c->eng[t].vt->note_on(&c->eng[t], r->lane, r->vel);
-                if (t != 1) c->st.lane_trig[t] |= (uint16_t)(1u << (r->lane & 15));
+                c->st.lane_trig[t] |= (uint16_t)(1u << (r->lane & 15));
             }
         }
 }
 
-/* ------------------------------------------------------------ rejilla TR (T1 y canales KIT) */
-static void tr_hit(bm_ctx *c, int t, int lane, int s, uint8_t b, int tps)
+/* ------------------------------------------------------------ rejilla TR (T1, pads de T2 y canales KIT) */
+static const uint8_t RT_N[5] = {1, 2, 3, 4, 8};
+
+/* Un golpe de la línea lane. note: la nota que suena (en T2 puede ser otro pad, con reversa o media
+ * velocidad de BREAK); nrt: repeticiones de BREAK (las pintadas en el paso también cuentan). */
+static void tr_hit(bm_ctx *c, int t, int lane, int s, uint8_t b, int tps, uint8_t note, int nrt)
 {
     bm_engine *e = &c->eng[t];
     const bm_tr *tr = bm_trk_tr(c->pat, t);
@@ -98,17 +102,89 @@ static void tr_hit(bm_ctx *c, int t, int lane, int s, uint8_t b, int tps)
             if (tr->lk[i].lane == lane && tr->lk[i].step == s && tr->lk[i].param < 4)
                 e->vt->set_macro(e, (uint8_t)(BM_MACRO_LOCK | tr->lk[i].param), tr->lk[i].val);
     uint8_t vel = (uint8_t)bm_vel(c, t, (b & ST_ACC) != 0);
-    e->vt->note_on(e, (uint8_t)lane, vel);
+    if (t == 1 && (c->brk_live & 1)) note |= BRK_REV;
+    if (t == 1 && (c->brk_live & 2)) note |= BRK_HALF;
+    e->vt->note_on(e, note, vel);
     int rat = ((b & ST_RAT_MASK) >> ST_RAT_SH) + 1;
-    for (int k = 1; k < rat; k++) rq_push(c, t, lane, vel * 85 / 100, k * tps / rat);
-    if (b & ST_FLAM) rq_push(c, t, lane, vel * 6 / 10, 2);
-    c->st.lane_trig[t] |= (uint16_t)(1u << lane);
+    if (nrt > rat) rat = nrt;
+    for (int k = 1; k < rat; k++) rq_push(c, t, note, vel * 85 / 100, k * tps / rat);
+    if (b & ST_FLAM) rq_push(c, t, note, vel * 6 / 10, 2);
+    c->st.lane_trig[t] |= (uint16_t)(1u << (note & 15));
+}
+
+/* ------------------------------------------------------------ BREAK (T2)
+ * Varía lo que suena de la rejilla de pads, compás a compás, con una semilla (patrón, bloque): la
+ * fila PLAYS de la pantalla es exactamente lo que va a sonar. Todo en 0 = la rejilla tal cual. */
+static uint32_t gen_rand(uint32_t *r) { return bm_xorshift32(r); }
+
+static int pads_main(const bm_ctx *c, uint32_t n)        /* el primer pad que suena en el paso n */
+{
+    const bm_tr *tr = &c->pat->tr[1];
+    for (int l = 0; l < BM_LANES; l++) {
+        if (tr->mute & (1u << l)) continue;
+        int len = tr->lane[l].len ? tr->lane[l].len : 16;
+        if (tr->st[l][n % (uint32_t)len] & ST_ON) return l;
+    }
+    return -1;
+}
+
+static bool brk_on(const bm_ctx *c)
+{
+    const uint8_t *g = c->pat->trk[1].gen;
+    return g[0] || g[2] || g[3];
+}
+
+void bm_gen_decide(bm_ctx *c, uint32_t blk)
+{
+    const bm_track *tk = &c->pat->trk[1];
+    uint32_t r = 0x5EED1u ^ ((uint32_t)c->cur_pat * 7919u) ^ (blk * 2654435761u);
+    gen_rand(&r);
+    uint8_t used[BM_LANES];
+    int nu = 0;
+    for (int l = 0; l < BM_LANES; l++) if (bm_pad_ok(&c->pat->pad[l])) used[nu++] = (uint8_t)l;
+    uint32_t wsum = (uint32_t)tk->rt[0] + tk->rt[1] + tk->rt[2] + tk->rt[3];
+    bool on = brk_on(c);
+    int prev = -1;
+    for (int k = 0; k < 16; k++) {
+        int main = pads_main(c, blk * 16u + (uint32_t)k);
+        uint8_t sub = 0xFF, fx = 0;
+        bool anchor = (k % 4) == 0 && (int)(gen_rand(&r) % 128u) < tk->gen[1];   /* ANCHOR: los tiempos fuertes quedan */
+        if (on && main >= 0 && !anchor) {
+            if (nu > 1 && (int)(gen_rand(&r) % 128u) < tk->gen[0]) sub = used[gen_rand(&r) % (uint32_t)nu];   /* VARY */
+            if ((int)(gen_rand(&r) % 128u) < tk->gen[2]) {                                                       /* REPEAT */
+                uint32_t x = wsum ? gen_rand(&r) % wsum : 0;
+                int rt = 0;
+                while (rt < 3 && x >= tk->rt[rt]) { x -= tk->rt[rt]; rt++; }
+                fx |= (uint8_t)(rt + 1);
+            }
+            if ((int)(gen_rand(&r) % 128u) < tk->gen[3]) {                                                       /* BREAK */
+                switch (gen_rand(&r) % 4u) {
+                case 0: fx |= GEN_REV; break;
+                case 1: fx |= GEN_HALF; break;
+                case 2: fx |= GEN_SKIP; break;
+                default: if (prev >= 0) sub = (uint8_t)prev; break;
+                }
+            }
+        }
+        int plays = sub != 0xFF ? sub : main;
+        c->gen_sl[k] = sub; c->gen_fx[k] = fx;
+        c->st.gen_sl[k] = (uint8_t)((fx & GEN_SKIP) || plays < 0 ? 0xFF : plays);
+        c->st.gen_fx[k] = fx;
+        if (plays >= 0 && !(fx & GEN_SKIP)) prev = plays;
+    }
+    c->st.gen_blk = (uint8_t)blk;
+    c->gen_blk = blk + 1;
 }
 
 static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 {
     const bm_tr *tr = bm_trk_tr(c->pat, t);
-    if (c->pat->trk[t].mute) return;
+    uint8_t sub = 0xFF, fx = 0;
+    if (t == 1) {
+        bm_gen_decide(c, n / 16u);                           /* siempre al día con las perillas */
+        if (brk_on(c)) { sub = c->gen_sl[n % 16u]; fx = c->gen_fx[n % 16u]; }
+    }
+    if (c->pat->trk[t].mute || (fx & GEN_SKIP)) return;
     int fired = 0;
     for (int l = 0; l < BM_LANES; l++) {
         if (tr->mute & (1u << l)) continue;
@@ -118,113 +194,14 @@ static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
         if (!(b & ST_ON)) continue;
         int cond = (b & ST_COND_MASK) >> ST_COND_SH;
         if ((cond == 1 && !fill) || (cond == 2 && fill)) continue;
-        tr_hit(c, t, l, s, b, tps);
+        uint8_t note = (uint8_t)l;
+        if (sub != 0xFF) { if (fired) continue; note = sub; }     /* BREAK cambió el pad: suena uno solo */
+        if (fx & GEN_REV) note |= BRK_REV;
+        if (fx & GEN_HALF) note |= BRK_HALF;
+        tr_hit(c, t, l, s, b, tps, note, RT_N[fx & GEN_RT_MASK]);
         fired = 1;
     }
     if (fired) c->st.trig[t]++;
-}
-
-/* ------------------------------------------------------------ sampler: generador
- * Cada bloque de 16 pasos se decide con una semilla (patrón, número de bloque): la fila SUENA
- * que dibuja la UI es exactamente lo que va a sonar, y se vuelve a decidir si giras una perilla. */
-static uint32_t gen_rand(uint32_t *r) { return bm_xorshift32(r); }
-
-void bm_gen_decide(bm_ctx *c, uint32_t blk)
-{
-    const bm_tr *tr = &c->pat->tr[1];
-    const bm_track *tk = &c->pat->trk[1];
-    uint32_t r = 0x5EED1u ^ ((uint32_t)c->cur_pat * 7919u) ^ (blk * 2654435761u);
-    gen_rand(&r);
-    int len = tr->lane[BRK_GEN].len ? tr->lane[BRK_GEN].len : 16;
-    c->gen_b = (c->smp[1].len && tk->chance_b && (int)(gen_rand(&r) % 100u) < tk->chance_b) ? 1 : 0;
-    const bm_smp_src *m = &c->smp[c->gen_b];
-    int nsl = m->nmarks ? m->nmarks : BM_SLICES;
-    int bars = m->bars ? m->bars : 1;
-    int sps = 16 * bars / nsl;
-    if (sps < 1) sps = 1;
-    int prev = -1;
-    uint32_t wsum = (uint32_t)tk->rt[0] + tk->rt[1] + tk->rt[2] + tk->rt[3];
-    for (int k = 0; k < 16; k++) {
-        int s = (int)((blk * 16u + (uint32_t)k) % (uint32_t)len);
-        uint8_t b;
-        int pin = bm_brk_step(tr, s, &b);
-        uint8_t sl = 0xFF, fx = 0, sub = 0;
-        int natpos = (int)(blk % (uint32_t)bars) * 16 + k;
-        int nat = (natpos / sps) % nsl;
-        if (pin > 0) { sl = (uint8_t)((pin - 1) % nsl); fx = GEN_PIN; }
-        else if (pin == 0) {
-            int v = nat;
-            sub = (uint8_t)(natpos % sps);
-            if ((int)(gen_rand(&r) % 128u) < tk->gen[0]) { v = (int)(gen_rand(&r) % (uint32_t)nsl); sub = 0; }
-            if (tk->gen[1] && (k % 4) == 0 && (int)(gen_rand(&r) % 128u) < tk->gen[1]) {   /* ANCLAR: tiempos fuertes */
-                v = nat; sub = (uint8_t)(natpos % sps);
-                if ((k % 8) == 0 && m->kslice < nsl) { v = m->kslice; sub = 0; }
-                if ((k % 8) == 4 && m->sslice < nsl) { v = m->sslice; sub = 0; }
-            }
-            if ((int)(gen_rand(&r) % 128u) < tk->gen[2]) {                                 /* REPETIR */
-                uint32_t x = wsum ? gen_rand(&r) % wsum : 0;
-                int rt = 0;
-                while (rt < 3 && x >= tk->rt[rt]) { x -= tk->rt[rt]; rt++; }
-                fx |= (uint8_t)(rt + 1);
-                sub = 0;
-            }
-            if ((int)(gen_rand(&r) % 128u) < tk->gen[3]) {                                 /* ROMPER */
-                switch (gen_rand(&r) % 4u) {
-                case 0: fx |= GEN_REV; sub = 0; break;
-                case 1: fx |= GEN_HALF; sub = 0; break;
-                case 2: fx |= GEN_SKIP; break;
-                default: if (prev >= 0) { v = prev; sub = 0; } break;
-                }
-            }
-            sl = (uint8_t)v;
-        }
-        if (pin >= 0 && (b & ST_ACC)) fx |= GEN_ACC;
-        if (sl != 0xFF && !(fx & GEN_SKIP)) prev = sl;
-        c->gen_sl[k] = sl; c->gen_fx[k] = fx;
-        c->st.gen_sl[k] = sl; c->st.gen_fx[k] = fx;
-        c->gen_sub[k] = sub;
-    }
-    c->gen_sps = (uint8_t)sps;
-    c->st.gen_b = c->gen_b;
-    c->st.gen_blk = (uint8_t)blk;
-    c->gen_blk = blk + 1;
-}
-
-static const uint8_t RT_N[5] = {1, 2, 3, 4, 8};
-
-static void brk_trigger(bm_ctx *c, int k, int tps, uint8_t b)
-{
-    bm_engine *e = &c->eng[1];
-    uint8_t sl = c->gen_sl[k], fx = c->gen_fx[k];
-    if (sl == 0xFF || (fx & GEN_SKIP)) return;
-    uint8_t note = (uint8_t)((sl & BRK_SL_MASK) | (c->gen_b << BRK_SRC_SH));
-    if ((fx & GEN_REV) || (c->brk_live & 1)) note |= BRK_REV;
-    if ((fx & GEN_HALF) || (c->brk_live & 2)) note |= BRK_HALF;
-    uint8_t vel = (uint8_t)bm_vel(c, 1, (fx & GEN_ACC) != 0);
-    int sps = c->gen_sps ? c->gen_sps : 2;
-    c->brk_next_off = (uint16_t)((uint32_t)c->gen_sub[k] * 65535u / (uint32_t)sps);
-    e->vt->note_on(e, note, vel);
-    int n = RT_N[fx & GEN_RT_MASK];
-    int rat = ((b & ST_RAT_MASK) >> ST_RAT_SH) + 1;          /* repetición pintada en la fila TU */
-    if (rat > n) n = rat;
-    for (int j = 1; j < n; j++) rq_push(c, 1, note & (BRK_SL_MASK | (3 << BRK_SRC_SH)), vel * 85 / 100, j * tps / n);
-    if (b & ST_FLAM) rq_push(c, 1, note & (BRK_SL_MASK | (3 << BRK_SRC_SH)), vel * 6 / 10, 2);
-}
-
-static void fire_brk(bm_ctx *c, uint32_t n, int tps, bool fill)
-{
-    const bm_tr *tr = &c->pat->tr[1];
-    uint32_t blk = n / 16u;
-    bm_gen_decide(c, blk);                                   /* siempre al día con las perillas */
-    if (c->pat->trk[1].mute || (c->brk_live & (4 | 8))) return;      /* stutter o paso sostenido: manda el directo */
-    int len = tr->lane[BRK_GEN].len ? tr->lane[BRK_GEN].len : 16;
-    int s = (int)(n % (uint32_t)len);
-    uint8_t b;
-    if (bm_brk_step(tr, s, &b) < 0) return;
-    int cond = (b & ST_COND_MASK) >> ST_COND_SH;
-    if ((cond == 1 && !fill) || (cond == 2 && fill)) return;
-    brk_trigger(c, (int)(n % 16u), tps, b);
-    c->st.trig[1]++;
 }
 
 /* ------------------------------------------------------------ canales de notas */
@@ -564,12 +541,10 @@ static void roll_tick(bm_ctx *c)
     }
 }
 
-/* Stutter del sampler (negra 11): repite el último slice cada 1/32 mientras se sostiene. */
+/* Stutter del sampler (negra 11 en PADS): repite el último pad cada 1/32 mientras se sostiene. */
 static void stutter_tick(bm_ctx *c)
 {
     if (!(c->brk_live & 4) || c->st.free_ticks % 12u) return;
-    if (!c->smp[0].len) return;
-    c->brk_next_off = c->brk_last_off;
     c->eng[1].vt->note_on(&c->eng[1], c->brk_last, 110);
 }
 
@@ -659,7 +634,6 @@ void bm_seq_tick(bm_ctx *c)
         if (r != ((n & 1) ? sw : 0)) continue;
         switch (bm_kind(c->pat, t)) {
         case KIND_TR: fire_tr(c, t, n, tps, fill); break;
-        case KIND_BRK: fire_brk(c, n, tps, fill); break;
         default: fire_syn(c, t, n, tps, fill); break;
         }
         if (t == 0) c->st.step = (int8_t)(n % 64);

@@ -45,7 +45,7 @@
   <main class="doc">
 <h1 id="hoja-de-ruta">Hoja de ruta</h1>
 <p>Todo lo que está contemplado para Bubba Machine. <strong>Se va a hacer todo, poco a poco</strong>, sin fechas: cada paso sale cuando está probado en el FM-1. El orden dentro de cada lista es el orden en que importa hoy y puede cambiar.</p>
-<p>Lo marcado ✓ ya está en la versión actual (0.4.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver <a href="instalar.html">instalar</a>).</p>
+<p>Lo marcado ✓ ya está en la versión actual (0.5.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver <a href="instalar.html">instalar</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>El objetivo es la mejor calidad que permite el FM-1. Qué se mejoró, cuánto cuesta y qué limita hoy: <a href="audio.html">audio</a>.</p>
 <p><strong>Hecho</strong></p>
@@ -82,7 +82,9 @@
 <ul><li>
 ✓ <strong>Tira de teclas en pantalla:</strong> las 11 negras y las 16 blancas con su nombre corto y la misma intensidad que su luz.
 </li><li>
-✓ <strong>SLICER:</strong> una toma en 16 cortes que se tocan con las blancas.
+✓ <strong>Pantalla en inglés, con paquetes de idioma:</strong> el español se carga aparte (<code>tools/fm1/idioma.py</code>) y se cambia en SISTEMA › LANGUAGE.
+</li><li>
+✓ <strong>Sampler de pads:</strong> 16 pads hechos con tus tomas, como un KO II o un OP-1 field, en una rejilla como la de la batería, con BREAK para variarla.
 </li><li>
 ✓ Pantallas de <strong>MUTES</strong> y <strong>FILL</strong>, y la batería por secciones de 8.
 </li></ul>
@@ -116,6 +118,10 @@
 <ul><li>
 <strong>Respaldo de lo guardado desde el navegador</strong> (patrones, canción y tomas), para no perder nada al actualizar.
 </li><li>
+<strong>Grabar directo a un pad</strong> (REC + pad, como el KO II) y deshacer los cambios de un pad.
+</li><li>
+<strong>Paquetes de idioma desde el instalador web</strong>, sin usar la línea de comandos, y más idiomas hechos por la comunidad.
+</li><li>
 <strong>Editor web:</strong> cargar y bajar patrones y tomas por USB (hoy las tomas se suben con <code>tools/fm1/toma.py</code>), y bancos de FM en formato <code>.syx</code> de la DX7.
 </li><li>
 <strong>Packs de kits y tomas libres</strong> (CC0 o GPL), hechos por la comunidad.
@@ -124,6 +130,8 @@
 </li></ul>
 <h2 id="hecho">Hecho</h2>
 <ul><li>
+<strong>0.5.0-beta:</strong> el sampler de pads y la pantalla en inglés, con el español como paquete de idioma.
+</li><li>
 <strong>0.4.0-beta:</strong> la primera versión para el FM-1, sonidos calculados en vivo y audio a 44.1 kHz. Ver el <a href="cambios.html">registro de cambios</a>.
 </li><li>
 <strong>0.3:</strong> la interfaz 3.0, con cuatro gestos por botón y HOME en todas partes. El diseño está en <a href="diseno-3.html"><code>DISENO_3.0.md</code></a>.
@@ -133,7 +141,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

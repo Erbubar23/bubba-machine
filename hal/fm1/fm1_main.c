@@ -367,6 +367,19 @@ static bm_track lab_trk;                     /* el canal antes de lab 26 */
 static int lab_trk_t = -1;
 static int lab_set;                          /* lab 29: canal*64 + byte de bm_track */
 
+int fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
+{
+    static uint8_t d[256];
+    uint32_t n = nn / 2;
+    if (n > sizeof d)
+        return -1;
+    for (uint32_t i = 0; i < n; i++)
+        d[i] = (uint8_t)((nib[2 * i] & 15u) << 4 | (nib[2 * i + 1] & 15u));
+    int r = bm_app_lang_load(&app, sub, off, d, n);
+    if (sub != 1) log_num(r ? "consola: idioma rechazado, paso " : "consola: idioma, paso ", (uint32_t)sub, "");
+    return r;
+}
+
 int fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn)
 {
     bm_cmd c;

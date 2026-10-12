@@ -49,6 +49,15 @@ assets/      logo, screenshots, factory loops
   ```
   **A build made with `--local` must not be published**: neither `web/bm.js` nor binaries. Before pushing, generate again without `--local`.
 
+## Screen languages
+
+The firmware speaks English. Each language is a pack (`.bmlang`) in its own flash zone; the format is in `core/bm_lang.h`.
+
+- **Translated when drawn:** `gfx_text` and `gfx_small` look up each phrase in the active pack (by the hash of the English phrase). With English active it costs nothing.
+- **Formats:** whatever goes through `snprintf` is marked with `TF("...")` (if the translation does not have the same `%`, English is used) and words joined with `%s` go in `T(...)`.
+- `py -3 tools/gen_lang.py` collects the phrases of `core/` into `lang/plantilla.txt`, checks `lang/<code>.txt` (ASCII only, the same `%`, phrases that exist) and builds `lang/<code>.bmlang` and `web/lang/` (for the emulator). `build.py test` and `build.py web` run it. `lang/ignorar.txt` lists code strings that are not screen text.
+- On the FM-1 it is loaded with `py -3 tools/fm1/idioma.py lang/es.bmlang` (console command `0x21`).
+
 ## The website
 
 - `web/index.html` is the Spanish home page, `web/en/index.html` the English one, and `web/emulador.html` the emulator (both languages).

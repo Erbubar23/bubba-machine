@@ -87,6 +87,17 @@ To test with your own audio, create <code>assets/loops/loops.local.json</code> (
 </li></ul>
 <pre><code>py -3 tools/gen_loops.py --local</code></pre>
 <p><strong>A build made with <code>--local</code> must not be published</strong>: neither <code>web/bm.js</code> nor binaries. Before pushing, generate again without <code>--local</code>.</p>
+<h2 id="screen-languages">Screen languages</h2>
+<p>The firmware speaks English. Each language is a pack (<code>.bmlang</code>) in its own flash zone; the format is in <code>core/bm_lang.h</code>.</p>
+<ul><li>
+<strong>Translated when drawn:</strong> <code>gfx_text</code> and <code>gfx_small</code> look up each phrase in the active pack (by the hash of the English phrase). With English active it costs nothing.
+</li><li>
+<strong>Formats:</strong> whatever goes through <code>snprintf</code> is marked with <code>TF(&quot;...&quot;)</code> (if the translation does not have the same <code>%</code>, English is used) and words joined with <code>%s</code> go in <code>T(...)</code>.
+</li><li>
+<code>py -3 tools/gen_lang.py</code> collects the phrases of <code>core/</code> into <code>lang/plantilla.txt</code>, checks <code>lang/&lt;code&gt;.txt</code> (ASCII only, the same <code>%</code>, phrases that exist) and builds <code>lang/&lt;code&gt;.bmlang</code> and <code>web/lang/</code> (for the emulator). <code>build.py test</code> and <code>build.py web</code> run it. <code>lang/ignorar.txt</code> lists code strings that are not screen text.
+</li><li>
+On the FM-1 it is loaded with <code>py -3 tools/fm1/idioma.py lang/es.bmlang</code> (console command <code>0x21</code>).
+</li></ul>
 <h2 id="the-website">The website</h2>
 <ul><li>
 <code>web/index.html</code> is the Spanish home page, <code>web/en/index.html</code> the English one, and <code>web/emulador.html</code> the emulator (both languages).
@@ -111,7 +122,7 @@ Every public version is a <code>vX.Y.Z</code> tag with its source code. The GPL 
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

@@ -21,12 +21,12 @@ using namespace plaits;
 using namespace stmlib;
 
 extern "C" {
-const char *const bm_drm_names[DRM_COUNT] = {"BOMBO ANALOG", "BOMBO SINTE", "CAJA ANALOG", "CAJA SINTE", "HAT ANALOG",
-                                             "HAT METAL", "PALMAS", "TOM", "CENCERRO", "RESONADOR", "RUIDO", "FM"};
+const char *const bm_drm_names[DRM_COUNT] = {"ANALOG KICK", "SYNTH KICK", "ANALOG SNARE", "SYNTH SNARE", "ANALOG HAT",
+                                             "METAL HAT", "CLAP", "TOM", "COWBELL", "RESONATOR", "NOISE", "FM"};
 const char *const bm_drm_short[DRM_COUNT] = {"BD808", "BD909", "SD808", "SD909", "HH808", "METAL", "CLAP", "TOM",
-                                             "COWBL", "RESON", "RUIDO", "FM"};
-const char *const bm_drm_color[DRM_COUNT] = {"GOLPE", "GOLPE", "BORDONA", "BORDONA", "RUIDO", "RUIDO", "ESPACIO",
-                                             "RUIDO", "MEZCLA", "RELACION", "ATAQUE", "RELACION"};
+                                             "COWBL", "RESON", "NOISE", "FM"};
+const char *const bm_drm_color[DRM_COUNT] = {"PUNCH", "PUNCH", "SNAPPY", "SNAPPY", "NOISE", "NOISE", "SPACE",
+                                             "NOISE", "MIX", "RATIO", "ATTACK", "RATIO"};
 const uint16_t bm_drm_base_hz[DRM_COUNT] = {50, 55, 180, 200, 160, 220, 1100, 120, 540, 1700, 4000, 110};
 }
 

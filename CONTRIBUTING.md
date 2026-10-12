@@ -8,6 +8,7 @@ Se puede escribir en **español o en inglés**.
 
 - **Probar y reportar.** Usa el emulador web y abre un *issue* con lo que pasó, lo que esperabas y cómo repetirlo. Las capturas ayudan mucho.
 - **Ideas de interfaz.** Abre un *issue* de tipo idea. La dirección actual está en [`docs/DISENO_3.0.md`](docs/DISENO_3.0.md).
+- **Traducciones.** La pantalla está en inglés y cada idioma es un paquete: copia `lang/plantilla.txt` a `lang/<codigo>.txt`, traduce debajo de cada frase y revisa con `py -3 tools/gen_lang.py` (ver [`docs/DESARROLLO.md`](docs/DESARROLLO.md#idiomas-de-la-pantalla)).
 - **Documentación.** El manual vive en [`docs/MANUAL.md`](docs/MANUAL.md); el sitio se genera a partir de los `.md`.
 - **Código.** Lee [`docs/DESARROLLO.md`](docs/DESARROLLO.md) para compilar y probar.
 - **Hardware.** Si tienes un FM-1 y experiencia con el SDK de JieLi, el port en [`hal/fm1/`](hal/fm1/README_PORT.md) es lo que más ayuda necesita.
@@ -18,7 +19,8 @@ Se puede escribir en **español o en inglés**.
 2. **Código de terceros solo con licencia compatible** con la GPL-3.0, y anotado en [`CREDITOS.md`](CREDITOS.md).
 3. **Sonidos:** solo sintetizados en `tools/`, de tu autoría o con licencia libre compatible (CC0, CC-BY o GPL). Nada de samples de discos o de packs comerciales. Para probar con audio de terceros usa `assets/loops/loops.local.json`, que nunca se sube.
 4. **C99 sin dependencias** en `core/`: nada de `malloc`, nada de punto flotante en el camino del audio y nada que dependa del hardware. Todo lo del hardware va en `hal/`.
-5. **Cada archivo nuevo** empieza con el identificador de licencia:
+5. **Textos de pantalla en inglés**, en mayúsculas y sin tildes. Si se arman con `snprintf`, el formato va en `TF("...")` y las palabras que se pegan con `%s`, en `T(...)`; el resto se traduce solo al dibujarse. Después agrega su traducción a `lang/es.txt`.
+6. **Cada archivo nuevo** empieza con el identificador de licencia:
    ```c
    /* SPDX-License-Identifier: GPL-3.0-or-later
     * Copyright (C) 2026 Tu Nombre */

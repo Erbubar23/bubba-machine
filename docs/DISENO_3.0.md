@@ -63,32 +63,31 @@ Si se usó HOME como modificador, soltarlo **no** te lleva a la pantalla de inic
 | Canal | Tipo | Qué es |
 |---|---|---|
 | T1 BATERÍA | Fijo | Rejilla TR de 16 instrumentos |
-| T2 SAMPLER | Fijo | Loop en 8 slices que un generador rearma |
+| T2 SAMPLER | Fijo | 16 pads hechos con las tomas, en una rejilla |
 | T3 BAJO | Fijo | Wavetable monofónico con glide |
 | T4-T6 | Libres | SYNTH, MONO, KIT o MIDI, elegido en la pestaña MAS |
 
 Cada canal muestra sus pestañas arriba: SELECT las recorre y los botones saltan directo. La última, **MAS**, es la lista con todo el canal.
 
-**Las negras siguen una sola gramática:** 1-8 son los elementos del canal, 9 y 10 lo modifican, y **11 rompe el patrón** (FILL en las baterías, STUTTER en el sampler).
+**Las negras siguen una sola gramática:** 1-8 son los elementos del canal, 9 y 10 lo modifican, y **11 rompe el patrón** (FILL).
 
-## Sampler 3.0
+## Sampler de pads
 
-La idea viene del BREAK de X0X (un loop en slices que un generador reordena) con una interfaz que deja ver lo que pasa:
+El sampler de 0.3 y 0.4 era un loop en slices que un generador reordenaba (la idea del BREAK de X0X). En el aparato no se entendía: tocabas un corte y en la pantalla aparecía otro número, porque la fila de lo que suena mezclaba lo programado con lo que elegía el generador. Desde la 0.5.0-beta, T2 es un **sampler de pads**, como un KO II o el drum sampler de un OP-1 field:
 
-- **Dos filas de pasos:** TU (lo que programaste: hueco = el generador elige, lleno = slice fijo) y **SUENA** (el slice que eligió el generador en este compás).
-- **Perillas con nombres claros:** VARIAR, ANCLAR, REPETIR y ROMPER.
-- **CAPTURAR:** mantener EDIT + negra 4 deja fija la variación que está sonando.
-- **Fijar slices tocando:** con REC, las negras 1-8 se escriben como pasos fijos.
-- **El tono a la vista:** BPM original del loop y cuántos semitonos se movió.
-- **Dibujo por frecuencias:** graves, medios y agudos en carriles separados (ya funciona en 0.2).
+- **Pads, no slices:** cada pad es un trozo de una toma, con su inicio y su largo (pueden encimarse), tono, nivel, modo de tecla (ONESHOT, KEY, THRU, LOOP), ataque, salida, grupo de corte y tempo. Un kit puede mezclar tomas.
+- **La misma rejilla que la batería:** una línea por pad. Todo lo que se aprende en T1 sirve en T2: pasos, acentos, repeticiones, mutes, fill, P-Lock.
+- **La toma arma el kit:** al guardar una toma con el kit vacío se corta en los golpes y la rejilla queda escrita para que suene como la toma. TAKES arma otros kits o pone una toma entera en un pad.
+- **El generador queda como BREAK:** una página aparte, apagada de fábrica, que varía la rejilla compás a compás. La fila PLAYS muestra exactamente lo que va a sonar y CAPT lo escribe en la rejilla.
+- **La onda como en un sampler:** espejada y grande, al estilo de X0X, con el pico en tono oscuro y el RMS encima. Reemplaza al dibujo en tres carriles por frecuencia de 0.2, que se leía mal.
 
 ## Grabadora
 
-Grabar, guardar y cortar son tres pantallas, una tarea cada una:
+Grabar, guardar y armar el kit son pasos separados:
 
-1. **GRABAR:** un número grande con los segundos que quedan, que es el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Rayas marcan cuántos compases caben.
-2. **TOMAS:** biblioteca de grabaciones con su BPM y sus compases. Los loops de fábrica no gastan memoria.
-3. **CORTAR:** después, con calma. Las blancas ponen cortes por corchea, la negra 9 los pone en los golpes y la 10 los reparte iguales.
+1. **GRABAR:** un número grande con los segundos que quedan, que es el menor entre la RAM de grabación (3 s) y la memoria libre de tomas. Rayas marcan cuántos compases caben. Las blancas escuchan la toma nueva.
+2. **TOMAS:** biblioteca de grabaciones con su BPM, sus compases y su onda. De ahí salen los kits.
+3. **PADS:** después, con calma, cada pad sobre la onda de su toma.
 
 La toma queda sin guardar hasta que paras el transporte, porque escribir la flash detiene el audio.
 
@@ -97,4 +96,5 @@ La toma queda sin guardar hasta que paras el transporte, porque escribir la flas
 - **Tiempo del recuadro de entrada:** 400 ms por defecto; se cambia en GLO o SISTEMA (0, 250, 400, 800 ms u OFF). *Resuelta en 0.3.0.*
 - **Biblioteca de tomas:** los 128 KiB de samples pasaron a una biblioteca de tomas de largo libre (formato 3). *Resuelta en 0.3.0.*
 - **Bancos de patrones:** la flash guarda 16 patrones; más bancos piden ampliar el mapa de flash o achicar los patrones. *Pendiente:* en la 0.3, PRESETS en HOME recorre los 16.
+- **Del loop en slices a los pads:** SLICER, CORTAR y después CORTES intentaron editar los cortes de un loop; ninguna se entendía en el aparato junto al generador. El sampler pasó a ser de pads (arriba). *Resuelta en 0.5.0-beta.*
 - **Fantasma en la batería:** el byte de cada paso está lleno; hace falta un P-Lock de nivel o ampliar el formato. *Pendiente:* en las notas ya hay tres niveles.

@@ -46,7 +46,7 @@
 <h1 id="bubba-machine-03-manual">Bubba Machine 0.3 — Manual</h1>
 <p>Bubba Machine turns the FM-1 into a 6-track live groovebox: <strong>3 fixed tracks</strong> (drums, sampler and bass) and <strong>3 free ones</strong> (ANALOG, FM, ACID, KIT or MIDI). Every track has its own length and its own speed.</p>
 <p>Interface 3.0 fits in one sentence: <strong>four gestures per button, and they mean the same thing on every button. HOME everywhere.</strong></p>
-<blockquote><p><strong>The firmware's screens are in Spanish for now.</strong> Names that appear on screen are written here in CAPITALS exactly as you will see them, with the English meaning next to them, e.g. BORRAR (erase).</p></blockquote>
+<blockquote><p><strong>The screen is in English.</strong> Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you can load (see <a href="#screen-language">Screen language</a>).</p></blockquote>
 <blockquote><p>0.3 changed the format of patterns, settings and samples. <strong>It does not read what 0.2 saved</strong>: on first boot it erases that data and starts with the demo.</p></blockquote>
 <h2 id="four-gestures-per-button">Four gestures per button</h2>
 <div class="tbl"><table><thead><tr><th>Gesture</th><th>When</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Tap</strong></td><td>under 300 ms</td><td>Opens its page on the track you are on. Again: the next page of the same button</td></tr><tr><td><strong>Hold</strong></td><td>300 ms or more</td><td>Its <strong>live layer</strong>: while you hold it, the keys do that job and the screen draws the keyboard with what each key does. Let go and you are back</td></tr><tr><td><strong>Hold 2 s</strong></td><td>2 s without touching anything else</td><td>Its settings or its dangerous action. A ring fills at the top; touching anything cancels it. Only on HOME, SEQ, EDIT, SAVE and REC</td></tr><tr><td><strong>HOME + button</strong></td><td>with HOME held</td><td>The <strong>global version</strong> of the button: for the whole project, not just the track</td></tr></tbody></table></div>
@@ -54,7 +54,7 @@
 <p><strong>Questions.</strong> Anything that erases something asks first: <strong>OCT+ = yes</strong>, <strong>HOME = no</strong> (any other button also cancels).</p>
 <h2 id="the-knobs">The knobs</h2>
 <div class="tbl"><table><thead><tr><th>Knob</th><th>What it does</th></tr></thead><tbody><tr><td><strong>ALGORITHM</strong></td><td>The track. On HOME a <strong>box</strong> shows the target track and you enter after 400 ms. Inside a track it also shows the box and enters keeping the page; in <strong>INSTR</strong> it steps through the 16 instruments (big number, name and model) and plays the one you land on. On a list, it changes the highlighted value. With <strong>HOME held</strong>, it picks a track from any screen and you enter when you let go of HOME</td></tr><tr><td><strong>SELECT</strong></td><td>The page (the tabs at the top) or the row of a list. With a step held, its accent</td></tr><tr><td><strong>PRESETS</strong></td><td>The track's sound (kit, loop A or engine preset). On HOME, the pattern</td></tr><tr><td><strong>K1-K4</strong></td><td>Whatever the legend at the bottom says, always in the same color. With HOME held: BPM, swing, master length and drive</td></tr></tbody></table></div>
-<p><strong>ALGORITHM priority:</strong> held step &gt; list &gt; track &gt; HOME. The box time is set in GLO or SISTEMA (system): ENTRADA AUTO (auto enter) 0, 250, 400, 800 ms or OFF.</p>
+<p><strong>ALGORITHM priority:</strong> held step &gt; list &gt; track &gt; HOME. The box time is set in GLO or SYSTEM: AUTO ENTER 0, 250, 400, 800 ms or OFF.</p>
 <h2 id="the-screen">The screen</h2>
 <ul><li>
 <strong>Top:</strong> transport, pattern (and the queued one), bar and beat, the track, BPM. Also the scene (A-D), <strong>F</strong> while the fill plays, the project pitch when transposed, the 2 s ring and the battery.
@@ -66,79 +66,107 @@
 <strong>Red border:</strong> the mix is clipping.
 </li></ul>
 <h2 id="the-14-buttons">The 14 buttons</h2>
-<div class="tbl"><table><thead><tr><th>Button</th><th>Tap</th><th>Again</th><th>Hold (layer)</th><th>2 s</th><th>HOME +</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>HOME: the 6 tracks and the bank</td><td>MEZCLA (mixer) › ESCENAS (scenes) › CANCION (song)</td><td><strong>Controller</strong> (see below)</td><td>SISTEMA (system)</td><td>(it is the modifier)</td></tr><tr><td><strong>SEQ</strong></td><td>The track's steps</td><td>Notes: LOOP · sampler: RETRIG</td><td><strong>Length and speed</strong></td><td>TIEMPO (time) of the 6 tracks</td><td>Song</td></tr><tr><td><strong>EDIT</strong></td><td>SONIDO (sound)</td><td>Drums: INSTR · TOMAS: CORTAR (slice)</td><td><strong>Erase</strong></td><td>Sampler: TOMAS (takes) · others: initial sound</td><td>Copy the track to another</td></tr><tr><td><strong>ENV</strong></td><td>ENV (notes) · INSTR (drums)</td><td>ENV page 2</td><td><strong>Accent</strong></td><td>—</td><td>—</td></tr><tr><td><strong>LFO</strong></td><td>LFO (next version)</td><td>—</td><td><strong>Repeat</strong> (grids) · <strong>tie</strong> (notes)</td><td>—</td><td>—</td></tr><tr><td><strong>FX</strong></td><td>The track's MEZCLA (mix)</td><td>—</td><td><strong>Punch-in</strong></td><td>—</td><td>Global delay and sidechain</td></tr><tr><td><strong>SCL</strong></td><td>The track's ESCALA (scale)</td><td>ACORDES (chords)</td><td>Live <strong>chords</strong></td><td>—</td><td>Project scale</td></tr><tr><td><strong>ARP</strong></td><td>The track's ARP</td><td>—</td><td><strong>Arpeggio</strong> (notes) · <strong>roll</strong> (grids)</td><td>—</td><td>—</td></tr><tr><td><strong>SAVE</strong></td><td>Save menu</td><td>Run it</td><td><strong>Copy pattern</strong></td><td>Quick save</td><td>Save as</td></tr><tr><td><strong>GLO</strong></td><td>Global list</td><td>Close</td><td><strong>Pitch</strong> and TAP tempo</td><td>—</td><td>—</td></tr><tr><td><strong>REC</strong></td><td>Record (on the sampler: the recorder)</td><td>Looper: overdub › play</td><td>Record only while held</td><td>Clear the track (asks)</td><td>SONG REC</td></tr><tr><td><strong>PLAY</strong></td><td>Play / stop</td><td>—</td><td>—</td><td>—</td><td>Back to step 1 without stopping</td></tr><tr><td><strong>OCT − / +</strong></td><td>Octave · step page · on questions OCT+ = yes</td><td>—</td><td>—</td><td>—</td><td>Undo / redo</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Button</th><th>Tap</th><th>Again</th><th>Hold (layer)</th><th>2 s</th><th>HOME +</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>HOME: the 6 tracks and the bank</td><td>MIX › SCENES › SONG</td><td><strong>Controller</strong> (see below)</td><td>SYSTEM</td><td>(it is the modifier)</td></tr><tr><td><strong>SEQ</strong></td><td>The track's steps</td><td>Notes: LOOP · sampler: BREAK</td><td><strong>Length and speed</strong></td><td>TIME of the 6 tracks</td><td>Song</td></tr><tr><td><strong>EDIT</strong></td><td>SOUND (sampler: PADS)</td><td>Drums: INSTR · PADS: the next page</td><td><strong>Erase</strong></td><td>Sampler: TAKES · others: initial sound</td><td>Copy the track to another</td></tr><tr><td><strong>ENV</strong></td><td>ENV (notes) · INSTR (drums)</td><td>ENV page 2</td><td><strong>Accent</strong></td><td>—</td><td>—</td></tr><tr><td><strong>LFO</strong></td><td>LFO (next version)</td><td>—</td><td><strong>Repeat</strong> (grids) · <strong>tie</strong> (notes)</td><td>—</td><td>—</td></tr><tr><td><strong>FX</strong></td><td>The track's MIX</td><td>—</td><td><strong>Punch-in</strong></td><td>—</td><td>Global delay and sidechain</td></tr><tr><td><strong>SCL</strong></td><td>The track's SCALE</td><td>CHORDS</td><td>Live <strong>chords</strong></td><td>—</td><td>Project scale</td></tr><tr><td><strong>ARP</strong></td><td>The track's ARP</td><td>—</td><td><strong>Arpeggio</strong> (notes) · <strong>roll</strong> (grids)</td><td>—</td><td>—</td></tr><tr><td><strong>SAVE</strong></td><td>Save menu</td><td>Run it</td><td><strong>Copy pattern</strong></td><td>Quick save</td><td>Save as</td></tr><tr><td><strong>GLO</strong></td><td>Global list</td><td>Close</td><td><strong>Pitch</strong> and TAP tempo</td><td>—</td><td>—</td></tr><tr><td><strong>REC</strong></td><td>Record (on the sampler: the recorder)</td><td>Looper: overdub › play</td><td>Record only while held</td><td>Clear the track (asks)</td><td>SONG REC</td></tr><tr><td><strong>PLAY</strong></td><td>Play / stop</td><td>—</td><td>—</td><td>—</td><td>Back to step 1 without stopping</td></tr><tr><td><strong>OCT − / +</strong></td><td>Octave · step page · on questions OCT+ = yes</td><td>—</td><td>—</td><td>—</td><td>Undo / redo</td></tr></tbody></table></div>
 <h2 id="home-everywhere">HOME everywhere</h2>
 <p>The FM-1 has no SHIFT, so HOME does three jobs:</p>
 <ol><li>
-<strong>Home screen:</strong> the 6 tracks with their sequence and the bank of 16 patterns. Again: MEZCLA (the 6 levels; ALGORITHM picks a track and K1-K4 mix it), ESCENAS and CANCION.
+<strong>Home screen:</strong> the 6 tracks with their sequence and the bank of 16 patterns. Again: MIX (the 6 levels; ALGORITHM picks a track and K1-K4 mix it), SCENES and SONG.
 </li><li>
 <strong>A controller that follows you:</strong> holding HOME brings the controller to any screen. You edit the bass and, without leaving, mute or queue the next pattern.
 </li><li>
 <strong>Modifier:</strong> HOME + button = its global version (table above).
 </li></ol>
 <p>If you used HOME as a modifier, letting go does <strong>not</strong> take you to the home screen: HOME only navigates on a clean tap.</p>
-<p><strong>Keys with HOME (on the HOME screen, on MEZCLA or while holding HOME):</strong></p>
+<p><strong>Keys with HOME (on the HOME screen, on MIX or while holding HOME):</strong></p>
 <div class="tbl"><table><thead><tr><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td><strong>White 1-16</strong></td><td>Queue that pattern (when stopped: switches right away). Hold one and tap another: <strong>chain</strong> from the first to the second</td></tr><tr><td><strong>Black 1-6</strong></td><td>Tap: mute T1-T6. Hold: <strong>solo</strong> while you hold it</td></tr><tr><td><strong>Black 7-10</strong></td><td>Launch scenes A-D</td></tr><tr><td><strong>Black 11</strong></td><td>FILL while you hold it</td></tr></tbody></table></div>
 <h2 id="tracks-3-fixed-and-3-free">Tracks: 3 fixed and 3 free</h2>
-<div class="tbl"><table><thead><tr><th>Track</th><th>Type</th><th>What it is</th><th>Tabs</th></tr></thead><tbody><tr><td><strong>T1 BATERIA</strong> (drums)</td><td>Fixed</td><td>TR grid of 16 <strong>modeled</strong> instruments (computed live): kits 808, 909 and SINTE</td><td>SEQ · SONIDO · INSTR · MEZCLA · MAS</td></tr><tr><td><strong>T2 SAMPLER</strong></td><td>Fixed</td><td>A loop in 8 slices that a generator rearranges</td><td>SEQ · SONIDO · RETRIG · TOMAS · MEZCLA · MAS</td></tr><tr><td><strong>T3 BAJO</strong> (bass)</td><td>Fixed</td><td><strong>ANALOG</strong> (one voice, with glide), <strong>ACID</strong> or <strong>FM</strong></td><td>SEQ · SONIDO · MEZCLA · ARP · LOOP · MAS</td></tr><tr><td><strong>T4-T6</strong></td><td>Free</td><td><strong>ANALOG</strong>, <strong>FM</strong>, <strong>ACID</strong>, <strong>KIT</strong> (another drum machine) or <strong>MIDI</strong> (sends notes over MIDI)</td><td>depends on the engine</td></tr></tbody></table></div>
-<p>A free track's engine (and T3's: ANALOG, ACID or FM) is picked in <strong>MAS › MOTOR</strong> (more › engine) with ALGORITHM. Between note engines (ANALOG, FM, ACID, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.</p>
-<p><strong>MAS</strong> (more) is the list with everything about the track: engine, accent, length, speed, transpose, MIDI channel and initial sound (on the sampler also: use the loop's BPM, and interpolation). SELECT picks the row and ALGORITHM changes it.</p>
-<p><strong>Black keys follow a single grammar in SEQ:</strong> 1-8 are the track's elements, 9 and 10 modify them and <strong>11 breaks the pattern</strong> (FILL on drums and notes, STUTTER on the sampler).</p>
+<div class="tbl"><table><thead><tr><th>Track</th><th>Type</th><th>What it is</th><th>Tabs</th></tr></thead><tbody><tr><td><strong>T1 DRUMS</strong></td><td>Fixed</td><td>TR grid of 16 <strong>modeled</strong> instruments (computed live): kits 808, 909 and SYNTH</td><td>SEQ · SOUND · INSTR · MIX · MORE</td></tr><tr><td><strong>T2 SAMPLER</strong></td><td>Fixed</td><td>16 pads made from your takes, on a grid</td><td>SEQ · PADS · BREAK · TAKES · MIX · MORE</td></tr><tr><td><strong>T3 BASS</strong></td><td>Fixed</td><td><strong>ANALOG</strong> (one voice, with glide), <strong>ACID</strong> or <strong>FM</strong></td><td>SEQ · SOUND · MIX · ARP · LOOP · MORE</td></tr><tr><td><strong>T4-T6</strong></td><td>Free</td><td><strong>ANALOG</strong>, <strong>FM</strong>, <strong>ACID</strong>, <strong>KIT</strong> (another drum machine) or <strong>MIDI</strong> (sends notes over MIDI)</td><td>depends on the engine</td></tr></tbody></table></div>
+<p>A free track's engine (and T3's: ANALOG, ACID or FM) is picked in <strong>MORE › ENGINE</strong> with ALGORITHM. Between note engines (ANALOG, FM, ACID, MIDI) the notes stay; switching to KIT or back from KIT asks, because the track starts empty.</p>
+<p><strong>MORE</strong> is the list with everything about the track: engine, accent, length, speed, transpose, MIDI channel and initial sound (on the sampler also: interpolation). SELECT picks the row and ALGORITHM changes it.</p>
+<p><strong>Black keys follow a single grammar in SEQ:</strong> 1-8 are the track's elements, 9 and 10 modify them and <strong>11 breaks the pattern</strong> (FILL).</p>
 <h2 id="the-sound-engines">The sound engines</h2>
-<div class="tbl"><table><thead><tr><th>Engine</th><th>What it is</th><th>K1-K4 on SEQ</th><th>PRESETS</th></tr></thead><tbody><tr><td><strong>ANALOG</strong></td><td>Virtual analog: two variable-shape oscillators (SAW, SQUARE with pulse width, TRIANGLE, folded SINE, 3 SAWS), sync, ring, sub and noise; LP 24/12, BP or HP filter with resonance and drive; filter and amp ADSR, LFO and POLY, MONO or LEGATO with glide</td><td>CORTE (cutoff) · RESO · ENVOLV (filter env) · FORMA (shape)</td><td>16 presets</td></tr><tr><td><strong>FM</strong></td><td>6 operators, DX7-compatible (msfa, the core of Dexed)</td><td>BRILLO · REALIM · DECAY · ALGORITMO</td><td>16 original patches</td></tr><tr><td><strong>ACID</strong></td><td>303-style mono: 4-pole ladder filter, accent opens the filter, slide with LIGA (tie)</td><td>CUTOFF · RESO · DECAY · ENV MOD</td><td>Saw or square</td></tr><tr><td><strong>Drums</strong></td><td>16 modeled instruments, each with its own <strong>model</strong>: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL (hats and cymbals), clap, TOM (and congas), cowbell, RESON (rim, clave, block), noise (maracas) or FM (zaps, metal)</td><td>TONO · AFINA · DECAY · COLOR</td><td>Kits 808, 909 and SINTE</td></tr></tbody></table></div>
-<p>Since 0.4 everything is computed live: no recorded sounds are left (only the sampler's factory loops). Kicks, snares and hats are the <strong>Plaits</strong> models (Mutable Instruments).</p>
-<p><strong>Editing ANALOG:</strong> SONIDO is a paged editor (OSC 1, OSC 2, CRUCE, FILTRO, FILTRO +, ENV FILTRO, ENV NIVEL, LFO, VOZ). K1-K4 change the 4 settings of the page, SELECT changes page (at the edges it moves to the next tab), EDIT again = next page, ENV jumps to the envelopes and LFO to the LFO. PRESETS loads a whole preset.</p>
-<p><strong>Editing a drum instrument:</strong> INSTR has two pages: GOLPE (TUNE, DECAY, TONE and COLOR, named after what it does in that model) and INSTRUMENTO (MODEL, LEVEL, choke group and line LENGTH).</p>
+<div class="tbl"><table><thead><tr><th>Engine</th><th>What it is</th><th>K1-K4 on SEQ</th><th>PRESETS</th></tr></thead><tbody><tr><td><strong>ANALOG</strong></td><td>Virtual analog: two variable-shape oscillators (SAW, SQUARE with pulse width, TRIANGLE, folded SINE, 3 SAWS), sync, ring, sub and noise; LP 24/12, BP or HP filter with resonance and drive; filter and amp ADSR, LFO and POLY, MONO or LEGATO with glide</td><td>CUTOFF · RESO · ENV AMT · SHAPE</td><td>16 presets</td></tr><tr><td><strong>FM</strong></td><td>6 operators, DX7-compatible (msfa, the core of Dexed)</td><td>BRIGHT · FEEDBACK · DECAY · ALGORITHM</td><td>16 original patches</td></tr><tr><td><strong>ACID</strong></td><td>303-style mono: 4-pole ladder filter, accent opens the filter, slide with TIE</td><td>CUTOFF · RESO · DECAY · ENV MOD</td><td>Saw or square</td></tr><tr><td><strong>Drums</strong></td><td>16 modeled instruments, each with its own <strong>model</strong>: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL (hats and cymbals), clap, TOM (and congas), cowbell, RESON (rim, clave, block), noise (maracas) or FM (zaps, metal)</td><td>TONE · TUNE · DECAY · COLOR</td><td>Kits 808, 909 and SYNTH</td></tr></tbody></table></div>
+<p>Since 0.4 everything is computed live: no recorded sounds are left. Kicks, snares and hats are the <strong>Plaits</strong> models (Mutable Instruments).</p>
+<p><strong>Editing ANALOG:</strong> SOUND is a paged editor (OSC 1, OSC 2, CROSS, FILTER, FILTER +, FILTER ENV, AMP ENV, LFO, VOICE). K1-K4 change the 4 settings of the page, SELECT changes page (at the edges it moves to the next tab), EDIT again = next page, ENV jumps to the envelopes and LFO to the LFO. PRESETS loads a whole preset.</p>
+<p><strong>Editing a drum instrument:</strong> INSTR has two pages: HIT (TUNE, DECAY, TONE and COLOR, named after what it does in that model) and INSTRUMENT (MODEL, LEVEL, CHOKE group and line LENGTH).</p>
 <h2 id="drums-t1-and-kit-tracks">Drums (T1 and KIT tracks)</h2>
 <p>The SEQ screen is a matrix: 16 instruments × the 16 steps of the page. Each line shows its own playhead, because each instrument can have its own length.</p>
 <div class="tbl"><table><thead><tr><th>Control</th><th>Does</th></tr></thead><tbody><tr><td><strong>White keys</strong></td><td>Steps of the selected instrument: tap = set or clear</td></tr><tr><td><strong>Black 1-8</strong></td><td>Select (and play) an instrument of the section</td></tr><tr><td><strong>Black 9</strong></td><td>Switch section (1-8 / 9-16)</td></tr><tr><td><strong>Black 10</strong></td><td><strong>MUTES</strong> screen: a tap keeps it open (white keys mute or unmute each instrument; leave with black 10 or HOME); hold = only while held. A muted instrument turns red</td></tr><tr><td><strong>Black 11</strong></td><td><strong>FILL</strong> screen: while open the fill plays and the white keys set a hit <strong>only for the fill</strong> (again: removes it). K1 = automatic fill (every 2, 4 or 8 bars). Tap = stays open; hold = only while held</td></tr><tr><td><strong>OCT − / +</strong></td><td>Page</td></tr></tbody></table></div>
-<p><strong>Hold a step + turn:</strong> K1-K4 = P-Lock of TONE, TUNE, DECAY or START on that step only · SELECT = accent · ALGORITHM = repeat ×1 to ×4 or FLAM · PRESETS = condition (SIEMPRE = always, SOLO FILL = only in the fill, SIN FILL = not in the fill).</p>
+<p><strong>Hold a step + turn:</strong> K1-K4 = P-Lock of TONE, TUNE, DECAY or START on that step only · SELECT = accent · ALGORITHM = repeat ×1 to ×4 or FLAM · PRESETS = condition (ALWAYS, FILL ONLY, NO FILL).</p>
 <p><strong>INSTR</strong> (EDIT again, or ENV): level, tuning, decay and <strong>line length</strong> of each instrument. For example, a 12-step hi-hat against a 16-step kick.</p>
-<p><strong>SONIDO</strong> (sound): the kit's 16 pads; K1-K3 = tone, tuning and decay, K4 = how much the accent stands out.</p>
-<h2 id="sampler-30-t2">Sampler 3.0 (T2)</h2>
-<p>The idea comes from X0X's BREAK (a loop in slices that a generator reorders), with a screen that shows what is going on.</p>
-<ul><li>
-<strong>Slices:</strong> loop A cut in 8. The bars show each slice's energy; <strong>K</strong> and <strong>S</strong> mark where the kick and the snare are.
-</li><li>
-<strong>TU row</strong> (yours, what you programmed): empty = silence, outline = <strong>the generator picks</strong>, filled with a number = <strong>pinned slice</strong>. White line on top = accent.
-</li><li>
-<strong>SUENA row</strong> (plays): the slice the generator picked for each step of this bar. Orange line = retrig, <strong>&lt;</strong> = reverse, <strong>H</strong> = half speed, <strong>-</strong> = a silence from ROMPER.
-</li></ul>
-<div class="tbl"><table><thead><tr><th>Control</th><th>Does</th></tr></thead><tbody><tr><td><strong>White key</strong></td><td>Silence ↔ generator. On a pinned step, gives it back to the generator</td></tr><tr><td><strong>White key held</strong></td><td>The loop plays from that step, whole and looping, while you hold it (the sampler's sequencer goes quiet). Useful to hear where you are before pinning a slice</td></tr><tr><td><strong>White held + black 1-8</strong></td><td>Pins that step to that slice</td></tr><tr><td><strong>Black 1-8</strong></td><td>Play that slice. With REC held they are written as pinned steps</td></tr><tr><td><strong>Black 9 · 10 · 11</strong></td><td>Reverse · half speed · STUTTER, while held</td></tr><tr><td><strong>K1-K4</strong></td><td><strong>VARIAR</strong> (vary: how much the order changes) · <strong>ANCLAR</strong> (anchor: keeps the strong beats, using K and S) · <strong>REPETIR</strong> (repeat: retrigs) · <strong>ROMPER</strong> (break: reverse, half speed, silences and repeats)</td></tr><tr><td><strong>EDIT held + black 4</strong></td><td><strong>CAPTURAR</strong> (capture): what plays in this bar becomes pinned. HOME + OCT− undoes it</td></tr></tbody></table></div>
-<p>The generator decides each bar with a seed: the SUENA row is exactly what is going to play, and it changes while you turn the knobs. With everything at 0, the loop plays in order.</p>
-<p><strong>RETRIG</strong> (SEQ again): when the generator repeats, it picks 2X, 3X, 4X or 8X with these weights.</p>
-<p><strong>SONIDO</strong> (sound): K1 = LOOP A, K2 = LOOP B, K3 = how many bars use B, K4 = PITCH. The loop follows the tempo: it plays at BPM / the loop's BPM, and the screen says how many semitones it moved. <strong>MAS › USAR BPM DEL LOOP</strong> (use the loop's BPM) sets the project tempo to the loop's. PRESETS also picks loop A.</p>
-<p><strong>Factory loops:</strong> the ROM has BUBBA 160 and BUBBA 128, synthesized in the repository. They don't use take memory.</p>
-<p><strong>The drawing</strong> shows three lanes by frequency: lows at the bottom (orange), mids (grey) and highs at the top (cyan). With heavily compressed music the waveform is a solid block; by bands you can see the kick, the rumble and the hats.</p>
-<h2 id="recorder-rec-on-the-sampler">Recorder (REC on the sampler)</h2>
-<p>Recording, keeping and slicing are three screens, one job each.</p>
+<p><strong>SOUND:</strong> the kit's 16 pads; K1-K3 = tone, tuning and decay, K4 = how much the accent stands out.</p>
+<h2 id="pad-sampler-t2">Pad sampler (T2)</h2>
+<p>T2 is a <strong>16-pad sampler</strong>, like a KO II or the drum sampler of an OP-1 field: each pad is a piece of one of your takes, and a grid just like the drums plays them.</p>
+<p><strong>How you work:</strong></p>
 <ol><li>
-<strong>GRABAR</strong> (record): REC on T2 opens the recorder <strong>armed</strong>. It starts at the next bar (K1 = INICIO: COMPAS = bar, or YA = now). A big number says the seconds <strong>left</strong>: the smaller of the recording RAM (3 s) and the free take memory. White lines mark how many bars fit and the amber one is the limit. REC again = stop; it also stops by itself at the limit. Holding REC on the recorder records only while held.
+<strong>Record</strong> a take (REC on T2, see <a href="#recorder-rec-on-the-sampler">Recorder</a>) or upload it from the computer.
+</li><li>
+<strong>The take builds the kit:</strong> if the kit is empty, when the take is saved it is cut on the hits and each cut goes to a pad. The grid is written so it plays like the take; you change it from there.
+</li><li>
+In <strong>TAKES</strong> you choose which take goes to which pad: <strong>N1</strong> builds a new kit on the hits, <strong>N2</strong> in 16 equal parts, <strong>N3</strong> in 8, and <strong>N4</strong> puts the whole take on the selected pad. A kit can mix several takes.
+</li><li>
+In <strong>PADS</strong> you tune each pad: where it starts and ends, its pitch, its level, how it answers the key and its envelope.
+</li><li>
+In <strong>SEQ</strong> you program the pads like the drums, and <strong>BREAK</strong> varies them bar by bar.
+</li></ol>
+<p>The tabs: <strong>SEQ · PADS · BREAK · TAKES · MIX · MORE</strong>. The kit lives in the pattern, like the drum kit; the takes, in the library.</p>
+<h3 id="seq-the-pad-grid">SEQ: the pad grid</h3>
+<p>Just like the drums: one line per pad, 8 on screen. Each pad has its own length.</p>
+<div class="tbl"><table><thead><tr><th>Control</th><th>Does</th></tr></thead><tbody><tr><td><strong>White keys</strong></td><td>Steps of the selected pad: tap = set or clear</td></tr><tr><td><strong>Black 1-8</strong></td><td>Select and play a pad of the section</td></tr><tr><td><strong>Black 9 · 10 · 11</strong></td><td>Other section (pads 1-8 / 9-16) · MUTES · FILL</td></tr><tr><td><strong>K1-K4</strong></td><td><strong>FILTER</strong> (low-pass) · <strong>PITCH</strong> (±12 semitones) · <strong>DECAY</strong> · <strong>START</strong> (shifts the start of every pad)</td></tr><tr><td><strong>Held step + K1-K4</strong></td><td>P-Lock on that step: a pad higher, shorter or from further in, only there</td></tr></tbody></table></div>
+<p>The layers work as on the drums: accent, repeat, erase, roll (ARP held) and per-line lengths in TIME.</p>
+<h3 id="pads-edit-each-pads-editor">PADS (EDIT): each pad's editor</h3>
+<p>At the top, the <strong>map</strong> of the pad's take, with every pad of that take marked and the zoom box. In the middle, the big <strong>waveform</strong>, with the pad in <strong>cyan brackets</strong> and the other pads of the take with their number. At the bottom, <strong>one cell per white key</strong>, in the same place as the key: filled = it has sound, outlined = the selected pad. The orange line is what is playing.</p>
+<p><strong>EDIT again</strong> changes page: <strong>TRIM › SOUND › ENV</strong> (the current one is yellow, top right). ENV also opens the ENV page.</p>
+<div class="tbl"><table><thead><tr><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td><strong>TRIM</strong></td><td>START (the end stays)</td><td>END (the length)</td><td>ZOOM X1-X8</td><td>SNAP: OFF, 1/16, 1/8</td></tr><tr><td><strong>SOUND</strong></td><td>PITCH (±24 st)</td><td>LEVEL</td><td>PLAY: ONESHOT, KEY, THRU, LOOP</td><td>DIR: FWD or REV</td></tr><tr><td><strong>ENV</strong></td><td>ATTACK</td><td>RELEASE</td><td>CHOKE group</td><td>TEMPO: follows the BPM or not</td></tr></tbody></table></div>
+<p><strong>How the key answers (PLAY):</strong></p>
+<ul><li>
+<strong>ONESHOT:</strong> plays whole even if you let go.
+</li><li>
+<strong>KEY:</strong> plays while you hold.
+</li><li>
+<strong>THRU:</strong> plays the pad and, held, <strong>keeps going through the rest of the take</strong>.
+</li><li>
+<strong>LOOP:</strong> repeats the pad while you hold.
+</li></ul>
+<p>From the grid, KEY and LOOP play for one step.</p>
+<div class="tbl"><table><thead><tr><th>Key</th><th>Does</th></tr></thead><tbody><tr><td><strong>White key</strong></td><td>Plays its pad and selects it. With REC + PLAY, the hit goes on its line</td></tr><tr><td><strong>N1 · N2 · N3</strong></td><td>CPY copies the pad · PST pastes it on the selected one · CLR empties it</td></tr><tr><td><strong>N4 HIT</strong></td><td>Moves the start to the nearest hit</td></tr><tr><td><strong>N9 · N10 · N11</strong></td><td>Reverse · half speed · STUTTER, while held</td></tr><tr><td><strong>PRESETS</strong></td><td>Another whole take on the selected pad</td></tr></tbody></table></div>
+<p><strong>TEMPO:</strong> a pad that follows the tempo plays at the project BPM / the take's BPM (like a chopped loop). Kits built from a take have it on, and their pads choke each other (group 1), like the original loop.</p>
+<h3 id="break-seq-again">BREAK (SEQ again)</h3>
+<p>The idea of X0X's BREAK, on your grid: every bar varies what plays with a seed. <strong>With the four knobs at 0, the grid plays as is</strong> (the default).</p>
+<ul><li>
+<strong>YOU</strong> row: the pad you programmed on each step.
+</li><li>
+<strong>PLAYS</strong> row: what is going to play this bar. In yellow, the steps that changed. Orange line = repeat, <strong>&lt;</strong> = reverse, <strong>H</strong> = half speed, <strong>-</strong> = silence.
+</li></ul>
+<div class="tbl"><table><thead><tr><th>Knob</th><th>Does</th></tr></thead><tbody><tr><td><strong>VARY</strong></td><td>How many steps play another pad of the kit</td></tr><tr><td><strong>ANCHOR</strong></td><td>The strong beats (1, 5, 9, 13) stay as they are</td></tr><tr><td><strong>REPEAT</strong></td><td>Retrigs from 2X to 8X</td></tr><tr><td><strong>BREAK</strong></td><td>Reverse, half speed, silences and repeating the previous step</td></tr></tbody></table></div>
+<p><strong>EDIT held + black 4 (CAPT)</strong> writes into the grid what BREAK is doing in this bar. HOME + OCT− undoes it.</p>
+<p><strong>The drawing</strong> is the mirrored waveform, as on a sampler: the peak in the dark shade and the energy (RMS) on top, in full color.</p>
+<h2 id="recorder-rec-on-the-sampler">Recorder (REC on the sampler)</h2>
+<p>Recording, keeping and building the kit are separate steps.</p>
+<ol><li>
+<strong>RECORD:</strong> REC on T2 opens the recorder <strong>armed</strong> (on PADS, REC records what you play into the grid). It starts at the next bar (K1 = START: BAR or NOW). A big number says the seconds <strong>left</strong>: the smaller of the recording RAM (3 s) and the free take memory. White lines mark how many bars fit and the amber one is the limit. REC again = stop; it also stops by itself at the limit. Holding REC on the recorder records only while held.
 <ul><li>
 Below the number: the free take memory in seconds and KB, and the maximum per take (3 s).
 </li><li>
 While recording <strong>the keys are silent</strong> and the delay and buffer-based punch-ins pause (they share the memory).
 </li><li>
-The take stays <strong>SIN GUARDAR</strong> (unsaved) and already plays as loop A. <strong>It is saved when you stop</strong> the transport, because writing flash stops the audio. HOME = discard.
+The take stays <strong>UNSAVED</strong>: the white keys play it in 16 parts. <strong>It is saved when you stop</strong> the transport, because writing flash stops the audio, and if the kit was empty, it builds it. HOME = discard.
 </li></ul>
 </li><li>
-<strong>TOMAS</strong> (takes; EDIT 2 s on T2, or the tab): the library, with the factory loops (FAB) first. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys 1-8 play its slices. <strong>N1</strong> = use as loop A, <strong>N2</strong> = as loop B, <strong>N11</strong> = delete (asks). At the bottom, the free memory out of 7.4 s.
+<strong>TAKES</strong> (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). <strong>N1</strong> = kit on the hits, <strong>N2</strong> = 16 equal parts, <strong>N3</strong> = 8, <strong>N4</strong> = the whole take on the selected pad, <strong>N11</strong> = delete (asks; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
 </li></ol>
-<p><strong>How much fits:</strong> each take, up to 3 s (the recording RAM, 48 KB); all together, about 7.4 s (116 KiB of flash, 8 bits at 16 kHz = 16 KB per second). Factory loops don't use that space. The emulator shows the free memory next to the button for loading audio.</p>
-<ol><li>
-<strong>CORTAR</strong> (slice; EDIT on a take): <strong>white keys</strong> set or remove a cut on that eighth note, <strong>black 9</strong> puts the cuts on the hits and <strong>black 10</strong> goes back to 8 equal parts. Black 1-8 play each slice. SELECT or K1 pick the cut, K2 moves it, K3 = zoom, K4 = snap to 1/16 or 1/8. It is saved when you leave.
-</li></ol>
+<p><strong>How much fits:</strong> each take, up to 3 s (the recording RAM, 48 KB); all together, about 6.4 s (100 KiB of flash, 8 bits at 16 kHz = 16 KB per second). The emulator shows the free memory next to the button for loading audio.</p>
 <h2 id="note-tracks-t3-analog-fm-acid-midi">Note tracks (T3, ANALOG, FM, ACID, MIDI)</h2>
 <ul><li>
 <strong>SEQ:</strong> the page is only about this track. On top, the page's 16 steps as a <strong>piano roll</strong>: each note at its pitch and with its length; white keys are those steps (up to 4 notes per step). Below, the track's bars and the <strong>dotted tempo follower</strong>. <strong>Hold a step</strong> and play <strong>black 1-8</strong> to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
 </li><li>
-<strong>Free recording, like a looper:</strong> on an <strong>empty</strong> note track, REC records with no fixed length (the screen says REC LIBRE and counts the bars). REC again closes it: the track keeps the whole bars you played (1 to 4) and <strong>every note keeps how long you held it</strong> (up to 4 bars). If the track already has notes, REC records over it with its length.
+<strong>Free recording, like a looper:</strong> on an <strong>empty</strong> note track, REC records with no fixed length (the screen says FREE REC and counts the bars). REC again closes it: the track keeps the whole bars you played (1 to 4) and <strong>every note keeps how long you held it</strong> (up to 4 bars). If the track already has notes, REC records over it with its length.
 </li><li>
 <strong>Length in bars:</strong> SEQ held + black 7-10 = 1, 2, 3 or 4 bars.
 </li><li>
-<strong>Held step + knobs:</strong> K1-K4 = P-Lock · SELECT = hit (NORMAL › ACENTO = accent › FANTASMA = ghost) · ALGORITHM = probability or fill · PRESETS = length or LIGA (tie, glide).
+<strong>Held step + knobs:</strong> K1-K4 = P-Lock · SELECT = hit (NORMAL › ACCENT › GHOST) · ALGORITHM = probability or fill · PRESETS = length or TIE (glide).
 </li><li>
-<strong>SONIDO</strong> (sound): on ANALOG, the paged editor (above). On FM and ACID, K1-K3 = the engine macros and K4 = accent; their envelopes are in ENV.
+<strong>SOUND:</strong> on ANALOG, the paged editor (above). On FM and ACID, K1-K3 = the engine macros and K4 = accent; their envelopes are in ENV.
 </li><li>
 <strong>LOOP (SEQ again):</strong> unquantized looper. K1 ON/OFF · K2 bars (1, 2 or 4). <strong>REC</strong> arms (starts at the bar) › when the loop closes it goes to PLAY › REC again: OVERDUB › REC: PLAY. <strong>REC 2 s</strong> erases the loop.
 </li><li>
@@ -146,22 +174,22 @@ The take stays <strong>SIN GUARDAR</strong> (unsaved) and already plays as loop 
 </li></ul>
 <h2 id="the-layers-hold">The layers (hold)</h2>
 <p>While you hold, the screen draws the keyboard with what each key does and its LEDs. The sequence keeps playing.</p>
-<div class="tbl"><table><thead><tr><th>Hold</th><th>Layer</th><th>The keys</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>Controller</td><td>White = queue pattern · black 1-6 = mute / solo · 7-10 = scenes · 11 = FILL. ALGORITHM = go to a track when you let go</td></tr><tr><td><strong>SEQ</strong></td><td>Length and speed</td><td>White = track length (1-16; OCT−/+ = 17-64) · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars</td></tr><tr><td><strong>EDIT</strong></td><td>Erase</td><td>Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the track · sampler: black 4 = CAPTURAR · OCT−/+ = undo / redo</td></tr><tr><td><strong>ENV</strong></td><td>Accent</td><td>White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACENTO › FANTASMA). K1 = how much accent</td></tr><tr><td><strong>LFO</strong></td><td>Repeat · tie</td><td>Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide)</td></tr><tr><td><strong>FX</strong></td><td>Punch-in</td><td>White = 16 effects quantized to 1/16 · black 1-6 still mute</td></tr><tr><td><strong>SCL</strong></td><td>Chords</td><td>White = 16 chords · black 1-4 = +7, +9, SUS2, SUS4</td></tr><tr><td><strong>ARP</strong></td><td>Arpeggio · roll</td><td>Notes: what you play is arpeggiated · grids: white = roll that instrument or slice (K1 = rate; with REC it is recorded as repeats)</td></tr><tr><td><strong>SAVE</strong></td><td>Copy pattern</td><td>White = paste the pattern there · black (1-6) + white = only that track. If the target has notes, it asks</td></tr><tr><td><strong>GLO</strong></td><td>Pitch</td><td>The whole keyboard transposes the project (C4 = 0) · <strong>PLAY = TAP tempo</strong> without stopping</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Hold</th><th>Layer</th><th>The keys</th></tr></thead><tbody><tr><td><strong>HOME</strong></td><td>Controller</td><td>White = queue pattern · black 1-6 = mute / solo · 7-10 = scenes · 11 = FILL. ALGORITHM = go to a track when you let go</td></tr><tr><td><strong>SEQ</strong></td><td>Length and speed</td><td>White = track length (1-16; OCT−/+ = 17-64) · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars</td></tr><tr><td><strong>EDIT</strong></td><td>Erase</td><td>Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the track · sampler: black 4 = CAPT (what BREAK does goes into the grid) · OCT−/+ = undo / redo</td></tr><tr><td><strong>ENV</strong></td><td>Accent</td><td>White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACCENT › GHOST). K1 = how much accent</td></tr><tr><td><strong>LFO</strong></td><td>Repeat · tie</td><td>Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide)</td></tr><tr><td><strong>FX</strong></td><td>Punch-in</td><td>White = 16 effects quantized to 1/16 · black 1-6 still mute</td></tr><tr><td><strong>SCL</strong></td><td>Chords</td><td>White = 16 chords · black 1-4 = +7, +9, SUS2, SUS4</td></tr><tr><td><strong>ARP</strong></td><td>Arpeggio · roll</td><td>Notes: what you play is arpeggiated · grids: white = roll that instrument or pad (K1 = rate; with REC it is recorded as repeats)</td></tr><tr><td><strong>SAVE</strong></td><td>Copy pattern</td><td>White = paste the pattern there · black (1-6) + white = only that track. If the target has notes, it asks</td></tr><tr><td><strong>GLO</strong></td><td>Pitch</td><td>The whole keyboard transposes the project (C4 = 0) · <strong>PLAY = TAP tempo</strong> without stopping</td></tr></tbody></table></div>
 <h2 id="time-seq-2-s">Time (SEQ 2 s)</h2>
 <p>Shows the 6 tracks as bars of their real duration, each with its playhead: polymeter at a glance. SELECT or ALGORITHM pick the track; K1 = length (1-64); K2 = speed (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4); K3 and K4 (grids): an instrument and its length.</p>
 <p>The <strong>master length</strong> (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all tracks together. That is where patterns and scenes change.</p>
 <h2 id="scales-and-chords">Scales and chords</h2>
 <ul><li>
-<strong>ESCALA</strong> (scale, SCL): each note track can have its <strong>own scale</strong> (K2: PROYECTO = project, or one of 9 scales; K1 = root). <strong>HOME + SCL</strong> changes the project scale, used by tracks without their own.
+<strong>SCALE</strong> (SCL): each note track can have its <strong>own scale</strong> (K2: PROJECT, or one of 9 scales; K1 = ROOT). <strong>HOME + SCL</strong> changes the project scale, used by tracks without their own.
 </li><li>
-<strong>ACORDES</strong> (chords, SCL again): 16 chords on a 4×4 grid with their degree and name. The color tells their function: <strong>blue</strong> rest (I, iii, vi), <strong>green</strong> preparation (ii, IV), <strong>orange</strong> tension (V, vii). K1 = set (DIATONICO, PROGRESIONES, NEO SOUL), K2 = voicing (closed, open or voice-led), K3 = octave, K4 = strum.
+<strong>CHORDS</strong> (SCL again): 16 chords on a 4×4 grid with their degree and name. The color tells their function: <strong>blue</strong> rest (I, iii, vi), <strong>green</strong> preparation (ii, IV), <strong>orange</strong> tension (V, vii). K1 = set (DIATONIC, PROGRESSIONS, NEO SOUL), K2 = voicing (CLOSED, OPEN or LED, voice-led), K3 = octave, K4 = strum.
 </li></ul>
 <h2 id="scenes-and-song">Scenes and song</h2>
-<p><strong>ESCENAS</strong> (scenes; HOME, HOME, HOME): a scene = pattern + mutes. White 1-4 launch A-D at the next master cycle (when stopped: right away); 5-8 store what is playing into A-D; hold one of 1-4 and tap others for a <strong>chain</strong>. From any screen, with HOME, black 7-10 also launch them. <strong>REC</strong> on ESCENAS (or HOME + REC) = SONG REC.</p>
-<p><strong>CANCION</strong> (song; HOME + SEQ): a white key adds a pattern, black 9 deletes; K1 = step, K2 = repeats, K4 = song ON/OFF.</p>
+<p><strong>SCENES</strong> (HOME, HOME, HOME): a scene = pattern + mutes. White 1-4 launch A-D at the next master cycle (when stopped: right away); 5-8 store what is playing into A-D; hold one of 1-4 and tap others for a <strong>chain</strong>. From any screen, with HOME, black 7-10 also launch them. <strong>REC</strong> on SCENES (or HOME + REC) = SONG REC.</p>
+<p><strong>SONG</strong> (HOME + SEQ): a white key adds a pattern, black 9 deletes; K1 = step, K2 = repeats, K4 = song ON/OFF.</p>
 <h2 id="effects">Effects</h2>
 <ul><li>
-<strong>Each track's MEZCLA</strong> (mix; FX): level, pan, delay send and <strong>duck</strong> (sidechain from the T1 kick; the sampler can duck too).
+<strong>Each track's MIX</strong> (FX): level, pan, delay send and <strong>duck</strong> (sidechain from the T1 kick; the sampler can duck too).
 </li><li>
 <strong>HOME + FX:</strong> delay time, feedback and mix, and sidechain release.
 </li><li>
@@ -180,21 +208,30 @@ The flash is <strong>only written when stopped</strong> (writing pauses the audi
 <strong>Copying:</strong> SAVE held + white key copies the pattern; HOME + EDIT copies a track onto another one in the same pattern (ALGORITHM picks the target, OCT+ pastes; a free track changes engine if needed).
 </li></ul>
 <h2 id="system-home-2-s">System (HOME 2 s)</h2>
-<p>Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · the box's auto enter time · saved patterns · takes and free memory · version.</p>
+<p>Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · the box's auto enter time · saved patterns · takes and free memory · <strong>LANGUAGE</strong> · version.</p>
 <h2 id="midi">MIDI</h2>
 <ul><li>
-<strong>Input</strong> (USB and TRS): channels 1-6 = Bubba Machine's tracks. On grids, the note picks the instrument (0-15); on the sampler, the slice.
+<strong>Input</strong> (USB and TRS): channels 1-6 = Bubba Machine's tracks. On grids, the note picks the instrument (0-15); on the sampler, the pad.
 </li><li>
 <strong>External clock:</strong> follows MIDI Clock and Start/Stop.
 </li><li>
 <strong>Output:</strong> MIDI Clock when the clock is internal, and the notes of tracks with the MIDI engine.
+</li></ul>
+<h2 id="screen-language">Screen language</h2>
+<p>The screen is in <strong>English</strong>. Other languages are <strong>packs</strong> that are not loaded by default: one pack lives in its own 16 KiB of flash (it does not touch patterns or takes, and a firmware update does not erase it).</p>
+<ul><li>
+<strong>Load Spanish on the FM-1:</strong> with the transport stopped, <code>py -3 tools/fm1/idioma.py lang/es.bmlang</code>. <strong>SYSTEM › LANGUAGE</strong> then switches between English and the pack. <code>--quitar</code> removes it.
+</li><li>
+<strong>In the emulator:</strong> the button under <em>Sampler and memory</em> loads or removes the Spanish pack.
+</li><li>
+<strong>Making a translation:</strong> copy <code>lang/plantilla.txt</code> (every phrase on screen) to <code>lang/&lt;code&gt;.txt</code>, write the translation under each phrase and build it with <code>py -3 tools/gen_lang.py</code>. The FM-1 font is ASCII: no accents. What you don't translate shows in English.
 </li></ul>
     <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/MANUAL.md">docs/en/MANUAL.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
   </main>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

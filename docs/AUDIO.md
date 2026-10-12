@@ -10,7 +10,7 @@ Todas las cifras de CPU se midieron en el FM-1 del autor con la consola del firm
 |---|---|
 | Procesador | JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple |
 | Salida | codec externo por I2S, **estéreo de 24 bits a 44 117.6 Hz** (24 MHz / 544, fijo por hardware) |
-| Memoria para sonidos grabados | 116 KiB de flash para las tomas del sampler |
+| Memoria para sonidos grabados | 100 KiB de flash para las tomas del sampler |
 
 ## Lo que mejoró
 
@@ -74,7 +74,7 @@ El programa quedó 148 KiB más chico y se liberaron 64 KiB de RAM al sacar los 
 
 Esto es una beta. Lo que hoy limita la calidad, sin adornos:
 
-- **El sampler graba a 16 kHz y 8 bits.** La flash del FM-1 deja 116 KiB para tomas (7.4 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de `toma.py` suena limpio, pero **no pasa de unos 7 kHz** y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
+- **El sampler graba a 16 kHz y 8 bits.** La flash del FM-1 deja 100 KiB para tomas (6.4 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de `toma.py` suena limpio, pero **no pasa de unos 7 kHz** y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
 - **El delay trabaja a 22 kHz:** las repeticiones llegan hasta 11 kHz, como un delay de cinta. Es a propósito, para que quepa 1.5 s en la RAM, pero no es alta fidelidad.
 - **El clipper no tiene sobremuestreo:** con el DRIVE muy alto puede generar algo de aliasing.
 - **ACID es un motor propio, no Open303.** El plan es pasar a Open303 (MIT) en float.

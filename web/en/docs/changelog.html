@@ -45,6 +45,41 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="050-beta---2026-10-12">[0.5.0-beta] - 2026-10-12</h2>
+<p><strong>Beta, not yet tried on the device:</strong> it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.</p>
+<p><strong>The screen switches to English</strong>, so Bubba Machine can be understood worldwide. Spanish is still available as a language pack, not loaded by default. <strong>Take memory goes down from 7.4 s to 6.4 s</strong>: 16 KiB of flash now belong to the language pack, and a take that used that space is lost. <strong>The sampler becomes a pad sampler</strong> and the pattern format changes: saved patterns are erased at the first boot (takes stay).</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Language packs.</strong> The screen's phrases are in English and a pack (<code>.bmlang</code>) translates them. It lives in its own flash zone (<code>0xD9000</code>, 16 KiB), so it does not touch patterns or takes and a firmware update does not erase it. <strong>SYSTEM › LANGUAGE</strong> switches between English and the loaded pack. Whatever the pack does not translate shows in English.
+<ul><li>
+<strong>Spanish</strong> (<code>lang/es.txt</code>, built into <code>lang/es.bmlang</code>): the screen looks as before.
+</li><li>
+It is loaded on the FM-1 with <code>tools/fm1/idioma.py</code> (over the USB-MIDI console, with the transport stopped) and in the emulator with a button; on the Spanish emulator page it starts in Spanish the first time.
+</li><li>
+<code>tools/gen_lang.py</code> collects every phrase into <code>lang/plantilla.txt</code>, checks each translation (ASCII only, the same <code>%</code>) and builds the packs. Anyone can make another language.
+</li></ul>
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>T2 is a 16-pad sampler</strong>, like a KO II or the drum sampler of an OP-1 field. It replaces the sliced loop with a generator (and SLICER, CORTAR and CHOPS).
+<ul><li>
+<strong>Each pad is a piece of a take</strong>, with its own start and length (they can overlap), pitch, level, key mode (<strong>ONESHOT</strong>, <strong>KEY</strong>, <strong>THRU</strong>: held, it keeps going through the take, <strong>LOOP</strong>), direction, attack, release, choke group and whether it follows the tempo. A kit can mix takes.
+</li><li>
+<strong>The take builds the kit:</strong> when a take is saved with the kit empty, it is cut on the hits, each cut goes to a pad and the grid is written so it plays like the take. In <strong>TAKES</strong>: N1 kit on the hits, N2 in 16, N3 in 8, N4 the whole take on the selected pad; white keys play it in 16 parts.
+</li><li>
+<strong>SEQ is a grid like the drums:</strong> one line per pad, with its length, accents, repeats, conditions, mutes, fill and per-step P-Lock of FILTER, PITCH, DECAY and START. No more loose numbers: you see which pad plays on which step.
+</li><li>
+<strong>PADS</strong> (EDIT): the take's waveform with the pad in brackets and the other pads marked, and three pages (TRIM, SOUND, ENV; EDIT again changes page). Black keys: copy, paste, empty, start on the hit; 9-11 reverse, half speed and stutter.
+</li><li>
+<strong>BREAK</strong> (SEQ again): the old generator, now on the grid and off by default. VARY changes pads, ANCHOR keeps the strong beats, REPEAT and BREAK. The PLAYS row shows what is going to play and EDIT + black 4 writes it into the grid.
+</li><li>
+On the recorder, white keys play the new take before it is saved.
+</li></ul>
+</li><li>
+The sampler drawing (SOUND) is the same mirrored waveform; the three frequency lanes are gone.
+</li><li>
+Drum model names, FM patches and waveforms are in English too (translated in the pack).
+</li></ul>
 <h2 id="040-beta---2026-10-11"><a href="https://github.com/Erbubar23/bubba-machine/releases/tag/v0.4.0-beta">0.4.0-beta</a> - 2026-10-11</h2>
 <p><strong>Beta: the first version that runs on the FM-1.</strong> It was tested on a single device (the author's) and still changes a lot. <strong>An update may erase what you saved</strong> (patterns, song, settings and sampler takes): until v1 there is no backward compatibility, and when a format changes the old data is erased at boot and the demo comes back. If something matters to you, record it from the audio output before updating.</p>
 <p>The sounds were rebuilt: <strong>no more recorded sounds or wavetables</strong>, everything is computed live with proven synthesis libraries. What 0.3 saved (patterns, song, settings <strong>and takes</strong>) is not read: it is erased on first boot and the demo starts.</p>
@@ -209,7 +244,7 @@ FM-1 port skeleton (structure, pins and matrix scanning).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

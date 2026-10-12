@@ -10,6 +10,7 @@
 #include "bm_gesture.h"
 #include "bm_gfx.h"
 #include "bm_params.h"
+#include "bm_lang.h"
 
 typedef struct {
     void (*blit)(void *u, int x, int y, int w, int h, const uint16_t *px);
@@ -32,8 +33,8 @@ typedef enum {
 
 /* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
 typedef enum {
-    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_RETRIG, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
-    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_CUT, PG_SLICE, PG_COUNT
+    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
+    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_PADS, PG_COUNT
 } bm_page;
 
 /* Capas en vivo (mantener un botón). */
@@ -43,12 +44,13 @@ typedef enum {
 } bm_layer;
 
 /* Preguntas: OCT+ = sí, HOME = no. */
-enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT };
+enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT };
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
     uint8_t enter;          /* recuadro de ALGORITHM: 0, 250, 400, 800 ms u OFF */
-    uint8_t rsv[22];
+    uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
+    uint8_t rsv[21];
 } bm_settings;
 
 typedef struct {
@@ -90,15 +92,19 @@ typedef struct bm_app {
     uint32_t t_edit;
     uint8_t job[BM_JOBS], job_arg[BM_JOBS], njob, job_fading;
 
-    /* sampler: tomas, fuentes y dibujo */
+    /* sampler: tomas, pads y dibujo */
     bm_take take[BM_TAKES];
-    bm_smp_src smp_send[3];       /* copias estables que lee el audio: loop A, loop B, escucha */
-    uint8_t wave[3][232];         /* loop A por columna: graves, medios, agudos */
-    uint8_t wave_cut[3][232];     /* la toma que se está cortando */
-    uint8_t slice_e[BM_SLICES][5];/* energía de cada slice del loop A (barras de SEQ) */
-    uint8_t wave_was_rec, take_dirty, takes_row, cut_take, cut_sel, cut_snap, cut_zoom;
-    uint8_t slice_sens;           /* SLICER: sensibilidad de los cortes en los golpes (0..127) */
-    uint8_t sent_src[2], src_dirty, wave_src;
+    bm_smp_src smp_send[1];       /* copia estable que lee el audio: la toma recién guardada */
+    bm_smp_src take_send[BM_TAKES];   /* las tomas, para los pads (CMD_SMP_TAKES) */
+    uint8_t wave_cut[2][232];     /* PADS / TAKES: la ventana que se ve (pico y RMS) */
+    uint8_t wave_ov[232];         /* la toma entera, para el mapa de arriba (picos) */
+    uint8_t take_dirty, takes_row, cut_snap, cut_zoom;
+    int8_t pad_key;               /* tecla que sostiene un pad (o una escucha) */
+    const int8_t *cut_wd;         /* lo que ya está dibujado en wave_cut / wave_ov */
+    uint32_t cut_wlen, cut_v0, cut_v1, cut_pk;
+    uint8_t slice_sens;           /* sensibilidad de los cortes en los golpes (0..127) */
+    bm_pad pad_clip;              /* COPY / PASTE de un pad (con su nivel y su grupo) */
+    uint8_t pad_clip_on, pad_clip_level, pad_clip_choke;
 
     /* portapapeles, undo y redo (un canal) */
     bm_trackbuf clip;
@@ -190,13 +196,16 @@ void bm_app_midi_in(bm_app *a, uint8_t byte);
 void bm_app_tick(bm_app *a, uint32_t now);
 void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);
 void bm_app_takes_reload(bm_app *a);   /* tras escribir una toma desde fuera (editor/emulador) */
+/* Paquete de idioma desde afuera (consola USB o emulador), solo en STOP: sub 0 = empezar (borra la
+ * zona), 1 = n bytes en off, 2 = terminar (lo revisa y lo activa), 3 = quitarlo. 0 = salió bien. */
+int  bm_app_lang_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
+const uint8_t *bm_app_lang_pack(const bm_app *a);   /* el paquete de la flash si está sano, o NULL */
 
 /* Fuentes del sampler: 0..7 = toma, BM_SRC_ROM|i = loop de fábrica. */
 int  bm_app_sources(const bm_app *a, uint8_t out[BM_TAKES + 8]);   /* lista de fuentes que existen */
 bool bm_app_src_ok(const bm_app *a, uint8_t src);
 void bm_app_src_name(const bm_app *a, uint8_t src, char *buf, int cap);
 bool bm_app_src_info(const bm_app *a, uint8_t src, bm_smp_src *out);
-float bm_app_brk_semis(const bm_app *a);   /* cuántos semitonos se movió el loop A (tempo + PITCH) */
 
 /* para el dibujo */
 int  bm_app_layer(const bm_app *a);
@@ -206,6 +215,7 @@ void bm_app_legend(const bm_app *a, bm_legend out[4]);
 void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
 /* qué hace cada tecla ahora (nombre corto) y su luz: lo mismo que se ve en la tira de teclas */
 void bm_app_keys(const bm_app *a, bm_keyfn out[BM_KEYS]);
+const char *bm_pad_mode_name(int mode);                         /* ONESHOT, KEY, THRU, LOOP */
 void bm_app_draw(bm_gfx *g, void *user);
 void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
 const char *bm_macro_name(const bm_app *a, int track, int i);

@@ -67,32 +67,30 @@
 <p>If HOME was used as a modifier, releasing it does <strong>not</strong> take you to the home screen: HOME only navigates on a clean tap.</p>
 <p><strong>Keys on HOME:</strong> black keys 1-6 mute T1-T6 (hold = solo), 7-10 launch scenes A-D and 11 is FILL. White keys queue a pattern from the bank; two white keys chain from the first to the second.</p>
 <h2 id="tracks-3-fixed-and-3-free">Tracks: 3 fixed and 3 free</h2>
-<div class="tbl"><table><thead><tr><th>Track</th><th>Type</th><th>What it is</th></tr></thead><tbody><tr><td>T1 DRUMS</td><td>Fixed</td><td>TR grid with 16 instruments</td></tr><tr><td>T2 SAMPLER</td><td>Fixed</td><td>A loop in 8 slices that a generator rearranges</td></tr><tr><td>T3 BASS</td><td>Fixed</td><td>Monophonic wavetable with glide</td></tr><tr><td>T4-T6</td><td>Free</td><td>SYNTH, MONO, KIT or MIDI, chosen in the MAS (more) tab</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Track</th><th>Type</th><th>What it is</th></tr></thead><tbody><tr><td>T1 DRUMS</td><td>Fixed</td><td>TR grid with 16 instruments</td></tr><tr><td>T2 SAMPLER</td><td>Fixed</td><td>16 pads made from the takes, on a grid</td></tr><tr><td>T3 BASS</td><td>Fixed</td><td>Monophonic wavetable with glide</td></tr><tr><td>T4-T6</td><td>Free</td><td>SYNTH, MONO, KIT or MIDI, chosen in the MAS (more) tab</td></tr></tbody></table></div>
 <p>Each track shows its tabs at the top: SELECT steps through them and the buttons jump straight to them. The last one, <strong>MAS</strong> (more), is the list with everything about the track.</p>
-<p><strong>Black keys follow one grammar:</strong> 1-8 are the track's elements, 9 and 10 modify it, and <strong>11 breaks the pattern</strong> (FILL on drums, STUTTER on the sampler).</p>
-<h2 id="sampler-30">Sampler 3.0</h2>
-<p>The idea comes from X0X's BREAK (a loop in slices that a generator reorders) with an interface that lets you see what is happening:</p>
+<p><strong>Black keys follow one grammar:</strong> 1-8 are the track's elements, 9 and 10 modify it, and <strong>11 breaks the pattern</strong> (FILL).</p>
+<h2 id="pad-sampler">Pad sampler</h2>
+<p>The 0.3 and 0.4 sampler was a sliced loop that a generator reordered (the idea of X0X's BREAK). On the device it was hard to follow: you played a cut and another number showed on screen, because the row of what plays mixed what you programmed with what the generator picked. From 0.5.0-beta, T2 is a <strong>pad sampler</strong>, like a KO II or the drum sampler of an OP-1 field:</p>
 <ul><li>
-<strong>Two step rows:</strong> TU (yours: what you programmed; hollow = the generator picks, filled = fixed slice) and <strong>SUENA</strong> (plays: the slice the generator picked in this bar).
+<strong>Pads, not slices:</strong> each pad is a piece of a take, with its own start and length (they can overlap), pitch, level, key mode (ONESHOT, KEY, THRU, LOOP), attack, release, choke group and tempo. A kit can mix takes.
 </li><li>
-<strong>Clearly named knobs:</strong> VARIAR (vary), ANCLAR (anchor), REPETIR (repeat) and ROMPER (break).
+<strong>The same grid as the drums:</strong> one line per pad. Everything you learn on T1 works on T2: steps, accents, repeats, mutes, fill, P-Lock.
 </li><li>
-<strong>CAPTURE:</strong> hold EDIT + black key 4 to fix the variation that is playing.
+<strong>The take builds the kit:</strong> when a take is saved with the kit empty, it is cut on the hits and the grid is written so it plays like the take. TAKES builds other kits or puts a whole take on one pad.
 </li><li>
-<strong>Pin slices by playing:</strong> with REC, black keys 1-8 are written as fixed steps.
+<strong>The generator stays as BREAK:</strong> a separate page, off by default, that varies the grid bar by bar. The PLAYS row shows exactly what is going to play and CAPT writes it into the grid.
 </li><li>
-<strong>Pitch in plain sight:</strong> the loop's original BPM and how many semitones it moved.
-</li><li>
-<strong>Drawing by frequency:</strong> lows, mids and highs in separate lanes (already working in 0.2).
+<strong>The waveform as on a sampler:</strong> mirrored and big, in the style of X0X, with the peak in a dark shade and the RMS on top.
 </li></ul>
 <h2 id="recorder">Recorder</h2>
-<p>Recording, saving and slicing are three screens, one job each:</p>
+<p>Recording, saving and building the kit are separate steps:</p>
 <ol><li>
-<strong>RECORD:</strong> a big number with the seconds left, which is the smaller of the recording RAM (3 s) and the free take memory. Marks show how many bars fit.
+<strong>RECORD:</strong> a big number with the seconds left, which is the smaller of the recording RAM (3 s) and the free take memory. Marks show how many bars fit. White keys play the new take.
 </li><li>
-<strong>TAKES:</strong> a library of recordings with their BPM and bars. Factory loops do not use memory.
+<strong>TAKES:</strong> a library of recordings with their BPM, bars and waveform. Kits come from here.
 </li><li>
-<strong>SLICE:</strong> later, calmly. White keys place cuts on eighth notes, black key 9 places them on the hits and black key 10 spreads them evenly.
+<strong>PADS:</strong> later, calmly, each pad on its take's waveform.
 </li></ol>
 <p>A take stays unsaved until you stop the transport, because writing the flash pauses the audio.</p>
 <h2 id="decisions">Decisions</h2>
@@ -103,6 +101,8 @@
 </li><li>
 <strong>Pattern banks:</strong> the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns. <em>Open:</em> in 0.3, PRESETS on HOME walks the 16.
 </li><li>
+<strong>From a sliced loop to pads:</strong> SLICER, CORTAR and then CORTES tried to edit a loop's cuts; none was easy to follow on the device next to the generator. The sampler became a pad sampler (above). <em>Resolved in 0.5.0-beta.</em>
+</li><li>
 <strong>Ghost notes on drums:</strong> each step's byte is full; it needs a level P-Lock or a bigger format. <em>Open:</em> notes already have three levels.
 </li></ul>
     <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/DESIGN_3.0.md">docs/en/DESIGN_3.0.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
@@ -110,7 +110,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

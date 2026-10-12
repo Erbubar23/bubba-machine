@@ -45,7 +45,7 @@
   <main class="doc">
 <h1 id="roadmap">Roadmap</h1>
 <p>Everything planned for Bubba Machine. <strong>All of it will be done, step by step</strong>, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.</p>
-<p>Items marked ✓ are already in the current version (0.4.0-beta). Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
+<p>Items marked ✓ are already in the current version (0.5.0-beta). Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>The goal is the best quality the FM-1 allows. What improved, what it costs and what limits it today: <a href="audio.html">audio</a>.</p>
 <p><strong>Done</strong></p>
@@ -82,7 +82,9 @@
 <ul><li>
 ✓ <strong>Key strip on screen:</strong> the 11 black and 16 white keys with a short name and the same intensity as their light.
 </li><li>
-✓ <strong>SLICER:</strong> a take in 16 slices played with the white keys.
+✓ <strong>English screen, with language packs:</strong> Spanish is loaded separately (<code>tools/fm1/idioma.py</code>) and switched in SYSTEM › LANGUAGE.
+</li><li>
+✓ <strong>Pad sampler:</strong> 16 pads made from your takes, like a KO II or an OP-1 field, on a grid like the drums, with BREAK to vary it.
 </li><li>
 ✓ <strong>MUTES</strong> and <strong>FILL</strong> screens, and drums in sections of 8.
 </li></ul>
@@ -116,6 +118,10 @@
 <ul><li>
 <strong>Back up what you saved from the browser</strong> (patterns, song and takes), so nothing is lost when updating.
 </li><li>
+<strong>Recording straight onto a pad</strong> (REC + pad, like the KO II) and undo for pad edits.
+</li><li>
+<strong>Language packs from the web installer</strong>, without the command line, and more languages made by the community.
+</li><li>
 <strong>Web editor:</strong> load and download patterns and takes over USB (today takes are uploaded with <code>tools/fm1/toma.py</code>), and DX7 <code>.syx</code> FM banks.
 </li><li>
 <strong>Free kit and take packs</strong> (CC0 or GPL), made by the community.
@@ -124,6 +130,8 @@
 </li></ul>
 <h2 id="done">Done</h2>
 <ul><li>
+<strong>0.5.0-beta:</strong> the pad sampler and the English screen, with Spanish as a language pack.
+</li><li>
 <strong>0.4.0-beta:</strong> the first version for the FM-1, sounds computed live and 44.1 kHz audio. See the <a href="changelog.html">changelog</a>.
 </li><li>
 <strong>0.3:</strong> interface 3.0, with four gestures per button and HOME everywhere. The design is in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>.
@@ -133,7 +141,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

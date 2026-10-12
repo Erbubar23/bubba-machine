@@ -1,6 +1,6 @@
 # Port al FM-1
 
-**Estado (0.4.0-beta, octubre de 2026):** compilan y se empaquetan dos firmwares, que corren en el FM-1 del autor (beta: un solo aparato probado):
+**Estado (0.5.0-beta, octubre de 2026):** compilan y se empaquetan dos firmwares, que corren en el FM-1 del autor (beta: un solo aparato probado):
 
 - **Bubba Machine** (`fm1_main.c`): el núcleo completo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, la pantalla, USB-MIDI, el guardado y el servicio de actualización. `app.bin` de 559 008 bytes (quedan 23 KB).
 - **Diagnóstico** (`fm1_diag.c`): sin sonido, muestra cada botón, tecla y perilla con su cruce en la matriz. Sirve para comprobar el aparato o calibrar.
@@ -45,7 +45,8 @@ También mueve la "VM" del SDK (su almacén de ajustes) a `0xE5000`, con su tama
 | `0x004000-0x092FFF` | zona de la app (`app.bin`, `cfg_tool.bin`, `cfg`) | solo el cargador oficial al instalar |
 | `0x097000-0x0BEFFF` | patrones (20 slots de 8 KiB) | el firmware |
 | `0x0BF000` | registro de arranques | el firmware |
-| `0x0C0000-0x0DCFFF` | tomas (116 KiB) | el firmware |
+| `0x0C0000-0x0D8FFF` | tomas (100 KiB) | el firmware |
+| `0x0D9000-0x0DCFFF` | paquete de idioma (16 KiB) | el firmware (`tools/fm1/idioma.py`) |
 | `0x0DD000-0x0DFFFF` | ajustes globales | el firmware |
 | `0x0E0000-0x0E4FFF` | cargador en espera durante una actualización | el servicio de actualización |
 | `0x0E5000-0x0ECFFF` | VM del SDK | el SDK |

@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, 'web')
 REPO = 'https://github.com/Erbubar23/bubba-machine/blob/main/'
 SITE = 'https://erbubar23.github.io/bubba-machine/'
-VERSION = '0.4.0-beta'
+VERSION = '0.5.0-beta'
 
 LANGS = {'es': 'docs', 'en': 'en/docs'}          # carpeta de salida dentro de web/
 
@@ -64,7 +64,7 @@ TXT = {
         'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.',
     },
 }
-IMAGES = ['00-home', '02-seq-tr', '05-time', '17-chords', '20-layer-home', '31-sampler-seq', '34-rec', '37-cut', '38-box']
+IMAGES = ['00-home', '02-seq-tr', '05-time', '17-chords', '20-layer-home', '31-sampler-seq', '34-rec', '37-pads', '38-box']
 
 BY_SRC = {os.path.normpath(p[2]): (lang, p[0]) for _, _, d in PAGES for lang, p in d.items()}
 

@@ -52,6 +52,8 @@
 </li><li>
 <strong>Interface ideas.</strong> Open an <em>idea</em> issue. The current direction is in <a href="design-3.html"><code>DESIGN_3.0.md</code></a>.
 </li><li>
+<strong>Translations.</strong> The screen is in English and each language is a pack: copy <code>lang/plantilla.txt</code> to <code>lang/&lt;code&gt;.txt</code>, translate under each phrase and check it with <code>py -3 tools/gen_lang.py</code> (see <a href="development.html#screen-languages"><code>DEVELOPMENT.md</code></a>).
+</li><li>
 <strong>Documentation.</strong> The manual lives in <a href="manual.html"><code>docs/en/MANUAL.md</code></a> (and the Spanish one in <code>docs/MANUAL.md</code>); the website is generated from the <code>.md</code> files.
 </li><li>
 <strong>Code.</strong> Read <a href="development.html"><code>DEVELOPMENT.md</code></a> to build and test.
@@ -67,6 +69,8 @@
 <strong>Sounds:</strong> only synthesized in <code>tools/</code>, made by you, or under a free compatible license (CC0, CC-BY or GPL). No samples from records or commercial packs. To test with third-party audio use <code>assets/loops/loops.local.json</code>, which is never pushed.
 </li><li>
 <strong>Dependency-free C99</strong> in <code>core/</code>: no <code>malloc</code>, no floating point in the audio path and nothing that depends on the hardware. Everything hardware-related goes in <code>hal/</code>.
+</li><li>
+<strong>Screen text in English</strong>, in capitals and without accents. If it is built with <code>snprintf</code>, the format goes in <code>TF(&quot;...&quot;)</code> and the words joined with <code>%s</code> in <code>T(...)</code>; everything else is translated when drawn. Then add its translation to <code>lang/es.txt</code>.
 </li><li>
 <strong>Every new file</strong> starts with the license identifier:
 </li></ol>
@@ -92,7 +96,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

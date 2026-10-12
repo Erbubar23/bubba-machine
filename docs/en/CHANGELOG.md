@@ -2,6 +2,29 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.5.0-beta] - 2026-10-12
+
+**Beta, not yet tried on the device:** it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.
+
+**The screen switches to English**, so Bubba Machine can be understood worldwide. Spanish is still available as a language pack, not loaded by default. **Take memory goes down from 7.4 s to 6.4 s**: 16 KiB of flash now belong to the language pack, and a take that used that space is lost. **The sampler becomes a pad sampler** and the pattern format changes: saved patterns are erased at the first boot (takes stay).
+
+### Added
+- **Language packs.** The screen's phrases are in English and a pack (`.bmlang`) translates them. It lives in its own flash zone (`0xD9000`, 16 KiB), so it does not touch patterns or takes and a firmware update does not erase it. **SYSTEM › LANGUAGE** switches between English and the loaded pack. Whatever the pack does not translate shows in English.
+  - **Spanish** (`lang/es.txt`, built into `lang/es.bmlang`): the screen looks as before.
+  - It is loaded on the FM-1 with `tools/fm1/idioma.py` (over the USB-MIDI console, with the transport stopped) and in the emulator with a button; on the Spanish emulator page it starts in Spanish the first time.
+  - `tools/gen_lang.py` collects every phrase into `lang/plantilla.txt`, checks each translation (ASCII only, the same `%`) and builds the packs. Anyone can make another language.
+
+### Changed
+- **T2 is a 16-pad sampler**, like a KO II or the drum sampler of an OP-1 field. It replaces the sliced loop with a generator (and SLICER, CORTAR and CHOPS).
+  - **Each pad is a piece of a take**, with its own start and length (they can overlap), pitch, level, key mode (**ONESHOT**, **KEY**, **THRU**: held, it keeps going through the take, **LOOP**), direction, attack, release, choke group and whether it follows the tempo. A kit can mix takes.
+  - **The take builds the kit:** when a take is saved with the kit empty, it is cut on the hits, each cut goes to a pad and the grid is written so it plays like the take. In **TAKES**: N1 kit on the hits, N2 in 16, N3 in 8, N4 the whole take on the selected pad; white keys play it in 16 parts.
+  - **SEQ is a grid like the drums:** one line per pad, with its length, accents, repeats, conditions, mutes, fill and per-step P-Lock of FILTER, PITCH, DECAY and START. No more loose numbers: you see which pad plays on which step.
+  - **PADS** (EDIT): the take's waveform with the pad in brackets and the other pads marked, and three pages (TRIM, SOUND, ENV; EDIT again changes page). Black keys: copy, paste, empty, start on the hit; 9-11 reverse, half speed and stutter.
+  - **BREAK** (SEQ again): the old generator, now on the grid and off by default. VARY changes pads, ANCHOR keeps the strong beats, REPEAT and BREAK. The PLAYS row shows what is going to play and EDIT + black 4 writes it into the grid.
+  - On the recorder, white keys play the new take before it is saved.
+- The sampler drawing (SOUND) is the same mirrored waveform; the three frequency lanes are gone.
+- Drum model names, FM patches and waveforms are in English too (translated in the pack).
+
 ## [0.4.0-beta] - 2026-10-11
 
 **Beta: the first version that runs on the FM-1.** It was tested on a single device (the author's) and still changes a lot. **An update may erase what you saved** (patterns, song, settings and sampler takes): until v1 there is no backward compatibility, and when a format changes the old data is erased at boot and the demo comes back. If something matters to you, record it from the audio output before updating.

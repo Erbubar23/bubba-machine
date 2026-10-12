@@ -40,9 +40,15 @@ int  app_page_ok(const bm_app *a, int t, int page);
 /* guardado y tomas */
 void app_job(bm_app *a, int type, int arg);
 void app_save_jobs(bm_app *a, int with_cur);
-void app_send_sources(bm_app *a);                     /* loops A y B del patrón al audio */
-void app_preview_take(bm_app *a, uint8_t src);        /* fuente de escucha (TOMAS / CORTAR) */
-void app_cut_wave(bm_app *a);                         /* dibujo de la toma que se corta */
+void app_send_takes(bm_app *a);                       /* las tomas guardadas al audio (para los pads) */
+bool app_take_info(const bm_app *a, int src, bm_smp_src *m);   /* toma 0..7 o BM_TAKE_NEW */
+void app_wave_view(bm_app *a, int src, uint32_t at, int zoom); /* dibujo de una toma (si cambió) */
+/* Kit desde una toma (how: 0 en los golpes, 8 o 16 partes iguales): los pads 1..n son sus cortes.
+ * Si la rejilla de T2 está vacía, también escribe la secuencia que suena como la toma. Devuelve n. */
+int  app_kit_from_take(bm_app *a, int src, int how);
+void app_pad_take(bm_app *a, int pad, int src);       /* la toma entera en un pad */
+static inline bm_pad *app_pad(bm_app *a) { return &a->pat.pad[a->sel_lane[1] & 15]; }   /* el pad elegido */
+static inline bool app_kit_empty(const bm_app *a) { for (int i = 0; i < BM_LANES; i++) if (bm_pad_ok(&a->pat.pad[i])) return false; return true; }
 void app_select_pattern(bm_app *a, int idx);
 void app_undo_snapshot(bm_app *a, int t);
 void app_do_undo(bm_app *a);

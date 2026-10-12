@@ -63,32 +63,31 @@ If HOME was used as a modifier, releasing it does **not** take you to the home s
 | Track | Type | What it is |
 |---|---|---|
 | T1 DRUMS | Fixed | TR grid with 16 instruments |
-| T2 SAMPLER | Fixed | A loop in 8 slices that a generator rearranges |
+| T2 SAMPLER | Fixed | 16 pads made from the takes, on a grid |
 | T3 BASS | Fixed | Monophonic wavetable with glide |
 | T4-T6 | Free | SYNTH, MONO, KIT or MIDI, chosen in the MAS (more) tab |
 
 Each track shows its tabs at the top: SELECT steps through them and the buttons jump straight to them. The last one, **MAS** (more), is the list with everything about the track.
 
-**Black keys follow one grammar:** 1-8 are the track's elements, 9 and 10 modify it, and **11 breaks the pattern** (FILL on drums, STUTTER on the sampler).
+**Black keys follow one grammar:** 1-8 are the track's elements, 9 and 10 modify it, and **11 breaks the pattern** (FILL).
 
-## Sampler 3.0
+## Pad sampler
 
-The idea comes from X0X's BREAK (a loop in slices that a generator reorders) with an interface that lets you see what is happening:
+The 0.3 and 0.4 sampler was a sliced loop that a generator reordered (the idea of X0X's BREAK). On the device it was hard to follow: you played a cut and another number showed on screen, because the row of what plays mixed what you programmed with what the generator picked. From 0.5.0-beta, T2 is a **pad sampler**, like a KO II or the drum sampler of an OP-1 field:
 
-- **Two step rows:** TU (yours: what you programmed; hollow = the generator picks, filled = fixed slice) and **SUENA** (plays: the slice the generator picked in this bar).
-- **Clearly named knobs:** VARIAR (vary), ANCLAR (anchor), REPETIR (repeat) and ROMPER (break).
-- **CAPTURE:** hold EDIT + black key 4 to fix the variation that is playing.
-- **Pin slices by playing:** with REC, black keys 1-8 are written as fixed steps.
-- **Pitch in plain sight:** the loop's original BPM and how many semitones it moved.
-- **Drawing by frequency:** lows, mids and highs in separate lanes (already working in 0.2).
+- **Pads, not slices:** each pad is a piece of a take, with its own start and length (they can overlap), pitch, level, key mode (ONESHOT, KEY, THRU, LOOP), attack, release, choke group and tempo. A kit can mix takes.
+- **The same grid as the drums:** one line per pad. Everything you learn on T1 works on T2: steps, accents, repeats, mutes, fill, P-Lock.
+- **The take builds the kit:** when a take is saved with the kit empty, it is cut on the hits and the grid is written so it plays like the take. TAKES builds other kits or puts a whole take on one pad.
+- **The generator stays as BREAK:** a separate page, off by default, that varies the grid bar by bar. The PLAYS row shows exactly what is going to play and CAPT writes it into the grid.
+- **The waveform as on a sampler:** mirrored and big, in the style of X0X, with the peak in a dark shade and the RMS on top.
 
 ## Recorder
 
-Recording, saving and slicing are three screens, one job each:
+Recording, saving and building the kit are separate steps:
 
-1. **RECORD:** a big number with the seconds left, which is the smaller of the recording RAM (3 s) and the free take memory. Marks show how many bars fit.
-2. **TAKES:** a library of recordings with their BPM and bars. Factory loops do not use memory.
-3. **SLICE:** later, calmly. White keys place cuts on eighth notes, black key 9 places them on the hits and black key 10 spreads them evenly.
+1. **RECORD:** a big number with the seconds left, which is the smaller of the recording RAM (3 s) and the free take memory. Marks show how many bars fit. White keys play the new take.
+2. **TAKES:** a library of recordings with their BPM, bars and waveform. Kits come from here.
+3. **PADS:** later, calmly, each pad on its take's waveform.
 
 A take stays unsaved until you stop the transport, because writing the flash pauses the audio.
 
@@ -97,4 +96,5 @@ A take stays unsaved until you stop the transport, because writing the flash pau
 - **Entry box timing:** 400 ms by default; changed in GLO or SISTEMA (0, 250, 400, 800 ms or OFF). *Resolved in 0.3.0.*
 - **Take library:** the 128 KiB of samples became a free-length take library (format 3). *Resolved in 0.3.0.*
 - **Pattern banks:** the flash stores 16 patterns; more banks need a bigger flash map or smaller patterns. *Open:* in 0.3, PRESETS on HOME walks the 16.
+- **From a sliced loop to pads:** SLICER, CORTAR and then CORTES tried to edit a loop's cuts; none was easy to follow on the device next to the generator. The sampler became a pad sampler (above). *Resolved in 0.5.0-beta.*
 - **Ghost notes on drums:** each step's byte is full; it needs a level P-Lock or a bigger format. *Open:* notes already have three levels.

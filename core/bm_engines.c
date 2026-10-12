@@ -144,7 +144,7 @@ static int32_t soft(int32_t x, int32_t knee)                /* saturación suave
 /* ------------------------------------------------------------ ACID: monofónico estilo 303
  * Sierra o cuadrada, filtro escalera de 4 polos con resonancia y saturación, envolvente de filtro
  * corta, acento (abre más el filtro y suena más fuerte) y slide con LIGA. */
-const char *const bm_acid_names[2] = {"SIERRA", "CUADRADA"};
+const char *const bm_acid_names[2] = {"SAW", "SQUARE"};
 
 static void acid_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
@@ -314,99 +314,139 @@ static void drum_init(bm_engine *e) { common_init(e); }
 
 const bm_engine_vt bm_eng_drum = {drum_init, drum_note_on, drum_note_off, common_set_macro, drum_process, drum_voice_start};
 
-/* ------------------------------------------------------------ T2: sampler de loops en slices
- * La nota lleva el slice (bits 0-2), la fuente (bits 3-4: 0 A, 1 B, 2 escucha), reversa (bit 5)
- * y media velocidad (bit 6). El loop sigue el tempo: suena a BPM / BPM del loop, más PITCH. */
-static void slice_bounds(const bm_smp_src *m, int i, uint32_t *s, uint32_t *e)
-{
-    if (m->nmarks == 0) {
-        *s = m->len * (uint32_t)i / BM_SLICES;
-        *e = m->len * (uint32_t)(i + 1) / BM_SLICES;
-    } else {
-        *s = m->marks[i];
-        *e = (i + 1 < m->nmarks) ? m->marks[i + 1] : m->len;
-    }
-}
-
+/* ------------------------------------------------------------ T2: sampler de pads
+ * Cada pad (bm_pad) es un trozo de una toma: len muestras desde start. La nota es el pad (0..15)
+ * más BRK_REV y BRK_HALF (negras en vivo y BREAK). Las 4 macros del canal admiten P-Lock por
+ * paso: FILTER (pasa-bajos), PITCH (64 = 0, +-12 st), DECAY (127 = nada) y START (corre el inicio).
+ * Lo dispara el secuenciador (cada modo con la compuerta de un paso) o una tecla sostenida
+ * (bm_pad_key): ONESHOT suena entero, KEY mientras se sostiene, THRU sigue por el resto de la
+ * toma y LOOP repite el pad. */
 static int32_t smp_at(const bm_smp_src *m, int32_t i)
 {
     if (i < 0 || (uint32_t)i >= m->len) return 0;
     return (int32_t)m->data[i] << 8;
 }
 
-uint32_t bm_brk_rate(const bm_ctx *c, const bm_smp_src *m)
+const bm_smp_src *bm_smp_take(const bm_ctx *c, int src)
 {
-    uint32_t r = bm_semi_ratio[bm_clampi(c->pat->trk[1].pitch, 0, 48)];
-    if (m->bpm_x10) r = (uint32_t)(((uint64_t)r * c->pat->meta.bpm_x10) / m->bpm_x10);
+    if (src >= 0 && src < BM_TAKES) return &c->takes[src];
+    if (src == BM_TAKE_NEW) return &c->smp[0];
+    return NULL;
+}
+
+/* velocidad de lectura de un pad, Q16 (con el PITCH del canal y, si sigue el tempo, el BPM) */
+static uint32_t pad_rate(const bm_ctx *c, const bm_pad *p, const bm_smp_src *m, int pitch_macro)
+{
+    int semis = (int)p->pitch - 24 + (pitch_macro - 64) * 12 / 63;
+    uint32_t r = bm_semi_ratio[bm_clampi(semis + 24, 0, 48)];
+    if ((p->flags & PAD_TEMPO) && m->bpm_x10) r = (uint32_t)(((uint64_t)r * c->pat->meta.bpm_x10) / m->bpm_x10);
     return r;
 }
 
-static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
+static void pad_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
-    (void)legato;
     bm_ctx *c = e->ctx;
-    int sl = note & BRK_SL_MASK, src = (note >> BRK_SRC_SH) & 3;
-    if (src > 2) src = 0;
-    const bm_smp_src *m = &c->smp[src];
-    uint32_t s, en;
-    slice_bounds(m, sl, &s, &en);
-    if (en <= s) { v->active = 0; return; }
+    int pi = note & 15, prev = (legato & 2) != 0, held = legato & 1;
+    const bm_pad *p = prev ? &c->preview_pad : &c->pat->pad[pi];
+    const bm_smp_src *m = bm_smp_take(c, p->src);
+    const bm_track *t = &c->pat->trk[1];
+    if (!m || !m->data || !p->len || p->start >= m->len) { v->active = 0; return; }
     memcpy(v->lk, lk, 4);
-    v->active = 1; v->track = 1; v->note = (uint8_t)sl; v->vel = vel;
-    v->stage = ENV_DEC; v->gate = 1; v->fade = 0; v->pend = 0; v->age = ++c->age;
-    v->sound = (uint8_t)sl; v->src = (uint8_t)src; v->dir = (note & BRK_REV) ? 1 : 0; v->loopv = 0;
+    v->active = 1; v->track = 1; v->note = (uint8_t)pi; v->sound = prev ? 0xFF : (uint8_t)pi; v->vel = vel;
+    v->fade = 0; v->pend = 0; v->age = ++c->age;
+    uint32_t s = p->start, len = p->len;
+    if (len > m->len - s) len = m->len - s;
+    uint32_t off = (uint32_t)((uint64_t)len * eff(v, t, 3) * 9u / (127u * 10u));   /* START */
+    s += off; len -= off;
+    v->src = p->src; v->start = s; v->end = s + len;
+    v->ic2 = (int32_t)len;                                 /* el largo del pad (THRU vuelve a él al soltar) */
+    v->dir = (uint8_t)(((p->flags & PAD_REV) != 0) ^ ((note & BRK_REV) != 0));
     v->gain = m->gain ? m->gain : 64;
-    uint32_t ratio = bm_brk_rate(c, m);
+    v->ph[0] = prev ? 100u : c->pat->tr[1].lane[pi].level;
+    v->choke = prev ? 0 : (c->pat->tr[1].lane[pi].choke & 3);
+    uint32_t ratio = pad_rate(c, p, m, eff(v, t, 1));
     if (note & BRK_HALF) ratio >>= 1;
     v->step = (uint32_t)(((uint64_t)c->smp_base_inc * ratio) >> 16);
-    v->start = s; v->end = en;
-    v->pos = (en - s) * (uint32_t)c->brk_next_off;          /* Q16: dentro del slice */
-    c->brk_next_off = 0;
-    v->env = 1 << 30; v->lp = 0;
+    v->pos = 0; v->lp = 0;
+    v->loopv = p->mode;
+    v->gate = (uint8_t)held;
+    /* el secuenciador abre la compuerta un paso (KEY y LOOP); la tecla, hasta que se suelta */
+    v->phase = held || (p->mode != PAD_KEY && p->mode != PAD_LOOP) ? 0u : bm_ticks_to_samples(c, (uint32_t)bm_track_tps(c, 1));
+    if (held && p->mode == PAD_THRU) { if (v->dir) v->start = 0; else v->end = m->len; }
+    uint32_t att = bm_attack_ms(p->attack) * (BM_FS / 1000u);
+    v->inc = att ? (1u << 30) / att : 0;
+    v->env = att ? 0 : 1 << 30;
+    v->stage = att ? ENV_ATK : ENV_SUS;
+    v->inc_target = bm_decay_coef[bm_clampi(p->release, 0, 127)];
 }
 
-static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel)
+/* soltar: KEY y LOOP se apagan con su release; THRU termina el pad si todavía está en él */
+static void pad_release(bm_voice *v)
+{
+    v->gate = 0; v->phase = 0;
+    if (v->loopv == PAD_THRU) {
+        uint32_t span = (uint32_t)v->ic2;
+        if ((v->pos >> 16) < span) { if (v->dir) v->start = v->end - span; else v->end = v->start + span; }
+        else v->stage = ENV_REL;
+    } else if (v->loopv == PAD_KEY || v->loopv == PAD_LOOP) v->stage = ENV_REL;
+}
+
+static void pad_trigger(bm_engine *e, uint8_t note, uint8_t vel, uint8_t legato)
 {
     bm_ctx *c = e->ctx;
+    int pi = note & 15, prev = (legato & 2) != 0;
+    const bm_pad *p = prev ? &c->preview_pad : &c->pat->pad[pi];
     uint8_t lk[4];
     take_locks(e, lk);
     e->legato_next = 0;
-    int src = (note >> BRK_SRC_SH) & 3, sl = note & BRK_SL_MASK;
-    if (src > 2) return;
-    const bm_smp_src *m = &c->smp[src];
-    if (m->len == 0 || !m->data || c->smp_rec) { c->brk_next_off = 0; return; }
-    if (m->nmarks && sl >= m->nmarks) { c->brk_next_off = 0; return; }
-    for (int i = 0; i < BM_VOICES; i++)                    /* break: un slice corta al anterior */
-        if (c->voice[i].active && c->voice[i].track == 1) bm_voice_fade(&c->voice[i]);
-    c->brk_last = note; c->brk_last_off = c->brk_next_off; c->st.brk_slice = (int8_t)sl;
-    c->st.lane_trig[1] |= (uint16_t)(1u << sl);
-    bm_voice *v = bm_voice_get(c, 1, note, vel, lk, 0);
-    if (v) smp_voice_start(e, v, note, vel, lk, 0);
-    c->brk_next_off = 0;
+    if (c->smp_rec || !p->len || (p->src >= BM_TAKES && p->src != BM_TAKE_NEW)) return;   /* un pad vacío no suena */
+    int choke = prev ? 0 : (c->pat->tr[1].lane[pi].choke & 3);
+    for (int i = 0; i < BM_VOICES; i++) {                       /* el mismo pad o su grupo: se corta */
+        bm_voice *v = &c->voice[i];
+        if (!v->active || v->track != 1) continue;
+        if (v->sound == (prev ? 0xFF : pi) || (choke && v->choke == choke)) bm_voice_fade(v);
+    }
+    c->brk_last = note; c->st.brk_slice = (int8_t)pi;
+    if (!prev) c->st.lane_trig[1] |= (uint16_t)(1u << pi);
+    bm_voice *v = bm_voice_get(c, 1, note, vel, lk, legato);
+    if (v) pad_voice_start(e, v, note, vel, lk, legato);
 }
+
+static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel) { pad_trigger(e, note, vel, 0); }
 
 static void smp_note_off(bm_engine *e, uint8_t note) { (void)e; (void)note; }
 
-/* Paso sostenido: el loop A suena entero desde pos y vuelve a empezar, hasta que se suelta. */
-void bm_brk_hold(bm_ctx *c, uint32_t pos)
+/* Tecla de un pad (on = 1) o soltarla (on = 0). */
+void bm_pad_key(bm_ctx *c, int pad, uint8_t vel, int on)
 {
-    const bm_smp_src *m = &c->smp[0];
-    if (!m->len || !m->data || c->smp_rec) return;
-    for (int i = 0; i < BM_VOICES; i++)
-        if (c->voice[i].active && c->voice[i].track == 1) bm_voice_fade(&c->voice[i]);
-    uint8_t lk[4] = {BM_LOCK_NONE, BM_LOCK_NONE, BM_LOCK_NONE, BM_LOCK_NONE};
-    bm_voice *v = NULL;
-    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N && !v; i++) if (!c->voice[i].active && !c->voice[i].pend) v = &c->voice[i];
-    if (!v) v = bm_voice_get(c, 1, 0, 110, lk, 0);
-    if (!v) return;
-    memcpy(v->lk, lk, 4);
-    v->active = 1; v->track = 1; v->note = 0; v->vel = 110; v->stage = ENV_DEC; v->gate = 1;
-    v->fade = 0; v->pend = 0; v->age = ++c->age; v->sound = 0; v->src = 0; v->dir = 0; v->loopv = 1;
-    v->gain = m->gain ? m->gain : 64;
-    v->step = (uint32_t)(((uint64_t)c->smp_base_inc * bm_brk_rate(c, m)) >> 16);
-    v->start = 0; v->end = m->len;
-    v->pos = (pos < m->len ? pos : 0) << 16;
-    v->env = 1 << 30; v->lp = 0;
+    if (pad < 0 || pad > 15) return;
+    if (!on) {
+        for (int i = 0; i < BM_VOICES; i++) {
+            bm_voice *v = &c->voice[i];
+            if (v->active && v->track == 1 && v->gate && v->sound == pad) pad_release(v);
+        }
+        return;
+    }
+    uint8_t note = (uint8_t)pad;
+    if (c->brk_live & 1) note |= BRK_REV;
+    if (c->brk_live & 2) note |= BRK_HALF;
+    pad_trigger(&c->eng[1], note, vel, 1);
+}
+
+/* Escuchar un trozo de una toma (TAKES, grabadora): sostenido sigue, como un pad THRU. */
+void bm_smp_preview(bm_ctx *c, int src, uint32_t start, uint32_t len, int on)
+{
+    if (!on) {
+        for (int i = 0; i < BM_VOICES; i++) {
+            bm_voice *v = &c->voice[i];
+            if (v->active && v->track == 1 && v->gate && v->sound == 0xFF) pad_release(v);
+        }
+        return;
+    }
+    bm_pad_clear(&c->preview_pad);
+    c->preview_pad.src = (uint8_t)src; c->preview_pad.mode = PAD_THRU;
+    c->preview_pad.start = (uint16_t)start; c->preview_pad.len = (uint16_t)len;
+    pad_trigger(&c->eng[1], 0, 110, 1 | 2);
 }
 
 static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
@@ -414,44 +454,60 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[1];
     bool any = false;
+    int8_t ps = -1;
+    uint32_t pp = 0, page = 0;
     for (int vi = 0; vi < BM_VOICES; vi++) {
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != 1) continue;
         any = true;
-        const bm_smp_src *m = &c->smp[v->src % 3];
-        if (!m->data) { v->active = 0; continue; }
+        const bm_smp_src *m = bm_smp_take(c, v->src);
+        if (!m || !m->data) { v->active = 0; continue; }
+        if (!v->fade && v->age >= page) {                       /* el cabezal: la voz más nueva */
+            uint32_t off = v->pos >> 16, span = v->end - v->start;
+            if (off >= span) off = span ? span - 1 : 0;
+            ps = (int8_t)v->src; page = v->age;
+            pp = v->dir ? v->end - 1 - off : v->start + off;
+        }
         int32_t a = bm_onepole_a[eff(v, t, 0)];
-        uint32_t coef = bm_decay_coef[eff(v, t, 2)];
+        int dec = eff(v, t, 2);
+        uint32_t coef = bm_decay_coef[dec];
         bool herm = t->interp != 0;
-        uint32_t span = v->end - v->start;
         for (uint16_t i = 0; i < frames && v->active; i++) {
-            uint32_t off = v->pos >> 16;
-            if (off >= span && v->loopv) { v->pos -= span << 16; off = v->pos >> 16; }   /* vuelve al principio */
-            if (off >= span) { v->active = 0; v->pend = 0; break; }
+            uint32_t span = v->end - v->start, off = v->pos >> 16;
+            if (off >= span) {
+                if (v->loopv == PAD_LOOP && (v->gate || v->phase) && v->stage != ENV_REL) { v->pos -= span << 16; off = v->pos >> 16; }
+                else { v->active = 0; v->pend = 0; break; }
+            }
             int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
-            int32_t s, dn = v->dir ? -1 : 1;                   /* dn: hacia dónde avanza la lectura */
+            int32_t s, dn = v->dir ? -1 : 1;
             if (herm) s = hermite(smp_at(m, idx - dn), smp_at(m, idx), smp_at(m, idx + dn), smp_at(m, idx + 2 * dn), v->pos & 0xFFFF);
             else s = lerp15(smp_at(m, idx), smp_at(m, idx + dn), v->pos & 0xFFFF);
             v->lp += ((s - v->lp) * a) >> 15;
-            if (!v->loopv) v->env = (int32_t)(((int64_t)v->env * coef) >> 30);
+            switch (v->stage) {
+            case ENV_ATK: v->env += (int32_t)v->inc; if (v->env >= (1 << 30)) { v->env = 1 << 30; v->stage = ENV_SUS; } break;
+            case ENV_REL: v->env = (int32_t)(((int64_t)v->env * v->inc_target) >> 30); break;
+            default: if (dec < 127) v->env = (int32_t)(((int64_t)v->env * coef) >> 30); break;
+            }
+            if (v->phase && --v->phase == 0) pad_release(v);    /* la compuerta del paso se cerró */
             int32_t out = (int32_t)(((int64_t)v->lp * (v->env >> 14)) >> 16);
             out = ((out * v->vel) >> 7) * v->gain >> 6;
-            /* micro-fade de salida al final del slice para que no haga click */
-            uint32_t left = span - off;
-            if (left < AT22(64) && !v->loopv) out = out * (int32_t)left / (int32_t)AT22(64);
+            out = out * (int32_t)v->ph[0] / 100;
+            uint32_t left = span - off;                          /* micro-fade al final para que no haga click */
+            if (left < AT22(64) && v->loopv != PAD_LOOP) out = out * (int32_t)left / (int32_t)AT22(64);
             int fading = v->fade != 0;
             buf[i] += voice_fade_step(c, v, out);
             if (fading && v->fade == 0) break;     /* la voz cambió de dueño o terminó */
             v->pos += v->step;
-            if (v->env < (1 << 14)) { v->active = 0; v->pend = 0; }
+            if (v->env < (1 << 14) && v->stage != ENV_ATK) { v->active = 0; v->pend = 0; }
         }
     }
+    c->st.smp_pos = pp; c->st.smp_pos_src = ps;
     return any;
 }
 
 static void smp_init(bm_engine *e) { common_init(e); }
 
-const bm_engine_vt bm_eng_sampler = {smp_init, smp_note_on, smp_note_off, common_set_macro, smp_process, smp_voice_start};
+const bm_engine_vt bm_eng_sampler = {smp_init, smp_note_on, smp_note_off, common_set_macro, smp_process, pad_voice_start};
 
 /* ------------------------------------------------------------ MIDI: notas hacia afuera */
 static void midi_send(bm_ctx *c, uint8_t a, uint8_t b, uint8_t d)

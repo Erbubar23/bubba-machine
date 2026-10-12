@@ -87,6 +87,17 @@ Para probar con tu propio audio, crea <code>assets/loops/loops.local.json</code>
 </li></ul>
 <pre><code>py -3 tools/gen_loops.py --local</code></pre>
 <p><strong>Un build hecho con <code>--local</code> no se puede publicar</strong>: ni <code>web/bm.js</code> ni binarios. Antes de subir cambios, vuelve a generar sin <code>--local</code>.</p>
+<h2 id="idiomas-de-la-pantalla">Idiomas de la pantalla</h2>
+<p>El firmware habla inglés. Cada idioma es un paquete (<code>.bmlang</code>) en su propia zona de la flash; el formato está en <code>core/bm_lang.h</code>.</p>
+<ul><li>
+<strong>Al dibujar se traduce:</strong> <code>gfx_text</code> y <code>gfx_small</code> buscan cada frase en el paquete activo (por el hash de la frase en inglés). Con el inglés activo no cuesta nada.
+</li><li>
+<strong>Formatos:</strong> lo que pasa por <code>snprintf</code> se marca con <code>TF(&quot;...&quot;)</code> (si la traducción no tiene los mismos <code>%</code>, se usa el inglés) y las palabras que se pegan con <code>%s</code> van en <code>T(...)</code>.
+</li><li>
+<code>py -3 tools/gen_lang.py</code> junta las frases de <code>core/</code> en <code>lang/plantilla.txt</code>, revisa <code>lang/&lt;codigo&gt;.txt</code> (solo ASCII, los mismos <code>%</code>, frases que existen) y arma <code>lang/&lt;codigo&gt;.bmlang</code> y <code>web/lang/</code> (para el emulador). <code>build.py test</code> y <code>build.py web</code> lo corren solos. <code>lang/ignorar.txt</code> lista las cadenas del código que no son de pantalla.
+</li><li>
+En el FM-1 se carga con <code>py -3 tools/fm1/idioma.py lang/es.bmlang</code> (orden <code>0x21</code> de la consola).
+</li></ul>
 <h2 id="el-sitio">El sitio</h2>
 <ul><li>
 <code>web/index.html</code> es la portada en español, <code>web/en/index.html</code> la de inglés y <code>web/emulador.html</code> el emulador (en los dos idiomas: <code>?lang=es</code> o <code>?lang=en</code>).
@@ -111,7 +122,7 @@ Cada versión pública es una etiqueta <code>vX.Y.Z</code> con su código fuente
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.4.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

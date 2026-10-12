@@ -365,19 +365,19 @@ static void draw_seq_brk(bm_gfx *g, const bm_app *a)
     int nsl = m->nmarks ? m->nmarks : BM_SLICES;
     if (gfx_strip_hit(g, PY + 11, 40)) {
         for (int i = 0; i < BM_SLICES; i++) {
-            int x = 2 + i * 30, y = PY + 11;
-            if (i >= nsl) { gfx_rect(g, x, y, 28, 38, C_DDGREY); continue; }
+            int x = i * 15, y = PY + 11;
+            if (i >= nsl) { gfx_rect(g, x, y, 14, 38, C_DDGREY); continue; }
             bool cur = st->brk_slice == i && (st->playing || a->now < a->lane_flash[1][i]);
             bool fl = a->now < a->lane_flash[1][i];
-            gfx_fill(g, x, y, 28, 38, cur ? col : (fl ? dim(col) : C_DDGREY));
+            gfx_fill(g, x, y, 14, 38, cur ? col : (fl ? dim(col) : C_DDGREY));
             for (int k = 0; k < 5; k++) {
                 int h = a->slice_e[i][k] * 22 / 255;
-                gfx_fill(g, x + 3 + k * 5, y + 26 - h, 4, h ? h : 1, cur ? C_BLACK : C_GREY);
+                gfx_fill(g, x + 2 + k * 2, y + 26 - h, 2, h ? h : 1, cur ? C_BLACK : C_GREY);
             }
             snprintf(b, sizeof b, "%d", i + 1);
-            gfx_small(g, x + 3, y + 30, b, cur ? C_BLACK : C_WHITE);
+            gfx_small(g, x + 7 - gfx_small_w(b) / 2, y + 30, b, cur ? C_BLACK : C_WHITE);
             const char *tag = m->kslice == i ? "K" : m->sslice == i ? "S" : "";
-            if (tag[0]) gfx_small(g, x + 21, y + 30, tag, cur ? C_BLACK : C_YELLOW);
+            if (tag[0]) gfx_fill(g, x + 5, y + 1, 4, 2, cur ? C_BLACK : C_YELLOW);
         }
     }
     /* fila TU: hueco = el generador elige, lleno = fijo; fila SUENA: lo que eligió */
@@ -893,6 +893,59 @@ static void draw_editor(bm_gfx *g, const bm_app *a)
     }
     hint_s(g, PY + 130, tr ? "SELECT = PAGINA - NEGRAS 1-8 + 9 = INSTRUMENTO" : "SELECT = PAGINA - EDIT = SIGUIENTE");
     hint_s(g, PY + 138, tr ? "EDIT = SIGUIENTE PAGINA - BLANCAS = TOCAR" : "ENV = ENVOLVENTES - LFO = LFO - TECLAS = TOCAR");
+}
+
+/* SLICER: el loop A en 16 cortes, uno por blanca. Arriba la onda con los cortes; abajo una
+ * casilla por blanca (la misma posición que la tecla): tocarla hace sonar ese corte. */
+static void draw_slicer(bm_gfx *g, const bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    const bm_smp_src *m = &a->ctx.smp[0];
+    uint16_t col = bm_track_color(1);
+    char b[32];
+    int n = m->nmarks ? m->nmarks : BM_SLICES;
+    if (gfx_strip_hit(g, PY, 9)) {
+        char nm[16];
+        if (st->smp_unsaved) snprintf(nm, sizeof nm, "TOMA NUEVA");
+        else bm_app_src_name(a, a->pat.trk[1].source, nm, sizeof nm);
+        snprintf(b, sizeof b, "LOOP A %s", nm);
+        gfx_text(g, 4, PY, b, C_WHITE, 1);
+        snprintf(b, sizeof b, "%d CORTES", n);
+        gfx_text_r(g, 236, PY, b, C_GREY, 1);
+    }
+    int y = PY + 12, h = 70;
+    uint32_t len = m->len ? m->len : 1;
+    int sel = a->cut_sel % n;
+    uint32_t s0 = m->nmarks ? m->marks[sel] : len * (uint32_t)sel / BM_SLICES;
+    uint32_t s1 = sel + 1 < n ? (m->nmarks ? m->marks[sel + 1] : len * (uint32_t)(sel + 1) / BM_SLICES) : len;
+    if (gfx_strip_hit(g, y, h + 2)) {
+        gfx_rect(g, 4, y, 232, h, C_DGREY);
+        if (m->len) {
+            int c0 = (int)((uint64_t)s0 * 232u / len), c1 = (int)((uint64_t)s1 * 232u / len);
+            draw_bands(g, a->wave, 4, y, 232, h, 0, 232, (uint16_t)c0, (uint16_t)c1);
+            for (int i = 1; i < n; i++) {
+                uint32_t pos = m->nmarks ? m->marks[i] : len * (uint32_t)i / BM_SLICES;
+                int x = 5 + (int)((uint64_t)pos * 229u / len);
+                gfx_vline(g, x, y + 1, h - 2, i == sel || i == sel + 1 ? C_YELLOW : C_GREY);
+            }
+        } else gfx_text_c(g, 120, y + 30, "SIN LOOP: GRABA (REC) O SUBE UNA TOMA", C_GREY, 1);
+    }
+    /* una casilla por blanca */
+    int cy = y + h + 6;
+    if (gfx_strip_hit(g, cy, 22)) {
+        for (int i = 0; i < BM_SLICES; i++) {
+            int x = i * 15;
+            if (i >= n) { gfx_rect(g, x, cy, 14, 20, C_DDGREY); continue; }
+            bool play = st->brk_slice == i && (st->playing || a->now < a->lane_flash[1][i]);
+            gfx_fill(g, x, cy, 14, 20, play ? col : C_DDGREY);
+            if (i == sel) gfx_rect(g, x, cy, 14, 20, C_YELLOW);
+            snprintf(b, sizeof b, "%d", i + 1);
+            gfx_small(g, x + 7 - gfx_small_w(b) / 2, cy + 8, b, play ? C_BLACK : C_WHITE);
+        }
+    }
+    hint_s(g, cy + 26, "BLANCA = TOCA EL CORTE - REC + PLAY = LO GRABA EN EL PASO");
+    snprintf(b, sizeof b, "K1 ELIGE K2 MUEVE K3 SENS %d%% K4 GAN", a->slice_sens * 100 / 127);
+    hint_s(g, cy + 34, b);
 }
 
 static void draw_sound(bm_gfx *g, const bm_app *a)
@@ -1684,6 +1737,7 @@ static void draw_channel(bm_gfx *g, const bm_app *a)
     case PG_LFO: draw_lfo(g, a); break;
     case PG_REC: draw_rec(g, a); break;
     case PG_CUT: draw_cut(g, a); break;
+    case PG_SLICE: draw_slicer(g, a); break;
     default: break;
     }
     draw_keystrip(g, a, 183, 6, 9, 0);

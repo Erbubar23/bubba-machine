@@ -38,6 +38,9 @@ int  bm_takes_write(const bm_flash_ops *f, bm_map_fn map, void *mu, bm_take tk[B
 /* Reescribe la cabecera (cortes, BPM, compases, ganancia). scratch: 4 KiB prestados. */
 int  bm_takes_update(const bm_flash_ops *f, bm_take *t, uint8_t *scratch);
 int  bm_takes_erase(const bm_flash_ops *f, bm_take *t);
+/* Cortes en los ataques (golpes o sílabas). min_gap: muestras mínimas entre cortes; sens 0..127.
+ * Devuelve cuántos (el primero siempre 0), ordenados. */
+int  bm_slice_onsets(const int8_t *d, uint32_t len, uint32_t min_gap, int sens, uint32_t out[BM_SLICES]);
 /* Borra toda la zona (al pasar de 0.2 a 0.3). */
 int  bm_takes_format(const bm_flash_ops *f);
 

@@ -161,6 +161,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a) && k->b < BM_LANES && k->c < BM_STEPS) {
             bm_tr *tr = bm_trk_tr(c->pat, k->a);
             uint8_t v = (uint8_t)k->u.i;
+            if (k->a == 1 && k->b == BRK_FIXSL) { tr->st[k->b][k->c] = v & 15; break; }   /* el número de slice, tal cual */
             if (!(v & ST_ON)) { bm_tr_lock_clear_step(tr, k->c, k->b); v = 0; }
             else v = (uint8_t)((v & ~ST_LOCK) | (tr->st[k->b][k->c] & ST_LOCK));
             tr->st[k->b][k->c] = v;
@@ -275,7 +276,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         c->brk_live = (uint8_t)((k->a & 7) | (c->brk_live & 8));
         break;
     case CMD_BRK_SLICE:
-        bm_live_note(c, 1, (uint8_t)((k->a & 7) | ((k->c & 3) << BRK_SRC_SH)), k->b ? k->b : 110, 1);
+        bm_live_note(c, 1, (uint8_t)((k->a & BRK_SL_MASK) | ((k->c & 3) << BRK_SRC_SH)), k->b ? k->b : 110, 1);
         break;
     case CMD_ENGINE:
         if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b)) {

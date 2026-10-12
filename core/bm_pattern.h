@@ -56,8 +56,12 @@ typedef struct {
     bm_lock lk[BM_LANE_LOCKS];
 } bm_tr;
 
-/* Sampler: línea 0 = el generador elige; líneas 1..8 = ese slice, fijo. */
+/* Sampler: línea 0 = el generador elige; línea 1 = paso fijo (bits de paso) y línea 2 = qué slice
+ * (0..15) suena en ese paso fijo. */
 #define BRK_GEN     0
+#define BRK_FIX     1
+#define BRK_FIXSL   2
+#define BRK_LANES   3
 
 /* ------------------------------------------------------------ loopera de los canales de notas */
 typedef struct { uint16_t tick; uint8_t note, vel; } bm_loopev;   /* vel 0 = note off */

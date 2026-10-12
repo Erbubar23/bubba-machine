@@ -33,7 +33,7 @@ typedef enum {
 /* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
 typedef enum {
     PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_RETRIG, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
-    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_CUT, PG_COUNT
+    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_CUT, PG_SLICE, PG_COUNT
 } bm_page;
 
 /* Capas en vivo (mantener un botón). */
@@ -97,6 +97,7 @@ typedef struct bm_app {
     uint8_t wave_cut[3][232];     /* la toma que se está cortando */
     uint8_t slice_e[BM_SLICES][5];/* energía de cada slice del loop A (barras de SEQ) */
     uint8_t wave_was_rec, take_dirty, takes_row, cut_take, cut_sel, cut_snap, cut_zoom;
+    uint8_t slice_sens;           /* SLICER: sensibilidad de los cortes en los golpes (0..127) */
     uint8_t sent_src[2], src_dirty, wave_src;
 
     /* portapapeles, undo y redo (un canal) */

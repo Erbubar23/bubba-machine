@@ -3,9 +3,10 @@
 /* Bubba Machine — biblioteca de tomas en flash. */
 #include <string.h>
 #include "bm_takes.h"
+#include <math.h>
 #include "bm_util.h"
 
-#define TAKE_MAGIC 0x33544D42u   /* "BMT3" */
+#define TAKE_MAGIC 0x34544D42u   /* "BMT4": 16 cortes (las de "BMT3" ya no se leen) */
 
 static void put32(uint8_t *b, uint32_t v) { b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); b[2] = (uint8_t)(v >> 16); b[3] = (uint8_t)(v >> 24); }
 static uint32_t get32(const uint8_t *b) { return (uint32_t)b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24; }
@@ -13,7 +14,8 @@ static uint32_t get32(const uint8_t *b) { return (uint32_t)b[0] | (uint32_t)b[1]
 static uint32_t sec_addr(int s) { return BM_TAKE_LO + (uint32_t)s * BM_SECTOR; }
 static int sectors_for(uint32_t len) { return (int)((BM_TAKE_HDR + len + BM_SECTOR - 1) / BM_SECTOR); }
 
-/* cabecera: magic 4 | id 1 | nmarks 1 | gain 1 | bars 1 | bpm 2 | rsv 2 | len 4 | marks 8x4 | crc 4 | relleno */
+/* cabecera: magic 4 | id 1 | nmarks 1 | gain 1 | bars 1 | bpm 2 | rsv 2 | len 4 | marks 16x4 | crc 4 | relleno */
+#define HDR_CRC (16 + 4 * BM_SLICES)
 static void make_hdr(uint8_t h[BM_TAKE_HDR], const bm_take *t, uint32_t crc)
 {
     memset(h, 0xFF, BM_TAKE_HDR);
@@ -22,7 +24,7 @@ static void make_hdr(uint8_t h[BM_TAKE_HDR], const bm_take *t, uint32_t crc)
     h[8] = (uint8_t)t->bpm_x10; h[9] = (uint8_t)(t->bpm_x10 >> 8); h[10] = 0; h[11] = 0;
     put32(h + 12, t->len);
     for (int i = 0; i < BM_SLICES; i++) put32(h + 16 + 4 * i, i < t->nmarks ? t->marks[i] : 0);
-    put32(h + 48, crc);
+    put32(h + HDR_CRC, crc);
 }
 
 static int program_span(const bm_flash_ops *f, uint32_t a, const uint8_t *src, uint32_t n)
@@ -38,7 +40,7 @@ static int program_span(const bm_flash_ops *f, uint32_t a, const uint8_t *src, u
 
 static int read_take(const bm_flash_ops *f, bm_map_fn map, void *mu, int sec, bm_take *t)
 {
-    uint8_t h[64];
+    uint8_t h[HDR_CRC + 4];
     memset(t, 0, sizeof *t);
     if (f->read(sec_addr(sec), h, sizeof h)) return -1;
     uint32_t len = get32(h + 12);
@@ -46,7 +48,7 @@ static int read_take(const bm_flash_ops *f, bm_map_fn map, void *mu, int sec, bm
     int ns = sectors_for(len);
     if (sec + ns > (int)BM_TAKE_SECTORS) return -1;
     const uint8_t *d = map ? map(mu, sec_addr(sec) + BM_TAKE_HDR) : NULL;
-    if (!d || bm_crc32(0, d, len) != get32(h + 48)) return -1;
+    if (!d || bm_crc32(0, d, len) != get32(h + HDR_CRC)) return -1;
     t->valid = 1; t->id = h[4]; t->nmarks = h[5]; t->gain = h[6] ? h[6] : 64; t->bars = h[7];
     t->bpm_x10 = (uint16_t)(h[8] | h[9] << 8);
     if (t->bpm_x10 < 400 || t->bpm_x10 > 2400) t->bpm_x10 = 0;
@@ -143,7 +145,7 @@ int bm_takes_update(const bm_flash_ops *f, bm_take *t, uint8_t *scratch)
     uint32_t a = sec_addr(t->sector);
     if (f->read(a, scratch, BM_SECTOR)) return -1;
     if (get32(scratch) != TAKE_MAGIC) return -1;
-    uint32_t crc = get32(scratch + 48);
+    uint32_t crc = get32(scratch + HDR_CRC);
     uint8_t h[BM_TAKE_HDR];
     make_hdr(h, t, crc);
     if (f->erase(a)) return -1;
@@ -163,4 +165,56 @@ int bm_takes_format(const bm_flash_ops *f)
 {
     for (int s = 0; s < (int)BM_TAKE_SECTORS; s++) if (f->erase(sec_addr(s))) return -1;
     return 0;
+}
+
+/* Cortes en los ataques, pensado también para voces: energía y energía de la derivada (las
+ * consonantes y los golpes) en ventanas de 16 ms cada 4 ms; un corte donde la energía salta
+ * respecto de los 16 ms anteriores y supera un umbral que baja con la sensibilidad. Queda un poco
+ * antes del ataque y en un cruce por cero, para que el corte no haga click. */
+int bm_slice_onsets(const int8_t *d, uint32_t len, uint32_t min_gap, int sens, uint32_t out[BM_SLICES])
+{
+    enum { HOP = 64, WIN = 256, MAXF = 1024 };
+    static float on[MAXF];
+    int nf = (int)((len > WIN ? len - WIN : 0) / HOP);
+    if (nf > MAXF) nf = MAXF;
+    float prev[4] = {0, 0, 0, 0};
+    double sum = 0, sum2 = 0;
+    for (int f = 0; f < nf; f++) {
+        const int8_t *x = d + (uint32_t)f * HOP;
+        float e = 0, h = 0;
+        for (int i = 0; i < WIN; i++) {
+            float v = x[i], dv = i ? (float)(x[i] - x[i - 1]) : 0.0f;
+            e += v * v; h += dv * dv;
+        }
+        float lv = logf(1.0f + e + 0.5f * h);
+        float ref = (prev[0] + prev[1] + prev[2] + prev[3]) * 0.25f;
+        float o = lv - ref;
+        on[f] = o > 0.0f && f >= 4 ? o : 0.0f;
+        prev[f & 3] = lv;
+        sum += on[f]; sum2 += (double)on[f] * on[f];
+    }
+    int n = 0;
+    out[n++] = 0;
+    if (nf < 8) return n;
+    float mean = (float)(sum / nf), sd = sqrtf((float)(sum2 / nf) - mean * mean);
+    float thr = mean + sd * (2.4f - 2.0f * (float)bm_clampi(sens, 0, 127) / 127.0f);
+    int gapf = (int)(min_gap / HOP);
+    if (gapf < 2) gapf = 2;
+    /* los picos más fuertes primero, separados por al menos min_gap */
+    static uint8_t used[MAXF];
+    memset(used, 0, sizeof used);
+    while (n < BM_SLICES) {
+        int best = -1;
+        for (int f = 4; f < nf; f++) if (!used[f] && on[f] > thr && (best < 0 || on[f] > on[best])) best = f;
+        if (best < 0) break;
+        for (int f = best - gapf; f <= best + gapf; f++) if (f >= 0 && f < nf) used[f] = 1;
+        int32_t pos = best * HOP + WIN / 2 - (int32_t)(BM_SMP_RATE * 6 / 1000);    /* 6 ms antes del ataque */
+        if (pos < (int32_t)min_gap / 2) continue;
+        uint32_t p = (uint32_t)pos, z = p;
+        for (uint32_t k = 0; k < BM_SMP_RATE / 500 && p >= k + 1; k++)          /* cruce por cero, hasta 2 ms antes */
+            if ((d[p - k] >= 0) != (d[p - k - 1] >= 0)) { z = p - k; break; }
+        out[n++] = z;
+    }
+    for (int i = 1; i < n; i++) for (int j = i; j > 1 && out[j] < out[j - 1]; j--) { uint32_t t = out[j]; out[j] = out[j - 1]; out[j - 1] = t; }
+    return n;
 }

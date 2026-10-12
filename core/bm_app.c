@@ -528,57 +528,85 @@ static void ev_set(bm_pattern *p, int t, int s, int k, int note, int vel, int le
     e->note = (uint8_t)note; e->vel = (uint8_t)vel; e->len = (uint8_t)len; e->prob = (uint8_t)prob;
 }
 
-static void demo_pattern(bm_pattern *p, bm_song *song)
+/* Patrón de pruebas: acid techno a 160 BPM en La menor. Batería 909, una línea 303 con acentos
+ * y slides, el sampler cortando la primera toma (si hay), un stab, una campana FM y un viento. */
+static void tr_on(bm_tr *d, int lane, const char *pat, uint8_t extra)
+{
+    for (int s = 0; pat[s] && s < BM_STEPS; s++)
+        if (pat[s] == 'x' || pat[s] == 'X') d->st[lane][s] = (uint8_t)(ST_ON | (pat[s] == 'X' ? ST_ACC : 0) | extra);
+}
+
+static void demo_pattern(bm_pattern *p, bm_song *song, uint8_t take)
 {
     bm_pattern_init(p);
-    p->meta.bpm_x10 = 1120; p->meta.swing = 56; p->meta.root = 9; p->meta.scale = 1;
-    p->meta.master = 4; p->meta.fill_every = 4; p->meta.chord_set = 1; p->meta.strum = 12;
+    p->meta.bpm_x10 = 1600; p->meta.swing = 50; p->meta.root = 9; p->meta.scale = 1;
+    p->meta.master = 4; p->meta.fill_every = 4; p->meta.chord_set = 0; p->meta.strum = 0;
+    p->meta.dly_time = 2; p->meta.dly_fb = 45; p->meta.dly_mix = 40;
+    /* T1: 909 */
     bm_tr *d = &p->tr[0];
-    for (int s = 0; s < 16; s += 4) d->st[0][s] = ST_ON;              /* bombo */
-    d->st[0][14] = ST_ON | (1 << ST_COND_SH);                           /* bombo extra solo en el fill */
-    d->st[4][4] = ST_ON; d->st[4][12] = ST_ON | ST_ACC;                 /* caja */
-    for (int s = 2; s < 16; s += 4) d->st[2][s] = ST_ON;                /* hat cerrado */
-    d->st[2][14] = ST_ON | (1 << ST_RAT_SH);                            /* con repetición x2 */
-    d->st[3][14] = ST_ON | (2 << ST_COND_SH);                           /* hat abierto, no en el fill */
-    d->st[5][12] = ST_ON | (1 << ST_COND_SH);                           /* clap solo en el fill */
-    d->st[6][7] = ST_ON | ST_FLAM;                                      /* rim con flam */
-    d->lane[12].len = 12;                                               /* shaker de 12 contra 16: polímetro */
-    for (int s = 0; s < 12; s += 3) d->st[12][s] = ST_ON;
-    d->lane[12].level = 70;
-    bm_tr_lock_set(d, 12, 0, 1, 84);                                    /* P-Lock: bombo del paso 13 más agudo */
-    /* sampler: el generador en corcheas, con el slice 1 fijo en el 1 y el 5 con acento en el 13 */
+    bm_kit_apply(d, 1);
+    p->trk[0].source = 1;
+    tr_on(d, 0, "x...x...x...x...", 0);                                 /* bombo */
+    d->st[0][14] = ST_ON | (1 << ST_COND_SH);                           /* y uno más en el fill */
+    tr_on(d, 2, ".x.x.x.x.x.x.x.x", 0);                                 /* hat cerrado */
+    tr_on(d, 3, "..x...x...x.....", 0);                                 /* hat abierto a contratiempo */
+    d->st[2][14] = ST_ON | ST_ACC | (1 << ST_RAT_SH);                   /* y un redoble x2 */
+    tr_on(d, 5, "....x.......x...", 0);                                 /* palmas */
+    tr_on(d, 6, "...x.......x..x.", 0);                                 /* rim */
+    d->lane[6].level = 70;
+    tr_on(d, 12, "xxxxxxxxxxxx", 0);                                    /* shaker de 12 contra 16 */
+    d->lane[12].len = 12; d->lane[12].level = 45;
+    d->st[15][15] = ST_ON | (1 << ST_COND_SH);                          /* zap en el fill */
+    d->lane[1].level = 0;
+    /* T2: el sampler corta la toma: 16 cortes en dos compases, reordenados */
     bm_tr *b = &p->tr[1];
-    for (int s = 0; s < 16; s += 2) b->st[BRK_GEN][s] = ST_ON;
-    b->st[1][0] = ST_ON; b->st[5][12] = ST_ON | ST_ACC;
-    p->trk[1].level = 40;
-    p->trk[1].source = bm_rom_nloops ? BM_SRC_ROM : BM_SRC_NONE;
-    p->trk[1].loop_b = bm_rom_nloops > 1 ? (uint8_t)(BM_SRC_ROM | 1) : BM_SRC_NONE;
-    static const int prog[4][3] = {{57, 60, 64}, {53, 57, 60}, {48, 52, 55}, {55, 59, 62}};   /* Am F C G */
-    static const int bass[4] = {45, 41, 36, 43};
-    for (int t = 2; t < BM_TRACKS; t++) p->trk[t].length = 64;
-    for (int pg = 0; pg < 4; pg++) {
-        int o = pg * 16, bn = bass[pg];
-        ev_set(p, 2, o + 0, 0, bn, 110, 2, 100);
-        ev_set(p, 2, o + 3, 0, bn, BM_VEL_GHOST, 1, 100);
-        ev_set(p, 2, o + 6, 0, bn + 12, 100, 1 | BM_LEN_TIE, 100);
-        ev_set(p, 2, o + 7, 0, bn + 10, 100, 1, 100);
-        ev_set(p, 2, o + 10, 0, bn, 100, 1, 100);
-        ev_set(p, 2, o + 14, 0, bn + 7, 90, 1, 70);
-        for (int k = 0; k < 3; k++) {
-            ev_set(p, 3, o + 0, k, prog[pg][k], 85, 3, 100);
-            ev_set(p, 3, o + 8, k, prog[pg][k], 75, 2, 100);
-        }
-        ev_set(p, 3, o + 11, 0, prog[pg][2] + 12, 70, 1, 60);
-        ev_set(p, 4, o + 4, 0, prog[pg][0] + 12, 70, 2, 100);
-        ev_set(p, 4, o + 12, 0, prog[pg][1] + 12, 60, 2, BM_PROB_FILL);
-        ev_set(p, 5, o + 0, 0, prog[pg][0] - 12, 60, 16, 100);
+    b->lane[0].len = 32;
+    p->trk[1].source = take;
+    p->trk[1].loop_b = BM_SRC_NONE;
+    p->trk[1].level = 70;
+    p->trk[1].gen[0] = 35; p->trk[1].gen[1] = 60; p->trk[1].gen[2] = 25; p->trk[1].gen[3] = 10;
+    static const int8_t PIN[32] = {0, -1, -1, -1, -1, -1, 2, -1, 4, -1, -1, -1, -2, -1, 6, -1,
+                                   8, -1, -1, -1, -2, -1, 10, -1, 0, -1, 0, -1, 12, -1, -2, -1};
+    for (int s = 0; s < 32; s++) {
+        if (PIN[s] >= 0) { b->st[BRK_FIX][s] = ST_ON | (s == 8 || s == 24 ? ST_ACC : 0); b->st[BRK_FIXSL][s] = (uint8_t)PIN[s]; }
+        else if (PIN[s] == -2) b->st[BRK_GEN][s] = ST_ON;
     }
-    p->trk[0].level = 80; p->trk[2].level = 66; p->trk[3].level = 50; p->trk[4].level = 48; p->trk[5].level = 44;   /* con el break sonando, sin saturar */
+    b->st[BRK_FIX][26] |= (uint8_t)(1 << ST_RAT_SH);                    /* repetición x2 */
+    /* T3: ACID, la línea 303 (acento = vel 127, LIGA = slide) */
+    bm_track_set_engine(p, 2, ENG_ACID);
+    bm_track *t3 = &p->trk[2];
+    t3->macro[0] = 28; t3->macro[1] = 108; t3->macro[2] = 58; t3->macro[3] = 105; t3->glide = 45; t3->accent = 115;
+    t3->length = 16; t3->send = 25;
+    static const struct { int8_t s, n; uint8_t acc, slide; } L[] = {
+        {0, 45, 1, 0}, {1, 45, 0, 0}, {2, 57, 1, 1}, {3, 45, 0, 0}, {4, 48, 0, 0}, {5, 45, 0, 1}, {6, 52, 1, 0},
+        {8, 45, 0, 0}, {9, 57, 1, 0}, {10, 55, 0, 1}, {11, 52, 0, 0}, {12, 45, 1, 0}, {13, 48, 0, 1}, {14, 50, 0, 0}, {15, 45, 0, 0}};
+    for (unsigned i = 0; i < sizeof L / sizeof L[0]; i++)
+        ev_set(p, 2, L[i].s, 0, L[i].n, L[i].acc ? BM_VEL_ACC : BM_VEL_NORMAL, 1 | (L[i].slide ? BM_LEN_TIE : 0), 100);
+    /* T4: ANALOG STAB a contratiempo, con delay */
+    p->trk[3].source = 12; bm_preset_apply(p, 3, 12);
+    p->trk[3].length = 32; p->trk[3].send = 55;
+    for (int k = 0; k < 3; k++) { static const int C[3] = {57, 60, 64}; ev_set(p, 3, 10, k, C[k], 90, 1, 100); ev_set(p, 3, 26, k, C[k] - 2 + (k == 1), 80, 1, 100); }
+    /* T5: campana FM, a veces */
+    bm_track_set_engine(p, 4, ENG_FM);
+    p->trk[4].source = 3; p->trk[4].length = 32; p->trk[4].send = 60;
+    ev_set(p, 4, 14, 0, 81, 80, 2, 60);
+    ev_set(p, 4, 30, 0, 76, 70, 2, BM_PROB_FILL);
+    /* T6: viento que sube cada 4 compases */
+    p->trk[5].source = 14; bm_preset_apply(p, 5, 14);
+    p->trk[5].length = 64; p->trk[5].send = 40;
+    ev_set(p, 5, 0, 0, 57, 70, 64, 100);
+    p->trk[0].level = 88; p->trk[2].level = 74; p->trk[3].level = 46; p->trk[4].level = 40; p->trk[5].level = 30;
     memset(song->scene, 0, sizeof song->scene);
     song->scene[0].valid = 1; song->scene[0].pattern = 0;                                  /* A: todo */
-    song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x3C;  /* B: solo ritmo */
+    song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x38;  /* B: batería, voces y acid */
     song->scene[2].valid = 1; song->scene[2].pattern = 0; song->scene[2].trk_mute = 0x01;  /* C: sin batería */
+    song->scene[3].valid = 1; song->scene[3].pattern = 0; song->scene[3].trk_mute = 0x3A;  /* D: batería y acid */
 }
+
+/* 0.4: sin loops de fábrica. El sampler toca tomas: las que se graban o se suben con
+ * tools/fm1/toma.py. (El código de las fuentes de ROM queda sin fuentes.) */
+const bm_rom_loop bm_rom_loops[1] = {{0, 0u, 0u, 0u, ""}};
+const int bm_rom_nloops = 0;
 
 /* ------------------------------------------------------------ init */
 static void midi_out_cb(void *u, uint8_t b)
@@ -612,6 +640,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->ctx.midi_out = midi_out_cb; a->ctx.midi_user = a;
     bm_gesture_init(&a->ges, app_on_gesture, a);
     a->pend_obj = -1; a->undo_track = -1; a->redo_track = -1; a->held_step = -1; a->held_white = -1;
+    a->slice_sens = 64;
     a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->roll_rate = 1; a->solo_key = -1; a->solo_track = -1;
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
@@ -650,7 +679,9 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
         if (src && len > 0 && bm_pattern_unpack(&a->pat, src, len) < 0) bm_pattern_init(&a->pat);
         bm_takes_scan(pf->flash, pf->flash_map, pf->user, a->take);
     }
-    if (fresh) { demo_pattern(&a->pat, &a->song); a->dirty = 1; a->song_dirty = 1; a->set_dirty = 1; a->t_edit = now; }
+    uint8_t first = BM_SRC_NONE;
+    for (int i = BM_TAKES - 1; i >= 0; i--) if (a->take[i].valid) first = (uint8_t)i;
+    if (fresh) { demo_pattern(&a->pat, &a->song, first); a->dirty = 1; a->song_dirty = 1; a->set_dirty = 1; a->t_edit = now; }
     a->set.last_pat %= BM_PATTERNS;
     a->ctx.cur_pat = a->set.last_pat;
     a->ctx.st.pattern = a->set.last_pat;
@@ -680,7 +711,7 @@ void bm_app_master(bm_app *a, uint16_t adc)
 
 /* ------------------------------------------------------------ navegación */
 static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE};
-static const uint8_t TABS_BRK[] = {PG_SEQ, PG_SOUND, PG_RETRIG, PG_TAKES, PG_MIX, PG_MORE};
+static const uint8_t TABS_BRK[] = {PG_SEQ, PG_SLICE, PG_SOUND, PG_RETRIG, PG_TAKES, PG_MIX, PG_MORE};
 static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_SOUND, PG_ENV, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
 static const uint8_t TABS_AN[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};   /* ENV y LFO están en SONIDO */
 static const uint8_t TABS_MIDI[] = {PG_SEQ, PG_MIDI, PG_ARP, PG_MORE};
@@ -700,7 +731,7 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 const char *bm_page_name(int page)
 {
     static const char *const N[PG_COUNT] = {"SEQ", "SONIDO", "INSTR", "MEZCLA", "MAS", "RETRIG", "TOMAS", "ENV", "ARP", "LOOP",
-                                            "MIDI", "ESCALA", "ACORDES", "LFO", "GRABAR", "CORTAR"};
+                                            "MIDI", "ESCALA", "ACORDES", "LFO", "GRABAR", "CORTAR", "SLICER"};
     return page < PG_COUNT ? N[page] : "";
 }
 
@@ -869,7 +900,7 @@ void bm_app_tick(bm_app *a, uint32_t now)
         if (t == 1) {                                                   /* sampler: lo que pasa por la fila TU */
             const bm_tr *tr = bm_trk_trc(&a->pat, 1);
             int s = bm_app_track_step(a, 1, BRK_GEN);
-            for (int l = 0; s >= 0 && l <= BM_SLICES; l++)
+            for (int l = 0; s >= 0 && l < BRK_LANES; l++)
                 if (tr->st[l][s]) { app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); app_edited(a); }
         } else if (bm_is_grid(&a->pat, t)) {
             const bm_tr *tr = bm_trk_trc(&a->pat, t);

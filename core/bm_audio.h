@@ -98,10 +98,11 @@ typedef struct {
 #define GEN_ACC     0x40u
 #define GEN_SKIP    0x80u       /* ROMPER: silencio */
 
-/* Nota del motor del sampler: slice (bits 0-2), fuente (3-4), reversa, media velocidad. */
-#define BRK_SRC_SH  3
-#define BRK_REV     0x20u
-#define BRK_HALF    0x40u
+/* Nota del motor del sampler: slice (bits 0-3), fuente (4-5), reversa, media velocidad. */
+#define BRK_SL_MASK 0x0Fu
+#define BRK_SRC_SH  4
+#define BRK_REV     0x40u
+#define BRK_HALF    0x80u
 
 /* ------------------------------------------------------------ estado DSP -> UI */
 typedef struct {

@@ -156,8 +156,7 @@ int bm_pattern_count_events(const bm_pattern *p)
 
 int bm_brk_step(const bm_tr *tr, int s, uint8_t *b)
 {
-    for (int l = 1; l <= BM_SLICES; l++)
-        if (tr->st[l][s] & ST_ON) { if (b) *b = tr->st[l][s]; return l; }
+    if (tr->st[BRK_FIX][s] & ST_ON) { if (b) *b = tr->st[BRK_FIX][s]; return (tr->st[BRK_FIXSL][s] & 15) + 1; }
     if (tr->st[BRK_GEN][s] & ST_ON) { if (b) *b = tr->st[BRK_GEN][s]; return 0; }
     if (b) *b = 0;
     return -1;

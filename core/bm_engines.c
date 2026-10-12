@@ -345,7 +345,7 @@ static void smp_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel
 {
     (void)legato;
     bm_ctx *c = e->ctx;
-    int sl = note & 7, src = (note >> BRK_SRC_SH) & 3;
+    int sl = note & BRK_SL_MASK, src = (note >> BRK_SRC_SH) & 3;
     if (src > 2) src = 0;
     const bm_smp_src *m = &c->smp[src];
     uint32_t s, en;
@@ -371,7 +371,7 @@ static void smp_note_on(bm_engine *e, uint8_t note, uint8_t vel)
     uint8_t lk[4];
     take_locks(e, lk);
     e->legato_next = 0;
-    int src = (note >> BRK_SRC_SH) & 3, sl = note & 7;
+    int src = (note >> BRK_SRC_SH) & 3, sl = note & BRK_SL_MASK;
     if (src > 2) return;
     const bm_smp_src *m = &c->smp[src];
     if (m->len == 0 || !m->data || c->smp_rec) { c->brk_next_off = 0; return; }

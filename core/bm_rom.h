@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Bubba Machine — datos de fábrica: loops del sampler (tools/gen_loops.py) y patches FM (tools/gen_fm.py).
+/* Bubba Machine — datos de fábrica: patches FM (tools/gen_fm.py). Los loops de fábrica del sampler se
+ * fueron en 0.4 (bm_rom_nloops = 0): el sampler toca tomas.
  * 0.4: los kits grabados y las wavetables se fueron; la batería y los synths se calculan en vivo. */
 #ifndef BM_ROM_H
 #define BM_ROM_H

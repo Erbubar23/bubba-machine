@@ -6,7 +6,7 @@
 
 #define BM_VERSION_STR "0.3.0"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
-#define BM_PAT_FMT       4        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
+#define BM_PAT_FMT       5        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           32       /* parámetros de sonido por canal, además de las 4 macros */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
@@ -52,7 +52,7 @@
 #define BM_ARENA_LEN     (BM_DELAY_LEN * 2u + BM_FXBUF_LEN * 2u)
 #define BM_SMP_RATE      16000u   /* sampler a 16 kHz, 8 bit */
 #define BM_SMP_REC_MAX   49152u   /* ≈ 3.07 s grabando (cabe en la biblioteca de tomas) */
-#define BM_SLICES        8        /* slices de un loop del sampler */
+#define BM_SLICES        16       /* cortes de un loop del sampler (uno por blanca) */
 #define BM_PENDING_LEN   8192u    /* caché de un patrón sucio en formato disperso */
 #define BM_CMDQ_LEN      128
 

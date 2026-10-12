@@ -45,7 +45,7 @@ def docker(image, cmd):
 
 
 def assets():
-    for t in ('gen_font.py', 'gen_loops.py', 'gen_logo.py'):
+    for t in ('gen_font.py', 'gen_logo.py'):
         r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', t)])
         if r.returncode:
             sys.exit(r.returncode)

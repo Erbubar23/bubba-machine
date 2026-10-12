@@ -813,8 +813,9 @@ static void brk_pin(bm_app *a, int s, int slice)
     uint8_t keep = 0;
     bm_brk_step(tr, s, &keep);
     keep = (uint8_t)((keep & ~ST_LOCK) | ST_ON);
-    for (int l = 0; l <= BM_SLICES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0);
-    app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)(slice + 1), (uint8_t)s, keep);
+    if (tr->st[BRK_GEN][s]) app_push_i(a, CMD_SET_TRSTEP, 1, BRK_GEN, (uint8_t)s, 0);
+    app_push_i(a, CMD_SET_TRSTEP, 1, BRK_FIXSL, (uint8_t)s, slice & 15);
+    app_push_i(a, CMD_SET_TRSTEP, 1, BRK_FIX, (uint8_t)s, keep);
     app_edited(a);
 }
 
@@ -823,7 +824,7 @@ static void brk_to_gen(bm_app *a, int s)
     const bm_tr *tr = &a->pat.tr[1];
     uint8_t keep = 0;
     bm_brk_step(tr, s, &keep);
-    for (int l = 1; l <= BM_SLICES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0);
+    for (int l = 1; l < BRK_LANES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0);
     app_push_i(a, CMD_SET_TRSTEP, 1, BRK_GEN, (uint8_t)s, (uint8_t)((keep & ~ST_LOCK) | ST_ON));
     app_edited(a);
 }
@@ -843,7 +844,7 @@ static void play_notes(bm_app *a, int k, int t, const uint8_t *notes, int n, int
     if (n && app_kind(a, t) == KIND_NOTE) a->last_note[t] = notes[0];
     a->key_rec_step[k] = -1;
     if (a->rec && app_playing(a) && !seq_page(a)) {
-        if (t == 1) brk_pin(a, quant_step(a, 1, a->pat.tr[1].lane[0].len), notes[0] & 7);
+        if (t == 1) brk_pin(a, quant_step(a, 1, a->pat.tr[1].lane[0].len), notes[0] & BRK_SL_MASK);
         else if (bm_is_tr(&a->pat, t)) rec_tr(a, t, notes[0]);
         else if (a->ctx.st.loop_mode[t - 2] == LOOP_OFF) rec_syn(a, k, t, notes, n);
     }
@@ -900,7 +901,7 @@ static void play_key_down(bm_app *a, int k, int w, int b)
         return;
     }
     if (kind == KIND_BRK) {
-        int sl = w >= 0 ? w : b;
+        int sl = w >= 0 ? w : (b < 8 ? b : -1);
         if (sl < 0 || sl >= BM_SLICES) return;
         uint8_t n = (uint8_t)sl;
         play_notes(a, k, 1, &n, 1, 110, 0);
@@ -966,7 +967,7 @@ static void seq_step_up(bm_app *a, int w)
     if (s >= 0 && a->held_had_event && !a->held_long && !a->held_edit) {
         if (t == 1) {
             if (bm_brk_step(&a->pat.tr[1], s, NULL) > 0) brk_to_gen(a, s);     /* fijo: vuelve al generador */
-            else { for (int l = 0; l <= BM_SLICES; l++) if (a->pat.tr[1].st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); app_edited(a); }
+            else { for (int l = 0; l < BRK_LANES; l++) if (a->pat.tr[1].st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); app_edited(a); }
         } else if (bm_is_tr(&a->pat, t)) { app_push_i(a, CMD_SET_TRSTEP, (uint8_t)t, (uint8_t)tr_lane(a), (uint8_t)s, 0); app_edited(a); }
         else {
             bm_event e; bm_event_clear(&e);
@@ -1137,12 +1138,13 @@ static void capture(bm_app *a)
         int s = (int)((blk * 16u + (uint32_t)k) % (uint32_t)len);
         uint8_t sl = a->ctx.st.gen_sl[k], fx = a->ctx.st.gen_fx[k];
         if (sl == 0xFF || (fx & GEN_PIN)) continue;
-        if (fx & GEN_SKIP) { for (int l = 0; l <= BM_SLICES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); continue; }
+        if (fx & GEN_SKIP) { for (int l = 0; l < BRK_LANES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); continue; }
         uint8_t v = ST_ON | ((fx & GEN_ACC) ? ST_ACC : 0);
         int rt = fx & GEN_RT_MASK;
         if (rt >= 1 && rt <= 3) v |= (uint8_t)(rt << ST_RAT_SH);
-        for (int l = 0; l <= BM_SLICES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0);
-        app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)(sl + 1), (uint8_t)s, v);
+        for (int l = 0; l < BRK_LANES; l++) if (tr->st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0);
+        app_push_i(a, CMD_SET_TRSTEP, 1, BRK_FIXSL, (uint8_t)s, sl & 15);
+        app_push_i(a, CMD_SET_TRSTEP, 1, BRK_FIX, (uint8_t)s, v);
         n++;
     }
     app_edited(a);
@@ -1207,33 +1209,42 @@ static void cut_toggle_eighth(bm_app *a, int w)
             cuts_set(a, tk, m, n);
             return;
         }
-    if (n >= BM_SLICES) { app_toast(a, "MAXIMO 8 CORTES"); return; }
+    if (n >= BM_SLICES) { app_toast(a, "MAXIMO 16 CORTES"); return; }
     m[n++] = pos;
     cuts_set(a, tk, m, n);
 }
 
-/* Cortes en los golpes: los 7 ataques más fuertes (energía que sube de una columna a la siguiente). */
+/* Cortes en los ataques (golpes o sílabas), con la sensibilidad del SLICER (K3). */
 static void cut_hits(bm_app *a)
 {
     bm_take *tk = &a->take[a->cut_take % BM_TAKES];
     if (!tk->valid) return;
-    int rise[232];
-    for (int x = 0; x < 232; x++) {
-        int e = a->wave_cut[0][x] * 2 + a->wave_cut[1][x] + a->wave_cut[2][x];
-        int p = x ? a->wave_cut[0][x - 1] * 2 + a->wave_cut[1][x - 1] + a->wave_cut[2][x - 1] : 0;
-        rise[x] = e - p;
-    }
-    uint32_t m[BM_SLICES]; int n = 0;
-    for (int k = 0; k < BM_SLICES - 1; k++) {
-        int best = -1;
-        for (int x = 2; x < 232; x++) if (rise[x] > 40 && (best < 0 || rise[x] > rise[best])) best = x;
-        if (best < 0) break;
-        m[n++] = (uint32_t)((uint64_t)tk->len * (uint32_t)best / 232u);
-        for (int x = best - 6; x <= best + 6; x++) if (x >= 0 && x < 232) rise[x] = 0;
-    }
-    cuts_set(a, tk, m, n);
+    uint32_t bpm = tk->bpm_x10 ? tk->bpm_x10 : a->pat.meta.bpm_x10;
+    uint32_t gap = (uint32_t)BM_SMP_RATE * 150u / bpm;          /* una semicorchea */
+    uint32_t m[BM_SLICES];
+    int n = bm_slice_onsets(tk->data, tk->len, gap, a->slice_sens, m);
+    cuts_set(a, tk, m + 1, n - 1);
     char b[24]; snprintf(b, sizeof b, "%d CORTES EN LOS GOLPES", tk->nmarks);
     app_toast(a, b);
+}
+
+static void slice_equal(bm_app *a, bm_take *tk, int n)
+{
+    if (!tk || !tk->valid) return;
+    uint32_t m[BM_SLICES];
+    for (int i = 0; i < n && i < BM_SLICES; i++) m[i] = tk->len * (uint32_t)i / (uint32_t)n;
+    a->cut_take = tk->id;
+    cuts_set(a, tk, m + 1, n - 1);
+    char b[24]; snprintf(b, sizeof b, "%d PARTES IGUALES", n);
+    app_toast(a, b);
+}
+
+/* la toma que suena como LOOP A (la que corta el SLICER) */
+static bm_take *slicer_take(bm_app *a)
+{
+    uint8_t src = a->pat.trk[1].source;
+    if (src == BM_SRC_NONE || (src & BM_SRC_ROM) || src >= BM_TAKES || !a->take[src].valid) return NULL;
+    return &a->take[src];
 }
 
 static void open_cut(bm_app *a, uint8_t src)
@@ -1490,7 +1501,7 @@ static void layer_key(bm_app *a, int k, int w, int b)
             else {
                 int s = a->step_page * 16 + w;
                 app_undo_snapshot(a, t);
-                if (t == 1) { for (int l = 0; l <= BM_SLICES; l++) if (a->pat.tr[1].st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); }
+                if (t == 1) { for (int l = 0; l < BRK_LANES; l++) if (a->pat.tr[1].st[l][s]) app_push_i(a, CMD_SET_TRSTEP, 1, (uint8_t)l, (uint8_t)s, 0); }
                 else { bm_event e; bm_event_clear(&e); for (int kk = 0; kk < BM_EVENTS; kk++) app_push_ev(a, t, s, kk, &e); }
                 app_edited(a);
             }
@@ -1544,7 +1555,7 @@ static void seq_keys(bm_app *a, int k, int w, int b)
     int t = a->track, kind = app_kind(a, t);
     if (w >= 0) { seq_step_down(a, w); return; }
     if (t == 1) {
-        if (b < BM_SLICES) {
+        if (b < 8) {
             if (a->held_step >= 0) {                                     /* blanca + negra: paso fijo */
                 int cur = bm_brk_step(&a->pat.tr[1], a->held_step, NULL);
                 if (cur == b + 1) brk_to_gen(a, a->held_step); else brk_pin(a, a->held_step, b);
@@ -1619,10 +1630,29 @@ static void page_keys(bm_app *a, int k, int w, int b)
     case PG_REC: return;                                     /* grabando, las teclas no suenan */
     case PG_CUT:
         if (w >= 0) cut_toggle_eighth(a, w);
-        else if (b < BM_SLICES) app_push(a, CMD_BRK_SLICE, (uint8_t)b, 110, 2);
+        else if (b < 8) app_push(a, CMD_BRK_SLICE, (uint8_t)b, 110, 2);
         else if (b == 8) cut_hits(a);
-        else if (b == 9) { bm_take *tk = &a->take[a->cut_take % BM_TAKES]; tk->nmarks = 0; a->cut_sel = 0; take_changed(a, tk->id); app_toast(a, "8 PARTES IGUALES"); }
+        else if (b == 9) slice_equal(a, &a->take[a->cut_take % BM_TAKES], BM_SLICES);
         return;
+    case PG_SLICE: {
+        bm_take *tk = slicer_take(a);
+        if (w >= 0) {                                            /* tocar el corte (con REC sonando: al paso) */
+            int n = tk && tk->nmarks ? tk->nmarks : BM_SLICES;
+            if (w >= n) return;
+            app_push(a, CMD_BRK_SLICE, (uint8_t)w, 110, 0);
+            a->cut_sel = (uint8_t)w;
+            if (a->rec && app_playing(a)) brk_pin(a, quant_step(a, 1, a->pat.tr[1].lane[0].len), w);
+            return;
+        }
+        if (b <= 2) {
+            if (!tk) { app_toast(a, "LOOP A: GRABA O CARGA UNA TOMA"); return; }
+            a->cut_take = tk->id;
+            if (b == 0) cut_hits(a); else slice_equal(a, tk, b == 1 ? 16 : 8);
+            return;
+        }
+        if (b >= 8) seq_keys(a, k, -1, b);                       /* REV, MEDIA, STUTTER */
+        return;
+    }
     default: break;
     }
     if (kind == KIND_TR && b >= 0) { seq_keys(a, k, -1, b); return; }
@@ -1720,7 +1750,7 @@ static void button_page(bm_app *a, int id)
     int cur = a->view == V_CH ? a->page : -1, pg = PG_SEQ;
     switch (id) {
     case BTN_SEQ:
-        if (cur == PG_SEQ) pg = kind == KIND_BRK ? PG_RETRIG : (kind == KIND_NOTE && !midi) ? PG_LOOP : PG_SEQ;
+        if (cur == PG_SEQ) pg = kind == KIND_BRK ? PG_SLICE : (kind == KIND_NOTE && !midi) ? PG_LOOP : PG_SEQ;
         else pg = PG_SEQ;
         break;
     case BTN_EDIT:
@@ -1912,7 +1942,7 @@ void app_on_gesture(void *u, int id, bm_gkind k)
     }
     case BTN_REC:
         if (k == G_TAP) {
-            if (a->view == V_CH && a->track == 1) {
+            if (a->view == V_CH && a->track == 1 && a->page != PG_SLICE) {
                 if (a->page != PG_REC) { app_enter(a, 1, PG_REC); }
                 if (a->ctx.st.smp_rec || a->ctx.st.smp_armed) { app_push(a, CMD_SMP_REC, 0, 0, 0); return; }
                 uint32_t room = bm_app_rec_room(a);
@@ -2566,6 +2596,25 @@ static void enc_channel(bm_app *a, int id, int d)
     }
     case PG_CHORDS: goto chords;
     case PG_REC: if (k == 0) { a->rec_now = !a->rec_now; app_toast(a, a->rec_now ? "EMPIEZA AL TOCAR REC" : "EMPIEZA EN EL COMPAS"); } return;
+    case PG_SLICE: {
+        bm_take *tk = slicer_take(a);
+        if (!tk) { app_toast(a, "LOOP A: GRABA O CARGA UNA TOMA"); return; }
+        a->cut_take = tk->id;
+        if (k == 2) {
+            a->slice_sens = (uint8_t)bm_clampi(a->slice_sens + d, 0, 127);
+            snprintf(b, sizeof b, "%d%%", a->slice_sens * 100 / 127);
+            app_overlay(a, 2, "SENSIBILIDAD (NEGRA 1)", b, "", a->slice_sens * 2, -1, bm_knob_color(2));
+            return;
+        }
+        if (k == 3) {
+            tk->gain = (uint8_t)bm_clampi(tk->gain + d, 8, 127);
+            snprintf(b, sizeof b, "%+d", ((int)tk->gain - 64) * 6 / 64);
+            app_overlay(a, 3, "GANANCIA", b, "DB", tk->gain * 2, 128, bm_knob_color(3));
+            take_changed(a, tk->id);
+            return;
+        }
+    }
+    /* fall through */
     case PG_CUT: {
         bm_take *tk = &a->take[a->cut_take % BM_TAKES];
         if (!tk->valid) return;
@@ -2844,7 +2893,7 @@ static void led(bm_app *a, int id, uint8_t lvl)
 static int page_button(int page)
 {
     switch (page) {
-    case PG_SEQ: case PG_LOOP: case PG_RETRIG: return BTN_SEQ;
+    case PG_SEQ: case PG_LOOP: case PG_RETRIG: case PG_SLICE: return BTN_SEQ;
     case PG_SOUND: case PG_INST: case PG_TAKES: case PG_CUT: case PG_MIDI: return BTN_EDIT;
     case PG_ENV: return BTN_ENV;
     case PG_MIX: return BTN_FX;
@@ -2910,7 +2959,7 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
                         l = p > 0 ? LED_ON : p == 0 ? LED_BREATH : LED_OFF;
                         if (s == bm_app_track_step(a, 1, 0)) l = LED_BLINK;
                     }
-                } else if (b < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); l = st->brk_slice == b && st->playing ? LED_ON : LED_MID; }
+                } else if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); l = st->brk_slice == b && st->playing ? LED_ON : LED_MID; }
                 else { KL(K, k, b == 8 ? "REV" : b == 9 ? "MEDIA" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
             } else {
                 const bm_tr *tr = bm_trk_trc(&a->pat, t);
@@ -2951,6 +3000,14 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
                 if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); } else KL(K, k, b == 8 ? "GOLPE" : "IGUAL");
                 l = LED_DIM;
             }
+        } else if (a->view == V_CH && a->page == PG_SLICE) {
+            const bm_smp_src *m = &a->ctx.smp[0];
+            int n = m->nmarks ? m->nmarks : BM_SLICES;
+            if (w >= 0 && w < n) {
+                snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8);
+                l = st->brk_slice == w && (st->playing || a->now < a->lane_flash[1][w]) ? LED_ON : (w == a->cut_sel ? LED_MID : LED_DIM);
+            } else if (b >= 0 && b <= 2) { KL(K, k, b == 0 ? "GOLPE" : b == 1 ? "16" : "8"); l = LED_DIM; }
+            else if (b >= 8) { KL(K, k, b == 8 ? "REV" : b == 9 ? "MEDIA" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
         } else if (a->view == V_CH && a->page == PG_TAKES) {
             if (w >= 0 && w < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", w + 1); KL(K, k, b8); l = LED_DIM; }
             else if (b == 0 || b == 1) { KL(K, k, b == 0 ? "LOOPA" : "LOOPB"); l = LED_MID; }
@@ -2959,6 +3016,7 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
             if (w >= 0) { snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, w)); KL(K, k, b8); l = lane_led(bm_trk_trc(&a->pat, t), w, tr_lane(a)); }
         } else if (a->view == V_CH && kind == KIND_BRK) {
             int sl = w >= 0 ? w : b;
+            if (w < 0 && b >= 8) sl = -1;
             if (sl >= 0 && sl < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", sl + 1); KL(K, k, b8); l = LED_DIM; }
         } else if (a->view == V_CH && kind == KIND_NOTE) {
             int root, sc = app_scale(a, t, &root);

@@ -197,7 +197,7 @@ static void brk_trigger(bm_ctx *c, int k, int tps, uint8_t b)
     bm_engine *e = &c->eng[1];
     uint8_t sl = c->gen_sl[k], fx = c->gen_fx[k];
     if (sl == 0xFF || (fx & GEN_SKIP)) return;
-    uint8_t note = (uint8_t)((sl & 7) | (c->gen_b << BRK_SRC_SH));
+    uint8_t note = (uint8_t)((sl & BRK_SL_MASK) | (c->gen_b << BRK_SRC_SH));
     if ((fx & GEN_REV) || (c->brk_live & 1)) note |= BRK_REV;
     if ((fx & GEN_HALF) || (c->brk_live & 2)) note |= BRK_HALF;
     uint8_t vel = (uint8_t)bm_vel(c, 1, (fx & GEN_ACC) != 0);
@@ -207,8 +207,8 @@ static void brk_trigger(bm_ctx *c, int k, int tps, uint8_t b)
     int n = RT_N[fx & GEN_RT_MASK];
     int rat = ((b & ST_RAT_MASK) >> ST_RAT_SH) + 1;          /* repetición pintada en la fila TU */
     if (rat > n) n = rat;
-    for (int j = 1; j < n; j++) rq_push(c, 1, note & (7 | (3 << BRK_SRC_SH)), vel * 85 / 100, j * tps / n);
-    if (b & ST_FLAM) rq_push(c, 1, note & (7 | (3 << BRK_SRC_SH)), vel * 6 / 10, 2);
+    for (int j = 1; j < n; j++) rq_push(c, 1, note & (BRK_SL_MASK | (3 << BRK_SRC_SH)), vel * 85 / 100, j * tps / n);
+    if (b & ST_FLAM) rq_push(c, 1, note & (BRK_SL_MASK | (3 << BRK_SRC_SH)), vel * 6 / 10, 2);
 }
 
 static void fire_brk(bm_ctx *c, uint32_t n, int tps, bool fill)

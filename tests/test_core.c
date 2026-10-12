@@ -4,6 +4,7 @@
  * Uso: test_core [carpeta_salida]  -> escribe demo.wav y capturas *.ppm */
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include "../hal/bm_hal_sim.h"
 #include "../core/bm_app_int.h"
@@ -114,6 +115,31 @@ static void boot(int erase)
     run_ms(UI_BOOT_MS + 100);
 }
 
+/* Arranque con una toma de prueba: un compás a 120 BPM hecho aquí (bombo en 1 y 3, caja en 2 y 4,
+ * hats en corcheas), como si se hubiera grabado. */
+static void boot_loop(void)
+{
+    static int8_t d[32000];
+    memset(d, 0, sizeof d);
+    for (int b = 0; b < 8; b++) {
+        int at = b * 4000;
+        for (int i = 0; i < 1500; i++) {
+            float e = 1.0f - i / 1500.0f, v;
+            if (b % 2 == 0 && (b / 2) % 2 == 0) v = 100.0f * e * e * (float)sin(6.2831853 * 60.0 * i / 16000.0);       /* bombo */
+            else if (b % 2 == 0) v = 70.0f * e * e * e * (float)(((i * 7919) % 200) - 100) / 100.0f;                    /* caja */
+            else v = 30.0f * e * e * e * e * (float)(((i * 104729) % 200) - 100) / 100.0f;                             /* hat */
+            d[at + i] = (int8_t)v;
+        }
+    }
+    bm_sim_flash_erase_all(&sim); sim.flash_writes = 0;
+    bm_platform pf;
+    bm_sim_platform(&sim, &pf);
+    bm_take tk[BM_TAKES];
+    memset(tk, 0, sizeof tk);
+    bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, sizeof d, 1200, 1);
+    boot(0);
+}
+
 /* HOME y luego ALGORITHM hasta el canal: el recuadro entra solo a los 400 ms. */
 static void ch(int t)
 {
@@ -138,7 +164,7 @@ static void test_pack(void)
     static uint8_t b1[BM_PENDING_LEN], b2[BM_PENDING_LEN];
     bm_pattern_init(&p);
     for (int s = 0; s < 64; s += 3) p.tr[0].st[s % 16][s] = ST_ON | ST_ACC | (2 << ST_RAT_SH);
-    p.tr[1].st[BRK_GEN][2] = ST_ON; p.tr[1].st[4][6] = ST_ON | ST_ACC;
+    p.tr[1].st[BRK_GEN][2] = ST_ON; p.tr[1].st[BRK_FIX][6] = ST_ON | ST_ACC; p.tr[1].st[BRK_FIXSL][6] = 3;
     p.tr[1].lane[5].len = 12; p.tr[0].mute = 0x0104;
     CHECK(bm_tr_lock_set(&p.tr[0], 9, 9, 2, 33));
     CHECK(bm_tr_lock_get(&p.tr[0], 9, 9, 2) == 33);
@@ -160,7 +186,7 @@ static void test_pack(void)
     CHECK(bm_pattern_pack(&q, b2, sizeof b2) == n && memcmp(b1, b2, (size_t)n) == 0);
     CHECK(memcmp(&p.nt[0], &q.nt[0], sizeof p.nt[0]) == 0);
     CHECK(memcmp(p.tr[0].st, q.tr[0].st, sizeof p.tr[0].st) == 0);
-    CHECK(q.tr[1].st[4][6] == (ST_ON | ST_ACC) && bm_brk_step(&q.tr[1], 6, NULL) == 4 && bm_brk_step(&q.tr[1], 2, NULL) == 0);
+    CHECK(q.tr[1].st[BRK_FIX][6] == (ST_ON | ST_ACC) && bm_brk_step(&q.tr[1], 6, NULL) == 4 && bm_brk_step(&q.tr[1], 2, NULL) == 0);
     CHECK(q.trk[4].engine == ENG_KIT && bm_trk_tr(&q, 4)->st[3][5] == ST_ON && q.trk[5].engine == ENG_MIDI);
     CHECK(q.trk[3].speed == SPD_X3_4 && q.trk[3].length == 12 && q.tr[1].lane[5].len == 12 && q.meta.transpose == 26);
     CHECK(q.loop[1].n == 3 && q.loop[1].ev[2].tick == 200);
@@ -406,8 +432,9 @@ static void test_navigation(void)
     /* GLO: lista global y otra vez cierra */
     btn(BTN_GLO, 30);
     CHECK(app.view == V_GLO);
+    int sw = app.pat.meta.swing;
     enc(ENC_SELECT, 1); enc(ENC_ALGO, 1);                     /* SWING +1 */
-    CHECK(app.pat.meta.swing == 57);
+    CHECK(app.pat.meta.swing == sw + 1);
     shot("24-glo");
     btn(BTN_GLO, 30);
     CHECK(app.view == V_CH && app.track == 3);
@@ -639,7 +666,7 @@ static void test_free_engines(void)
     enc(ENC_SELECT, -1);
     const char *nm; char v[24];
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
-    CHECK(strcmp(nm, "MOTOR") == 0 && strcmp(v, "ANALOG") == 0);
+    CHECK(strcmp(nm, "MOTOR") == 0 && strcmp(v, "ACID") == 0);
     ch(0);
     enc(ENC_SELECT, -1);
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
@@ -650,9 +677,16 @@ static void test_free_engines(void)
 static void test_sampler3(void)
 {
     printf("sampler 3.0: generador, TU y SUENA, fijos, capturar y efectos\n");
-    boot(1);
-    CHECK(bm_rom_nloops >= 1 && app.pat.trk[1].source == BM_SRC_ROM);
-    CHECK(app.ctx.smp[0].data == bm_rom_loops[0].data && app.ctx.smp[0].len == bm_rom_loops[0].len);
+    boot_loop();
+    CHECK(app.take[0].valid && app.pat.trk[1].source == 0);
+    CHECK(app.ctx.smp[0].data == app.take[0].data && app.ctx.smp[0].len == app.take[0].len);
+    bm_tr *bt = &app.pat.tr[1];                               /* T2 de la prueba: fijos en 1 y 13, generador en los pares */
+    memset(bt->st, 0, sizeof bt->st);
+    bt->lane[0].len = 16;
+    bt->st[BRK_FIX][0] = ST_ON; bt->st[BRK_FIXSL][0] = 0;
+    bt->st[BRK_FIX][12] = ST_ON | ST_ACC; bt->st[BRK_FIXSL][12] = 4;
+    for (int s2 = 2; s2 < 16; s2 += 2) if (s2 != 12) bt->st[BRK_GEN][s2] = ST_ON;
+    app.ctx.gen_blk = 0;
     int lo = 0, hi = 0;
     for (int x = 0; x < 232; x++) { lo += app.wave[0][x] > 200; hi += app.wave[2][x] > 200; }
     CHECK(lo > 0 && hi > 0);                                  /* el dibujo por bandas */
@@ -666,11 +700,11 @@ static void test_sampler3(void)
     CHECK(st->gen_sl[1] == 0xFF && st->gen_sl[2] != 0xFF);   /* hueco: silencio · generador: elige */
     for (int i = 0; i < 4; i++) { app.pat.trk[1].gen[i] = 0; }
     run_ms(200);
-    CHECK(st->gen_sl[2] == 1 && st->gen_sl[4] == 2 && st->gen_sl[8] == 4);   /* sin variar: el loop en orden */
+    CHECK(st->gen_sl[2] == 2 && st->gen_sl[4] == 4 && st->gen_sl[8] == 8);   /* sin variar: el loop en orden (16 cortes en un compás) */
     enc(ENC_K1, 127);                                         /* VARIAR al máximo */
     run_ms(200);
     int diff = 0;
-    for (int k = 2; k < 16; k += 2) if (k != 12 && st->gen_sl[k] != k / 2) diff++;
+    for (int k = 2; k < 16; k += 2) if (k != 12 && st->gen_sl[k] != k) diff++;
     CHECK(diff > 0);
     shot("31a-sampler-variar");
     run_ms(1700);
@@ -725,11 +759,37 @@ static void test_sampler3(void)
     for (int s = 0; s < 16; s++) after += bm_brk_step(&app.pat.tr[1], s, NULL) > 0;
     CHECK(after > before);
     btn(BTN_PLAY, 20);
-    /* RETRIG (SEQ otra vez) y SONIDO */
+    /* SLICER (SEQ otra vez): las blancas tocan los cortes; negras 1-3 rehacen los cortes */
     btn(BTN_SEQ, 30);
+    CHECK(app.page == PG_SLICE);
+    white(5, 40);
+    CHECK(app.ctx.st.brk_slice == 5 && app.cut_sel == 5);
+    black(0, 40);                                             /* en los golpes */
+    CHECK(app.take[0].nmarks >= 4 && app.take[0].nmarks <= BM_SLICES);
+    shot("38-slicer");
+    black(2, 40);                                             /* 8 iguales */
+    CHECK(app.take[0].nmarks == 8);
+    black(1, 40);                                             /* 16 iguales */
+    CHECK(app.take[0].nmarks == 16);
+    enc(ENC_K1, -1);
+    CHECK(app.cut_sel == 4);
+    uint32_t m4 = app.take[0].marks[4];
+    enc(ENC_K2, 2);
+    CHECK(app.take[0].marks[4] != m4);
+    btn(BTN_REC, 30);                                         /* REC + PLAY: lo que tocas queda en el paso */
+    btn(BTN_PLAY, 20); run_ms(300);
+    white(9, 40);
+    btn(BTN_PLAY, 20); btn(BTN_REC, 30);
+    int pinned = 0;
+    for (int s2 = 0; s2 < 16; s2++) if (bm_brk_step(&app.pat.tr[1], s2, NULL) == 10) pinned = 1;
+    CHECK(pinned);
+    /* RETRIG y SONIDO, con SELECT */
+    enc(ENC_SELECT, 1);
+    CHECK(app.page == PG_SOUND);
+    enc(ENC_SELECT, 1);
     CHECK(app.page == PG_RETRIG);
     shot("32-retrig");
-    btn(BTN_EDIT, 30);
+    enc(ENC_SELECT, -1);
     CHECK(app.page == PG_SOUND);
     enc(ENC_K4, 3);
     CHECK(app.pat.trk[1].pitch == 25);
@@ -737,8 +797,8 @@ static void test_sampler3(void)
     enc(ENC_K2, 1);                                           /* LOOP B */
     CHECK(app.pat.trk[1].loop_b != lb);
     shot("30-sampler-sound");
-    enc(ENC_PRESETS, 1);                                      /* PRESETS: loop A */
-    CHECK(app.pat.trk[1].source == (BM_SRC_ROM | 1));
+    enc(ENC_PRESETS, 1);                                      /* PRESETS: loop A (solo hay una toma) */
+    CHECK(app.pat.trk[1].source == 0);
 }
 
 static void test_recorder(void)
@@ -793,17 +853,15 @@ static void test_recorder(void)
     CHECK(app.take[0].nmarks >= 2);
     shot("37-cut");
     enc(ENC_K2, 3);
-    black(9, 40);                                            /* 8 iguales */
-    CHECK(app.take[0].nmarks == 0);
-    white(1, 40); white(5, 40);
-    CHECK(app.take[0].nmarks == 3);
+    black(9, 40);                                            /* 16 iguales */
+    CHECK(app.take[0].nmarks == BM_SLICES);
     btn(BTN_HOME, 30);
     run_ms(2200);                                            /* al salir y en reposo se guarda */
     CHECK(!app.take_dirty);
     run_ms(UI_AUTOSAVE_MS);                                  /* y el patrón que la usa */
     boot(0);
-    CHECK(app.take[0].valid && app.take[0].nmarks == 3 && app.take[0].gain == 66);    /* sobrevive al reinicio */
-    CHECK(app.ctx.smp[0].nmarks == 3);
+    CHECK(app.take[0].valid && app.take[0].nmarks == BM_SLICES && app.take[0].gain == 66);    /* sobrevive al reinicio */
+    CHECK(app.ctx.smp[0].nmarks == BM_SLICES);
     /* borrar la toma: pregunta y vuelve a la fábrica */
     ch(1);
     down(BTN_EDIT); run_ms(2200); up(BTN_EDIT); run_ms(60);
@@ -811,12 +869,12 @@ static void test_recorder(void)
     black(10, 40);
     CHECK(app.ask == ASK_TAKE_DEL);
     btn(BTN_OCT_UP, 20); run_ms(600);
-    CHECK(!app.take[0].valid && app.pat.trk[1].source == BM_SRC_ROM && app.pat.trk[1].loop_b == BM_SRC_NONE);
+    CHECK(!app.take[0].valid && app.pat.trk[1].source == BM_SRC_NONE && app.pat.trk[1].loop_b == BM_SRC_NONE);
     /* HOME descarta una toma sin guardar */
     btn(BTN_REC, 30); btn(BTN_PLAY, 20); run_ms(800); btn(BTN_REC, 30);
     CHECK(app.ctx.st.smp_unsaved);
     btn(BTN_HOME, 30); run_ms(60);
-    CHECK(!app.ctx.st.smp_unsaved && app.ctx.smp[0].data == bm_rom_loops[0].data);
+    CHECK(!app.ctx.st.smp_unsaved && app.ctx.smp[0].len == 0);
     btn(BTN_PLAY, 20);
 }
 
@@ -831,7 +889,7 @@ static void test_free_rec(void)
     btn(BTN_PLAY, 20); run_ms(200);
     btn(BTN_REC, 30);
     CHECK(app.rec && app.rec_free == 6 && app.pat.trk[5].length == 64);
-    uint32_t bar = 60000u * 4u / 112u;                           /* ms por compás a 112 BPM */
+    uint32_t bar = 60000u * 4u / 160u;                           /* ms por compás a 160 BPM */
     key(bm_white_key(4), 600);                                  /* nota larga */
     run_ms(bar / 2);
     key(bm_white_key(7), 150);
@@ -898,7 +956,7 @@ static void test_fm(void)
     /* T3 en FM: mono */
     ch(2);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                         /* ANALOG > ACID > FM */
+    enc(ENC_ALGO, 1);                                           /* ACID > FM */
     CHECK(app.pat.trk[2].engine == ENG_FM);
     static const uint8_t bass[2] = {36, 43};
     CHECK(solo_peak(2, bass, 2, 100, 250) > 0.03);
@@ -909,11 +967,13 @@ static void test_engines(void)
     printf("motores 0.4: ANALOG (presets y editor), ACID y la batería modelada\n");
     boot(1);
     static const uint8_t bass[4] = {36, 43, 48, 39};
-    CHECK(app.pat.trk[2].engine == ENG_ANALOG && app.pat.prm[2][AN_MODE] == AN_M_MONO);
-    double p_bass = solo_peak(2, bass, 4, 100, 250);
+    CHECK(app.pat.trk[2].engine == ENG_ACID);                    /* la demo: acid techno */
     ch(2);
     enc(ENC_SELECT, -1);
-    enc(ENC_ALGO, 1);                                            /* T3: ANALOG > ACID, sin preguntar */
+    enc(ENC_ALGO, -1);                                           /* T3: ACID > ANALOG, sin preguntar */
+    CHECK(app.pat.trk[2].engine == ENG_ANALOG && app.pat.prm[2][AN_MODE] == AN_M_MONO && app.ask == ASK_NONE);
+    double p_bass = solo_peak(2, bass, 4, 100, 250);
+    enc(ENC_ALGO, 1);                                            /* y otra vez ACID */
     CHECK(app.pat.trk[2].engine == ENG_ACID && app.ask == ASK_NONE);
     page(BTN_EDIT, PG_SOUND);
     shot("53-acid");
@@ -1049,14 +1109,14 @@ static void test_notes(void)
     boot(1);
     ch(2);
     page(BTN_SEQ, PG_SEQ);
-    kdown(bm_white_key(1)); run_ms(400);
-    black(0, 40); black(2, 40);                                    /* paso 2: dos notas de la escala */
+    kdown(bm_white_key(7)); run_ms(400);
+    black(0, 40); black(2, 40);                                    /* paso 8 (vacío): dos notas de la escala */
     enc(ENC_SELECT, 1);                                            /* acento */
     shot("03-seq-hold");
-    kup(bm_white_key(1)); run_ms(60);
+    kup(bm_white_key(7)); run_ms(60);
     int n = 0, acc = 0;
     for (int k = 0; k < BM_EVENTS; k++) {
-        const bm_event *e = bm_evc(&app.pat, 2, 1, k);
+        const bm_event *e = bm_evc(&app.pat, 2, 7, k);
         if (!bm_event_empty(e)) { n++; if (e->vel == BM_VEL_ACC) acc++; }
     }
     CHECK(n == 2 && acc == 2);
@@ -1096,8 +1156,8 @@ static void test_demo_and_persist(void)
     boot(0);
     int n2 = bm_pattern_pack(&app.pat, b2, sizeof b2);
     CHECK(n1 > 0 && n1 == n2 && memcmp(b1, b2, (size_t)n1) == 0);
-    CHECK(app.song.scene[1].valid && app.song.scene[1].trk_mute == 0x3C);
-    CHECK(app.pat.trk[4].engine == ENG_ANALOG && app.pat.prm[4][AN_MODE] == AN_M_LEGATO);
+    CHECK(app.song.scene[1].valid && app.song.scene[1].trk_mute == 0x38);
+    CHECK(app.pat.trk[4].engine == ENG_FM && app.pat.trk[2].engine == ENG_ACID && app.pat.meta.bpm_x10 == 1600);
 }
 
 static void test_old_version(void)
@@ -1115,7 +1175,7 @@ static void test_old_version(void)
     bm_store_write(&st, 7, pat, sizeof pat);
     boot(0);
     CHECK(!bm_store_has(&app.store, 7));
-    CHECK(app.pat.trk[1].source == BM_SRC_ROM && app.pat.tr[0].st[0][0] & ST_ON);   /* la demo */
+    CHECK(app.pat.trk[1].source == BM_SRC_NONE && app.pat.tr[0].st[0][0] & ST_ON);   /* la demo (sin tomas) */
 }
 
 static void test_spi_budget(void)

@@ -4,7 +4,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 
 ## [Unreleased]
 
-The sounds were rebuilt: **no more recorded sounds or wavetables**, everything is computed live with proven synthesis libraries. 0.3 patterns are read and converted automatically (format 4).
+The sounds were rebuilt: **no more recorded sounds or wavetables**, everything is computed live with proven synthesis libraries. **Until v1 there is no backward compatibility:** 0.3 patterns are not read; on first boot they are erased (with the song and settings) and the demo starts. Sampler takes are kept.
 
 ### Added
 - **Modeled drums** (T1 and KIT tracks): 16 instruments, each with its own **model**: 808 kick, snare and hat plus 909-style synthetic versions (the Plaits models by Mutable Instruments), metallic hat and cymbals, clap, tom and conga, cowbell, resonator (rim, clave, block), noise (maracas) and FM percussion. Kits **808**, **909** and **SINTE**. Each instrument is edited in INSTR: TUNE, DECAY, TONE, COLOR (whatever fits the model), MODEL, LEVEL, choke group and LENGTH. Accents hit differently, not just louder. Six drum voices (was four).
@@ -24,7 +24,8 @@ The sounds were rebuilt: **no more recorded sounds or wavetables**, everything i
 ### Changed
 - **Black 10 on drums:** a tap no longer mutes the instrument (it happened by accident and silently); **hold** it and pick with the white keys. Every mute shows a message and a muted instrument turns red in the grid.
 - **Old engines removed:** BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
-- Patterns in **format 4**: each track stores 32 sound settings and each drum instrument its model and hit. 0.3 patterns are converted on load (steps, notes, envelopes and cutoff are kept).
+- Patterns in **format 4**: each track stores 32 sound settings and each drum instrument its model and hit.
+- **ANALOG on the FM-1:** 4.1 % of a core per voice (own polyBLEP oscillator, filter coefficients every 8 samples, division-free saturation and short per-block passes; the first version cost 10 %).
 - **Audio code is compiled for speed:** on the FM-1 the demo with PLAY went from 36.9 % to 27.7 % of a core. Wavetables are built at boot from their spectrum (56 KiB less program).
 - **44.1 kHz audio end to end, with a floating-point bus.** The engines used to run at 22 kHz and the output was doubled; they now run at 44.1 kHz (highs up to 20 kHz, no oversampling images) and the mix, delay, effects and clipper are floating point, block based. The delay and the effects capture (stutter, reverse, tape stop) are now 16-bit (the capture used to be 8-bit μ-law), and sampler recording goes through a Butterworth filter before dropping to 16 kHz. On the FM-1, with PLAY, the mix costs less than before even though it computes twice the samples (docs/TRAZA_FM1.md).
 - **DROP** interpolation (no interpolation) becomes **LINEAR**: at 44.1 kHz, repeating samples sounded lo-fi.

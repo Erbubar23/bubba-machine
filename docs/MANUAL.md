@@ -91,7 +91,7 @@ El motor de un canal libre (y el de T3: ANALOG, ACID o FM) se elige en **MAS ›
 
 ## Los motores de sonido
 
-Desde 0.4 todo se calcula en vivo: no quedan sonidos grabados (solo los loops de fábrica del sampler).
+Desde 0.4 todo se calcula en vivo: no quedan sonidos grabados (solo los loops de fábrica del sampler). Hasta la v1 cada versión puede cambiar el formato: los patrones de una versión anterior se borran al primer arranque.
 
 | Motor | Qué es | K1-K4 en SEQ | PRESETS |
 |---|---|---|---|

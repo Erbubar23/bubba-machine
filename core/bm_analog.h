@@ -21,6 +21,9 @@ void bm_an_release(int v);
 /* Escribe n muestras (n <= 64) en out. Devuelve 0 cuando la voz terminó de sonar. */
 int  bm_an_render(int v, const uint8_t *prm, const uint8_t mac[4], float *out, int n);
 float bm_an_level(int v);          /* nivel de la envolvente (para robar voces) */
+/* medición: [0] oscilador, [1] SVF con coeficientes por muestra, [2] SoftClip, [3] semitonos a razón,
+ * [4] la voz entera, [5] bucle vacío, [6] división, [7] expf (una por bloque) */
+void bm_an_bench(const uint8_t *prm, const uint8_t mac[4], uint32_t (*now)(void), uint32_t out[8], int reps);
 
 #ifdef __cplusplus
 }

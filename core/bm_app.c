@@ -573,7 +573,7 @@ static void demo_pattern(bm_pattern *p, bm_song *song)
         ev_set(p, 4, o + 12, 0, prog[pg][1] + 12, 60, 2, BM_PROB_FILL);
         ev_set(p, 5, o + 0, 0, prog[pg][0] - 12, 60, 16, 100);
     }
-    p->trk[0].level = 80; p->trk[2].level = 76; p->trk[3].level = 56; p->trk[4].level = 48; p->trk[5].level = 44;   /* con el break sonando, sin saturar */
+    p->trk[0].level = 80; p->trk[2].level = 66; p->trk[3].level = 50; p->trk[4].level = 48; p->trk[5].level = 44;   /* con el break sonando, sin saturar */
     memset(song->scene, 0, sizeof song->scene);
     song->scene[0].valid = 1; song->scene[0].pattern = 0;                                  /* A: todo */
     song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x3C;  /* B: solo ritmo */
@@ -623,15 +623,18 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     if (pf->flash && bm_store_mount(&a->store, pf->flash) == 0) {
         bm_settings s;
         int has_glob = bm_store_read_glob(&a->store, (uint8_t *)&s, sizeof s) == (int)sizeof s;
-        int ok = has_glob && s.ver == BM_FMT, old = has_glob && !ok;
-        for (int i = 0; i < BM_PATTERNS && !has_glob; i++) {     /* sin ajustes: se mira el formato de los patrones */
+        int ok = has_glob && s.ver == BM_FMT, old = has_glob && !ok, oldpat = 0;
+        for (int i = 0; i < BM_PATTERNS; i++) {    /* patrones de otro formato: hasta la v1 no se convierten */
             int len = 0;
             const uint8_t *p = store_ptr(a, i, &len);
-            if (p && len > (int)offsetof(bm_meta, fmt) && p[offsetof(bm_meta, fmt)] != 3 && p[offsetof(bm_meta, fmt)] != BM_PAT_FMT) old = 1;
+            if (p && len > (int)offsetof(bm_meta, fmt) && p[offsetof(bm_meta, fmt)] != BM_PAT_FMT) oldpat = 1;
         }
-        if (old) {                                 /* datos de 0.2: la 0.3 no los lee, se empieza de cero */
+        if (old) {                                 /* datos de 0.2: se empieza de cero */
             bm_store_format(&a->store, pf->flash);
             bm_takes_format(pf->flash);
+        } else if (oldpat) {                       /* patrones de 0.3: se borran (canción y ajustes se rehacen); las tomas se quedan */
+            bm_store_format(&a->store, pf->flash);
+            ok = 0;
         }
         if (ok) a->set = s;
         uint8_t b[1 + 2 * BM_SONG_MAX + sizeof a->song.scene];

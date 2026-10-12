@@ -45,7 +45,7 @@
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
 <h2 id="unreleased">[Unreleased]</h2>
-<p>The sounds were rebuilt: <strong>no more recorded sounds or wavetables</strong>, everything is computed live with proven synthesis libraries. 0.3 patterns are read and converted automatically (format 4).</p>
+<p>The sounds were rebuilt: <strong>no more recorded sounds or wavetables</strong>, everything is computed live with proven synthesis libraries. <strong>Until v1 there is no backward compatibility:</strong> 0.3 patterns are not read; on first boot they are erased (with the song and settings) and the demo starts. Sampler takes are kept.</p>
 <h3 id="added">Added</h3>
 <ul><li>
 <strong>Modeled drums</strong> (T1 and KIT tracks): 16 instruments, each with its own <strong>model</strong>: 808 kick, snare and hat plus 909-style synthetic versions (the Plaits models by Mutable Instruments), metallic hat and cymbals, clap, tom and conga, cowbell, resonator (rim, clave, block), noise (maracas) and FM percussion. Kits <strong>808</strong>, <strong>909</strong> and <strong>SINTE</strong>. Each instrument is edited in INSTR: TUNE, DECAY, TONE, COLOR (whatever fits the model), MODEL, LEVEL, choke group and LENGTH. Accents hit differently, not just louder. Six drum voices (was four).
@@ -80,7 +80,9 @@
 </li><li>
 <strong>Old engines removed:</strong> BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
 </li><li>
-Patterns in <strong>format 4</strong>: each track stores 32 sound settings and each drum instrument its model and hit. 0.3 patterns are converted on load (steps, notes, envelopes and cutoff are kept).
+Patterns in <strong>format 4</strong>: each track stores 32 sound settings and each drum instrument its model and hit.
+</li><li>
+<strong>ANALOG on the FM-1:</strong> 4.1 % of a core per voice (own polyBLEP oscillator, filter coefficients every 8 samples, division-free saturation and short per-block passes; the first version cost 10 %).
 </li><li>
 <strong>Audio code is compiled for speed:</strong> on the FM-1 the demo with PLAY went from 36.9 % to 27.7 % of a core. Wavetables are built at boot from their spectrum (56 KiB less program).
 </li><li>

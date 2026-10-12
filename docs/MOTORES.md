@@ -54,7 +54,18 @@ El usuario pidió descartar todos los sonidos anteriores. Se fueron los kits gra
 - **Parámetros** (`core/bm_params.h`): cada motor declara sus páginas de 4 ajustes; la misma tabla dibuja la pantalla, formatea los valores y la usan los presets. 32 bytes por canal en el patrón (formato 4).
 - Pila: los buffers de los motores son estáticos (solo los usa la tarea de audio).
 
-Pendiente medir en el FM-1 el costo por voz de cada modelo y del ANALOG (`tools/fm1/traza.py motor`).
+Medido en el FM-1 (lab 34, `tools/fm1/traza.py una 34`):
+
+| ANALOG, preset SIERRA | ns por muestra |
+|---|---|
+| Primera versión (osciladores de Plaits, filtro por muestra, SoftClip de stmlib) | 1757 (10 % de un núcleo por voz, con 7 voces hubo bloques tarde) |
+| `VariableShapeOscillator` de Plaits, solo | 431 |
+| SVF con coeficientes por muestra / SoftClip / semitonos a razón / expf | 180 / 107 / 155 / 556 por llamada |
+| División float | ~10 (barata) |
+| Oscilador propio con polyBLEP, filtro cada 8 muestras, saturación cúbica, coeficientes de envolvente en caché | 1244 |
+| y el cálculo en pasadas cortas por bloque | **654** (4.1 % por voz con el audio andando; 7 voces = 29 %, 0 bloques tarde) |
+
+La FPU de este chip opera sobre los registros de los enteros: un bucle grande con todo junto se queda sin registros y guarda en la pila. Por eso las pasadas cortas ganan casi 2x. La batería modelada con la demo sonando: 7.6 % de un núcleo; todo el audio, 13 %.
 
 ## Lo que sigue
 

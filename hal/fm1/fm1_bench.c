@@ -20,6 +20,8 @@
 #include "bm_rom.h"
 #include "bm_fm.h"
 #include "bm_app.h"
+#include "bm_analog.h"
+#include "bm_params.h"
 
 void fm1_log(const char *s);
 
@@ -315,6 +317,22 @@ static void bench_pantalla(int solo)
 
 /* El motor FM por piezas: un operador, uno modulado, uno con realimentación y la voz entera
  * (msfa, core/bm_fm.cpp), en ns por muestra. */
+/* 34: ANALOG por piezas, con el preset arg */
+static void bench_an(int preset)
+{
+    enum { REPS = 1000 };
+    static bm_pattern p;
+    bm_pattern_init(&p);
+    p.trk[3].engine = ENG_ANALOG;
+    bm_preset_apply(&p, 3, preset);
+    uint32_t t[8];
+    bm_an_bench(p.prm[3], p.trk[3].macro, fm1_scan_now_ticks, t, REPS);
+    static const char *const NOM[8] = {"AN oscilador (bloque)  ", "AN SVF coef por muestra", "AN SoftClip            ",
+                                       "AN semitonos a razon   ", "AN voz entera          ", "bucle vacio            ",
+                                       "division float         ", "expf (por bloque)      "};
+    for (int i = 0; i < 8; i++) log_mil(NOM[i], ns(t[i], (i == 7 ? 1u : 64u) * REPS), i == 7 ? "ns/llamada" : "ns/muestra");
+}
+
 static void bench_fm(int patch)
 {
     enum { REPS = 2000 };
@@ -335,6 +353,7 @@ int fm1_bench(int cmd, int arg)
     case 24: fm1_log("prueba: dos nucleos"); bench_nucleos(); return 0;
     case 25: fm1_log("prueba: pantalla"); bench_pantalla(arg ? arg - 1 : -1); return 0;
     case 28: fm1_log("prueba: motor FM"); bench_fm(arg); return 0;
+    case 34: fm1_log("prueba: motor ANALOG"); bench_an(arg); return 0;
     }
     return -1;
 }

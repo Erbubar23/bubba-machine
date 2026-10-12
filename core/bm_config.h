@@ -6,7 +6,7 @@
 
 #define BM_VERSION_STR "0.3.0"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
-#define BM_PAT_FMT       4        /* formato de patrones: 0.4 lee también los de 0.3 (formato 3) y los convierte */
+#define BM_PAT_FMT       4        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           32       /* parámetros de sonido por canal, además de las 4 macros */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */

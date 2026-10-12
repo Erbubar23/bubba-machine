@@ -45,7 +45,7 @@
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
 <h2 id="sin-publicar">[Sin publicar]</h2>
-<p>Los sonidos se rehicieron: <strong>ya no hay sonidos grabados ni wavetables</strong>, todo se calcula en vivo con bibliotecas de síntesis probadas. Los patrones de 0.3 se leen y se convierten solos (formato 4).</p>
+<p>Los sonidos se rehicieron: <strong>ya no hay sonidos grabados ni wavetables</strong>, todo se calcula en vivo con bibliotecas de síntesis probadas. <strong>Hasta la v1 no hay compatibilidad hacia atrás:</strong> los patrones de 0.3 no se leen; al primer arranque se borran (con la canción y los ajustes) y arranca la demo. Las tomas del sampler se quedan.</p>
 <h3 id="agregado">Agregado</h3>
 <ul><li>
 <strong>Batería modelada</strong> (T1 y los canales KIT): 16 instrumentos, cada uno con su <strong>modelo</strong>: bombo, caja y hat de la 808 y versiones sintéticas al estilo 909 (los modelos de Plaits, de Mutable Instruments), hat metálico y platillos, palmas, tom y conga, cencerro, resonador (rim, clave, bloque), ruido (maracas) y percusión FM. Kits <strong>808</strong>, <strong>909</strong> y <strong>SINTE</strong>. Cada instrumento se edita en INSTR: AFINA, DECAY, TONO, COLOR (lo que corresponda al modelo), MODELO, NIVEL, grupo de corte (choke) y LARGO. El acento pega distinto, no solo más fuerte. Seis voces para la batería (antes cuatro).
@@ -80,7 +80,9 @@
 </li><li>
 <strong>Fuera los motores viejos:</strong> BAJO, SYNTH (wavetable), MONO y el ANALOG de 6 timbres pasan al ANALOG nuevo; los kits grabados KO-808 y KO-909 y el kit SINTE, a la batería modelada. El programa del FM-1 ocupa 148 KiB menos y se liberan 64 KiB de RAM.
 </li><li>
-Patrones en <strong>formato 4</strong>: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe. Los de 0.3 se convierten al cargarlos (conservan pasos, notas, envolventes y corte).
+Patrones en <strong>formato 4</strong>: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe.
+</li><li>
+<strong>ANALOG en el FM-1:</strong> 4.1 % de un núcleo por voz (oscilador polyBLEP propio, filtro recalculado cada 8 muestras, saturación sin división y el cálculo por pasadas cortas; la primera versión costaba 10 %).
 </li><li>
 <strong>El audio se compila para velocidad:</strong> en el FM-1 la demo con PLAY pasó de 36.9 % a 27.7 % de un núcleo. Las wavetables se arman al arrancar desde su espectro (el programa ocupa 56 KiB menos).
 </li><li>

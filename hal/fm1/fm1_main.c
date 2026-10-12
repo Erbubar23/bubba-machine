@@ -399,7 +399,7 @@ int fm1_lab(int cmd, int arg)
         fm1_log("lab: arrancar Bubba completo con audio");
         lab_bubba = 1;
         return 0;
-    case 20: case 21: case 22: case 23: case 24: case 25: case 28:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
+    case 20: case 21: case 22: case 23: case 24: case 25: case 28: case 34:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
         if (!fm1_scan_ticks()) {             /* el reloj de las mediciones es el barrido */
             fm1_scan_start();
             lab_scan = 1;
@@ -471,6 +471,17 @@ int fm1_lab(int cmd, int arg)
         log_num("  motor ", k->engine, "");
         log_num("  fuente ", k->source, "");
         for (int i = 0; i < 4; i++) log_num("  macro ", k->macro[i], "");
+        log_num("  mute ", k->mute, "");
+        log_num("  nivel ", k->level, "");
+        log_num("  largo ", k->length, "");
+        if (bm_kind(&app.pat, arg) == KIND_NOTE) {
+            uint32_t ne = 0;
+            for (int s = 0; s < BM_STEPS; s++)
+                for (int e = 0; e < BM_EVENTS; e++) if (!bm_event_empty(bm_evc(&app.pat, arg, s, e))) ne++;
+            log_num("  notas ", ne, "");
+        }
+        for (int i = 0; i < BM_VOICES; i++)
+            if (app.ctx.voice[i].active && app.ctx.voice[i].track == arg) log_num("  voz activa ", (uint32_t)i, "");
         return 0;
     }
     case 27: {                               /* fuente (patch, kit, banco) del canal (bits 5-7) = bits 0-4 */

@@ -952,53 +952,17 @@ static void test_engines(void)
     CHECK(peak_abs > 0.05 && peak_abs <= 1.0);
 }
 
-/* Un patrón de 0.3 (formato 3) se lee y se convierte: BAJO, SYNTH y MONO pasan a ANALOG, KIT y la
- * batería toman el kit modelado del mismo nombre, y los pasos se quedan. */
+/* Hasta la v1 no hay compatibilidad hacia atrás: un patrón de 0.3 (formato 3) no se lee. */
 static void test_migrate(void)
 {
-    printf("patrones de 0.3: se convierten al formato 4\n");
-    static uint8_t b[4096];
-    bm_pattern p;
+    printf("patrones de 0.3: no se leen (sin compatibilidad hasta la v1)\n");
+    static uint8_t b[BM_PENDING_LEN];
+    bm_pattern p, q;
     bm_pattern_init(&p);
-    memset(b, 0, sizeof b);
-    memcpy(b, &p.meta, 64);
-    b[0] = 1200 & 0xFF; b[1] = 1200 >> 8;
+    int n = bm_pattern_pack(&p, b, sizeof b);
+    CHECK(n > 0 && bm_pattern_unpack(&q, b, n) == n);
     b[offsetof(bm_meta, fmt)] = 3;
-    int o = 64;
-    static const uint8_t ENG3[6] = {0, 1, 2, 3, 4, 5};             /* DRUM BREAK BASS SYNTH MONO KIT */
-    for (int t = 0; t < BM_TRACKS; t++) {
-        bm_track tk = p.trk[t];
-        tk.engine = ENG3[t];
-        tk.source = t == 0 ? 1 : 0;                                  /* T1 con KO-909 */
-        tk.attack = 64; tk.release = 64; tk.sustain = 90;
-        memcpy(b + o, &tk, 48); o += 48;
-    }
-    for (int t = 0; t < BM_TRACKS; t++) {
-        if (t < 2 || t == 5) {                                       /* rejilla: líneas de 4 bytes */
-            for (int l = 0; l < 16; l++) { b[o++] = 16; b[o++] = 100; b[o++] = 64; b[o++] = 127; }
-            b[o++] = 0; b[o++] = 0;                                  /* mute */
-            b[o++] = 1; b[o++] = 0;                                  /* un paso: línea 0, paso 4 */
-            b[o++] = 4; b[o++] = 0; b[o++] = ST_ON;
-            b[o++] = 0;                                              /* sin P-Locks */
-        } else { b[o++] = 0; b[o++] = 0; }                           /* notas: ninguna */
-    }
-    for (int i = 0; i < 4; i++) { b[o++] = 0; b[o++] = 2; b[o++] = 0; }
-    bm_pattern q;
-    CHECK(bm_pattern_unpack(&q, b, o) == o);
-    CHECK(q.trk[0].engine == ENG_DRUM && q.trk[0].source == 1 && q.tr[0].lane[0].model == bm_kits[1].lane[0].model);
-    CHECK(q.tr[0].st[0][4] == ST_ON && q.tr[0].lane[0].decay == bm_kits[1].lane[0].decay);
-    CHECK(q.trk[2].engine == ENG_ANALOG && q.prm[2][AN_MODE] == AN_M_MONO);
-    CHECK(q.trk[3].engine == ENG_ANALOG && q.trk[4].engine == ENG_ANALOG);
-    CHECK(q.trk[5].engine == ENG_KIT && bm_trk_trc(&q, 5)->st[0][4] == ST_ON && bm_trk_trc(&q, 5)->lane[2].model == bm_kits[0].lane[2].model);
-    CHECK(q.prm[3][AN_AS] == 90 && q.prm[3][AN_AA] > 20);
-    CHECK(q.meta.fmt == BM_PAT_FMT);
-    /* y vuelve a salir igual en formato 4 */
-    static uint8_t c1[BM_PENDING_LEN], c2[BM_PENDING_LEN];
-    int n1 = bm_pattern_pack(&q, c1, sizeof c1);
-    bm_pattern r;
-    CHECK(n1 > 0 && bm_pattern_unpack(&r, c1, n1) == n1);
-    int n2 = bm_pattern_pack(&r, c2, sizeof c2);
-    CHECK(n1 == n2 && memcmp(c1, c2, (size_t)n1) == 0);
+    CHECK(bm_pattern_unpack(&q, b, n) < 0);
 }
 
 static void test_loop(void)
@@ -1084,7 +1048,7 @@ static void test_demo_and_persist(void)
 
 static void test_old_version(void)
 {
-    printf("0.3 no lee lo de 0.2: borra y arranca con la demo\n");
+    printf("datos de 0.2: borra y arranca con la demo\n");
     bm_sim_flash_erase_all(&sim);
     bm_platform pf;
     bm_sim_platform(&sim, &pf);

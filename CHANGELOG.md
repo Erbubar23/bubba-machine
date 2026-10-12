@@ -4,7 +4,7 @@ Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https:
 
 ## [Sin publicar]
 
-Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se calcula en vivo con bibliotecas de síntesis probadas. Los patrones de 0.3 se leen y se convierten solos (formato 4).
+Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se calcula en vivo con bibliotecas de síntesis probadas. **Hasta la v1 no hay compatibilidad hacia atrás:** los patrones de 0.3 no se leen; al primer arranque se borran (con la canción y los ajustes) y arranca la demo. Las tomas del sampler se quedan.
 
 ### Agregado
 - **Batería modelada** (T1 y los canales KIT): 16 instrumentos, cada uno con su **modelo**: bombo, caja y hat de la 808 y versiones sintéticas al estilo 909 (los modelos de Plaits, de Mutable Instruments), hat metálico y platillos, palmas, tom y conga, cencerro, resonador (rim, clave, bloque), ruido (maracas) y percusión FM. Kits **808**, **909** y **SINTE**. Cada instrumento se edita en INSTR: AFINA, DECAY, TONO, COLOR (lo que corresponda al modelo), MODELO, NIVEL, grupo de corte (choke) y LARGO. El acento pega distinto, no solo más fuerte. Seis voces para la batería (antes cuatro).
@@ -24,7 +24,8 @@ Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se
 ### Cambiado
 - **Negra 10 en la batería:** un toque ya no mutea el instrumento (pasaba sin querer y sin aviso); hay que **mantenerla** y elegir con las blancas. Cada mute avisa en pantalla y el instrumento muteado queda en rojo en la rejilla.
 - **Fuera los motores viejos:** BAJO, SYNTH (wavetable), MONO y el ANALOG de 6 timbres pasan al ANALOG nuevo; los kits grabados KO-808 y KO-909 y el kit SINTE, a la batería modelada. El programa del FM-1 ocupa 148 KiB menos y se liberan 64 KiB de RAM.
-- Patrones en **formato 4**: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe. Los de 0.3 se convierten al cargarlos (conservan pasos, notas, envolventes y corte).
+- Patrones en **formato 4**: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe.
+- **ANALOG en el FM-1:** 4.1 % de un núcleo por voz (oscilador polyBLEP propio, filtro recalculado cada 8 muestras, saturación sin división y el cálculo por pasadas cortas; la primera versión costaba 10 %).
 - **El audio se compila para velocidad:** en el FM-1 la demo con PLAY pasó de 36.9 % a 27.7 % de un núcleo. Las wavetables se arman al arrancar desde su espectro (el programa ocupa 56 KiB menos).
 - **Audio a 44.1 kHz de punta a punta, con el bus en coma flotante.** Los motores calculaban a 22 kHz y la salida se duplicaba; ahora calculan a 44.1 kHz (agudos hasta 20 kHz, sin imágenes del sobremuestreo) y la mezcla, el delay, los efectos y el clipper son de coma flotante, por bloques. El delay y la captura de los efectos (stutter, reversa, tape stop) pasan a 16 bits (antes la captura era μ-law de 8 bits), y la grabación del sampler se filtra con un Butterworth antes de bajar a 16 kHz. En el FM-1, con PLAY, la mezcla cuesta menos que antes aunque calcula el doble de muestras (docs/TRAZA_FM1.md).
 - La interpolación **DROP** (sin interpolar) pasa a ser **LINEAL**: a 44.1 kHz, repetir muestras sonaba a lo-fi.

@@ -4,7 +4,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <math.h>
 #include "bm_pattern.h"
 #include "bm_params.h"
 
@@ -207,7 +206,7 @@ void bm_tr_lock_clear_step(bm_tr *tr, int step, int lane)
 /* ------------------------------------------------------------ formato disperso (versión BM_FMT)
  * meta 64 (bpm LE, fmt) | canales 6x48 | parámetros 6x32 (formato 4) |
  * por canal, según su tipo:
- *   rejilla (T1, T2, KIT): líneas 16x8 (formato 3: 16x4) + mute 2 | n u16 + n x (pos u16 = lane<<6|paso, valor u8) |
+ *   rejilla (T1, T2, KIT): líneas 16x8 + mute 2 | n u16 + n x (pos u16 = lane<<6|paso, valor u8) |
  *                          m u8 + m x 4 (P-Locks)
  *   notas: n u16 + n x (pos u8 = slot<<6|paso, evento 8)
  * loop x4: on, bars, n + n x (tick u16, nota, vel) */
@@ -280,27 +279,11 @@ int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap)
 
 #define GET(k) do { if (o + (k) > len) return -1; } while (0)
 
-/* fmt3: líneas de 4 bytes (0.3); kit >= 0: la batería de 0.3 con ese kit (0 KO-808, 1 KO-909, 2 SINTE) */
-static int unpack_tr(bm_tr *tr, const uint8_t *in, int o, int len, int fmt3, int kit)
+static int unpack_tr(bm_tr *tr, const uint8_t *in, int o, int len)
 {
     bm_tr_defaults(tr);
-    if (fmt3) {
-        GET(68);
-        if (kit >= 0) bm_kit_apply(tr, kit);
-        for (int l = 0; l < BM_LANES; l++) {                 /* largo y nivel; afinación y decay sobre el kit */
-            const uint8_t *q = in + o + l * 4;
-            bm_lane *ln = &tr->lane[l];
-            ln->len = q[0]; ln->level = q[1];
-            if (kit >= 0) {
-                ln->tune = (uint8_t)bm_clampi(ln->tune + ((int)q[2] - 64) / 2, 0, 127);
-                ln->decay = (uint8_t)(ln->decay * q[3] / 127);
-            }
-        }
-        o += 64;
-    } else {
-        GET((int)sizeof tr->lane + 4);
-        memcpy(tr->lane, in + o, sizeof tr->lane); o += (int)sizeof tr->lane;
-    }
+    GET((int)sizeof tr->lane + 4);
+    memcpy(tr->lane, in + o, sizeof tr->lane); o += (int)sizeof tr->lane;
     tr->mute = (uint16_t)(in[o] | (in[o + 1] << 8)); o += 2;
     int n = in[o] | (in[o + 1] << 8); o += 2;
     for (int i = 0; i < n; i++) {
@@ -325,78 +308,28 @@ static int unpack_tr(bm_tr *tr, const uint8_t *in, int o, int len, int fmt3, int
     return o;
 }
 
-/* Formato 3 (0.3) -> 4: los motores BAJO, SYNTH, MONO y el ANALOG viejo pasan a ANALOG con un
- * preset parecido; las envolventes y el corte del canal se conservan. La batería toma el kit
- * modelado del mismo nombre. */
-enum { O_DRUM, O_BREAK, O_BASS, O_SYNTH, O_MONO, O_KIT, O_MIDI, O_ACID, O_VA, O_FM };
-static int env_v(float seconds) { return bm_clampi((int)(31.75f * log10f(seconds / 0.001f) + 0.5f), 0, 127); }
-
-static void migrate_track(bm_pattern *p, int t, int old)
-{
-    bm_track *tk = &p->trk[t];
-    static const uint8_t MAP[10] = {ENG_DRUM, ENG_BREAK, ENG_ANALOG, ENG_ANALOG, ENG_ANALOG, ENG_KIT, ENG_MIDI, ENG_ACID, ENG_ANALOG, ENG_FM};
-    int e = old < 10 ? MAP[old] : ENG_ANALOG;
-    if (t == 0) e = ENG_DRUM;
-    else if (t == 1) e = ENG_BREAK;
-    else if (!bm_engine_ok(t, e)) e = ENG_ANALOG;
-    tk->engine = (uint8_t)e;
-    if (e == ENG_DRUM || e == ENG_KIT) {
-        tk->source = (uint8_t)(tk->source % 3);
-        tk->macro[0] = tk->macro[1] = tk->macro[2] = tk->macro[3] = 64;
-    } else if (e == ENG_ANALOG) {
-        uint8_t cut = tk->macro[0], res = tk->macro[1];
-        int pre = old == O_BASS ? 1 : old == O_MONO ? 7 : old == O_SYNTH ? 4 : 0;
-        tk->source = (uint8_t)pre;
-        bm_preset_apply(p, t, pre);
-        tk->macro[0] = cut; tk->macro[1] = res;
-        uint8_t *q = p->prm[t];
-        q[AN_AA] = (uint8_t)env_v(0.001f * powf(1000.0f, tk->attack / 127.0f));
-        q[AN_AS] = tk->sustain;
-        q[AN_AR] = (uint8_t)env_v(0.005f * powf(800.0f, tk->release / 127.0f));
-        q[AN_AD] = q[AN_FD] = (uint8_t)env_v(0.005f * powf(800.0f, tk->macro[2] / 127.0f));
-        if (old == O_BASS || old == O_MONO) q[AN_GLIDE] = (uint8_t)(tk->glide * 3 / 4);
-    }
-}
-
 int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
 {
     int o = 0;
     GET(64 + (int)sizeof p->trk);
-    int fmt = in[offsetof(bm_meta, fmt)];
-    if (fmt != 3 && fmt != BM_PAT_FMT) return -1;                 /* 0.4 no lee patrones de 0.2 */
+    if (in[offsetof(bm_meta, fmt)] != BM_PAT_FMT) return -1;      /* hasta la v1, sin compatibilidad hacia atrás */
     bm_pattern_init(p);
     memcpy(&p->meta, in, 64);
     p->meta.bpm_x10 = (uint16_t)(in[0] | (in[1] << 8));
     p->meta.fmt = BM_PAT_FMT;
     o = 64;
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
-    uint8_t old_eng[BM_TRACKS];
-    for (int t = 0; t < BM_TRACKS; t++) old_eng[t] = p->trk[t].engine;
-    if (fmt == 3) {
-        for (int t = 0; t < BM_TRACKS; t++) migrate_track(p, t, old_eng[t]);
-    } else {
-        GET((int)sizeof p->prm);
-        memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
-        for (int t = 0; t < BM_TRACKS; t++) {                      /* los canales fijos no cambian de motor */
-            uint8_t e = p->trk[t].engine;
-            if (t < 2) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);
-            else if (!bm_engine_ok(t, e)) { p->trk[t].engine = ENG_ANALOG; bm_preset_apply(p, t, 0); }
-        }
+    GET((int)sizeof p->prm);
+    memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
+    for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
+        uint8_t e = p->trk[t].engine;
+        if (t < 2) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);
+        else if (!bm_engine_ok(t, e)) { p->trk[t].engine = ENG_ANALOG; bm_preset_apply(p, t, 0); }
     }
     for (int t = 0; t < BM_TRACKS; t++) {
         if (bm_is_grid(p, t)) {
-            int kit = fmt == 3 && t != 1 ? p->trk[t].source % 3 : -1;
-            o = unpack_tr(bm_trk_tr(p, t), in, o, len, fmt == 3, kit);
+            o = unpack_tr(bm_trk_tr(p, t), in, o, len);
             if (o < 0) return -1;
-            if (kit >= 0) {                                        /* P-Locks de 0.3: TONE y DECAY eran 127 = abierto */
-                bm_tr *tr = bm_trk_tr(p, t);
-                for (int i = 0; i < BM_LANE_LOCKS; i++) {
-                    bm_lock *k = &tr->lk[i];
-                    if (k->lane == 0xFF) continue;
-                    if (k->param == 0 || k->param == 2) k->val = (uint8_t)(k->val / 2);
-                    else if (k->param == 3) k->val = 64;
-                }
-            }
             continue;
         }
         bm_track_clear_events(p, t);

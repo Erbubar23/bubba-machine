@@ -2960,7 +2960,7 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
                         if (s == bm_app_track_step(a, 1, 0)) l = LED_BLINK;
                     }
                 } else if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); l = st->brk_slice == b && st->playing ? LED_ON : LED_MID; }
-                else { KL(K, k, b == 8 ? "REV" : b == 9 ? "MEDIA" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
+                else { KL(K, k, b == 8 ? "REV" : b == 9 ? "MED" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
             } else {
                 const bm_tr *tr = bm_trk_trc(&a->pat, t);
                 int lane = tr_lane(a);
@@ -2976,7 +2976,7 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
                     snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, ln)); KL(K, k, b8);
                     l = lane_led(tr, ln, lane);
                 } else {
-                    KL(K, k, b == 8 ? (lane < 8 ? "9-16" : "1-8") : b == 9 ? "MUTES" : "FILL");
+                    KL(K, k, b == 8 ? (lane < 8 ? "9-16" : "1-8") : b == 9 ? "MUTE" : "FILL");
                     l = (b == 8 && lane >= 8) ? LED_ON : LED_DIM;
                 }
             }
@@ -2997,7 +2997,7 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
                 l = pos < tk->len ? LED_MID : LED_OFF;
                 for (int i = 0; i < tk->nmarks; i++) if ((tk->marks[i] > pos ? tk->marks[i] - pos : pos - tk->marks[i]) < e8 / 2) l = LED_ON;
             } else if (b >= 0 && b < 10) {
-                if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); } else KL(K, k, b == 8 ? "GOLPE" : "IGUAL");
+                if (b < 8) { snprintf(b8, sizeof b8, "S%d", b + 1); KL(K, k, b8); } else KL(K, k, b == 8 ? "GOLP" : "IGUA");
                 l = LED_DIM;
             }
         } else if (a->view == V_CH && a->page == PG_SLICE) {
@@ -3006,8 +3006,8 @@ void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
             if (w >= 0 && w < n) {
                 snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8);
                 l = st->brk_slice == w && (st->playing || a->now < a->lane_flash[1][w]) ? LED_ON : (w == a->cut_sel ? LED_MID : LED_DIM);
-            } else if (b >= 0 && b <= 2) { KL(K, k, b == 0 ? "GOLPE" : b == 1 ? "16" : "8"); l = LED_DIM; }
-            else if (b >= 8) { KL(K, k, b == 8 ? "REV" : b == 9 ? "MEDIA" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
+            } else if (b >= 0 && b <= 2) { KL(K, k, b == 0 ? "GOLP" : b == 1 ? "16" : "8"); l = LED_DIM; }
+            else if (b >= 8) { KL(K, k, b == 8 ? "REV" : b == 9 ? "MED" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
         } else if (a->view == V_CH && a->page == PG_TAKES) {
             if (w >= 0 && w < BM_SLICES) { snprintf(b8, sizeof b8, "S%d", w + 1); KL(K, k, b8); l = LED_DIM; }
             else if (b == 0 || b == 1) { KL(K, k, b == 0 ? "LOOPA" : "LOOPB"); l = LED_MID; }

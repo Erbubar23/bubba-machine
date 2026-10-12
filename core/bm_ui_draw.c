@@ -223,6 +223,26 @@ static void draw_keystrip(bm_gfx *g, const bm_app *a, int y, int hb, int hw, int
     }
 }
 
+
+/* Solo las negras, cuando las blancas ya se ven en la pantalla (los pasos de SEQ, las corcheas de
+ * CORTAR, los cortes del SLICER): más anchas y con su nombre entero, agrupadas como en el teclado
+ * (2, 3, 2, 3 y 1). */
+static void draw_blackstrip(bm_gfx *g, const bm_app *a, int y, int h)
+{
+    if (!gfx_strip_hit(g, y, h + 1)) return;
+    bm_keyfn K[BM_KEYS];
+    bm_app_keys(a, K);
+    gfx_fill(g, 0, y, BM_LCD_W, h + 1, C_BLACK);
+    static const uint8_t GRP[BM_BLACKS] = {0, 0, 1, 1, 1, 2, 2, 3, 3, 3, 4};
+    int x = 3;
+    for (int i = 0; i < BM_BLACKS; i++) {
+        if (i && GRP[i] != GRP[i - 1]) x += 4;
+        int k = bm_black_key(i);
+        key_cell(g, a, x, y, 18, h, &K[k], a->keys_down[k], 0);
+        x += 20;
+    }
+}
+
 static void draw_home(bm_gfx *g, const bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
@@ -286,57 +306,60 @@ static void draw_mix(bm_gfx *g, const bm_app *a)
 }
 
 /* ------------------------------------------------------------ SEQ: rejilla TR */
+/* Batería: solo la sección que tocan las negras 1-8 (instrumentos 1-8 o 9-16, negra 9 cambia),
+ * con filas del doble de alto. Cada línea con su cabezal (cada instrumento tiene su largo). */
 static void draw_seq_tr(bm_gfx *g, const bm_app *a)
 {
-    int t = a->track, sel = a->sel_lane[t];
+    int t = a->track, sel = a->sel_lane[t], base = (sel / 8) * 8;
     const bm_tr *tr = bm_trk_trc(&a->pat, t);
     uint16_t col = bm_track_color(t);
-    char b[24];
-    if (gfx_strip_hit(g, PY, 9)) {
-        gfx_text(g, 4, PY, bm_lane_name(a, t, sel), C_WHITE, 1);
-        int len = tr->lane[sel].len;
-        snprintf(b, sizeof b, "P%d/%d L%d %s", a->step_page + 1, (len + 15) / 16, len, bm_speed_names[a->pat.trk[t].speed % SPD_COUNT]);
-        gfx_text_r(g, 236, PY, b, C_GREY, 1);
+    char b[30];
+    if (gfx_strip_hit(g, PY, 10)) {
+        if (a->held_step >= 0 && a->held_long) {                 /* paso sostenido: cómo está */
+            uint8_t v = tr->st[sel][a->held_step];
+            int rat = (v & ST_FLAM) ? 4 : ((v & ST_RAT_MASK) >> ST_RAT_SH);
+            static const char *const R[5] = {"X1", "X2", "X3", "X4", "FLAM"};
+            static const char *const C[3] = {"SIEMPRE", "FILL", "SIN FILL"};
+            snprintf(b, sizeof b, "%02d %s %s %s", a->held_step + 1, (v & ST_ACC) ? "ACENTO" : "NORMAL", R[rat], C[(v & ST_COND_MASK) >> ST_COND_SH]);
+            gfx_fill(g, 0, PY - 1, 240, 10, C_DGREY);
+            gfx_text(g, 4, PY, b, C_YELLOW, 1);
+        } else {
+            gfx_text(g, 4, PY, bm_lane_name(a, t, sel), C_WHITE, 1);
+            int len = tr->lane[sel].len;
+            snprintf(b, sizeof b, "%s  P%d/%d L%d", base ? "9-16" : "1-8", a->step_page + 1, (len + 15) / 16, len);
+            gfx_text_r(g, 236, PY, b, C_GREY, 1);
+        }
     }
-    for (int l = 0; l < BM_LANES; l++) {
-        int y = PY + 10 + l * 8;
-        if (!gfx_strip_hit(g, y, 8)) continue;
+    for (int i = 0; i < 8; i++) {
+        int l = base + i, y = PY + 12 + i * 16;
+        if (!gfx_strip_hit(g, y, 16)) continue;
         bool muted = (tr->mute >> l) & 1;
         int len = tr->lane[l].len ? tr->lane[l].len : 16;
         int ps = bm_app_track_step(a, t, l);
-        if (l == sel) gfx_fill(g, 0, y, 240, 8, C_DDGREY);
+        if (l == sel) gfx_fill(g, 0, y, 240, 15, C_DDGREY);
         char nm[5]; snprintf(nm, sizeof nm, "%s", bm_lane_name(a, t, l));
-        gfx_small(g, 1, y + 1, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_RED : (l == sel ? C_WHITE : C_GREY)));
-        for (int s = 0; s < 16; s++) {
-            int ab = a->step_page * 16 + s, x = 20 + s * 13 + (s / 4);
-            if (ab >= len) { gfx_fill(g, x + 5, y + 3, 2, 2, C_DDGREY); continue; }
+        gfx_text(g, 1, y + 4, nm, a->now < a->lane_flash[t][l] ? col : (muted ? C_RED : (l == sel ? C_WHITE : C_GREY)), 1);
+        for (int s2 = 0; s2 < 16; s2++) {
+            int ab = a->step_page * 16 + s2, x = 27 + s2 * 13 + (s2 / 4);
+            if (ab >= len) { gfx_fill(g, x + 5, y + 6, 2, 2, C_DDGREY); continue; }
             uint8_t v = tr->st[l][ab];
             uint16_t c = muted ? C_DGREY : (l == sel ? col : dim(col));
             if (v & ST_ON) {
                 int cond = (v & ST_COND_MASK) >> ST_COND_SH;
-                if (cond) gfx_rect(g, x, y, 12, 7, cond == 1 ? C_ORANGE : C_GREY);
-                else gfx_fill(g, x, y, 12, 7, (v & ST_ACC) ? C_WHITE : c);
-                if (cond && (v & ST_ACC)) gfx_fill(g, x + 2, y + 2, 8, 4, C_WHITE);
+                if (cond) gfx_rect(g, x, y + 1, 12, 13, cond == 1 ? C_ORANGE : C_GREY);
+                else gfx_fill(g, x, y + 1, 12, 13, (v & ST_ACC) ? C_WHITE : c);
+                if (cond && (v & ST_ACC)) gfx_fill(g, x + 2, y + 3, 8, 9, C_WHITE);
                 int rat = (v & ST_RAT_MASK) >> ST_RAT_SH;
-                for (int r = 0; r < rat; r++) gfx_fill(g, x + 2 + r * 3, y + 6, 2, 2, C_BLACK);
-                if (v & ST_FLAM) gfx_fill(g, x + 9, y + 1, 2, 2, C_BLACK);
-                if (v & ST_LOCK) gfx_fill(g, x + 1, y + 1, 2, 2, C_BLACK);
+                for (int r = 0; r < rat; r++) gfx_fill(g, x + 2 + r * 3, y + 10, 2, 2, C_BLACK);
+                if (v & ST_FLAM) gfx_fill(g, x + 9, y + 2, 2, 2, C_BLACK);
+                if (v & ST_LOCK) gfx_fill(g, x + 1, y + 2, 2, 2, C_BLACK);
             } else {
-                gfx_fill(g, x, y, 12, 7, l == sel ? C_DGREY : C_BLACK);
-                if (s % 4 == 0) gfx_fill(g, x + 5, y + 3, 2, 2, C_DGREY);
+                gfx_fill(g, x, y + 1, 12, 13, l == sel ? C_DGREY : C_BLACK);
+                if (s2 % 4 == 0) gfx_fill(g, x + 5, y + 6, 2, 2, C_DGREY);
             }
-            if (ab == ps) gfx_fill(g, x, y + 6, 12, 2, (v & ST_ON) && !muted ? C_WHITE : C_GREY);
-            if (l == sel && ab == a->held_step && a->held_long) gfx_rect(g, x - 1, y - 1, 14, 9, C_YELLOW);
+            if (ab == ps) gfx_fill(g, x, y + 13, 12, 2, (v & ST_ON) && !muted ? C_WHITE : C_GREY);
+            if (l == sel && ab == a->held_step && a->held_long) gfx_rect(g, x - 1, y, 14, 15, C_YELLOW);
         }
-    }
-    if (a->held_step >= 0 && a->held_long && gfx_strip_hit(g, 172, 11)) {
-        uint8_t v = tr->st[sel][a->held_step];
-        int rat = (v & ST_FLAM) ? 4 : ((v & ST_RAT_MASK) >> ST_RAT_SH);
-        static const char *const R[5] = {"X1", "X2", "X3", "X4", "FLAM"};
-        static const char *const C[3] = {"SIEMPRE", "FILL", "SIN FILL"};
-        snprintf(b, sizeof b, "%s %s %s", (v & ST_ACC) ? "ACENTO" : "NORMAL", R[rat], C[(v & ST_COND_MASK) >> ST_COND_SH]);
-        gfx_fill(g, 0, 172, 240, 11, C_DGREY);
-        gfx_text(g, 4, 174, b, C_WHITE, 1);
     }
 }
 
@@ -429,8 +452,8 @@ static void draw_seq_brk(bm_gfx *g, const bm_app *a)
         snprintf(b, sizeof b, "%s%s%s", (a->brk_live & 1) ? "REVERSA " : "", (a->brk_live & 2) ? "MEDIA VEL " : "", (a->brk_live & 4) ? "STUTTER" : "");
         if (gfx_strip_hit(g, 172, 10)) { gfx_fill(g, 0, 172, 240, 10, C_CYAN); gfx_text_c(g, 120, 173, b, C_BLACK, 1); }
     } else {
-        hint_s(g, 174, "BLANCA: GENERADOR SI/NO - BLANCA+NEGRA: SLICE FIJO");
-        hint_s(g, 181, "EDIT SOSTENIDO + NEGRA 4: CAPTURAR LO QUE SUENA");
+        hint_s(g, 172, "BLANCA: GENERADOR SI/NO - BLANCA+NEGRA: SLICE FIJO");
+        hint_s(g, 178, "EDIT SOSTENIDO + NEGRA 4: CAPTURAR LO QUE SUENA");
     }
 }
 
@@ -1740,7 +1763,8 @@ static void draw_channel(bm_gfx *g, const bm_app *a)
     case PG_SLICE: draw_slicer(g, a); break;
     default: break;
     }
-    draw_keystrip(g, a, 183, 6, 9, 0);
+    if (a->page == PG_SEQ || a->page == PG_CUT || a->page == PG_SLICE) draw_blackstrip(g, a, 185, 14);   /* las blancas ya están en pantalla */
+    else draw_keystrip(g, a, 183, 6, 9, 0);
 }
 
 void bm_app_draw(bm_gfx *g, void *user)

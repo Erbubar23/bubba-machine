@@ -23,7 +23,7 @@ Nunca hay dos capas a la vez: con una capa abierta, otro botón sostenido no abr
 
 | Perilla | Qué hace |
 |---|---|
-| **ALGORITHM** | El canal. En HOME aparece un **recuadro** con el canal destino y a los 400 ms entras. Dentro de un canal cambia al instante y conserva la página. En una lista, cambia el valor marcado. Con **HOME sostenido**, elige un canal desde cualquier pantalla y entras al soltar HOME |
+| **ALGORITHM** | El canal. En HOME aparece un **recuadro** con el canal destino y a los 400 ms entras. Dentro de un canal también muestra el recuadro y entra conservando la página; en **INSTR** recorre los 16 instrumentos (el número grande, su nombre y modelo) y al entrar lo hace sonar. En una lista, cambia el valor marcado. Con **HOME sostenido**, elige un canal desde cualquier pantalla y entras al soltar HOME |
 | **SELECT** | La página (las pestañas de arriba) o la fila de una lista. Con un paso sostenido, su acento |
 | **PRESETS** | El sonido del canal (kit, loop A o preset del motor). En HOME, el patrón |
 | **K1-K4** | Lo que dice la leyenda de abajo, siempre en el mismo color. Con HOME sostenido: BPM, swing, largo maestro y drive |
@@ -124,8 +124,8 @@ La pantalla SEQ es una matriz: 16 instrumentos × los 16 pasos de la página. Ca
 | **Blancas** | Pasos del instrumento elegido: toque = poner o quitar |
 | **Negras 1-8** | Eligen (y tocan) un instrumento de la sección |
 | **Negra 9** | Cambia de sección (1-8 / 9-16) |
-| **Negra 10** | Mantener: mutes de los instrumentos (las blancas los mutean; avisa en pantalla y el nombre queda en rojo) |
-| **Negra 11** | FILL mientras la sostienes |
+| **Negra 10** | Pantalla de **MUTES**: un toque la deja abierta (las blancas mutean o hacen sonar cada instrumento; se sale con la negra 10 o HOME); mantenerla = solo mientras la sostienes. El instrumento muteado queda en rojo |
+| **Negra 11** | Pantalla de **FILL**: mientras está abierta suena el fill y las blancas dejan un golpe **solo para el fill** (otra vez: se borra). K1 = fill automático (cada 2, 4 u 8 compases). Toque = queda abierta; mantener = solo mientras la sostienes |
 | **OCT − / +** | Página |
 
 **Mantener un paso + girar:** K1-K4 = P-Lock de TONE, TUNE, DECAY o START solo en ese paso · SELECT = acento · ALGORITHM = repetición ×1 a ×4 o FLAM · PRESETS = condición (SIEMPRE, SOLO FILL, SIN FILL).

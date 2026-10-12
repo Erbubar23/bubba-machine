@@ -38,7 +38,7 @@ typedef enum {
 
 /* Capas en vivo (mantener un botón). */
 typedef enum {
-    L_NONE, L_HOME, L_LEN, L_ERASE, L_ACC, L_REP, L_PUNCH, L_CHORDS, L_ARP, L_ROLL, L_COPY, L_TONE, L_LANEMUTE,
+    L_NONE, L_HOME, L_LEN, L_ERASE, L_ACC, L_REP, L_PUNCH, L_CHORDS, L_ARP, L_ROLL, L_COPY, L_TONE, L_LANEMUTE, L_FILL,
     L_COUNT
 } bm_layer;
 
@@ -120,6 +120,8 @@ typedef struct bm_app {
     uint16_t home_mod;            /* botones que se apretaron con HOME sostenido */
     uint8_t home_used;
     uint8_t box_on, box_track, box_hold;
+    uint8_t box_mode, box_lane;   /* recuadro de ALGORITHM: BOX_HOME, BOX_CH (dentro de un canal) o BOX_LANE (instrumento) */
+    uint8_t layer_latch;          /* la capa quedó abierta con un toque (negras 10 y 11): se cierra con la misma tecla o HOME */
     uint32_t box_until;
     int8_t held_step, held_white;
     uint8_t held_edit, held_had_event, held_long, held_notes;

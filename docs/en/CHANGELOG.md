@@ -22,7 +22,9 @@ The sounds were rebuilt: **no more recorded sounds or wavetables**, everything i
 - **FM-1 tools:** `tools/fm1/fwsc.py` (packer, checked byte for byte against V15) and `tools/fm1/rescate.py` (rescue from Windows through chip mode, with a full backup before writing).
 
 ### Changed
-- **Black 10 on drums:** a tap no longer mutes the instrument (it happened by accident and silently); **hold** it and pick with the white keys. Every mute shows a message and a muted instrument turns red in the grid.
+- **Black 10 and 11 on tracks** open screens. **10** (drums) opens the instrument **MUTES** and **11** opens the **FILL** screen, where the fill plays and the white keys build its hits (or mark notes as fill-only), with K1 = automatic fill. A tap keeps them open (close with the same key or HOME); holding = only while held. A tap no longer mutes blindly: every mute shows a message and a muted instrument turns red.
+- **ALGORITHM inside a track** also goes through the box with the number before switching; in INSTR it picks an instrument and plays it.
+- **HOME explains the black keys** (mutes, solo, scenes, fill and the drum screens).
 - **Old engines removed:** BASS, SYNTH (wavetable), MONO and the 6-timbre ANALOG become the new ANALOG; the recorded KO-808/KO-909 kits and the SINTE kit become the modeled drums. The FM-1 program is 148 KiB smaller and 64 KiB of RAM are freed.
 - Patterns in **format 4**: each track stores 32 sound settings and each drum instrument its model and hit.
 - **ANALOG on the FM-1:** 4.1 % of a core per voice (own polyBLEP oscillator, filter coefficients every 8 samples, division-free saturation and short per-block passes; the first version cost 10 %).

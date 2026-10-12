@@ -22,7 +22,9 @@ Los sonidos se rehicieron: **ya no hay sonidos grabados ni wavetables**, todo se
 - **Herramientas del FM-1:** `tools/fm1/fwsc.py` (empaquetador, comprobado byte por byte contra el V15) y `tools/fm1/rescate.py` (rescate desde Windows por el modo del chip, con respaldo completo antes de escribir).
 
 ### Cambiado
-- **Negra 10 en la batería:** un toque ya no mutea el instrumento (pasaba sin querer y sin aviso); hay que **mantenerla** y elegir con las blancas. Cada mute avisa en pantalla y el instrumento muteado queda en rojo en la rejilla.
+- **Negras 10 y 11 en los canales:** abren pantallas. La **10** (batería) abre los **MUTES** de los instrumentos y la **11** abre el **FILL**, donde suena el fill y las blancas arman sus golpes (o marcan notas solo para el fill), con K1 = fill automático. Un toque las deja abiertas (se cierran con la misma tecla o HOME); mantenerlas = solo mientras las sostienes. Un toque ya no mutea a ciegas: cada mute avisa y el instrumento muteado queda en rojo.
+- **ALGORITHM dentro de un canal** también pasa por el recuadro con el número antes de cambiar; en INSTR elige instrumento y lo hace sonar.
+- **HOME explica las negras** (mutes, solo, escenas, fill, y las pantallas de la batería).
 - **Fuera los motores viejos:** BAJO, SYNTH (wavetable), MONO y el ANALOG de 6 timbres pasan al ANALOG nuevo; los kits grabados KO-808 y KO-909 y el kit SINTE, a la batería modelada. El programa del FM-1 ocupa 148 KiB menos y se liberan 64 KiB de RAM.
 - Patrones en **formato 4**: cada canal guarda 32 ajustes de sonido y cada instrumento de batería, su modelo y su golpe.
 - **ANALOG en el FM-1:** 4.1 % de un núcleo por voz (oscilador polyBLEP propio, filtro recalculado cada 8 muestras, saturación sin división y el cálculo por pasadas cortas; la primera versión costaba 10 %).

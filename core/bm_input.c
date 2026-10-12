@@ -3,6 +3,7 @@
 /* Bubba Machine — entrada (DISENO_3.0): cuatro gestos por botón, HOME en todas partes,
  * ALGORITHM que navega, teclas por página y capas, perillas y su leyenda. */
 #include <string.h>
+#include <stddef.h>
 #include <stdio.h>
 #include "bm_app_int.h"
 #include "bm_util.h"
@@ -26,7 +27,7 @@ static const char *const COND_NAMES[3] = {"SIEMPRE", "SOLO FILL", "SIN FILL"};
 static const char *const SNAP_NAMES[3] = {"OFF", "1/16", "1/8"};
 static const char *const PUNCH_NAMES[16] = {"S4", "S8", "S16", "S32", "R8", "R4", "TAPE", "GATE", "LPF", "HPF", "BIT", "SR", "DLY", "ECHO", "K-LO", "K-HI"};
 
-enum { ROLE_NONE, ROLE_MUTE, ROLE_FILL, ROLE_PAT, ROLE_SCENE, ROLE_BRKFX, ROLE_LMUTE, ROLE_NOTE };
+enum { ROLE_NONE, ROLE_MUTE, ROLE_FILL, ROLE_PAT, ROLE_SCENE, ROLE_BRKFX, ROLE_LMUTE, ROLE_NOTE, ROLE_FILLK };
 
 const char *bm_macro_name(const bm_app *a, int t, int i)
 {
@@ -352,6 +353,12 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case L_ROLL: L4(L, 0, "RATE", bm_roll_names[a->roll_rate % 5], a->roll_rate * 63); return;
     case L_COPY: snprintf(b, sizeof b, "A%02d", a->ctx.st.pattern + 1); L4(L, 0, "DESDE", b, 0); return;
     case L_ERASE: case L_LANEMUTE: return;
+    case L_FILL: {
+        static const char *const FE[4] = {"OFF", "CADA 2", "CADA 4", "CADA 8"};
+        int fe = a->pat.meta.fill_every == 2 ? 1 : a->pat.meta.fill_every == 4 ? 2 : a->pat.meta.fill_every == 8 ? 3 : 0;
+        L4(L, 0, "FILL AUTO", FE[fe], fe * 85);
+        return;
+    }
     default: break;
     }
     switch (a->view) {
@@ -547,7 +554,7 @@ static void map_home(const bm_app *a, bm_keyfn *K)
 
 static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
 {
-    /* mode 0: acento · 1: repetir/ligar · 2: borrar */
+    /* mode 0: acento · 1: repetir/ligar · 2: borrar · 3: solo en el fill */
     int t = a->track, kind = app_kind(a, t);
     for (int w = 0; w < 16; w++) {
         int s = a->step_page * 16 + w;
@@ -558,7 +565,8 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
             int idx[4], n = syn_step_events(a, t, s, idx);
             if (n) {
                 const bm_event *e = bm_evc(&a->pat, t, s, idx[0]);
-                if (mode == 0) { l = e->vel >= BM_VEL_ACC ? "A" : e->vel <= BM_VEL_GHOST ? "G" : ""; led = e->vel >= BM_VEL_ACC ? LED_ON : LED_MID; }
+                if (mode == 3) { l = e->prob == BM_PROB_FILL ? "F" : ""; led = e->prob == BM_PROB_FILL ? LED_ON : LED_DIM; }
+                else if (mode == 0) { l = e->vel >= BM_VEL_ACC ? "A" : e->vel <= BM_VEL_GHOST ? "G" : ""; led = e->vel >= BM_VEL_ACC ? LED_ON : LED_MID; }
                 else if (mode == 1) { l = (e->len & BM_LEN_TIE) ? "LIG" : ""; led = (e->len & BM_LEN_TIE) ? LED_ON : LED_MID; }
                 else { l = "X"; led = LED_MID; }
             }
@@ -570,13 +578,15 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
             int on = t == 1 ? bm_brk_step(tr, s, &v) >= 0 : ((v = tr->st[lane][s]) & ST_ON) != 0;
             if (on) {
                 int rat = (v & ST_FLAM) ? 4 : (v & ST_RAT_MASK) >> ST_RAT_SH;
-                if (mode == 0) { l = (v & ST_ACC) ? "A" : ""; led = (v & ST_ACC) ? LED_ON : LED_MID; }
+                int cond = (v & ST_COND_MASK) >> ST_COND_SH;
+                if (mode == 3) { l = cond == 1 ? "F" : cond == 2 ? "-" : ""; led = cond == 1 ? LED_ON : LED_DIM; }
+                else if (mode == 0) { l = (v & ST_ACC) ? "A" : ""; led = (v & ST_ACC) ? LED_ON : LED_MID; }
                 else if (mode == 1) { l = RAT_NAMES[rat]; if (!rat) l = ""; led = rat ? LED_ON : LED_MID; }
                 else { l = "X"; led = LED_MID; }
             }
         }
         if (s == bm_app_track_step(a, t, t == 1 ? 0 : (kind == KIND_NOTE ? -1 : tr_lane(a)))) led = LED_BLINK;
-        KW(K, w, l, led, mode == 0 ? C_WHITE : mode == 1 ? C_YELLOW : C_RED);
+        KW(K, w, l, led, mode == 0 ? C_WHITE : mode == 1 ? C_YELLOW : mode == 3 ? C_ORANGE : C_RED);
     }
 }
 
@@ -726,13 +736,30 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
             K[k].color = C_CYAN;
         }
         return;
-    case L_LANEMUTE:
-        snprintf(title, (size_t)cap, "MUTE INSTRUMENTOS");
-        *color = bm_track_color(t);
-        *h1 = "BLANCA = MUTE DE ESE INSTRUMENTO";
-        *h2 = "SUELTA LA NEGRA 10 PARA VOLVER";
-        map_lanes(a, K, t, 0);
+    case L_LANEMUTE: case L_FILL: {
+        bool fill = L == L_FILL;
+        snprintf(title, (size_t)cap, fill ? "FILL" : "MUTE INSTRUMENTOS");
+        *color = fill ? C_ORANGE : bm_track_color(t);
+        if (fill) {
+            *h1 = kind == KIND_TR ? "SUENA EL FILL - BLANCA = GOLPE SOLO EN EL FILL" : "SUENA EL FILL - BLANCA = NOTA SOLO EN EL FILL";
+            *h2 = a->layer_latch ? "NEGRA 11 O HOME = SALIR - K1 = FILL AUTO" : "SUELTA LA NEGRA 11 PARA VOLVER";
+            map_steps(a, K, 3);
+        } else {
+            *h1 = "BLANCA = MUTE / SUENA ESE INSTRUMENTO";
+            *h2 = a->layer_latch ? "NEGRA 10 O HOME = SALIR" : "SUELTA LA NEGRA 10 PARA VOLVER";
+            map_lanes(a, K, t, 0);
+        }
+        if (kind == KIND_TR) {                                       /* las negras siguen eligiendo instrumento */
+            for (int i = 0; i < 8; i++) {
+                int ln = (tr_lane(a) / 8) * 8 + i;
+                snprintf(b, sizeof b, "%.3s", bm_lane_name(a, t, ln));
+                KB(K, i, b, ln == tr_lane(a) ? LED_ON : LED_DIM, bm_track_color(t));
+            }
+            KB(K, 8, tr_lane(a) < 8 ? "9-16" : "1-8", LED_DIM, C_WHITE);
+        }
+        KB(K, fill ? 10 : 9, "SALIR", LED_BLINK, fill ? C_ORANGE : C_RED);
         return;
+    }
     default: break;
     }
     if (a->view == V_CH && a->page == PG_CHORDS) map_chords(a, K);
@@ -972,6 +999,59 @@ static void step_note(bm_app *a, int note)
     app_push_ev(a, t, s, slot, &e);
     a->held_notes++;
     a->last_note[t] = (uint8_t)note;
+    app_edited(a);
+}
+
+/* ------------------------------------------------------------ negras 10 y 11: pantallas de MUTE y FILL
+ * Un toque las deja abiertas (se cierran con la misma tecla o con HOME); mantener la tecla = solo
+ * mientras la sostienes, como antes. En FILL el fill suena mientras la pantalla está abierta. */
+static void enc_fill_every(bm_app *a, int d);
+
+static void key_screen_open(bm_app *a, int k, int L)
+{
+    a->layer = (uint8_t)L;
+    a->layer_latch = 1;
+    a->ov.on = 0;
+    a->key_role[k] = L == L_FILL ? ROLE_FILLK : ROLE_LMUTE;
+    a->key_t0[k] = a->now;
+    if (L == L_FILL) { app_push(a, CMD_FILL, 1, 0, 0); a->fill = 1; }
+}
+
+static void key_screen_close(bm_app *a)
+{
+    if (a->layer == L_FILL) { app_push(a, CMD_FILL, 0, 0, 0); a->fill = 0; }
+    if (a->layer == L_FILL || a->layer == L_LANEMUTE) a->layer = L_NONE;
+    a->layer_latch = 0;
+}
+
+/* FILL: la blanca deja ese golpe (o esa nota) solo para el fill, u otra vez como siempre */
+static void paint_fill(bm_app *a, int w)
+{
+    int t = a->track, s = a->step_page * 16 + w, kind = app_kind(a, t);
+    app_undo_snapshot(a, t);
+    if (kind == KIND_NOTE) {
+        if (s >= a->pat.trk[t].length) return;
+        int idx[4], n = syn_step_events(a, t, s, idx);
+        if (!n) { app_toast(a, "PASO SIN NOTAS: ESCRIBELAS EN SEQ"); return; }
+        int fill = bm_evc(&a->pat, t, s, idx[0])->prob != BM_PROB_FILL;
+        for (int j = 0; j < n; j++) {
+            bm_event e = *bm_evc(&a->pat, t, s, idx[j]);
+            e.prob = fill ? BM_PROB_FILL : 100;
+            app_push_ev(a, t, s, idx[j], &e);
+        }
+        app_toast(a, fill ? "SOLO EN EL FILL" : "SUENA SIEMPRE");
+        app_edited(a);
+        return;
+    }
+    const bm_tr *tr = bm_trk_trc(&a->pat, t);
+    int lane = tr_lane(a);
+    if (s >= tr->lane[lane].len) return;
+    uint8_t v = tr->st[lane][s];
+    int cond = (v & ST_COND_MASK) >> ST_COND_SH;
+    if (!(v & ST_ON)) v = (uint8_t)(ST_ON | (1u << ST_COND_SH));               /* vacío: golpe solo en el fill */
+    else if (cond == 1) v = 0;                                                  /* ya era del fill: se borra */
+    else v = (uint8_t)((v & ~ST_COND_MASK) | (1u << ST_COND_SH));              /* golpe normal: pasa al fill */
+    app_push_i(a, CMD_SET_TRSTEP, (uint8_t)t, (uint8_t)lane, (uint8_t)s, v);
     app_edited(a);
 }
 
@@ -1333,9 +1413,8 @@ static void key_release(bm_app *a, int k, int w, int b)
     case ROLE_BRKFX:
         if (b >= 8) { a->brk_live &= (uint8_t)~(1u << (b - 8)); app_push(a, CMD_BRK_LIVE, a->brk_live, 0, 0); }
         break;
-    case ROLE_LMUTE:
-        if (a->layer == L_LANEMUTE) a->layer = L_NONE;
-        else app_toast(a, "MANTEN LA NEGRA 10 PARA MUTEAR");   /* un toque no mutea: era fácil sin querer */
+    case ROLE_LMUTE: case ROLE_FILLK:                       /* mantenida: era solo mientras la sostenías */
+        if (a->layer_latch && a->now - a->key_t0[k] >= UI_HOLD_MS) key_screen_close(a);
         break;
     default: break;
     }
@@ -1371,7 +1450,20 @@ static void layer_key(bm_app *a, int k, int w, int b)
         return;
     case L_ACC: if (w >= 0) paint_accent(a, w); return;
     case L_REP: if (w >= 0) paint_repeat(a, w); return;
-    case L_LANEMUTE: if (w >= 0 && kind == KIND_TR) toggle_lane_mute(a, t, w); return;
+    case L_LANEMUTE: case L_FILL:
+        if ((a->layer == L_LANEMUTE && b == 9) || (a->layer == L_FILL && b == 10)) { key_screen_close(a); return; }   /* la misma tecla: salir */
+        if (w >= 0) {
+            if (a->layer == L_FILL) paint_fill(a, w);
+            else if (kind == KIND_TR) toggle_lane_mute(a, t, w);
+            return;
+        }
+        if (kind == KIND_TR && b >= 0 && b < 8) {                            /* elegir (y escuchar) un instrumento */
+            int lane = (tr_lane(a) / 8) * 8 + b;
+            a->sel_lane[t] = (uint8_t)lane;
+            uint8_t n = (uint8_t)lane;
+            play_notes(a, k, t, &n, 1, 100, 0);
+        } else if (kind == KIND_TR && b == 8) a->sel_lane[t] = (uint8_t)((tr_lane(a) + 8) % 16);
+        return;
     case L_PUNCH:
         if (w >= 0) { app_push(a, CMD_PUNCH, (uint8_t)w, 0, 0); a->punch_key = (int8_t)k; }
         else if (b < 6) toggle_mute(a, b);
@@ -1480,8 +1572,8 @@ static void seq_keys(bm_app *a, int k, int w, int b)
         } else if (b == 8) {
             a->sel_lane[t] = (uint8_t)((tr_lane(a) + 8) % 16);
             app_toast(a, tr_lane(a) < 8 ? "INSTRUMENTOS 1-8" : "INSTRUMENTOS 9-16");
-        } else if (b == 9) { a->key_role[k] = ROLE_LMUTE; a->key_t0[k] = a->now; }
-        else { a->key_role[k] = ROLE_FILL; app_push(a, CMD_FILL, 1, 0, 0); a->fill = 1; }
+        } else if (b == 9) key_screen_open(a, k, L_LANEMUTE);
+        else key_screen_open(a, k, L_FILL);
         return;
     }
     if (b < 8) {                                                         /* notas: grados de la escala */
@@ -1495,7 +1587,7 @@ static void seq_keys(bm_app *a, int k, int w, int b)
         a->note_oct = (int8_t)bm_clampi(a->note_oct + (b == 9 ? 1 : -1), -2, 2);
         char s[24]; snprintf(s, sizeof s, "NOTAS OCTAVA %+d", a->note_oct);
         app_toast(a, s);
-    } else { a->key_role[k] = ROLE_FILL; app_push(a, CMD_FILL, 1, 0, 0); a->fill = 1; }
+    } else key_screen_open(a, k, L_FILL);
 }
 
 static void page_keys(bm_app *a, int k, int w, int b)
@@ -1782,6 +1874,12 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             if (id == BTN_HOME || id == BTN_OCT_DN) { app_toast(a, "CANCELADO"); return; }
         }
     }
+    /* pantalla abierta con un toque (MUTE, FILL): HOME la cierra; otro botón la cierra y hace lo suyo.
+     * PLAY y OCT -/+ (páginas de pasos) no la cierran. */
+    if (a->layer_latch && id != BTN_PLAY && id != BTN_OCT_DN && id != BTN_OCT_UP) {
+        if (id == BTN_HOME) { if (k == G_TAP) { key_screen_close(a); return; } }
+        else if (k == G_PRESS || k == G_TAP || k == G_HOLD) key_screen_close(a);
+    }
     char b[30];
     switch (id) {
     case BTN_PLAY:
@@ -1799,7 +1897,7 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             return;
         }
         if (a->view == V_COPYCH) { if (d > 0) copy_channel(a); else app_set_view(a, V_CH); return; }
-        bool steps = (a->view == V_CH && a->page == PG_SEQ) || a->layer == L_ACC || a->layer == L_REP || a->layer == L_ERASE;
+        bool steps = (a->view == V_CH && a->page == PG_SEQ) || a->layer == L_ACC || a->layer == L_REP || a->layer == L_ERASE || a->layer == L_FILL;
         if (steps) {
             int t = a->track, len = bm_trk_len(&a->pat, t, app_kind(a, t) == KIND_NOTE ? -1 : (t == 1 ? 0 : tr_lane(a)));
             int pages = (len + 15) / 16;
@@ -2137,9 +2235,38 @@ static void enc_pattern(bm_app *a, int d)
 }
 
 /* ALGORITHM en HOME: un recuadro dice a qué canal vas; al rato (o al soltar HOME) entras. */
+static void box_commit(bm_app *a)
+{
+    a->box_on = 0;
+    if (a->box_mode == BOX_LANE) {                            /* el instrumento elegido, y se escucha */
+        int t = a->track;
+        a->sel_lane[t] = a->box_lane;
+        app_push(a, CMD_NOTE_ON, (uint8_t)t, a->box_lane, 100);
+        char b[24]; snprintf(b, sizeof b, "%d %s", a->box_lane + 1, bm_lane_name(a, t, a->box_lane));
+        app_toast(a, b);
+    } else if (a->box_mode == BOX_CH) app_select_track(a, a->box_track, 1);
+    else app_enter(a, a->box_track, a->ch_page[a->box_track]);
+}
+
+/* Dentro de un canal ALGORITHM también pasa por el recuadro: se ve a dónde vas y se entra al
+ * soltar (el tiempo de ENTRADA de GLO). En INSTR recorre los 16 instrumentos. */
+static void box_turn_in(bm_app *a, int d, int lane)
+{
+    if (!a->box_on || a->box_mode != (lane ? BOX_LANE : BOX_CH)) {
+        a->box_track = a->track; a->box_lane = (uint8_t)tr_lane(a);
+        a->box_mode = (uint8_t)(lane ? BOX_LANE : BOX_CH);
+    }
+    if (lane) a->box_lane = (uint8_t)bm_clampi(a->box_lane + (d > 0 ? 1 : -1), 0, BM_LANES - 1);
+    else a->box_track = (uint8_t)bm_clampi(a->box_track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
+    int ms = bm_app_enter_ms(a);
+    a->box_on = 1; a->box_hold = 0;
+    if (ms <= 0) { box_commit(a); return; }                  /* sin espera (u OFF): directo */
+    a->box_until = a->now + (uint32_t)ms;
+}
+
 static void box_turn(bm_app *a, int d, int hold)
 {
-    if (!a->box_on) a->box_track = a->track;
+    if (!a->box_on || a->box_mode != BOX_HOME) { a->box_track = a->track; a->box_mode = BOX_HOME; }
     a->box_track = (uint8_t)bm_clampi(a->box_track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
     int ms = bm_app_enter_ms(a);
     a->box_on = 1;
@@ -2335,7 +2462,7 @@ static void enc_channel(bm_app *a, int id, int d)
             return;
         }
         if (a->page == PG_CUT || a->page == PG_REC) { app_toast(a, "EL SAMPLER SE QUEDA AQUI"); return; }
-        app_select_track(a, bm_clampi(t + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1), 1);
+        box_turn_in(a, d, a->page == PG_INST && kind == KIND_TR);
         return;
     }
     if (k < 0 || k > 3) return;
@@ -2546,6 +2673,9 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
             for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 1, bm_roll_ticks[a->roll_rate]);
         }
         return;
+    case L_FILL:
+        if (k == 0) enc_fill_every(a, d);                       /* K1 = FILL AUTOMATICO */
+        return;
     case L_PUNCH: case L_CHORDS: case L_ARP: case L_ERASE: case L_COPY: case L_LANEMUTE:
         if (a->layer == L_PUNCH && k >= 0) break;
         if ((a->layer == L_CHORDS || a->layer == L_ARP) && k >= 0) break;
@@ -2685,7 +2815,6 @@ void app_input_tick(bm_app *a)
     }
     for (int k = 0; k < BM_KEYS; k++) {
         if (!a->keys_down[k] || !a->key_t0[k] || now - a->key_t0[k] < UI_HOLD_MS) continue;
-        if (a->key_role[k] == ROLE_LMUTE && !a->layer && bm_is_tr(&a->pat, a->track)) a->layer = L_LANEMUTE;
         if (a->key_role[k] == ROLE_MUTE && !a->solo_on) {           /* negra sostenida en HOME: solo */
             int t = bm_key_black_index(k);
             a->solo_saved = 0;
@@ -2697,8 +2826,7 @@ void app_input_tick(bm_app *a)
         }
     }
     if (a->box_on && a->box_hold != 1 && (int32_t)(now - a->box_until) >= 0) {
-        a->box_on = 0;
-        if (a->box_hold == 0) app_enter(a, a->box_track, a->ch_page[a->box_track]);
+        if (a->box_hold == 0) box_commit(a); else a->box_on = 0;
     }
 }
 

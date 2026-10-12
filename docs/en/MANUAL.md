@@ -25,7 +25,7 @@ There are never two layers at once: with a layer open, holding another button do
 
 | Knob | What it does |
 |---|---|
-| **ALGORITHM** | The track. On HOME a **box** shows the target track and you enter after 400 ms. Inside a track it switches right away and keeps the page. On a list, it changes the highlighted value. With **HOME held**, it picks a track from any screen and you enter when you let go of HOME |
+| **ALGORITHM** | The track. On HOME a **box** shows the target track and you enter after 400 ms. Inside a track it also shows the box and enters keeping the page; in **INSTR** it steps through the 16 instruments (big number, name and model) and plays the one you land on. On a list, it changes the highlighted value. With **HOME held**, it picks a track from any screen and you enter when you let go of HOME |
 | **SELECT** | The page (the tabs at the top) or the row of a list. With a step held, its accent |
 | **PRESETS** | The track's sound (kit, loop A or engine preset). On HOME, the pattern |
 | **K1-K4** | Whatever the legend at the bottom says, always in the same color. With HOME held: BPM, swing, master length and drive |
@@ -115,8 +115,8 @@ The SEQ screen is a matrix: 16 instruments × the 16 steps of the page. Each lin
 | **White keys** | Steps of the selected instrument: tap = set or clear |
 | **Black 1-8** | Select (and play) an instrument of the section |
 | **Black 9** | Switch section (1-8 / 9-16) |
-| **Black 10** | Hold: instrument mutes (the white keys mute them; a message shows it and the name turns red) |
-| **Black 11** | FILL while held |
+| **Black 10** | **MUTES** screen: a tap keeps it open (white keys mute or unmute each instrument; leave with black 10 or HOME); hold = only while held. A muted instrument turns red |
+| **Black 11** | **FILL** screen: while open the fill plays and the white keys set a hit **only for the fill** (again: removes it). K1 = automatic fill (every 2, 4 or 8 bars). Tap = stays open; hold = only while held |
 | **OCT − / +** | Page |
 
 **Hold a step + turn:** K1-K4 = P-Lock of TONE, TUNE, DECAY or START on that step only · SELECT = accent · ALGORITHM = repeat ×1 to ×4 or FLAM · PRESETS = condition (SIEMPRE = always, SOLO FILL = only in the fill, SIN FILL = not in the fill).

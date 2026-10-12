@@ -202,12 +202,12 @@ static void draw_home(bm_gfx *g, const bm_app *a)
     const bm_status *st = &a->ctx.st;
     char b[16];
     for (int t = 0; t < BM_TRACKS; t++) {
-        int y = 26 + t * 24;
-        if (!gfx_strip_hit(g, y, 24)) continue;
+        int y = 26 + t * 22;
+        if (!gfx_strip_hit(g, y, 22)) continue;
         const bm_track *tr = &a->pat.trk[t];
         uint16_t col = tr->mute ? C_DGREY : bm_track_color(t);
         bool sel = a->box_on ? t == a->box_track : t == a->track;
-        if (sel) gfx_fill(g, 0, y, BM_LCD_W, 23, C_DDGREY);
+        if (sel) gfx_fill(g, 0, y, BM_LCD_W, 21, C_DDGREY);
         if (bm_is_free(t)) gfx_rect(g, 4, y + 3, 6, 17, col); else gfx_fill(g, 4, y + 3, 6, 17, col);
         snprintf(b, sizeof b, "T%d %s", t + 1, bm_track_name(a, t));
         gfx_text(g, 14, y + 3, b, tr->mute ? C_GREY : C_WHITE, 1);
@@ -228,7 +228,12 @@ static void draw_home(bm_gfx *g, const bm_app *a)
         if (a->now < a->trig_until[t]) gfx_disc(g, 226, y + 11, 5, col);
         else gfx_disc(g, 226, y + 11, 2, C_DGREY);
     }
-    draw_bank(g, a, 172);
+    /* guía de las teclas: en HOME y dentro de los canales */
+    if (gfx_strip_hit(g, 159, 14)) {
+        gfx_small(g, 4, 160, "NEGRAS: 1-6 MUTE (MANTENER = SOLO) - 7-10 ESCENA - 11 FILL", C_GREY);
+        gfx_small(g, 4, 167, "BATERIA: NEGRA 10 = MUTES - 11 = FILL - TOQUE O MANTENER", C_GREY);
+    }
+    draw_bank(g, a, 176);
 }
 
 static void draw_mix(bm_gfx *g, const bm_app *a)
@@ -1573,14 +1578,23 @@ static void draw_layer(bm_gfx *g, const bm_app *a)
 /* ------------------------------------------------------------ recuadro, pregunta, overlay, toast */
 static void draw_box(bm_gfx *g, const bm_app *a)
 {
-    int t = a->box_track;
+    int t = a->box_mode == BOX_LANE ? a->track : a->box_track;
     if (!gfx_strip_hit(g, 70, 78)) return;
     gfx_fill(g, 40, 70, 160, 76, C_BLACK);
     gfx_rect(g, 40, 70, 160, 76, bm_track_color(t));
     gfx_rect(g, 41, 71, 158, 74, bm_track_color(t));
-    char b[12]; snprintf(b, sizeof b, "T%d", t + 1);
-    gfx_text_c(g, 120, 80, b, bm_track_color(t), 4);
-    gfx_text_c(g, 120, 114, bm_track_name(a, t), C_WHITE, 1);
+    char b[24];
+    if (a->box_mode == BOX_LANE) {                          /* un instrumento de la batería */
+        snprintf(b, sizeof b, "%d", a->box_lane + 1);
+        gfx_text_c(g, 120, 80, b, bm_track_color(t), 4);
+        const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[a->box_lane & 15];
+        snprintf(b, sizeof b, "%s - %s", bm_lane_name(a, t, a->box_lane), bm_drm_short[ln->model % DRM_COUNT]);
+        gfx_text_c(g, 120, 114, b, C_WHITE, 1);
+    } else {
+        snprintf(b, sizeof b, "T%d", t + 1);
+        gfx_text_c(g, 120, 80, b, bm_track_color(t), 4);
+        gfx_text_c(g, 120, 114, bm_track_name(a, t), C_WHITE, 1);
+    }
     if (a->box_hold == 1) gfx_text_c(g, 120, 128, "SUELTA HOME PARA ENTRAR", C_GREY, 1);
     else if (a->box_hold == 2) gfx_text_c(g, 120, 128, "ENTRADA AUTO: OFF", C_GREY, 1);
     else {

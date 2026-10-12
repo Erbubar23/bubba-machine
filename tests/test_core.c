@@ -369,8 +369,11 @@ static void test_navigation(void)
     shot("06-seq-bass");
     btn(BTN_EDIT, 30);
     CHECK(app.page == PG_SOUND);
-    enc(ENC_ALGO, 1);                                         /* dentro de un canal: cambia y conserva la página */
-    CHECK(app.track == 3 && app.page == PG_SOUND && app.view == V_CH);
+    enc(ENC_ALGO, 1);                                         /* dentro de un canal: el recuadro, y entra conservando la página */
+    CHECK(app.box_on && app.box_mode == BOX_CH && app.box_track == 3 && app.track == 2);
+    shot("62-box-canal");
+    run_ms(500);
+    CHECK(!app.box_on && app.track == 3 && app.page == PG_SOUND && app.view == V_CH);
     shot("12-wave");
     enc(ENC_SELECT, 1);                                       /* SELECT: las páginas de SONIDO y después las pestañas */
     CHECK(app.page == PG_SOUND && app.ed_page[3] == 1);
@@ -468,6 +471,57 @@ static void test_home(void)
     btn(BTN_OCT_UP, 20); run_ms(100);
     CHECK(app.pat.trk[4].engine == ENG_KIT && app.view == V_CH && app.track == 4);
     CHECK(bm_trk_tr(&app.pat, 4)->st[0][0] & ST_ON);
+}
+
+/* Negras 10 y 11 en la batería: un toque deja abierta la pantalla de MUTE o de FILL; mantener = solo
+ * mientras la sostienes. En INSTR, ALGORITHM elige instrumento con el recuadro. */
+static void test_key_screens(void)
+{
+    printf("negras 10 y 11: pantallas de MUTE y FILL; ALGORITHM en INSTR\n");
+    boot(1);
+    ch(0);
+    page(BTN_SEQ, PG_SEQ);
+    app.sel_lane[0] = 2;                                         /* CL HH */
+    black(9, 40);                                                /* un toque: queda abierta */
+    CHECK(app.layer == L_LANEMUTE && app.layer_latch);
+    shot("63-mutes");
+    white(2, 40);                                                /* mutea el hat cerrado */
+    CHECK((app.pat.tr[0].mute >> 2) & 1);
+    white(2, 40);
+    CHECK(!((app.pat.tr[0].mute >> 2) & 1));
+    black(9, 40);                                                /* la misma tecla: sale */
+    CHECK(app.layer == L_NONE && !app.layer_latch);
+    kdown(bm_black_key(9)); run_ms(500);                         /* mantenida: solo mientras la sostienes */
+    CHECK(app.layer == L_LANEMUTE);
+    white(3, 40);
+    CHECK((app.pat.tr[0].mute >> 3) & 1);
+    kup(bm_black_key(9)); run_ms(40);
+    CHECK(app.layer == L_NONE);
+    black(9, 40); white(3, 40); btn(BTN_HOME, 30);               /* HOME también cierra, y no cambia de vista */
+    CHECK(app.layer == L_NONE && !((app.pat.tr[0].mute >> 3) & 1) && app.view == V_CH);
+    /* FILL: suena mientras está abierta y las blancas arman los golpes del fill */
+    black(10, 40);
+    CHECK(app.layer == L_FILL && app.fill && app.ctx.fill);
+    app.step_page = 0;
+    white(5, 40);                                                /* paso 6 vacío: golpe solo en el fill */
+    CHECK(app.pat.tr[0].st[2][5] == (ST_ON | (1 << ST_COND_SH)));
+    enc(ENC_K1, -1);                                             /* FILL AUTOMATICO: de cada 4 compases (demo) a cada 2 */
+    CHECK(app.pat.meta.fill_every == 2);
+    shot("64-fill");
+    white(5, 40);                                                /* otra vez: se borra */
+    CHECK(app.pat.tr[0].st[2][5] == 0);
+    black(10, 40);
+    CHECK(app.layer == L_NONE && !app.fill && !app.ctx.fill);
+    /* INSTR: ALGORITHM recorre los instrumentos con el recuadro */
+    page(BTN_EDIT, PG_SOUND); btn(BTN_EDIT, 30);
+    CHECK(app.page == PG_INST);
+    int l0 = app.sel_lane[0];
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);
+    CHECK(app.box_on && app.box_mode == BOX_LANE && app.box_lane == l0 + 2 && app.sel_lane[0] == l0);
+    shot("65-box-instrumento");
+    run_ms(500);
+    CHECK(!app.box_on && app.sel_lane[0] == l0 + 2 && app.track == 0 && app.page == PG_INST);
+    shot("66-home-guia");
 }
 
 static void test_layers(void)
@@ -1193,6 +1247,7 @@ int main(int argc, char **argv)
     test_notes();
     test_free_rec();
     test_engines();
+    test_key_screens();
     test_migrate();
     test_fm();
     test_demo_and_persist();

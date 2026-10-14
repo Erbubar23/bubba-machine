@@ -13,20 +13,22 @@
 
 #define RGB565(r, g, b) ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
 
-/* Paleta de Bubba Machine (colores del logo). */
-#define C_BLACK   RGB565(0, 0, 0)
-#define C_WHITE   RGB565(242, 242, 242)
-#define C_GREY    RGB565(138, 146, 153)
-#define C_DGREY   RGB565(48, 52, 58)
-#define C_DDGREY  RGB565(24, 27, 31)
-#define C_BLUE    RGB565(40, 124, 255)
-#define C_GREEN   RGB565(30, 204, 112)
-#define C_YELLOW  RGB565(255, 198, 24)
-#define C_ORANGE  RGB565(255, 98, 26)
-#define C_RED     RGB565(255, 64, 64)
-#define C_PINK    RGB565(255, 120, 190)
-#define C_VIOLET  RGB565(170, 140, 255)
-#define C_CYAN    RGB565(70, 205, 240)
+/* Paleta de Bubba Machine 0.6 (docs/DISENO_0.6.md §5.1): fondo negro carbón azulado, una rejilla
+ * apenas visible y cuatro acentos de neón. Los nombres viejos se quedan con los colores nuevos. */
+#define C_BLACK   RGB565(10, 11, 16)      /* #0A0B10 Void Black: el fondo */
+#define C_DDGREY  RGB565(22, 25, 37)      /* #161925 la rejilla */
+#define C_DGREY   RGB565(44, 50, 71)
+#define C_GREY    RGB565(124, 134, 162)
+#define C_WHITE   RGB565(234, 246, 255)
+#define C_CYAN    RGB565(0, 240, 255)     /* #00F0FF Cyber Cyan: lo activo, las ondas, el cursor */
+#define C_ORANGE  RGB565(255, 138, 0)     /* #FF8A00 Neon Amber: valores, filtro, el paso que suena */
+#define C_RED     RGB565(255, 0, 85)      /* #FF0055 Laser Red: REC, saturación, mute */
+#define C_GREEN   RGB565(112, 255, 152)   /* #70FF98 Matrix Mint: notas largas, TIE */
+#define C_YELLOW  RGB565(255, 210, 63)
+#define C_PINK    RGB565(255, 43, 214)    /* magenta */
+#define C_VIOLET  RGB565(157, 123, 255)
+#define C_BLUE    RGB565(61, 123, 255)
+#define C_ACID    RGB565(182, 255, 0)     /* verde ácido */
 
 typedef struct {
     uint16_t *buf;          /* BM_LCD_W x BM_STRIP_H */

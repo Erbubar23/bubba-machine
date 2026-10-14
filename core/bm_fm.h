@@ -32,6 +32,9 @@ void bm_fm_release(int v);
  * Calcula de a 64 por dentro. Devuelve 0 cuando, ya suelta, todas sus portadoras callaron. */
 int  bm_fm_render(int v, int32_t *dst, int n);
 uint8_t bm_fm_carriers(int alg);                               /* bit i: el operador i (dato i*21) es portadora */
+/* La topología de un algoritmo, para dibujarla: mods[i] = bits de los operadores que modulan al i
+ * (i = dato i, OP 6-i); fb[0] = el que realimenta, fb[1] = el que recibe la realimentación. */
+void bm_fm_alg_graph(int alg, uint8_t mods[6], int8_t fb[2]);
 /* Medición (hal/fm1/fm1_bench.c): ticks de now() para reps bloques de 64 de cada pieza:
  * [0] operador sin entrada, [1] operador modulado, [2] operador con realimentación,
  * [3] la voz entera (Dx7Note::compute con el patch), [4] el bucle vacío. */

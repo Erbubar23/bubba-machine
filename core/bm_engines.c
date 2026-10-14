@@ -7,7 +7,7 @@
 #include "bm_util.h"
 #include "bm_fm.h"
 #include "bm_drums.h"
-#include "bm_analog.h"
+#include "bm_wave.h"
 #include "bm_params.h"
 #include <math.h>
 
@@ -28,6 +28,9 @@ static int voice_prio(const bm_voice *v)
     return 2;                                         /* ataques recientes */
 }
 
+/* voces como máximo por canal dentro del pool (T2 pads, T4 BX-7, T5 BITTAL, T6 BUNO-6) */
+static const uint8_t VCAP[BM_TRACKS] = {BM_V_DRUM_N, 6, 1, 6, 4, 6};
+
 bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
     int lo, n;
@@ -35,10 +38,16 @@ bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const ui
     else if (track == 2) { lo = BM_V_BASS; n = 1; }
     else { lo = BM_V_POOL0; n = BM_V_POOL_N; }
 
+    int mine = 0;
+    if (lo == BM_V_POOL0)
+        for (int i = 0; i < n; i++) { const bm_voice *v = &c->voice[lo + i]; mine += (v->active && v->track == track && !v->fade) || (v->pend && v->pend_track == track); }
+    int full = lo == BM_V_POOL0 && mine >= VCAP[track % BM_TRACKS];   /* lleno: roba una suya */
+
     bm_voice *best = NULL;
     for (int i = 0; i < n; i++) {
         bm_voice *v = &c->voice[lo + i];
-        if (!v->active && !v->pend) return v;
+        if (full && !(v->active && v->track == track) && !(v->pend && v->pend_track == track)) continue;
+        if (!v->active && !v->pend && !full) return v;
         if (!best) { best = v; continue; }
         int pv = voice_prio(v), pb = voice_prio(best);
         if (v->pend && !best->pend) continue;
@@ -370,6 +379,12 @@ static void pad_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel
     v->pos = 0; v->lp = 0;
     v->loopv = p->mode;
     v->gate = (uint8_t)held;
+    v->ph[1] = 0; v->ph[2] = 0;                            /* LOOP: el tramo de sustain (relativo al inicio) */
+    if (p->mode == PAD_LOOP && bm_pad_has_loop(p) && !off) {
+        uint32_t ls = bm_pad_loop_start(p), le = bm_pad_loop_end(p);
+        if (le > len) le = len;
+        if (le > ls + 32u) { v->ph[1] = ls; v->ph[2] = le; }
+    }
     /* el secuenciador abre la compuerta un paso (KEY y LOOP); la tecla, hasta que se suelta */
     v->phase = held || (p->mode != PAD_KEY && p->mode != PAD_LOOP) ? 0u : bm_ticks_to_samples(c, (uint32_t)bm_track_tps(c, 1));
     if (held && p->mode == PAD_THRU) { if (v->dir) v->start = 0; else v->end = m->len; }
@@ -474,10 +489,10 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
         bool herm = t->interp != 0;
         for (uint16_t i = 0; i < frames && v->active; i++) {
             uint32_t span = v->end - v->start, off = v->pos >> 16;
-            if (off >= span) {
-                if (v->loopv == PAD_LOOP && (v->gate || v->phase) && v->stage != ENV_REL) { v->pos -= span << 16; off = v->pos >> 16; }
-                else { v->active = 0; v->pend = 0; break; }
-            }
+            uint32_t lend = v->ph[2] ? v->ph[2] : span, lbeg = v->ph[2] ? v->ph[1] : 0;
+            bool sus = v->loopv == PAD_LOOP && (v->gate || v->phase) && v->stage != ENV_REL;
+            if (sus && off >= lend) { v->pos -= (lend - lbeg) << 16; off = v->pos >> 16; }   /* sostenido: el loop */
+            else if (off >= span) { v->active = 0; v->pend = 0; break; }                     /* suelto: hasta el final */
             int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
             int32_t s, dn = v->dir ? -1 : 1;
             if (herm) s = hermite(smp_at(m, idx - dn), smp_at(m, idx), smp_at(m, idx + dn), smp_at(m, idx + 2 * dn), v->pos & 0xFFFF);
@@ -509,7 +524,8 @@ static void smp_init(bm_engine *e) { common_init(e); }
 
 const bm_engine_vt bm_eng_sampler = {smp_init, smp_note_on, smp_note_off, common_set_macro, smp_process, pad_voice_start};
 
-/* ------------------------------------------------------------ MIDI: notas hacia afuera */
+/* ------------------------------------------------------------ MIDI OUT: el canal suena y además manda
+ * sus notas por MIDI (MAS > MIDI OUT). Envuelve al motor de su máquina. */
 static void midi_send(bm_ctx *c, uint8_t a, uint8_t b, uint8_t d)
 {
     if (!c->midi_out) return;
@@ -521,48 +537,48 @@ static int midi_note(const bm_ctx *c, const bm_track *t, uint8_t note)
     return bm_clampi(note + (int)t->transpose - 24 + (int)c->pat->meta.transpose - 24, 0, 127);
 }
 
-static void midi_note_on(bm_engine *e, uint8_t note, uint8_t vel)
+static const bm_engine_vt *inner(const bm_engine *e) { return bm_engine_vt_for(e->ctx->pat->trk[e->track].engine); }
+
+static void mo_note_on(bm_engine *e, uint8_t note, uint8_t vel)
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
-    for (int i = 0; i < 4; i++) e->lock_next[i] = BM_LOCK_NONE;
-    e->legato_next = 0;
     midi_send(c, (uint8_t)(0x90 | (t->midi_ch & 15)), (uint8_t)midi_note(c, t, note), vel ? vel : 1);
+    inner(e)->note_on(e, note, vel);
 }
 
-static void midi_note_off(bm_engine *e, uint8_t note)
+static void mo_note_off(bm_engine *e, uint8_t note)
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
     midi_send(c, (uint8_t)(0x80 | (t->midi_ch & 15)), (uint8_t)midi_note(c, t, note), 0);
+    inner(e)->note_off(e, note);
 }
 
-static bool midi_process(bm_engine *e, int32_t *buf, uint16_t frames) { (void)e; (void)buf; (void)frames; return false; }
-
-static void midi_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
+static void mo_init(bm_engine *e) { inner(e)->init(e); }
+static void mo_set_macro(bm_engine *e, uint8_t id, uint8_t val) { inner(e)->set_macro(e, id, val); }
+static bool mo_process(bm_engine *e, int32_t *buf, uint16_t frames) { return inner(e)->process(e, buf, frames); }
+static void mo_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
-    (void)e; (void)note; (void)vel; (void)lk; (void)legato;
-    v->active = 0;
+    inner(e)->voice_start(e, v, note, vel, lk, legato);
 }
 
-static void midi_init(bm_engine *e) { common_init(e); }
+const bm_engine_vt bm_eng_midi_out = {mo_init, mo_note_on, mo_note_off, mo_set_macro, mo_process, mo_voice_start};
 
-const bm_engine_vt bm_eng_midi = {midi_init, midi_note_on, midi_note_off, common_set_macro, midi_process, midi_voice_start};
-
-/* ------------------------------------------------------------ ANALOG (T3-T6): core/bm_analog.cpp
- * Las 4 macros (CORTE, RESO, ENVOLV, FORMA) admiten P-Lock por nota; el resto de los ajustes son
- * los del canal (bm_pattern.prm, páginas de SONIDO). POLI usa el pool; MONO y LEGATO, una voz con
- * glide (en T3 siempre una voz). LIGA en una nota = legato aunque el modo sea MONO. */
-#define AN_GAIN 32768.0f
+/* ------------------------------------------------------------ núcleo WAVE: B-MINI, BITTAL, BUNO-6 (core/bm_wave.cpp)
+ * Las 4 macros admiten P-Lock por nota; el resto de los ajustes son los del canal (bm_pattern.prm).
+ * B-MINI: una voz (T3) con glide. BITTAL: POLI (hasta 4 voces), MONO o LEGATO. BUNO-6: 6 voces.
+ * LIGA en una nota = legato aunque el modo sea MONO. */
+#define WV_GAIN 32768.0f
 
 static float note_of(const bm_ctx *c, const bm_track *t, uint8_t note)
 {
     return (float)bm_clampi(note + (int)t->transpose - 24 + (int)c->pat->meta.transpose - 24, 0, 127);
 }
 
-static void an_macros(const bm_voice *v, const bm_track *t, uint8_t m[4]) { for (int i = 0; i < 4; i++) m[i] = eff(v, t, i); }
+static void wv_macros(const bm_voice *v, const bm_track *t, uint8_t m[4]) { for (int i = 0; i < 4; i++) m[i] = eff(v, t, i); }
 
-static void an_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
+static void wv_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
@@ -571,41 +587,43 @@ static void an_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel,
     v->active = 1; v->track = e->track; v->note = note; v->vel = vel; v->gate = 1;
     v->stage = ENV_ATK; v->fade = 0; v->pend = 0; v->age = ++c->age; v->env = 1 << 30;
     uint8_t m[4];
-    an_macros(v, t, m);
-    bm_an_start((int)(v - c->voice), c->pat->prm[e->track], m, note_of(c, t, note), vel / 127.0f, legato);
+    wv_macros(v, t, m);
+    bm_wv_start((int)(v - c->voice), t->engine, c->pat->prm[e->track], m, note_of(c, t, note), vel / 127.0f, legato);
 }
 
-static int an_mode(const bm_ctx *c, int t)
+static int wv_mode(const bm_ctx *c, int t)
 {
-    int m = c->pat->prm[t][AN_MODE] % AN_MODES;
-    return t == 2 && m == AN_M_POLY ? AN_M_MONO : m;
+    const bm_track *tr = &c->pat->trk[t];
+    if (tr->engine == ENG_MINI) return c->pat->prm[t][MN_MODE] ? WM_LEGATO : WM_MONO;
+    if (tr->engine == ENG_BITTAL) return c->pat->prm[t][BT_MODE] % WM_MODES;
+    return WM_POLY;
 }
 
-static void an_note_on(bm_engine *e, uint8_t note, uint8_t vel)
+static void wv_note_on(bm_engine *e, uint8_t note, uint8_t vel)
 {
     bm_ctx *c = e->ctx;
     uint8_t lk[4];
     take_locks(e, lk);
     uint8_t tie = e->legato_next;
     e->legato_next = 0;
-    int mode = an_mode(c, e->track);
-    if (mode != AN_M_POLY) {                                    /* una voz: la que suena, si hay */
+    int mode = wv_mode(c, e->track);
+    if (mode != WM_POLY) {                                      /* una voz: la que suena, si hay */
         bm_voice *best = NULL;
         for (int i = 0; i < BM_VOICES; i++) {
             bm_voice *v = &c->voice[i];
             if (v->active && v->track == e->track && !v->fade && (!best || v->gate > best->gate || v->age > best->age)) best = v;
         }
         if (best) {
-            int leg = best->gate && (mode == AN_M_LEGATO || tie) ? 1 : 2;
-            an_voice_start(e, best, note, vel, lk, (uint8_t)leg);
+            int leg = best->gate && (mode == WM_LEGATO || tie) ? 1 : 2;
+            wv_voice_start(e, best, note, vel, lk, (uint8_t)leg);
             return;
         }
     }
     bm_voice *v = bm_voice_get(c, e->track, note, vel, lk, 0);
-    if (v) an_voice_start(e, v, note, vel, lk, 0);
+    if (v) wv_voice_start(e, v, note, vel, lk, 0);
 }
 
-static void an_note_off(bm_engine *e, uint8_t note)
+static void wv_note_off(bm_engine *e, uint8_t note)
 {
     bm_ctx *c = e->ctx;
     for (int i = 0; i < BM_VOICES; i++) {
@@ -613,12 +631,12 @@ static void an_note_off(bm_engine *e, uint8_t note)
         if (v->pend && v->pend_track == e->track && v->pend_note == note) v->pend = 0;
         if (v->active && v->track == e->track && v->note == note && v->gate) {
             v->gate = 0; v->stage = ENV_REL;
-            if (c->pat->trk[e->track].engine == ENG_ANALOG) bm_an_release(i);
+            bm_wv_release(i);
         }
     }
 }
 
-static bool an_process(bm_engine *e, int32_t *buf, uint16_t frames)
+static bool wv_process(bm_engine *e, int32_t *buf, uint16_t frames)
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
@@ -630,39 +648,47 @@ static bool an_process(bm_engine *e, int32_t *buf, uint16_t frames)
         if (!v->active || v->track != e->track) continue;
         any = true;
         uint8_t m[4];
-        an_macros(v, t, m);
-        int alive = bm_an_render(vi, prm, m, tmp, frames);
-        if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * AN_GAIN);
+        wv_macros(v, t, m);
+        int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames);
+        if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * WV_GAIN);
         else
             for (uint16_t i = 0; i < frames; i++) {
-                buf[i] += voice_fade_step(c, v, (int32_t)(tmp[i] * AN_GAIN));
+                buf[i] += voice_fade_step(c, v, (int32_t)(tmp[i] * WV_GAIN));
                 if (!v->fade) { alive = v->active; break; }
             }
         if (v->active && v->track == e->track) {
-            v->env = (int32_t)(fminf(bm_an_level(vi), 1.0f) * (float)(1 << 30));
+            v->env = (int32_t)(fminf(bm_wv_level(vi), 1.0f) * (float)(1 << 30));
             if (!alive && !v->pend) v->active = 0;
         }
     }
     return any;
 }
 
-static void an_init(bm_engine *e) { common_init(e); }
+static void wv_init(bm_engine *e) { common_init(e); }
 
-const bm_engine_vt bm_eng_analog = {an_init, an_note_on, an_note_off, common_set_macro, an_process, an_voice_start};
-static void acid_note_off(bm_engine *e, uint8_t note) { an_note_off(e, note); }
+const bm_engine_vt bm_eng_wave = {wv_init, wv_note_on, wv_note_off, common_set_macro, wv_process, wv_voice_start};
+static void acid_note_off(bm_engine *e, uint8_t note)
+{
+    bm_ctx *c = e->ctx;
+    for (int i = 0; i < BM_VOICES; i++) {
+        bm_voice *v = &c->voice[i];
+        if (v->pend && v->pend_track == e->track && v->pend_note == note) v->pend = 0;
+        if (v->active && v->track == e->track && v->note == note && v->gate) { v->gate = 0; v->stage = ENV_REL; }
+    }
+}
 const bm_engine_vt bm_eng_acid = {acid_init, acid_note_on, acid_note_off, common_set_macro, acid_process, acid_voice_start};
 
 /* ------------------------------------------------------------ FM: 6 operadores (msfa, core/bm_fm.cpp)
  * El patch de fábrica (PRESETS) y encima las macros, con 64 = el patch tal cual:
  *   BRILLO   nivel de los moduladores (±32)        REALIM  realimentación (±4)
- *   DECAY    tiempos de caída y salida de todos     ALGORITMO  fuera del centro, otro de los 32
+ *   DECAY    tiempos de caída y salida de todos     ALGORITMO  64 = el del patch; si no, uno de los 32
  * ATAQUE y SALIDA del canal alargan las envolventes. Mono con glide en T3 o con LIGA. */
 static uint8_t fm_m(const bm_voice *v, const bm_track *t, int i) { return v ? eff(v, t, i) : t->macro[i]; }
 
 int bm_fm_alg_of(const bm_track *t, int m4)
 {
     const uint8_t *p = bm_fm_rom[t->source % BM_FM_PATCHES];
-    return (m4 >= 56 && m4 <= 72) ? p[BM_FM_ALG] + 1 : m4 * 32 / 128 + 1;
+    return m4 == 64 ? p[BM_FM_ALG] + 1 : m4 * 32 / 128 + 1;
 }
 
 int bm_fm_fb_of(const bm_track *t, int m2)
@@ -792,10 +818,8 @@ const bm_engine_vt *bm_engine_vt_for(int engine)
     switch (engine) {
     case ENG_FM: return &bm_eng_fm;
     case ENG_ACID: return &bm_eng_acid;
-    case ENG_DRUM: case ENG_KIT: return &bm_eng_drum;
+    case ENG_DRUM: return &bm_eng_drum;
     case ENG_BREAK: return &bm_eng_sampler;
-    case ENG_MIDI: return &bm_eng_midi;
-    case ENG_ANALOG: return &bm_eng_analog;
-    default: return &bm_eng_analog;
+    default: return &bm_eng_wave;
     }
 }

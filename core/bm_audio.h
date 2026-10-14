@@ -183,7 +183,7 @@ struct bm_engine {
     uint8_t legato_next;
 };
 
-extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_analog, bm_eng_midi, bm_eng_acid, bm_eng_fm;
+extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_acid, bm_eng_fm, bm_eng_midi_out;
 /* FM: lo que hacen las macros sobre el patch (para la pantalla) */
 int bm_fm_alg_of(const bm_track *t, int m4);          /* algoritmo 1..32 */
 int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
@@ -243,6 +243,8 @@ typedef struct bm_ctx {
     bm_looper lp[BM_SYN_TRACKS];
     bm_arp arp[BM_TRACKS];
     bm_strum strum[8];
+    struct { uint8_t t, s, k, fill; uint8_t wait; } dq[16];   /* notas corridas en el tiempo (micro) */
+    uint8_t dq_n;
 
     /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores) */
     int32_t tbuf[BM_TRACKS][BM_BLOCK];
@@ -258,6 +260,7 @@ typedef struct bm_ctx {
     uint8_t punch_req, punch_cur;
     uint32_t punch_t, punch_w0, punch_rp;
     float pf_ic1[2], pf_ic2[2];
+    float mf_ic1[2], mf_ic2[2];  /* filtro del master */
     float sh_l, sh_r, gate_g;
     uint16_t master_target, master_gain;
     uint8_t drive, clip_hold;

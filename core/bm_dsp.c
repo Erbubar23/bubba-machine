@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Bubba Machine — mezcla, sidechain, delay, punch-in FX, soft-clipper y salida
- * (SPEC_V3 §3.3, §4.3, §7). Cadena: pistas → delay → punch FX → clipper(DRIVE)
- * → MASTER → DAC. El pulso de Split Sync no pasa por clipper ni MASTER.
+/* Bubba Machine — mezcla, sidechain, delay, reverb, punch-in FX, soft-clipper y salida
+ * (SPEC_V3 §3.3, §4.3, §7). Cadena: pistas (BUNO-6 con su chorus) → delay y reverb → punch FX
+ * (o el BEAT FX de HOME) → filtro del master → clipper(DRIVE) → MASTER → DAC. El pulso de Split
+ * Sync no pasa por clipper ni MASTER.
  *
  * 0.4: el bus es de coma flotante a 44.1 kHz (la FPU del AC791N es 1.5× más rápida que el entero
  * de 64 bits, docs/TRAZA_FM1.md). Se mezcla canal por canal con las ganancias calculadas una vez
@@ -11,6 +12,7 @@
 #include <string.h>
 #include "bm_audio.h"
 #include "bm_util.h"
+#include "bm_params.h"
 
 enum {
     FX_STUT4, FX_STUT8, FX_STUT16, FX_STUT32, FX_REV8, FX_REV4, FX_TAPESTOP, FX_GATE,
@@ -54,11 +56,89 @@ static void rec_lp_init(void)
     ra1 = (float)(-2.0 * cw / a0); ra2 = (float)((1.0 - al) / a0);
 }
 
+/* ------------------------------------------------------------ reverb (plato de Dattorro a Fs/2)
+ * Cuatro difusores y un tanque de dos ramas, en int16 (33 KiB). Corre a la mitad de la frecuencia,
+ * como el delay: las colas no necesitan más de 11 kHz y cuesta la mitad. Largos para 22 059 Hz. */
+enum { RV_D1 = 105, RV_D2 = 79, RV_D3 = 281, RV_D4 = 205,
+       RV_A1 = 498, RV_L1 = 3300, RV_B1 = 1334, RV_M1 = 2757,
+       RV_A2 = 673, RV_L2 = 3125, RV_B2 = 1968, RV_M2 = 2344 };
+static int16_t rv_buf[RV_D1 + RV_D2 + RV_D3 + RV_D4 + RV_A1 + RV_L1 + RV_B1 + RV_M1 + RV_A2 + RV_L2 + RV_B2 + RV_M2];
+typedef struct { int16_t *b; uint16_t n, i; } rv_line;
+static rv_line rl[12];
+static float rv_lp1, rv_lp2, rv_bw, rv_fb1, rv_fb2, rv_acc, rv_prevL, rv_prevR, rv_curL, rv_curR;
+static uint8_t rv_ph, rv_inited;
+
+static void rv_init(void)
+{
+    static const uint16_t N[12] = {RV_D1, RV_D2, RV_D3, RV_D4, RV_A1, RV_L1, RV_B1, RV_M1, RV_A2, RV_L2, RV_B2, RV_M2};
+    int16_t *b = rv_buf;
+    for (int i = 0; i < 12; i++) { rl[i].b = b; rl[i].n = N[i]; rl[i].i = 0; b += N[i]; }
+    memset(rv_buf, 0, sizeof rv_buf);
+    rv_lp1 = rv_lp2 = rv_bw = rv_fb1 = rv_fb2 = rv_acc = 0.0f;
+    rv_prevL = rv_prevR = rv_curL = rv_curR = 0.0f;
+    rv_inited = 1;
+}
+
+static inline float rv_rd(const rv_line *l) { return (float)l->b[l->i] * K15; }
+static inline float rv_tap(const rv_line *l, int k) { int j = (int)l->i - k; if (j < 0) j += l->n; return (float)l->b[j] * K15; }
+static inline void rv_wr(rv_line *l, float x) { l->b[l->i] = to16(x); if (++l->i >= l->n) l->i = 0; }
+static inline float rv_ap(rv_line *l, float x, float g)   /* pasa-todo de Schroeder */
+{
+    float d = rv_rd(l), v = x + g * d;
+    rv_wr(l, v);
+    return d - g * v;
+}
+
+/* una muestra a Fs/2: entrada mono, salida estéreo */
+static void rv_step(float x, float decay, float damp, float *oL, float *oR)
+{
+    rv_bw += 0.75f * (x - rv_bw);                                   /* ancho de banda de la entrada */
+    float d = rv_ap(&rl[0], rv_bw, 0.75f);
+    d = rv_ap(&rl[1], d, 0.75f);
+    d = rv_ap(&rl[2], d, 0.625f);
+    d = rv_ap(&rl[3], d, 0.625f);
+    float a = rv_ap(&rl[4], d + rv_fb2 * decay, -0.7f);           /* rama 1 */
+    float l1 = rv_rd(&rl[5]); rv_wr(&rl[5], a);
+    rv_lp1 += (1.0f - damp) * (l1 - rv_lp1);
+    float b1 = rv_ap(&rl[6], rv_lp1 * decay, 0.5f);
+    float m1 = rv_rd(&rl[7]); rv_wr(&rl[7], b1);
+    float a2 = rv_ap(&rl[8], d + m1 * decay, -0.7f);              /* rama 2 */
+    float l2 = rv_rd(&rl[9]); rv_wr(&rl[9], a2);
+    rv_lp2 += (1.0f - damp) * (l2 - rv_lp2);
+    float b2 = rv_ap(&rl[10], rv_lp2 * decay, 0.5f);
+    float m2 = rv_rd(&rl[11]); rv_wr(&rl[11], b2);
+    rv_fb1 = m1; rv_fb2 = m2;
+    *oL = 0.6f * (rv_tap(&rl[9], 197) + rv_tap(&rl[9], 2200) - rv_tap(&rl[10], 1400) + rv_tap(&rl[11], 1500) - rv_tap(&rl[5], 1500) - rv_tap(&rl[6], 140));
+    *oR = 0.6f * (rv_tap(&rl[5], 260) + rv_tap(&rl[5], 2000) - rv_tap(&rl[6], 1240) + rv_tap(&rl[7], 1990) - rv_tap(&rl[9], 1580) - rv_tap(&rl[10], 280));
+}
+
+/* ------------------------------------------------------------ chorus de BUNO-6 (dos tomas de un BBD)
+ * Mono de entrada, estéreo de salida: el mismo retardo modulado con el LFO en fase opuesta en cada
+ * lado. Velocidades y retardos de los citados para el Juno-60 (a confirmar con el manual de servicio). */
+#define CH_LEN 512u
+static float ch_buf[CH_LEN], ch_lfo, ch_lpL, ch_lpR;
+static uint32_t ch_w;
+static const float CH_RATE[BN_CHORUSES] = {0.0f, 0.513f, 0.863f, 9.75f};
+static const float CH_MIN_MS[BN_CHORUSES] = {0.0f, 1.66f, 1.66f, 3.30f};
+static const float CH_MAX_MS[BN_CHORUSES] = {0.0f, 5.35f, 5.35f, 3.70f};
+
+static inline float ch_read(float dly)
+{
+    float rp = (float)ch_w - dly;
+    if (rp < 0.0f) rp += (float)CH_LEN;
+    uint32_t i0 = (uint32_t)rp;
+    float f = rp - (float)i0;
+    float a = ch_buf[i0 & (CH_LEN - 1u)], b = ch_buf[(i0 + 1u) & (CH_LEN - 1u)];
+    return a + (b - a) * f;
+}
+
 void bm_dsp_tick(bm_ctx *c)
 {
-    /* punch-in: cuantizado a 1/16 si está sonando */
-    if (c->punch_req != c->punch_cur && (!c->playing || (c->btick % BM_TICKS_STEP) == 0)) {
-        c->punch_cur = c->punch_req;
+    /* punch-in: cuantizado a 1/16 si está sonando. Sin capa de PUNCH, el BEAT FX de HOME. */
+    uint8_t want = c->punch_req;
+    if (want == 0xFF && c->pat->meta.beatfx) want = (uint8_t)(c->pat->meta.beatfx - 1);
+    if (want != c->punch_cur && (!c->playing || (c->btick % BM_TICKS_STEP) == 0)) {
+        c->punch_cur = want;
         c->punch_t = 0;
         c->punch_w0 = c->fx_w;
         c->punch_rp = (c->fx_w & (BM_FXBUF_LEN - 1)) << 8;
@@ -113,7 +193,9 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     }
 
     /* ---- canales: ganancias por bloque, un recorrido por canal que sonó */
-    for (uint32_t i = 0; i < n; i++) L[i] = R[i] = S[i] = 0.0f;
+    static float RV[BM_BLOCK];
+    for (uint32_t i = 0; i < n; i++) L[i] = R[i] = S[i] = RV[i] = 0.0f;
+    int rv_any = 0;
     for (int t = 0; t < BM_TRACKS; t++) {
         if (!(c->tact & (1u << t))) continue;
         const bm_track *tr = &c->pat->trk[t];
@@ -122,7 +204,35 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
         float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
         float gs = g * (float)tr->send * (1.0f / 128.0f);
+        float rs = (float)tr->rsend * (1.0f / 128.0f);
+        if (tr->engine == ENG_BITTAL) rs += bm_bt_macro(c->pat->prm[t], tr->macro, BTM_SPACE) * 0.8f;   /* macro SPACE */
+        float grv = g * (rs < 0.0f ? 0.0f : rs);
+        if (grv > 0.0f) {
+            rv_any = 1;
+            for (uint32_t i = 0; i < n; i++) RV[i] += (float)x[i] * grv;
+        }
         int32_t pk = 0;
+        int chm = tr->engine == ENG_BUNO ? c->pat->prm[t][BN_CHORUS] % BN_CHORUSES : 0;
+        if (chm) {                                               /* BUNO-6: chorus estéreo */
+            float rate = CH_RATE[chm] / (float)BM_FS;
+            float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
+            float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
+            const float kl = 0.55f;                                 /* el BBD filtra los agudos */
+            for (uint32_t i = 0; i < n; i++) {
+                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+                if (ax > pk) pk = ax;
+                float v = (float)xi;
+                ch_buf[ch_w & (CH_LEN - 1u)] = v;
+                ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
+                float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
+                float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
+                ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
+                ch_w++;
+                L[i] += (v + ch_lpL) * gl * 0.75f; R[i] += (v + ch_lpR) * gr * 0.75f; S[i] += v * gs;
+            }
+            peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
+            continue;
+        }
         if (t >= 1 && tr->duck) {
             float dk = (float)tr->duck * (1.0f / 127.0f);
             for (uint32_t i = 0; i < n; i++) {
@@ -170,6 +280,29 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             L[i] += dv * mix; R[i] += dv * mix;
             fxb[c->fx_w & FX_MASK] = to16((L[i] + R[i]) * 0.5f);   /* captura para stutter/reverse/tape */
             c->fx_w++;
+        }
+    }
+
+    /* ---- reverb (a Fs/2: suma de dos muestras, sale con interpolación lineal) */
+    {
+        if (!rv_inited) rv_init();
+        const bm_meta *mm = &c->pat->meta;
+        float mix = (float)mm->rv_mix * (1.0f / 127.0f);
+        if (rv_any || rv_fb1 != 0.0f || rv_fb2 != 0.0f || rv_curL != 0.0f) {
+            float decay = 0.45f + 0.5f * (float)mm->rv_size * (1.0f / 127.0f);
+            float damp = 0.05f + 0.85f * (float)mm->rv_damp * (1.0f / 127.0f);
+            for (uint32_t i = 0; i < n; i++) {
+                rv_acc += RV[i];
+                if (rv_ph) {
+                    rv_prevL = rv_curL; rv_prevR = rv_curR;
+                    rv_step(rv_acc * 0.5f, decay, damp, &rv_curL, &rv_curR);
+                    rv_acc = 0.0f;
+                    L[i] += 0.5f * (rv_prevL + rv_curL) * mix; R[i] += 0.5f * (rv_prevR + rv_curR) * mix;
+                } else { L[i] += rv_curL * mix; R[i] += rv_curR * mix; }
+                rv_ph ^= 1u;
+            }
+            rv_fb1 = flush(rv_fb1); rv_fb2 = flush(rv_fb2); rv_lp1 = flush(rv_lp1); rv_lp2 = flush(rv_lp2);
+            if (!rv_any && fabsf(rv_curL) < 1e-6f && fabsf(rv_curR) < 1e-6f) rv_curL = rv_curR = rv_fb1 = rv_fb2 = 0.0f;
         }
     }
 
@@ -230,6 +363,22 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             }
         }
         for (int ch = 0; ch < 2; ch++) { c->pf_ic1[ch] = flush(c->pf_ic1[ch]); c->pf_ic2[ch] = flush(c->pf_ic2[ch]); }
+    }
+
+    /* ---- filtro del master (K3 de HOME): 64 abierto, a la izquierda pasa-bajos, a la derecha pasa-altos */
+    {
+        int mf = c->pat->meta.mfilt;
+        if (mf < 60 || mf > 68) {
+            int hp = mf > 68;
+            int ci = hp ? (mf - 68) * 70 / 59 + 20 : 127 - (60 - mf) * 85 / 60;
+            float gq = (float)bm_svf_g[bm_clampi(ci, 0, 127)] * (1.0f / 65536.0f), kq = 1.2f;
+            float a1 = 1.0f / (1.0f + gq * (gq + kq)), a2 = gq * a1, a3 = gq * a2;
+            for (uint32_t i = 0; i < n; i++) {
+                L[i] = svf_run(&c->mf_ic1[0], &c->mf_ic2[0], L[i], a1, a2, a3, kq, hp);
+                R[i] = svf_run(&c->mf_ic1[1], &c->mf_ic2[1], R[i], a1, a2, a3, kq, hp);
+            }
+            for (int ch = 0; ch < 2; ch++) { c->mf_ic1[ch] = flush(c->mf_ic1[ch]); c->mf_ic2[ch] = flush(c->mf_ic2[ch]); }
+        } else c->mf_ic1[0] = c->mf_ic1[1] = c->mf_ic2[0] = c->mf_ic2[1] = 0.0f;
     }
 
     /* ---- sampler: la mezcla (post-FX, pre-master), filtrada y diezmada a 16 kHz, 8 bit */

@@ -4,11 +4,11 @@
 #include <string.h>
 #include <stddef.h>
 #include "bm_audio.h"
+#include "bm_wave.h"
 #include "bm_prof.h"
 #include "bm_util.h"
 #include "bm_fm.h"
 #include "bm_drums.h"
-#include "bm_analog.h"
 #include "bm_params.h"
 
 bool bm_cmd_push(bm_cmdq *q, const bm_cmd *c)
@@ -38,7 +38,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
     bm_fm_init((float)BM_FS);
     bm_drm_init((float)BM_FS);
-    bm_an_init((float)BM_FS);
+    bm_wv_init((float)BM_FS);
     c->scene_q = -1;
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;
@@ -187,7 +187,10 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;
         break;
     case CMD_SET_TRACK:
-        if (k->a < BM_TRACKS && k->b < sizeof(bm_track) && k->b != offsetof(bm_track, engine)) ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
+        if (k->a < BM_TRACKS && k->b < sizeof(bm_track) && k->b != offsetof(bm_track, engine)) {
+            ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
+            if (k->b == offsetof(bm_track, midi_out)) bm_engines_sync(c);
+        }
         break;
     case CMD_SET_META:
         if (k->b >= 2 && k->b < sizeof(bm_meta)) ((uint8_t *)&c->pat->meta)[k->b] = k->c;

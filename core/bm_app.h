@@ -48,9 +48,11 @@ enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
-    uint8_t enter;          /* recuadro de ALGORITHM: 0, 250, 400, 800 ms u OFF */
+    uint8_t enter;          /* sin uso desde 0.6 (el recuadro de ALGORITHM se fue) */
     uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
-    uint8_t rsv[21];
+    uint8_t fast_lcd;       /* 1 = SPI a 30 MHz con DMA (a prueba; el modo seguro lo apaga) */
+    uint8_t dual_core;      /* 1 = el audio en los dos núcleos (a prueba; el modo seguro lo apaga) */
+    uint8_t rsv[19];
 } bm_settings;
 
 typedef struct {
@@ -184,6 +186,14 @@ typedef struct bm_app {
     int8_t punch_key;
     uint32_t clip_until;
     uint16_t edits_seen;
+    uint8_t cpu;                  /* carga del audio en % (la cabecera) */
+    uint8_t rec_gate;             /* REC de notas: el largo con que se graban (10..100 %, 100 = TIE) */
+    int8_t rec_micro;             /* REC de notas: corrimiento en ticks (-12..12) */
+    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · HOME + FX otra vez: REVERB */
+    int8_t tie_from;              /* paso sostenido para una nota larga (blanca + otra blanca) */
+    int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
+    uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
+    uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);
@@ -192,6 +202,7 @@ void bm_app_key(bm_app *a, int key, int down, uint32_t now);
 void bm_app_encoder(bm_app *a, int id, int delta, uint32_t now);
 void bm_app_master(bm_app *a, uint16_t adc10);
 void bm_app_battery(bm_app *a, uint8_t pct);
+void bm_app_cpu(bm_app *a, int pct);                  /* la carga del audio, para la cabecera */
 void bm_app_midi_in(bm_app *a, uint8_t byte);
 void bm_app_tick(bm_app *a, uint32_t now);
 void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);

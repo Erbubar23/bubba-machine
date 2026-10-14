@@ -122,8 +122,8 @@ SDK_OBJS := $(addprefix $(OUT)/sdk/,$(SDK_C:.c=.o) $(SDK_S:.S=.o))
 # C++ (motores de terceros): sin excepciones, RTTI ni biblioteca de C++ (hal/fm1/compat).
 ifeq ($(APP),bubba)
 MSFA := dx7note env exp2 fm_core fm_op_kernel freqlut lfo pitchenv porta sin EngineMsfa
-OWN_CXX := core/bm_fm.cpp core/bm_drums.cpp core/bm_analog.cpp $(addprefix third_party/msfa/,$(addsuffix .cpp,$(MSFA)))
-# Plaits y stmlib (Mutable Instruments, MIT): batería modelada y ANALOG
+OWN_CXX := core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp $(addprefix third_party/msfa/,$(addsuffix .cpp,$(MSFA)))
+# Plaits y stmlib (Mutable Instruments, MIT): batería modelada y el núcleo WAVE
 OWN_CC := third_party/plaits/resources.cc third_party/stmlib/dsp/units.cc third_party/stmlib/utils/random.cc
 endif
 CXX := $(TOOL_DIR)/clang++

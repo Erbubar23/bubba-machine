@@ -116,6 +116,22 @@ void bm_fm_bench(const uint8_t *patch, uint32_t (*now)(void), uint32_t out[5], i
     t = now(); for (int r = 0; r < reps; r++) { a[r & 63] = r; } out[4] = now() - t;
 }
 
+namespace { struct AlgPeek : FmCore { static const FmAlgorithm &get(int i) { return algorithms[i]; } }; }
+
+void bm_fm_alg_graph(int alg, uint8_t mods[6], int8_t fb[2])
+{
+    const FmAlgorithm &A = AlgPeek::get(alg & 31);
+    uint8_t writers[3] = {0, 0, 0};                 /* quién escribió en cada bus desde la última lectura */
+    fb[0] = fb[1] = -1;
+    for (int i = 0; i < 6; i++) {
+        int f = A.ops[i], in = (f >> 4) & 3, out = f & 3;
+        mods[i] = in ? writers[in] : 0;
+        if (f & 0x80) fb[0] = (int8_t)i;
+        if (f & 0x40) fb[1] = (int8_t)i;
+        if (out) { if (f & 4) writers[out] |= (uint8_t)(1u << i); else writers[out] = (uint8_t)(1u << i); }
+    }
+}
+
 uint8_t bm_fm_carriers(int alg)
 {
     return FmCore::get_carrier_operators((uint8_t)(alg & 31));

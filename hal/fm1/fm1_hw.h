@@ -46,8 +46,8 @@ enum {
 /* Lo que escribe el instalador es [0, 0x93000) y lo escribe el cargador oficial; el firmware
  * nunca toca eso. 0x97000-0xECFFF es la zona de datos (en el firmware de fábrica, toda era
  * la "VM" del SDK). Mapa de Bubba Machine:
- *   0x97000 patrones · 0xBF000 arranques · 0xC0000 tomas · 0xC6000 banco de sonidos (reservado)
- *   0xD9000 idioma · 0xDD000 ajustes globales
+ *   0x97000 patrones · 0xBF000 arranques · 0xC0000 tomas y sonidos del usuario · 0xD9000 idioma
+ *   0xDD000 ajustes globales
  *   0xE0000 cargador en espera · 0xE5000 VM del SDK (32 KiB, su tamaño por defecto)
  * Por encima de 0xED000 quedan BTIF, USR y la MAC del aparato: no se tocan nunca. */
 #define FM1_W_LO        0x097000u      /* primer byte que el firmware puede escribir */

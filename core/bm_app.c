@@ -9,10 +9,11 @@
 #include "bm_util.h"
 #include "bm_rom.h"
 #include "bm_params.h"
+#include "bm_snap.h"
+#include "bm_wt.h"
 
-static const char *const TRACK_NAMES[3] = {"DRUMS", "SAMPLER", "BASS"};
-static const uint16_t TRACK_COLORS[BM_TRACKS] = {C_ORANGE, C_YELLOW, C_GREEN, C_BLUE, C_VIOLET, C_PINK};
-static const uint16_t KNOB_COLORS[4] = {C_BLUE, C_GREEN, C_YELLOW, C_ORANGE};
+static const uint16_t TRACK_COLORS[BM_TRACKS] = {C_ORANGE, C_PINK, C_ACID, C_CYAN, C_VIOLET, C_GREEN};
+static const uint16_t KNOB_COLORS[4] = {C_CYAN, C_ORANGE, C_GREEN, C_PINK};
 const uint8_t bm_master_steps_tab[6] = {1, 2, 3, 4, 8, 0};
 const uint8_t bm_roll_ticks[5] = {48, 24, 12, 32, 16};
 const char *const bm_roll_names[5] = {"1/8", "1/16", "1/32", "1/8T", "1/16T"};
@@ -21,7 +22,7 @@ static const int16_t ENTER_MS[5] = {0, 250, 400, 800, -1};
 const char *bm_track_name(const bm_app *a, int t)
 {
     t %= BM_TRACKS;
-    return t < BM_FREE0 ? TRACK_NAMES[t] : bm_engine_names[a->pat.trk[t].engine % ENG_COUNT];
+    return bm_engine_names[a->pat.trk[t].engine % ENG_COUNT];
 }
 uint16_t bm_track_color(int t) { return TRACK_COLORS[t % BM_TRACKS]; }
 const char *bm_kit_name(int kit) { return bm_kits[(kit % BM_KITS_N + BM_KITS_N) % BM_KITS_N].name; }
@@ -31,7 +32,8 @@ int bm_sound_count(const bm_app *a, int t)
     if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
     if (a->pat.trk[t].engine == ENG_ACID) return 2;
     if (a->pat.trk[t].engine == ENG_FM) return BM_FM_PATCHES;
-    return bm_an_npresets;
+    int n = bm_snap_count(a->pat.trk[t].engine);
+    return n ? n : 1;
 }
 
 const char *bm_sound_name(const bm_app *a, int t)
@@ -40,9 +42,30 @@ const char *bm_sound_name(const bm_app *a, int t)
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
     if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
     if (a->pat.trk[t].engine == ENG_FM) return bm_fm_names[s];
-    return bm_an_presets[s].name;
+    return bm_snap_name(a->pat.trk[t].engine, s);
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
+void bm_app_cpu(bm_app *a, int pct) { a->cpu = (uint8_t)bm_clampi(pct, 0, 255); }
+
+/* BITTAL (T5): sus dos tablas, armadas en RAM desde el espectro del snapshot (core/bm_wt.h). Se
+ * rearman cuando cambia el sonido o la tabla elegida con ALGORITHM; mientras, ese oscilador calla. */
+static void app_tables(bm_app *a)
+{
+    const int t = 4;
+    if (a->pat.trk[t].engine != ENG_BITTAL) return;
+    const uint8_t *q = a->pat.prm[t];
+    int n = bm_snap_count(ENG_BITTAL);
+    for (int o = 0; o < 2; o++) {
+        int tab = q[o ? BT_TAB2 : BT_TAB1];
+        int own = n ? a->pat.trk[t].source % n : 0;
+        const uint8_t *s = bm_snap_get(ENG_BITTAL, tab ? tab - 1 : own);
+        const uint8_t *spec = s ? bm_snap_table(s, tab ? 0 : o) : NULL;
+        uint32_t sig = s ? (uint32_t)(s[8] | s[9] << 8) * 4u + (uint32_t)(tab ? 2 : o) + 1u : 0;
+        if (sig == a->wt_sig[o]) continue;
+        bm_wt_build(o, spec);
+        a->wt_sig[o] = sig;
+    }
+}
 int bm_app_layer(const bm_app *a) { return a->layer; }
 int bm_app_enter_ms(const bm_app *a) { return ENTER_MS[a->set.enter % 5]; }
 
@@ -138,7 +161,7 @@ int bm_app_track_step(const bm_app *a, int t, int lane)
 int bm_app_chord_track(const bm_app *a)
 {
     if (app_kind(a, a->track) == KIND_NOTE) return a->track;
-    for (int t = BM_FREE0; t < BM_TRACKS; t++) if (app_kind(a, t) == KIND_NOTE) return t;
+    for (int t = 3; t < BM_TRACKS; t++) if (app_kind(a, t) == KIND_NOTE) return t;
     return 2;
 }
 
@@ -570,8 +593,9 @@ static void ev_set(bm_pattern *p, int t, int s, int k, int note, int vel, int le
     e->note = (uint8_t)note; e->vel = (uint8_t)vel; e->len = (uint8_t)len; e->prob = (uint8_t)prob;
 }
 
-/* Patrón de pruebas: acid techno a 160 BPM en La menor. Batería 909, una línea 303 con acentos
- * y slides, el sampler cortando la primera toma (si hay), un stab, una campana FM y un viento. */
+/* Patrón de pruebas: acid techno a 160 BPM en La menor. BR-8 con el kit 909, una línea de BB-303
+ * con acentos y slides, BP-1 cortando la primera toma (si hay), acordes de BX-7, un pluck de BITTAL
+ * y un pad de BUNO-6 de cuatro compases (una nota larga). */
 static void tr_on(bm_tr *d, int lane, const char *pat, uint8_t extra)
 {
     for (int s = 0; pat[s] && s < BM_STEPS; s++)
@@ -618,20 +642,20 @@ static void demo_pattern(bm_pattern *p, bm_song *song, const bm_take *tk, uint8_
         {8, 45, 0, 0}, {9, 57, 1, 0}, {10, 55, 0, 1}, {11, 52, 0, 0}, {12, 45, 1, 0}, {13, 48, 0, 1}, {14, 50, 0, 0}, {15, 45, 0, 0}};
     for (unsigned i = 0; i < sizeof L / sizeof L[0]; i++)
         ev_set(p, 2, L[i].s, 0, L[i].n, L[i].acc ? BM_VEL_ACC : BM_VEL_NORMAL, 1 | (L[i].slide ? BM_LEN_TIE : 0), 100);
-    /* T4: ANALOG STAB a contratiempo, con delay */
-    p->trk[3].source = 12; bm_preset_apply(p, 3, 12);
-    p->trk[3].length = 32; p->trk[3].send = 55;
+    /* T4: BX-7, acordes de E.PIANO a contratiempo, con delay */
+    p->trk[3].source = 0; p->trk[3].length = 32; p->trk[3].send = 45; p->trk[3].rsend = 30;
     for (int k = 0; k < 3; k++) { static const int C[3] = {57, 60, 64}; ev_set(p, 3, 10, k, C[k], 90, 1, 100); ev_set(p, 3, 26, k, C[k] - 2 + (k == 1), 80, 1, 100); }
-    /* T5: campana FM, a veces */
-    bm_track_set_engine(p, 4, ENG_FM);
-    p->trk[4].source = 3; p->trk[4].length = 32; p->trk[4].send = 60;
-    ev_set(p, 4, 14, 0, 81, 80, 2, 60);
-    ev_set(p, 4, 30, 0, 76, 70, 2, BM_PROB_FILL);
-    /* T6: viento que sube cada 4 compases */
-    p->trk[5].source = 14; bm_preset_apply(p, 5, 14);
-    p->trk[5].length = 64; p->trk[5].send = 40;
-    ev_set(p, 5, 0, 0, 57, 70, 64, 100);
-    p->trk[0].level = 88; p->trk[2].level = 74; p->trk[3].level = 46; p->trk[4].level = 40; p->trk[5].level = 30;
+    /* T5: BITTAL, un pluck que a veces no está */
+    p->trk[4].source = 13; bm_preset_apply(p, 4, 13);
+    p->trk[4].length = 32; p->trk[4].send = 35; p->trk[4].rsend = 60;
+    { static const int8_t S[6] = {2, 6, 14, 18, 22, 30}, N[6] = {69, 72, 76, 74, 72, 76};
+      for (int i = 0; i < 6; i++) ev_set(p, 4, S[i], 0, N[i], 85, 1, i % 3 == 2 ? 60 : 100); }
+    /* T6: BUNO-6, un pad de La menor que dura los cuatro compases */
+    p->trk[5].source = 2; bm_preset_apply(p, 5, 2);
+    p->trk[5].length = 64; p->trk[5].send = 0; p->trk[5].rsend = 70;
+    for (int k = 0; k < 3; k++) { static const int C[3] = {57, 60, 64}; ev_set(p, 5, 0, k, C[k], 75, 64, 100); }
+    p->trk[0].level = 84; p->trk[2].level = 66; p->trk[3].level = 32; p->trk[4].level = 36; p->trk[5].level = 26;
+    p->meta.rv_mix = 70;
     memset(song->scene, 0, sizeof song->scene);
     song->scene[0].valid = 1; song->scene[0].pattern = 0;                                  /* A: todo */
     song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x38;  /* B: batería, voces y acid */
@@ -676,7 +700,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->ctx.midi_out = midi_out_cb; a->ctx.midi_user = a;
     bm_gesture_init(&a->ges, app_on_gesture, a);
     a->pend_obj = -1; a->undo_track = -1; a->redo_track = -1; a->held_step = -1; a->held_white = -1;
-    a->slice_sens = 64; a->pad_key = -1;
+    a->slice_sens = 64; a->pad_key = -1; a->rec_gate = 100; a->tie_from = -1; a->rec_step = -1;
     a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->roll_rate = 1; a->solo_key = -1; a->solo_track = -1;
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
@@ -712,6 +736,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
         for (int i = 0; i < BM_PATTERNS; i++) if (bm_store_has(&a->store, (uint8_t)i)) fresh = 0;
         int len = 0;
         const uint8_t *src = store_ptr(a, a->set.last_pat % BM_PATTERNS, &len);
+        bm_snaps_scan(pf->flash, pf->flash_map, pf->user);     /* los sonidos del usuario, antes que todo lo demás */
         if (src && len > 0 && bm_pattern_unpack(&a->pat, src, len) < 0) bm_pattern_init(&a->pat);
         bm_takes_scan(pf->flash, pf->flash_map, pf->user, a->take);
     }
@@ -750,16 +775,14 @@ void bm_app_master(bm_app *a, uint16_t adc)
 static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE};
 static const uint8_t TABS_PADS[] = {PG_SEQ, PG_PADS, PG_BREAK, PG_TAKES, PG_MIX, PG_MORE};
 static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_SOUND, PG_ENV, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
-static const uint8_t TABS_AN[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};   /* ENV y LFO están en SONIDO */
-static const uint8_t TABS_MIDI[] = {PG_SEQ, PG_MIDI, PG_ARP, PG_MORE};
+static const uint8_t TABS_WV[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};   /* ENV y LFO están en SONIDO */
 
 int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 {
     const uint8_t *s; int n;
     if (bm_is_pads(t)) { s = TABS_PADS; n = (int)sizeof TABS_PADS; }
     else if (app_kind(a, t) == KIND_TR) { s = TABS_TR; n = (int)sizeof TABS_TR; }
-    else if (app_midi(a, t)) { s = TABS_MIDI; n = (int)sizeof TABS_MIDI; }
-    else if (a->pat.trk[t].engine == ENG_ANALOG) { s = TABS_AN; n = (int)sizeof TABS_AN; }
+    else if (bm_engine_paged(a->pat.trk[t].engine)) { s = TABS_WV; n = (int)sizeof TABS_WV; }
     else { s = TABS_NOTE; n = (int)sizeof TABS_NOTE; }
     memcpy(out, s, (size_t)n);
     return n;
@@ -877,7 +900,7 @@ void app_copy_track(bm_app *a, int t)
 
 void app_paste_track(bm_app *a, int t)
 {
-    if (a->clip_type != 2 || app_kind(a, t) != bm_kind(&a->pat, a->clip_track) || (app_kind(a, t) == KIND_TR) != (a->clip_trk.engine == ENG_DRUM || a->clip_trk.engine == ENG_KIT)) {
+    if (a->clip_type != 2 || app_kind(a, t) != bm_kind(&a->pat, a->clip_track) || (app_kind(a, t) == KIND_TR) != (a->clip_trk.engine == ENG_DRUM)) {
         app_toast(a, "NOTHING TO PASTE HERE"); return;
     }
     app_undo_snapshot(a, t);
@@ -893,6 +916,15 @@ void app_init_sound(bm_app *a, int t)
     for (unsigned i = 0; i < sizeof F; i++) app_push(a, CMD_SET_TRACK, (uint8_t)t, F[i], ((const uint8_t *)&d)[F[i]]);
     app_edited(a);
     app_toast(a, "INIT SOUND");
+}
+
+void app_bass_machine(bm_app *a, int eng)
+{
+    if (!bm_engine_ok(2, eng) || a->pat.trk[2].engine == eng) return;
+    app_push(a, CMD_ENGINE, 2, (uint8_t)eng, 0);
+    app_edited(a);
+    char b[30]; snprintf(b, sizeof b, TF("T3 IS NOW %s"), bm_engine_names[eng]);
+    app_toast(a, b);
 }
 
 void app_select_pattern(bm_app *a, int idx)
@@ -921,6 +953,7 @@ void bm_app_tick(bm_app *a, uint32_t now)
     if (a->view == V_BOOT && now - a->boot_t >= UI_BOOT_MS) { a->view = V_HOME; a->scr.force = 1; }
     bm_gesture_poll(&a->ges, now);
     app_input_tick(a);
+    app_tables(a);
     if (a->pat_sel >= 0 && now - a->pat_sel_t > 500) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }
     if (a->ov.on && (int32_t)(now - a->ov.until) > 0) a->ov.on = 0;
     if (a->toast_until && (int32_t)(now - a->toast_until) > 0) a->toast_until = 0;

@@ -2,7 +2,7 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
-## [0.6.0-beta] - sin publicar
+## [0.6.0-beta] - 2026-10-14
 
 **Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador.
 

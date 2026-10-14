@@ -2,7 +2,7 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
-## [0.6.0-beta] - unreleased
+## [0.6.0-beta] - 2026-10-14
 
 **Beta, not yet tested on the device:** it passes the automated tests and the emulator. If something fails on the FM-1, go back to 0.5.0-beta or to the factory firmware from the installer.
 

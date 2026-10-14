@@ -31,7 +31,7 @@ int bm_sound_count(const bm_app *a, int t)
 {
     if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
     if (a->pat.trk[t].engine == ENG_ACID) return 2;
-    if (a->pat.trk[t].engine == ENG_FM) return BM_FM_PATCHES;
+    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_count();
     int n = bm_snap_count(a->pat.trk[t].engine);
     return n ? n : 1;
 }
@@ -41,7 +41,7 @@ const char *bm_sound_name(const bm_app *a, int t)
     int s = a->pat.trk[t].source % bm_sound_count(a, t);
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
     if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
-    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_names[s];
+    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_patch_name(s);
     return bm_snap_name(a->pat.trk[t].engine, s);
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
@@ -416,6 +416,40 @@ int bm_app_lang_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_
     a->set.lang = 1; a->set_dirty = 1; a->t_edit = a->now;
     bm_lang_use(p);
     app_toast(a, bm_lang_name());
+    return 0;
+}
+
+int bm_app_sound_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n)
+{
+    const bm_flash_ops *f = a->pf.flash;
+    if (!f || app_playing(a) || a->njob) return -1;        /* escribir la flash corta el audio */
+    switch (sub) {
+    case 0: a->snap_len = 0; return 0;
+    case 1:
+        if (!d || off > BM_SNAP_MAX || n > BM_SNAP_MAX - off) return -1;
+        memcpy(a->snap_buf + off, d, n);
+        if (off + n > a->snap_len) a->snap_len = (uint16_t)(off + n);
+        return 0;
+    case 3: {                                               /* off = máquina << 8 | su número en PRESETS */
+        int eng = (int)(off >> 8), idx = (int)(off & 0xFF);
+        const uint8_t *p = eng == ENG_FM ? bm_snap_get(ENG_FM, idx) : bm_snap_get(eng, idx);
+        int u = p ? bm_snaps_user_of(p) : -1;
+        int r = u < 0 ? -1 : bm_snaps_erase(f, u);
+        app_toast(a, r ? "NOT A USER SOUND" : "SOUND DELETED");
+        return r;
+    }
+    case 2: break;
+    default: return -1;
+    }
+    if (!bm_snap_ok(a->snap_buf, a->snap_len)) { app_toast(a, "THAT IS NOT A BUBBA SOUND"); return -1; }
+    uint8_t used[BM_TAKE_SECTORS];
+    bm_takes_used(a->take, used);
+    int i = bm_snaps_write(f, a->pf.flash_map, a->pf.user, a->snap_buf, a->snap_len, used);
+    if (i < 0) { app_toast(a, "NO ROOM: DELETE A TAKE OR A SOUND"); return -1; }
+    char b[30];
+    if (a->snap_buf[4] == ENG_FM) snprintf(b, sizeof b, TF("BX-7 BANK: %d VOICES"), 32);
+    else { char nm[13]; memcpy(nm, a->snap_buf + 12, 12); nm[12] = 0; snprintf(b, sizeof b, TF("SOUND SAVED: %s"), nm); }
+    app_toast(a, b);
     return 0;
 }
 

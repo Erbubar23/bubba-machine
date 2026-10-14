@@ -9,6 +9,15 @@
   "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
  },
  {
+  "archivo": "bubba-machine-0.6.0-beta.bin",
+  "sha256": "81466c7190668dfa5bf206e4b9591dd623e8b330c791dd70f70fc8cf4ab9c806",
+  "bytes": 423692,
+  "nombre": "Bubba Machine 0.6.0-beta",
+  "nombre_en": "Bubba Machine 0.6.0-beta",
+  "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
+  "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
+ },
+ {
   "archivo": "bubba-diag-0.5.0-beta.bin",
   "sha256": "3df9767bdf47266fccf70613827a60e32609fbb6a2efcc1851b87f3d600e823f",
   "bytes": 124840,

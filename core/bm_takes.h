@@ -41,6 +41,8 @@ int  bm_takes_erase(const bm_flash_ops *f, bm_take *t);
 /* Cortes en los ataques (golpes o sílabas). min_gap: muestras mínimas entre cortes; sens 0..127.
  * Devuelve cuántos (el primero siempre 0), ordenados. */
 int  bm_slice_onsets(const int8_t *d, uint32_t len, uint32_t min_gap, int sens, uint32_t out[BM_SLICES]);
+/* sectores de la zona que ocupan las tomas (used[BM_TAKE_SECTORS], sin los sonidos) */
+void bm_takes_used(const bm_take tk[BM_TAKES], uint8_t *used);
 /* Borra toda la zona (al pasar de 0.2 a 0.3). */
 int  bm_takes_format(const bm_flash_ops *f);
 

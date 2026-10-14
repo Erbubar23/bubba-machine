@@ -14,6 +14,7 @@
  *   08            perfil del audio: BM_P_N acumulados, ticks transcurridos, ticks por segundo
  *   20 sub8 a32 b16 datos   toma del sampler (fm1_toma; tools/fm1/toma.py)
  *   21 sub8 off32 0016 datos  paquete de idioma (fm1_idioma; tools/fm1/idioma.py)
+ *   22 sub8 off32 0016 datos  un sonido .bsnap o un banco de BX-7 (fm1_sonido; tools/fm1/sonido.py)
  *   10 cmd8 arg8  laboratorio (fm1_lab): 1 barrido, 2 audio en silencio, 3 tono, 4 flash arg
  *                 veces, 5 audio detenido, 6 arrancar Bubba con audio (respuesta: resultado8)
  * Lee y no escribe nada, salvo la prueba de flash del laboratorio (solo en el sector de prueba
@@ -154,6 +155,17 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         cab[0] = (uint8_t)sub; cab[1] = (uint8_t)(r == 0);
         cab[2] = (uint8_t)(a >> 16); cab[3] = (uint8_t)(a >> 8); cab[4] = (uint8_t)a;
         responder(0x21, cab, 5, NULL, 0);
+        break;
+    }
+    case 0x22: {                                    /* sonido: sub (1 byte), desde (4), 0 (2), datos */
+        if (n < 5 + 2 + 8 + 4 + 1)
+            return;
+        int sub = (int)nib_in(m + 5, 2);
+        uint32_t a = nib_in(m + 7, 8);
+        int r = fm1_sonido(sub, a, m + 19, n - 19 - 1);
+        cab[0] = (uint8_t)sub; cab[1] = (uint8_t)(r == 0);
+        cab[2] = (uint8_t)(a >> 16); cab[3] = (uint8_t)(a >> 8); cab[4] = (uint8_t)a;
+        responder(0x22, cab, 5, NULL, 0);
         break;
     }
     case 0x04:

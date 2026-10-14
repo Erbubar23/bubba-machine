@@ -24,6 +24,7 @@
 #include "system/includes.h"
 #include "os/os_api.h"
 #include "asm/adc_api.h"
+#include "asm/includes.h"
 #include "fm1_hw.h"
 #include "bm_app.h"
 
@@ -65,6 +66,49 @@ static void render(int32_t *lr, uint32_t frames)
         int32_t v = lr[i];
         lr[i] = v > 8388607 ? 8388607 : v < -8388608 ? -8388608 : v;
     }
+}
+
+/* ------------------------------------------------------------------ audio en dos núcleos (a prueba)
+ * SISTEMA > TWO CORES. El planificador del SDK reparte las tareas entre los dos núcleos (no hay forma
+ * de fijarlas; docs/ARQUITECTURA_FM1.md §3): con la del audio esperando, esta corre en el otro. El
+ * núcleo hace el reparto (bm_audio_par_process) y ya probó en PC que suena igual (test_dual_core). */
+static OS_SEM par_go_sem, par_done_sem;
+static volatile uint32_t par_done_at, par_n;
+static int par_ok;
+
+static void par_task(void *p)
+{
+    (void)p;
+    for (;;) {
+        os_sem_pend(&par_go_sem, 0);
+        bm_audio_par_process(&app.ctx, par_done_at, par_n);
+        fm1_stat[FM1_STAT_PAR_CPU] = current_cpu_id();
+        os_sem_post(&par_done_sem);
+    }
+}
+
+static void par_go(void *u, uint32_t done, uint32_t n)
+{
+    (void)u;
+    par_done_at = done; par_n = n;
+    os_sem_post(&par_go_sem);
+}
+
+static void par_wait(void *u)
+{
+    (void)u;
+    os_sem_pend(&par_done_sem, 0);
+}
+
+static void par_init(void)
+{
+    if (par_ok) return;
+    os_sem_create(&par_go_sem, 0);
+    os_sem_create(&par_done_sem, 0);
+    if (os_task_create(par_task, NULL, 25, 4096, 0, "audio2") != 0) return;
+    app.ctx.par_go = par_go; app.ctx.par_wait = par_wait; app.ctx.par_user = NULL;
+    app.ctx.par_mask = 0x38;                 /* T4 BX-7, T5 BITTAL, T6 BUNO-6 */
+    par_ok = 1;
 }
 
 /* ------------------------------------------------------------------ MIDI */
@@ -380,6 +424,19 @@ int fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
     return r;
 }
 
+int fm1_sonido(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
+{
+    static uint8_t d[256];
+    uint32_t n = nn / 2;
+    if (n > sizeof d)
+        return -1;
+    for (uint32_t i = 0; i < n; i++)
+        d[i] = (uint8_t)((nib[2 * i] & 15u) << 4 | (nib[2 * i + 1] & 15u));
+    int r = bm_app_sound_load(&app, sub, off, d, n);
+    if (sub != 1) log_num(r ? "consola: sonido rechazado, paso " : "consola: sonido, paso ", (uint32_t)sub, "");
+    return r;
+}
+
 int fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn)
 {
     bm_cmd c;
@@ -580,6 +637,7 @@ static void modo_seguro(void)
 /* ------------------------------------------------------------------ tarea principal */
 static void bubba_task(void *p)
 {
+    int cuelgue = 0, volvio_seguro = 0, lcd_fast = -1;
     uint8_t raw[FM1_NCOL];
     uint32_t t0, next_adc = 0, heap_t = 0;
     int ok = 0, id, down, seen = 0;
@@ -599,6 +657,7 @@ static void bubba_task(void *p)
     {
         char c[5];
         if (fm1_cuelgue_previo(c)) {
+            cuelgue = 1;
             char l[40] = "reinicio por cuelgue en ";
             for (int i = 0; i < 4; i++) l[24 + i] = c[i];
             l[28] = 0;
@@ -609,6 +668,7 @@ static void bubba_task(void *p)
         }
     }
     if (modo == FM1_BOOT_SAFE) {
+        volvio_seguro = 1;
         modo_seguro();                       /* vuelve solo con PLAY (o el laboratorio) */
         sin_audio = !lab_bubba;
         modo = FM1_BOOT_NORMAL;
@@ -622,6 +682,11 @@ static void bubba_task(void *p)
     fm1_stat[FM1_STAT_VERSION] = 0x000300u | (uint32_t)sin_audio << 24;
     fm1_miga("A1");
     bm_app_init(&app, &pf, t0);
+    if (cuelgue || volvio_seguro) {          /* algo falló: las pruebas (pantalla rápida, dos núcleos) se apagan */
+        if (app.set.fast_lcd || app.set.dual_core) fm1_log("pruebas apagadas despues de un fallo");
+        app.set.fast_lcd = 0; app.set.dual_core = 0; app.set_dirty = 1;
+    }
+    par_init();
     fm1_miga("A2");
     fm1_boot_stage(E_NUCLEO);
     fm1_miga("A3");
@@ -678,6 +743,10 @@ static void bubba_task(void *p)
             next_adc = t + 10u;
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
         }
+        if (lcd_fast != app.set.fast_lcd) { lcd_fast = app.set.fast_lcd; fm1_lcd_speed(lcd_fast); }
+        app.ctx.par_on = (uint8_t)(par_ok && app.set.dual_core && !sin_audio);
+        if (fm1_stat[FM1_STAT_BUDGET])
+            bm_app_cpu(&app, (int)(fm1_stat[FM1_STAT_RENDER_AVG] * 100u / fm1_stat[FM1_STAT_BUDGET]));
         uint32_t u0 = fm1_scan_now_us();
         fm1_miga("L6");
         bm_app_tick(&app, t);

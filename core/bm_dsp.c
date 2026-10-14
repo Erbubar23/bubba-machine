@@ -76,6 +76,7 @@ static void rv_init(void)
     memset(rv_buf, 0, sizeof rv_buf);
     rv_lp1 = rv_lp2 = rv_bw = rv_fb1 = rv_fb2 = rv_acc = 0.0f;
     rv_prevL = rv_prevR = rv_curL = rv_curR = 0.0f;
+    rv_ph = 0;
     rv_inited = 1;
 }
 
@@ -130,6 +131,14 @@ static inline float ch_read(float dly)
     float f = rp - (float)i0;
     float a = ch_buf[i0 & (CH_LEN - 1u)], b = ch_buf[(i0 + 1u) & (CH_LEN - 1u)];
     return a + (b - a) * f;
+}
+
+/* la reverb y el chorus viven fuera del contexto: vuelven a cero con el audio */
+void bm_dsp_reset(void)
+{
+    rv_init();
+    memset(ch_buf, 0, sizeof ch_buf);
+    ch_lfo = ch_lpL = ch_lpR = 0.0f; ch_w = 0;
 }
 
 void bm_dsp_tick(bm_ctx *c)

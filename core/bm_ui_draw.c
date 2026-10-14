@@ -89,7 +89,7 @@ static void draw_status(bm_gfx *g, const bm_app *a)
         gfx_small(g, 202, 4, b, C_GREEN);
         gfx_small(g, 202, 14, "REC", C_RED);
     } else {
-        snprintf(b, sizeof b, "%d%%", a->cpu);
+        if (a->cpu) snprintf(b, sizeof b, "%d%%", a->cpu); else snprintf(b, sizeof b, "--");   /* el emulador no mide */
         gfx_small(g, 202, 4, "CPU", C_DGREY);
         gfx_small(g, 202, 14, b, a->cpu > 85 ? C_RED : a->cpu > 65 ? C_YELLOW : C_GREY);
     }

@@ -6,6 +6,7 @@
 #include "bm_pattern.h"
 #include "bm_util.h"
 #include "bm_wt.h"
+#include "bm_rom.h"
 
 const char *const bm_snap_lic_names[SN_LICS] = {"BUBBA", "CC0", "UNLICENSE", "GPL-3.0"};
 
@@ -18,6 +19,7 @@ int bm_snap_ok(const uint8_t *p, uint32_t len)
     uint32_t size = get16(p + 10);
     if (size < BM_SNAP_HDR || size > len || size > BM_SNAP_MAX) return 0;
     int eng = p[4], ntab = p[5];
+    if (eng == ENG_FM) return ntab == 0 && size == BM_FM_BANK;
     if (eng != ENG_MINI && eng != ENG_BITTAL && eng != ENG_BUNO) return 0;
     if (ntab > 2 || (eng != ENG_BITTAL && ntab)) return 0;
     uint32_t at = BM_SNAP_HDR;
@@ -127,6 +129,12 @@ int bm_snaps_write(const bm_flash_ops *f, bm_snap_map_fn map, void *mu, const ui
     return -1;
 }
 
+int bm_snaps_user_of(const uint8_t *p)
+{
+    for (int i = 0; i < nuser; i++) if (user[i].p == p) return i;
+    return -1;
+}
+
 int bm_snaps_erase(const bm_flash_ops *f, int i)
 {
     if (i < 0 || i >= nuser) return -1;
@@ -154,6 +162,32 @@ static const uint8_t *nth(int eng, int idx, int *is_user)
 
 const uint8_t *bm_snap_get(int eng, int idx) { int u; return idx < 0 ? NULL : nth(eng, idx, &u); }
 int bm_snap_is_user(int eng, int idx) { int u = 0; return idx >= 0 && nth(eng, idx, &u) ? u : 0; }
+
+int bm_fm_count(void) { return BM_FM_PATCHES + 32 * bm_snap_count(ENG_FM); }
+
+const uint8_t *bm_fm_patch(int idx)
+{
+    int n = bm_fm_count();
+    idx = (idx % n + n) % n;
+    if (idx < BM_FM_PATCHES) return bm_fm_rom[idx];
+    idx -= BM_FM_PATCHES;
+    const uint8_t *bank = bm_snap_get(ENG_FM, idx / 32);
+    return bank ? bank + BM_SNAP_HDR + (idx % 32) * 156 : bm_fm_rom[0];
+}
+
+const char *bm_fm_patch_name(int idx)
+{
+    static char b[11];
+    int n = bm_fm_count();
+    idx = (idx % n + n) % n;
+    if (idx < BM_FM_PATCHES) return bm_fm_names[idx];
+    const uint8_t *p = bm_fm_patch(idx);
+    int k = 0;
+    for (int i = 0; i < 10; i++) { char c = (char)p[145 + i]; b[k++] = c >= 'a' && c <= 'z' ? (char)(c - 32) : (c >= 32 && c < 127 ? c : ' '); }
+    while (k && b[k - 1] == ' ') k--;
+    b[k] = 0;
+    return b;
+}
 
 const char *bm_snap_name(int eng, int idx)
 {

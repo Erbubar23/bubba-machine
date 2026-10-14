@@ -8,6 +8,7 @@
 #include "bm_fm.h"
 #include "bm_drums.h"
 #include "bm_wave.h"
+#include "bm_snap.h"
 #include "bm_params.h"
 #include <math.h>
 
@@ -79,6 +80,9 @@ static int32_t voice_fade_step(bm_ctx *c, bm_voice *v, int32_t s)
     if (--v->fade == 0) {
         v->active = 0;
         if (v->pend) {
+            /* audio en dos núcleos: si la voz pasa a un canal del otro núcleo, arranca después de
+             * esperarlo (bm_audio_render), para que los dos no toquen la misma voz a la vez */
+            if (c->par_on && (((c->par_mask >> v->track) ^ (c->par_mask >> v->pend_track)) & 1)) { c->par_defer = 1; return 0; }
             v->pend = 0;
             bm_engine *e = &c->eng[v->pend_track];
             e->vt->voice_start(e, v, v->pend_note, v->pend_vel, v->pend_lk, v->pend_legato);
@@ -642,14 +646,16 @@ static bool wv_process(bm_engine *e, int32_t *buf, uint16_t frames)
     const bm_track *t = &c->pat->trk[e->track];
     const uint8_t *prm = c->pat->prm[e->track];
     bool any = false;
-    static float tmp[BM_BLOCK];
+    static float tmp2[2][BM_BLOCK];
+    int lane = c->par_on ? (c->par_mask >> e->track) & 1 : 0;
+    float *tmp = tmp2[lane];
     for (int vi = 0; vi < BM_VOICES; vi++) {
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != e->track) continue;
         any = true;
         uint8_t m[4];
         wv_macros(v, t, m);
-        int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames);
+        int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames, lane);
         if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * WV_GAIN);
         else
             for (uint16_t i = 0; i < frames; i++) {
@@ -687,18 +693,18 @@ static uint8_t fm_m(const bm_voice *v, const bm_track *t, int i) { return v ? ef
 
 int bm_fm_alg_of(const bm_track *t, int m4)
 {
-    const uint8_t *p = bm_fm_rom[t->source % BM_FM_PATCHES];
+    const uint8_t *p = bm_fm_patch(t->source);
     return m4 == 64 ? p[BM_FM_ALG] + 1 : m4 * 32 / 128 + 1;
 }
 
 int bm_fm_fb_of(const bm_track *t, int m2)
 {
-    return bm_clampi(bm_fm_rom[t->source % BM_FM_PATCHES][BM_FM_FB] + (m2 - 64) / 16, 0, 7);
+    return bm_clampi(bm_fm_patch(t->source)[BM_FM_FB] + (m2 - 64) / 16, 0, 7);
 }
 
 void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p)
 {
-    memcpy(p, bm_fm_rom[t->source % BM_FM_PATCHES], BM_FM_PATCH);
+    memcpy(p, bm_fm_patch(t->source), BM_FM_PATCH);
     int m1 = fm_m(v, t, 0), m2 = fm_m(v, t, 1), m3 = fm_m(v, t, 2), m4 = fm_m(v, t, 3);
     p[BM_FM_ALG] = (uint8_t)(bm_fm_alg_of(t, m4) - 1);
     p[BM_FM_FB] = (uint8_t)bm_fm_fb_of(t, m2);

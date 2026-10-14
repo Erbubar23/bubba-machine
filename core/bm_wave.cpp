@@ -144,7 +144,9 @@ inline float ladder_g(float semis)
     return g / (1.0f + g);
 }
 
-float b1[BM_BLOCK], b2[BM_BLOCK];   /* solo la tarea de audio */
+/* búfer de trabajo, uno por núcleo: con el audio en dos núcleos, T3 (B-MINI) calcula en uno y T5-T6
+ * (BITTAL, BUNO-6) en el otro al mismo tiempo */
+float SB[2][BM_BLOCK];
 
 /* ------------------------------------------------------------ B-MINI */
 float mini_osc(Osc &o, int w, float dt)
@@ -164,7 +166,7 @@ float mini_osc(Osc &o, int w, float dt)
 
 static const float RANGE[5] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};   /* 32' 16' 8' 4' 2' */
 
-int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n)
+int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
 {
     glide(z, prm[MN_GLIDE], n);
     float lamt = pc(prm[MN_LAMT]), lfo = 0.0f;
@@ -220,7 +222,7 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
 /* ------------------------------------------------------------ BUNO-6 */
 static const float HPF_HZ[4] = {0.0f, 120.0f, 250.0f, 520.0f};   /* posiciones 0-3 (a medir contra un Juno) */
 
-int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n)
+int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
 {
     /* LFO triangular con retardo: la rampa sube después de la nota */
     z.lph += bm_lfo_hz(prm[BN_LRATE]) * (float)n / fs_;
@@ -346,7 +348,7 @@ void wt_osc(Voice &z, int o, int slot, float f0, float pos, int uni, float det, 
     }
 }
 
-int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n)
+int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
 {
     glide(z, prm[BT_GLIDE], n);
     float lamt = pc(prm[BT_LAMT]) + 0.5f * bm_bt_macro(prm, mac, BTM_LFO), lfo = 0.0f;
@@ -430,13 +432,14 @@ int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out
     return z.ea.st != ST_OFF;
 }
 
-int render(Voice &z, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n)
+int render(Voice &z, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane)
 {
     if (z.ea.st == ST_OFF && z.ef.st == ST_OFF) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }
+    float *b1 = SB[lane & 1];
     switch (eng) {
-    case ENG_MINI: return render_mini(z, prm, mac, out, n);
-    case ENG_BUNO: return render_buno(z, prm, mac, out, n);
-    default: return render_bittal(z, prm, mac, out, n);
+    case ENG_MINI: return render_mini(z, prm, mac, out, n, b1);
+    case ENG_BUNO: return render_buno(z, prm, mac, out, n, b1);
+    default: return render_bittal(z, prm, mac, out, n, b1);
     }
 }
 
@@ -455,6 +458,8 @@ float bm_bt_macro(const uint8_t *prm, const uint8_t mac[4], int dest)
 void bm_wv_init(float fs)
 {
     fs_ = fs;
+    memset(mem_, 0, sizeof mem_);                       /* sin restos de un arranque anterior */
+    memset(SB, 0, sizeof SB);
     for (int v = 0; v < BM_VOICES; v++) {
         Voice *z = new (mem_[v]) Voice();
         z->ea.st = z->ef.st = ST_OFF; z->ea.v = z->ef.v = 0.0f;
@@ -494,10 +499,10 @@ void bm_wv_release(int v)
 
 float bm_wv_level(int v) { return v >= 0 && v < BM_VOICES ? V(v).ea.v : 0.0f; }
 
-int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n)
+int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane)
 {
     if (v < 0 || v >= BM_VOICES || n <= 0) return 0;
-    return render(V(v), eng, prm, mac, out, n);
+    return render(V(v), eng, prm, mac, out, n, lane);
 }
 
 void bm_wv_bench(const uint8_t *pm, const uint8_t *pb, const uint8_t *pn, const uint8_t mac[4],
@@ -513,7 +518,7 @@ void bm_wv_bench(const uint8_t *pm, const uint8_t *pb, const uint8_t *pn, const 
         z.note = z.target = 48.0f; z.vel = 0.8f; z.rng = 1; z.first = 1; z.gate = 1;
         z.ea.Gate(true); z.ef.Gate(true);
         uint32_t t0 = now();
-        for (int r = 0; r < reps; r++) render(z, E[m], P[m], mac, buf, BM_BLOCK);
+        for (int r = 0; r < reps; r++) render(z, E[m], P[m], mac, buf, BM_BLOCK, 0);
         out[m] = now() - t0;
     }
 }

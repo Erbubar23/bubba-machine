@@ -1254,6 +1254,84 @@ static void test_notes(void)
 }
 
 /* ------------------------------------------------------------ guardado y versiones */
+/* el audio en dos núcleos: repartido (aquí en la misma tarea) suena exactamente igual */
+static void par_go_sim(void *u, uint32_t done, uint32_t n) { bm_audio_par_process((bm_ctx *)u, done, n); }
+static void par_wait_sim(void *u) { (void)u; }
+
+static void test_dual_core(void)
+{
+    printf("audio en dos núcleos: T4-T6 (o T1-T3) aparte dan las mismas muestras\n");
+    static int32_t a1[44118 * 2], a2[44118 * 2];
+    static const uint8_t MK[2] = {0x38, 0x07};
+    int diff = 0;
+    double pk = 0;
+    for (int mk = 0; mk < 2; mk++) {
+        for (int pass = 0; pass < 2; pass++) {
+            boot(1);
+            app.ctx.par_go = par_go_sim; app.ctx.par_wait = par_wait_sim; app.ctx.par_user = &app.ctx;
+            app.ctx.par_mask = MK[mk]; app.ctx.par_on = (uint8_t)pass;
+            bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
+            int32_t *dst = pass ? a2 : a1;
+            for (uint32_t o = 0; o < 44118; o += 128) bm_app_audio(&app, dst + o * 2, 44118 - o < 128 ? (44118 - o) & ~1u : 128);
+            app.ctx.par_on = 0;
+        }
+        for (int i = 0; i < 44118 * 2; i++) { if (a1[i] != a2[i]) diff++; if (fabs(a1[i] / 8388608.0) > pk) pk = fabs(a1[i] / 8388608.0); }
+    }
+    printf("  1 s de la demo, dos repartos: %d muestras distintas, pico %.2f\n", diff, pk);
+    CHECK(diff == 0 && pk > 0.05);
+}
+
+static void test_sounds(void)
+{
+    printf("sonidos del usuario: un .bsnap de BITTAL y un banco de BX-7, guardados y elegidos con PRESETS\n");
+    boot(1);
+    int nb = bm_snap_count(ENG_BITTAL), nf = bm_fm_count();
+    /* un sonido: una copia de uno de fábrica con otro nombre */
+    const uint8_t *src = bm_snap_get(ENG_BITTAL, 12);
+    uint32_t sz = (uint32_t)(src[10] | src[11] << 8);
+    static uint8_t s[BM_SNAP_MAX];
+    memcpy(s, src, sz);
+    memcpy(s + 12, "MY ARP\0\0\0\0\0\0", 12);
+    CHECK(bm_app_sound_load(&app, 0, 0, NULL, 0) == 0);
+    for (uint32_t o = 0; o < sz; o += 256) CHECK(bm_app_sound_load(&app, 1, o, s + o, sz - o < 256 ? sz - o : 256) == 0);
+    CHECK(bm_app_sound_load(&app, 2, 0, NULL, 0) == 0);
+    CHECK(bm_snap_count(ENG_BITTAL) == nb + 1 && strcmp(bm_snap_name(ENG_BITTAL, nb), "MY ARP") == 0);
+    /* un banco de BX-7: 32 voces (aquí, los 16 patches de fábrica dos veces) */
+    static uint8_t bank[BM_FM_BANK];
+    memset(bank, 0, sizeof bank);
+    memcpy(bank, "BNS1", 4); bank[4] = ENG_FM; bank[7] = 1;
+    bank[10] = (uint8_t)(BM_FM_BANK & 255); bank[11] = (uint8_t)(BM_FM_BANK >> 8);
+    memcpy(bank + 12, "MY DX7 BANK", 11);
+    for (int v = 0; v < 32; v++) memcpy(bank + BM_SNAP_HDR + v * 156, bm_fm_rom[v % BM_FM_PATCHES], 156);
+    memcpy(bank + BM_SNAP_HDR + 20 * 156 + 145, "MY BELL   ", 10);
+    CHECK(bm_app_sound_load(&app, 0, 0, NULL, 0) == 0);
+    CHECK(bm_app_sound_load(&app, 1, 0, bank, sizeof bank) == 0);
+    CHECK(bm_app_sound_load(&app, 2, 0, NULL, 0) == 0);
+    CHECK(bm_fm_count() == nf + 32 && strcmp(bm_fm_patch_name(BM_FM_PATCHES + 20), "MY BELL") == 0);
+    /* sonando: con el transporte en marcha no se escribe la flash */
+    btn(BTN_PLAY, 20);
+    CHECK(bm_app_sound_load(&app, 0, 0, NULL, 0) != 0);
+    btn(BTN_PLAY, 20);
+    /* PRESETS en T5 llega al sonido del usuario; en T4, a la voz del banco */
+    ch(4);
+    page(BTN_EDIT, PG_SOUND);
+    while (app.pat.trk[4].source != nb) { enc(ENC_PRESETS, 1); run_ms(20); }
+    run_ms(80);
+    static const uint8_t chord[3] = {57, 60, 64};
+    CHECK(solo_peak(4, chord, 3, 100, 500) > 0.015);
+    ch(3);
+    page(BTN_EDIT, PG_SOUND);
+    app.pat.trk[3].source = (uint8_t)(BM_FM_PATCHES + 20);
+    CHECK(strcmp(bm_sound_name(&app, 3), "MY BELL") == 0);
+    CHECK(solo_peak(3, chord, 3, 100, 400) > 0.02);
+    /* se quedan al reiniciar */
+    boot(0);
+    CHECK(bm_snap_count(ENG_BITTAL) == nb + 1 && bm_fm_count() == nf + 32);
+    CHECK(bm_app_sound_load(&app, 3, (uint32_t)(ENG_BITTAL << 8), NULL, 0) != 0);          /* los de fábrica no se borran */
+    CHECK(bm_app_sound_load(&app, 3, (uint32_t)(ENG_BITTAL << 8 | nb), NULL, 0) == 0 && bm_snap_count(ENG_BITTAL) == nb);
+    CHECK(bm_app_sound_load(&app, 3, (uint32_t)(ENG_FM << 8), NULL, 0) == 0 && bm_fm_count() == nf);
+}
+
 static void test_rec_expressive(void)
 {
     printf("REC expresivo: nota larga con dos blancas, gate y micro en REC, grabación en vivo y corte al compás\n");
@@ -1564,6 +1642,8 @@ int main(int argc, char **argv)
     test_notes();
     test_free_rec();
     test_rec_expressive();
+    test_sounds();
+    test_dual_core();
     test_engines();
     test_key_screens();
     test_migrate();

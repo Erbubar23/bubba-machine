@@ -356,3 +356,55 @@ export function vitalToBsnap(json, opts = {}) {
   report.size = size;
   return { bytes: out, report };
 }
+
+// ------------------------------------------------------------ bancos de la DX7 (.syx) para BX-7
+// Un volcado de 32 voces (F0 43 0n 09 20 00, 4096 bytes empaquetados, suma, F7) a un banco de
+// BX-7: las 32 voces sin empaquetar (156 bytes, el formato del motor msfa) detrás de la cabecera.
+export function syxToBsnap(syx, opts = {}) {
+  const u = syx instanceof Uint8Array ? syx : new Uint8Array(syx);
+  let at = -1;
+  for (let i = 0; i + 6 < u.length; i++)
+    if (u[i] === 0xF0 && u[i + 1] === 0x43 && u[i + 3] === 0x09 && u[i + 4] === 0x20 && u[i + 5] === 0x00) { at = i + 6; break; }
+  if (at < 0 || at + 4096 > u.length) throw new Error('not a DX7 32-voice bank (.syx)');
+  const d = u.subarray(at, at + 4096);
+  let sum = 0;
+  for (const b of d) sum = (sum + b) & 0x7F;
+  const report = { kept: ['32 VOICES'], approx: [], dropped: [], cpu: '' };
+  if (at + 4096 < u.length && ((128 - sum) & 0x7F) !== u[at + 4096]) report.approx.push('CHECKSUM DOES NOT MATCH');
+  const size = 88 + 32 * 156, out = new Uint8Array(size);
+  out.set([0x42, 0x4E, 0x53, 0x31], 0);
+  out[4] = 4; out[5] = 0; out[6] = opts.lic ?? LIC.OWN; out[7] = 1;      // 4 = ENG_FM
+  out[10] = size & 255; out[11] = size >> 8;
+  const names = [];
+  for (let v = 0; v < 32; v++) {
+    const p = d.subarray(v * 128, v * 128 + 128), o = 88 + v * 156;
+    for (let op = 0; op < 6; op++) {                     // OP6 primero, como en la DX7
+      const s = p.subarray(op * 17, op * 17 + 17), q = o + op * 21;
+      for (let i = 0; i < 11; i++) out[q + i] = s[i];    // R1-4, L1-4, BP, LD, RD
+      out[q + 11] = s[11] & 3; out[q + 12] = (s[11] >> 2) & 3;          // LC, RC
+      out[q + 13] = s[12] & 7; out[q + 20] = (s[12] >> 3) & 15;         // RS, DET
+      out[q + 14] = s[13] & 3; out[q + 15] = (s[13] >> 2) & 7;          // AMS, KVS
+      out[q + 16] = s[14];                                               // OL
+      out[q + 17] = s[15] & 1; out[q + 18] = (s[15] >> 1) & 31;         // M, FC
+      out[q + 19] = s[16];                                               // FF
+    }
+    for (let i = 0; i < 8; i++) out[o + 126 + i] = p[102 + i];          // PEG
+    out[o + 134] = p[110] & 31;                                          // ALG
+    out[o + 135] = p[111] & 7; out[o + 136] = (p[111] >> 3) & 1;         // FB, OKS
+    for (let i = 0; i < 4; i++) out[o + 137 + i] = p[112 + i];          // LFS LFD LPMD LAMD
+    out[o + 141] = p[116] & 1; out[o + 142] = (p[116] >> 1) & 7; out[o + 143] = (p[116] >> 4) & 7;   // LKS LFW LPMS
+    out[o + 144] = p[117];                                               // TRANSPOSE
+    for (let i = 0; i < 10; i++) out[o + 145 + i] = p[118 + i] & 0x7F;  // NAME
+    out[o + 155] = 0x3F;                                                 // los 6 operadores encendidos
+    names.push(String.fromCharCode(...p.subarray(118, 128)).trim());
+  }
+  out.set(ascii(opts.name || names[0] || 'DX7 BANK', 12), 12);
+  out.set(ascii(opts.author || '', 12), 24);
+  const id = fnv16(out);
+  out[8] = id & 255; out[9] = id >> 8;
+  report.id = id.toString(16).toUpperCase().padStart(4, '0');
+  report.size = size;
+  report.names = names;
+  report.cpu = 'BX-7: ~3% of a core per voice (measured)';
+  return { bytes: out, report };
+}

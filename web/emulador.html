@@ -136,6 +136,9 @@ button.act:hover { background: #33373d; }
       <div class="acts">
         <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV a TOMAS</button>
         <input type="file" id="wav" accept="audio/*" hidden>
+        <select id="sndmach" class="act" aria-label="Machine"><option value="BITTAL">BITTAL (T5)</option><option value="B-MINI">B-MINI (T3)</option><option value="BUNO-6">BUNO-6 (T6)</option></select>
+        <button class="act" id="sndbtn" type="button" data-i18n="b.snd">Sonido (.vital, .syx, .bsnap)</button>
+        <input type="file" id="snd" accept=".vital,.syx,.bsnap" hidden>
         <button class="act" id="midibtn" type="button" data-i18n="b.midi">Activar MIDI IN</button>
         <button class="act" id="wipe" type="button" data-i18n="b.wipe">Borrar memoria</button>
         <button class="act" id="langbtn" type="button">-</button>
@@ -167,6 +170,9 @@ button.act:hover { background: #33373d; }
     'e.perm': 'Permiso de MIDI denegado.',
     'q.wipe': '¿Borrar patrones, song y ajustes guardados en este navegador?',
     'ok.wipe': 'Memoria borrada: vuelve la demo.',
+    'b.snd': 'Sonido (.vital, .syx, .bsnap)',
+    'ok.snd': function (n, id, r) { return 'Sonido guardado: ' + n + ' (#' + id + '). PRESETS en su canal lo elige.' + (r ? ' Queda fuera: ' + r : ''); },
+    'e.snd': 'No se pudo: para el transporte (PLAY), o no queda lugar (borra una toma).',
     'b.es': 'Cargar español en la pantalla',
     'b.en': 'Pantalla en inglés',
     'ok.es': 'Paquete de español cargado: la pantalla del FM-1 está en español.',
@@ -212,6 +218,9 @@ button.act:hover { background: #33373d; }
     'e.perm': 'MIDI permission denied.',
     'q.wipe': 'Erase the patterns, song and settings saved in this browser?',
     'ok.wipe': 'Memory erased: the demo is back.',
+    'b.snd': 'Sound (.vital, .syx, .bsnap)',
+    'ok.snd': function (n, id, r) { return 'Sound saved: ' + n + ' (#' + id + '). PRESETS on its track picks it.' + (r ? ' Left out: ' + r : ''); },
+    'e.snd': 'Could not: stop the transport (PLAY), or there is no room (delete a take).',
     'b.es': 'Load Spanish on the screen',
     'b.en': 'Screen in English',
     'ok.es': 'Spanish pack loaded: the FM-1 screen is in Spanish.',
@@ -452,6 +461,27 @@ button.act:hover { background: #33373d; }
       msg(T('ok.slot')(String(id + 1).padStart(2, '0'), (len / 16000).toFixed(2)));
     } catch (e) { msg(T('e.read')); }
     wav.value = '';
+  });
+
+  /* ---------------- sonidos: Vital, DX7 o .bsnap (web/bsnap.js) ---------------- */
+  const snd = document.getElementById('snd');
+  document.getElementById('sndbtn').addEventListener('click', () => snd.click());
+  snd.addEventListener('change', async () => {
+    const f = snd.files[0]; if (!f) return;
+    try {
+      const B = await import('./bsnap.js');
+      const raw = new Uint8Array(await f.arrayBuffer());
+      let r;
+      if (/\.syx$/i.test(f.name)) r = B.syxToBsnap(raw);
+      else if (/\.bsnap$/i.test(f.name)) r = { bytes: raw, report: { id: '----', dropped: [] } };
+      else r = B.vitalToBsnap(JSON.parse(new TextDecoder().decode(raw)), { machine: document.getElementById('sndmach').value, name: f.name.replace(/\.vital$/i, '') });
+      M.HEAPU8.set(r.bytes, M._bm_web_sound_buf());
+      if (M._bm_web_sound_load(r.bytes.length)) { msg(T('e.snd')); snd.value = ''; return; }
+      persist();
+      const nm = new TextDecoder().decode(r.bytes.subarray(12, 24)).replace(/\0.*$/, '');
+      msg(T('ok.snd')(nm, r.report.id, r.report.dropped.join(', ')));
+    } catch (e) { msg(T('e.read')); }
+    snd.value = '';
   });
 
   /* ---------------- MIDI ---------------- */

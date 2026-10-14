@@ -68,14 +68,16 @@ extern "C" {
 
 void bm_fm_init(float fs)
 {
-    if (listo) return;
-    Exp2::init();
-    Sin::init();
-    Freqlut::init(fs);
-    Lfo::init(fs);
-    PitchEnv::init(fs);
-    Env::init_sr(fs);
-    Porta::init_sr(fs);
+    if (!listo) {                                         /* las tablas, una vez */
+        Exp2::init();
+        Sin::init();
+        Freqlut::init(fs);
+        Lfo::init(fs);
+        PitchEnv::init(fs);
+        Env::init_sr(fs);
+        Porta::init_sr(fs);
+    }
+    memset(mem_voz, 0, sizeof mem_voz);                   /* las voces, en cada arranque del audio */
     FmCore *core = new (mem_core) EngineMsfa();
     for (int t = 0; t < BM_TRACKS; t++) {
         Controllers *c = new (mem_ctl[t]) Controllers();

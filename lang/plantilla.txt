@@ -269,6 +269,9 @@ BX-7
 # core/bm_input.c
 BX-7 ALGORITHM
 
+# core/bm_app.c
+BX-7 BANK: %d VOICES
+
 # core/bm_input.c
 BX-7 PATCH
 
@@ -1181,6 +1184,9 @@ NO LANGUAGE PACK: LOAD ONE BY USB
 # core/bm_app.c
 NO ROOM IN TAKES: DISCARDED
 
+# core/bm_app.c
+NO ROOM: DELETE A TAKE OR A SOUND
+
 # core/bm_ui_draw.c
 NO TABLE
 
@@ -1198,6 +1204,9 @@ NONE
 
 # core/bm_input.c core/bm_ui_draw.c
 NORMAL
+
+# core/bm_app.c
+NOT A USER SOUND
 
 # core/bm_ui_draw.c
 NOT SAVED YET
@@ -1760,6 +1769,12 @@ SONG REC ON
 # core/bm_app.c core/bm_input.c core/bm_ui_draw.c
 SOUND
 
+# core/bm_app.c
+SOUND DELETED
+
+# core/bm_app.c
+SOUND SAVED: %s
+
 # core/bm_input.c
 SOURCE
 
@@ -2044,6 +2059,9 @@ TEMPO (FINE)
 
 # core/bm_ui_draw.c
 TESTING: SAFE MODE TURNS IT OFF AFTER A CRASH
+
+# core/bm_app.c
+THAT IS NOT A BUBBA SOUND
 
 # core/bm_ui_draw.c
 THE GRID, VARIED EVERY BAR

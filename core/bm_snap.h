@@ -8,7 +8,8 @@
  *   - de fábrica, en la ROM (core/gen/bm_snap_rom.c, armado por tools/gen_snaps.mjs);
  *   - del usuario, en la zona que comparten con las tomas (0xC0000-0xD8FFF): las tomas se ubican
  *     desde abajo y los snapshots desde arriba, cada uno en sectores seguidos.
- * PRESETS recorre, para la máquina del canal, primero los de fábrica y después los del usuario. */
+ * PRESETS recorre, para la máquina del canal, primero los de fábrica y después los del usuario.
+ * Un banco .syx de la DX7 viaja igual (máquina ENG_FM, sin tablas, 32 voces detrás de la cabecera). */
 #ifndef BM_SNAP_H
 #define BM_SNAP_H
 
@@ -23,6 +24,7 @@ extern "C" {
 #define BM_SNAP_PRM    48
 #define BM_SNAP_MAX    8800              /* cabecera + dos tablas de 8 frames x 256 armónicos */
 #define BM_SNAPS_USER  12                /* snapshots del usuario como máximo */
+#define BM_FM_BANK     (BM_SNAP_HDR + 32 * 156)   /* un banco de BX-7: 32 voces de la DX7 sin empaquetar */
 
 enum { SN_LIC_OWN, SN_LIC_CC0, SN_LIC_UNLICENSE, SN_LIC_GPL3, SN_LICS };
 extern const char *const bm_snap_lic_names[SN_LICS];
@@ -64,6 +66,7 @@ void bm_snaps_mark(uint8_t *used, int nsect);
 int  bm_snaps_write(const bm_flash_ops *f, bm_snap_map_fn map, void *mu, const uint8_t *p, uint32_t len,
                     const uint8_t *takes_used);
 int  bm_snaps_erase(const bm_flash_ops *f, int user_idx);
+int  bm_snaps_user_of(const uint8_t *p);                  /* el índice de usuario de un snapshot, o -1 */
 void bm_snaps_format(void);                               /* olvida los del usuario (la zona se borró) */
 
 /* los de una máquina, en orden: fábrica y después usuario */
@@ -71,6 +74,11 @@ int  bm_snap_count(int eng);
 const uint8_t *bm_snap_get(int eng, int idx);
 int  bm_snap_is_user(int eng, int idx);
 const char *bm_snap_name(int eng, int idx);
+
+/* BX-7: los 16 patches de fábrica y después las voces de los bancos del usuario */
+int  bm_fm_count(void);
+const uint8_t *bm_fm_patch(int idx);
+const char *bm_fm_patch_name(int idx);
 
 #ifdef __cplusplus
 }

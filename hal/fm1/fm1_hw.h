@@ -127,7 +127,7 @@ enum {
     FM1_STAT_PAST1, FM1_STAT_PAST2, FM1_STAT_PAST3, FM1_STAT_PAST4,
     FM1_STAT_AUDIO_CPU, FM1_STAT_MIDI_IN, FM1_STAT_MIDI_OUT, FM1_STAT_LOOP_MAX,
     FM1_STAT_HEAP_FREE, FM1_STAT_HEAP_MIN,          /* montón del SDK: libre según malloc y según la RAM */
-    FM1_STAT_N
+    FM1_STAT_PAR_CPU, FM1_STAT_N
 };
 extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
 void fm1_consola(const uint8_t *sysex, uint32_t n);
@@ -140,6 +140,8 @@ int  fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn);
 /* paquete de idioma (tools/fm1/idioma.py): sub 0 borrar la zona · 1 datos (off = desde) · 2 revisar y
  * activar · 3 quitar (vuelve el inglés). Solo con el transporte parado. Devuelve 0 si se aceptó. */
 int  fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn);
+int  fm1_sonido(int sub, uint32_t off, const uint8_t *nib, uint32_t nn);   /* consola 22: sonidos (.bsnap, bancos de BX-7) */
+void fm1_lcd_speed(int fast);                       /* SPI de la pantalla: 30 MHz (1) o 12 MHz (0) */
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
 uint32_t fm1_scan_now_ticks(void);                  /* ticks del timer (~60 MHz), para tramos cortos */
 uint32_t fm1_scan_ticks_hz(void);

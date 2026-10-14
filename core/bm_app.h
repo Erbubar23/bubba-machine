@@ -11,6 +11,7 @@
 #include "bm_gfx.h"
 #include "bm_params.h"
 #include "bm_lang.h"
+#include "bm_snap.h"
 
 typedef struct {
     void (*blit)(void *u, int x, int y, int w, int h, const uint16_t *px);
@@ -194,6 +195,8 @@ typedef struct bm_app {
     int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
     uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
     uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
+    uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
+    uint16_t snap_len;
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);
@@ -211,6 +214,11 @@ void bm_app_takes_reload(bm_app *a);   /* tras escribir una toma desde fuera (ed
  * zona), 1 = n bytes en off, 2 = terminar (lo revisa y lo activa), 3 = quitarlo. 0 = salió bien. */
 int  bm_app_lang_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
 const uint8_t *bm_app_lang_pack(const bm_app *a);   /* el paquete de la flash si está sano, o NULL */
+/* Un sonido (.bsnap, o un banco de BX-7) desde afuera, solo en STOP: sub 0 = empezar, 1 = n bytes en
+ * off, 2 = guardarlo en la zona compartida (lo revisa), 3 = borrar uno del usuario: off = máquina << 8 |
+ * su número en PRESETS (en BX-7, el número de banco del usuario).
+ * 0 = salió bien. */
+int  bm_app_sound_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
 
 /* Fuentes del sampler: 0..7 = toma, BM_SRC_ROM|i = loop de fábrica. */
 int  bm_app_sources(const bm_app *a, uint8_t out[BM_TAKES + 8]);   /* lista de fuentes que existen */

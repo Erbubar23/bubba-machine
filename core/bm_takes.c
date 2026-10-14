@@ -92,6 +92,13 @@ static int largest_run(const uint8_t used[BM_TAKE_SECTORS], int *at)
     return best;
 }
 
+void bm_takes_used(const bm_take tk[BM_TAKES], uint8_t *used)
+{
+    memset(used, 0, BM_TAKE_SECTORS);
+    for (int i = 0; i < BM_TAKES; i++)
+        if (tk[i].valid) for (int k = 0; k < tk[i].nsect; k++) used[tk[i].sector + k] = 1;
+}
+
 uint32_t bm_takes_room(const bm_take tk[BM_TAKES])
 {
     int ids = 0;

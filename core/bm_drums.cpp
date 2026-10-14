@@ -183,6 +183,7 @@ void bm_drm_init(float fs)
 {
     fs_ = fs;
     memset(dv_, 0, sizeof dv_);
+    Random::Seed(0x21);                                 /* el ruido arranca igual en cada arranque */
 }
 
 void bm_drm_trigger(int v, int model, float hz, float tone, float decay, float color, float accent)

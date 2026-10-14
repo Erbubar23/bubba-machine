@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erbubar23
 //
-// La página del instalador (instalar.html). Lo que pueda hacer sola lo hace sola: pide MIDI,
-// lee el FM-1 (y lo vuelve a buscar cuando se conecta o se desconecta), consigue el FM-1 V15
-// de M-VAVE y arma el paquete en el navegador (web/fm1_pack.js). La persona elige qué instalar
-// (Bubba Machine, el diagnóstico o el firmware de fábrica), pulsa el botón y confirma; la
-// escritura la hace web/fm1_update.js.
+// La página del instalador (instalar.html), plug and play: conectas el FM-1 y la página hace el
+// resto. Pide MIDI, lee el FM-1 (y lo vuelve a buscar cuando se conecta o se desconecta), elige la
+// versión más nueva de Bubba Machine y la baja ya armada (web/fm1/*.fwsc, el mismo paquete de la
+// release). Queda un botón: Instalar. Al terminar, si la página está en español, carga el español
+// en la pantalla (web/fm1_consola.js). La escritura la hace web/fm1_update.js.
 //
-// De dónde sale el V15, en orden: lo que el navegador ya guardó (IndexedDB) → fm1/local/FM-1.fwsc
-// (solo existe con tools/fm1/servir.py, en esta computadora) → elegirlo o arrastrarlo a mano.
+// El V15 de M-VAVE solo hace falta para volver al firmware de fábrica o para una versión sin
+// paquete publicado (se arma en el navegador, web/fm1_pack.js). De dónde sale, en orden: lo que el
+// navegador ya guardó (IndexedDB) → fm1/local/FM-1.fwsc (tools/fm1/servir.py) → a mano.
 import { Actualizador, revisarPaquete, FalloFM1, V15_SHA256, sha256 } from "./fm1_update.js?v=5";
 import { armarPaquete } from "./fm1_pack.js?v=5";
+import { enviar, esperar } from "./fm1_consola.js?v=1";
 
 const EN = new URLSearchParams(location.search).get("lang") === "en";
 const T = {
@@ -33,6 +35,8 @@ const T = {
     seguro: (n, d) => `Se va a instalar ${n} en ${d}.\n\nEs firmware beta, sin garantía. Lo guardado en el firmware actual se puede perder.\nNo desconectes el cable ni cierres la página hasta que diga «Listo».\n\n¿Instalar ahora?`,
     seguroF: (d) => `Se va a instalar el firmware de fábrica de M-VAVE (V15) en ${d}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
     seguroC: (n) => `Se va a terminar de escribir ${n}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
+    idioma: "Cargando el español en la pantalla…", idiomaok: (t) => `Listo: el FM-1 arrancó con ${t}, con la pantalla en español.`,
+    idiomamal: (e) => `Bubba Machine quedó instalada, pero el español no se cargó (${e}). Se puede cargar después en el emulador o con tools/fm1/idioma.py.`,
   },
   en: {
     pidiendo: "Chrome is asking for MIDI permission: accept the prompt next to the address bar.",
@@ -53,6 +57,8 @@ const T = {
     seguro: (n, d) => `${n} will be installed on ${d}.\n\nThis is beta firmware, with no warranty. What the current firmware saved may be lost.\nDon't unplug the cable or close the page until it says "Done".\n\nInstall now?`,
     seguroF: (d) => `M-VAVE's factory firmware (V15) will be installed on ${d}.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
     seguroC: (n) => `${n} will finish being written.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
+    idioma: "Loading Spanish on the screen…", idiomaok: (t) => `Done: the FM-1 started with ${t}, with the screen in Spanish.`,
+    idiomamal: (e) => `Bubba Machine is installed, but Spanish did not load (${e}). You can load it later.`,
   },
 }[EN ? "en" : "es"];
 
@@ -62,10 +68,12 @@ if (EN) {
     title: "Installer for the FM-1", sub: "Over USB-C, from Chrome or Edge (Web MIDI).",
     nav: '<a href="en/index.html">Home</a><a href="emulador.html?lang=en">Emulator</a><a href="en/docs/install.html">Guide</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="instalar.html" class="lang">Español</a>',
     h1: "Install on the M-VAVE FM-1",
-    intro: "Connect the FM-1 over USB (data cable) and switch it on. The page reads it by itself; choose what to install and press the button.",
+    intro: "Connect the FM-1 over USB (data cable) and switch it on. The page finds it by itself and gets the newest Bubba Machine ready: just press <b>Install</b>. Nothing to download.",
+    es: "When done, the screen in Spanish (loads by itself)",
+    despues: 'Next: <a href="sonidos.html?lang=en">Vital sounds and DX7 banks</a> for BITTAL, B-MINI, BUNO-6 and BX-7, or the <a href="en/docs/manual.html">manual</a>.',
     h_dev: "1. Your FM-1", permitir: "Allow MIDI", h_que: "2. What do you want to install?",
-    faltah: "M-VAVE's factory firmware (FM-1 V15) is missing",
-    faltawhy: "Everything is installed with M-VAVE's official loader, which comes in that file, and Bubba Machine is built on it here, in your browser (this site can't publish it). Download it and drop it here, or choose it. It is asked only once: the browser remembers it.",
+    faltah: "This needs M-VAVE's factory firmware (FM-1 V15)",
+    faltawhy: "Going back to the factory firmware (or installing an old version) uses M-VAVE's original file, which this site does not publish. Download it and drop it here, or choose it. It is asked only once: the browser remembers it. Installing Bubba Machine does not need it.",
     bajar: "Download FM-1.fwsc", h_go: "3. Install",
     risk: "Unofficial firmware, <b>beta</b>, with no warranty (GPL-3.0, sections 15 and 16). What the current firmware saved (X0X patterns, for example) may be lost, and until v1 a Bubba Machine update may erase what you saved in it. Don't unplug the cable or close the page while it writes. You can always go back to the factory firmware by choosing it above.",
     mas: "More options", h_otro: "Install another file",
@@ -74,6 +82,8 @@ if (EN) {
     help: "<li><b>The FM-1 doesn't show up:</b> under \"Your FM-1\" you can see which MIDI ports the page found. If it says \"busy\", close the app using it (REAPER or another DAW, M-UPGRADE, another tab with an installer) and unplug and replug the cable.</li><li><b>The install was interrupted:</b> the FM-1 stays in update mode (it shows as \"ota-FM-1\"). Reconnect it: the button changes to \"Resume the install\".</li><li><b>Bubba Machine doesn't start:</b> after two failed starts it enters <b>safe mode</b> (a notice on screen, no sound, USB on): reinstall or go back to the factory firmware from here.</li><li><b>Not even safe mode starts:</b> the FM-1 drops into the chip's own update mode and is rescued from a computer (<a href=\"en/docs/install.html\">install guide</a>, \"If something goes wrong\").</li>",
   };
   for (const el of document.querySelectorAll("[data-t]")) if (tx[el.dataset.t] !== undefined) el.innerHTML = tx[el.dataset.t];
+  const es = document.getElementById("es");
+  if (es) es.checked = false;                              /* en inglés, la pantalla queda en inglés */
 }
 
 // qué firmware es, por la versión que contesta al saludo
@@ -84,7 +94,7 @@ const say = (t, cls = "") => { $("estado").textContent = t; $("estado").classNam
 const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
 const line = (id, t, cls) => { $(id + "t").textContent = t; $(id).className = "line " + cls; };
 
-let up = null, permiso = "prompt", pedido = false;
+let up = null, acc = null, permiso = "prompt", pedido = false;
 let dev = null;                   // lo que contestó el saludo (identidad), o null
 let v15 = null, stock = null;     // el V15 (bytes) y su paquete revisado
 let opciones = [], sel = null;    // {clave, nombre, detalle, tipo: "app"|"fabrica"|"propio", archivo?, sha256?}
@@ -164,6 +174,7 @@ async function midi() {
   mostrarDev();
   try {
     const access = await navigator.requestMIDIAccess({ sysex: true });
+    acc = access;
     up = new Actualizador(access, log);
     permiso = "granted";
     access.onstatechange = () => { clearTimeout(detectar.t); detectar.t = setTimeout(detectar, 800); };
@@ -233,7 +244,7 @@ async function buscarV15() {
     const r = await fetch("fm1/local/FM-1.fwsc", { cache: "no-cache" });
     if (r.ok && (await usarV15(new Uint8Array(await r.arrayBuffer()), true))) return;
   } catch (_) { /* sin servidor local: se elige a mano */ }
-  $("falta").hidden = false;
+  /* el aviso de que falta solo aparece si se elige algo que lo necesita (preparar) */
 }
 
 async function elegirV15(f) {
@@ -267,15 +278,21 @@ async function preparar() {
   refresh();
   if (!o) return;
   if (o.tipo === "fabrica") {
-    if (stock) line("pkg", T.listo(o.nombre), "ok"); else line("pkg", T.faltav15, "bad");
+    if (stock) line("pkg", T.listo(o.nombre), "ok"); else { line("pkg", T.faltav15, "bad"); $("falta").hidden = false; }
     refresh();
     return;
   }
+  $("falta").hidden = true;
   let p = paquetes.get(o.clave);
   if (!p) {
     try {
       if (o.tipo === "propio" && o.fwsc) {
         p = await revisarPaquete(o.fwsc);
+      } else if (o.tipo === "app" && o.fwsc) {                /* el paquete ya armado: sin V15 */
+        line("pkg", T.cargando, "info");
+        const raw = new Uint8Array(await (await fetch("fm1/" + o.fwsc, { cache: "no-cache" })).arrayBuffer());
+        if ((await sha256(raw)) !== o.fwsc_sha256) throw new FalloFM1("paquete", T.danada + o.fwsc);
+        p = await revisarPaquete(raw);
       } else {
         let app = o.tipo === "propio" ? o.bin : bins.get(o.archivo);
         if (!app) {
@@ -284,7 +301,7 @@ async function preparar() {
           if ((await sha256(app)) !== o.sha256) throw new FalloFM1("paquete", T.danada + o.archivo);
           bins.set(o.archivo, app);
         }
-        if (!v15) { if (sel === o) { line("pkg", T.faltav15, "bad"); refresh(); } return; }
+        if (!v15) { if (sel === o) { line("pkg", T.faltav15, "bad"); $("falta").hidden = false; refresh(); } return; }
         if (sel === o) line("pkg", T.revisando, "info");
         p = await revisarPaquete(armarPaquete(v15, app));
       }
@@ -333,7 +350,18 @@ async function correr(pkg, nombre, pregunta, fn) {
   try {
     const fin = await fn(pkg, paso);
     $("bar").value = 100;
-    if (fin === pkg.ident) say(T.hecho(fin), "ok"); else say(T.distinto(fin, pkg.ident), "bad");
+    if (fin !== pkg.ident) say(T.distinto(fin, pkg.ident), "bad");
+    else if (/^Bubba Machine/.test(nombre) && $("es") && $("es").checked && acc) {
+      say(T.idioma, "info");                               /* plug and play: el español, solo */
+      try {
+        if (!(await esperar(acc))) throw new Error("no arrancó a tiempo");
+        const pack = new Uint8Array(await (await fetch("lang/es.bmlang", { cache: "no-cache" })).arrayBuffer());
+        await enviar(acc, 0x21, pack, (x) => { $("bar").value = 100 * x; });
+        $("bar").value = 100;
+        say(T.idiomaok(fin), "ok");
+      } catch (e) { say(T.idiomamal(e.message || e), "bad"); }
+    } else say(T.hecho(fin), "ok");
+    if (/^Bubba Machine/.test(nombre)) $("despues").hidden = false;
   } catch (e) {
     say(e.message, "bad");
     log("ERROR " + (e.code || "") + ": " + e.message);
@@ -368,7 +396,7 @@ $("go").addEventListener("click", () => {
   let versiones = [];
   try { versiones = await (await fetch("fm1/versiones.json", { cache: "no-cache" })).json(); } catch (_) { versiones = []; }
   opciones = versiones.map((v) => ({
-    clave: v.archivo, archivo: v.archivo, sha256: v.sha256, tipo: "app",
+    clave: v.archivo, archivo: v.archivo, sha256: v.sha256, tipo: "app", fwsc: v.fwsc, fwsc_sha256: v.fwsc_sha256,
     nombre: EN ? v.nombre_en || v.nombre : v.nombre, detalle: EN ? v.detalle_en || v.detalle : v.detalle,
   }));
   opciones.push({ clave: "fabrica", tipo: "fabrica", nombre: T.fabrica, detalle: T.fabricad });

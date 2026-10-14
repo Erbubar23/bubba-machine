@@ -77,7 +77,7 @@ button.act:hover { background: #33373d; }
 <div id="power"><div class="pw"><img src="logo.svg" alt="Bubba Machine"><button id="on" type="button" data-i18n="on">Encender</button><span data-i18n="onnote">El audio arranca al pulsar (regla del navegador).</span></div></div>
 <header>
   <a id="homelink" href="index.html"><img src="logo.svg" alt="Bubba Machine"></a>
-  <div><b data-i18n="title">Emulador del firmware 0.5.0-beta</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
+  <div><b data-i18n="title">Emulador del firmware 0.6.0-beta</b><div class="sub" data-i18n="sub">El mismo código C99 que irá en el FM-1, compilado a WebAssembly.</div></div>
   <nav class="sitenav" aria-label="Sitio" data-i18n="nav"><a href="index.html">Inicio</a><a href="docs/manual.html">Manual</a><a href="docs/instalar.html">Instalar</a><a href="https://github.com/Erbubar23/bubba-machine">Código</a><a href="?lang=en" data-lang="en" lang="en" class="lang">English</a></nav>
 </header>
 <main>
@@ -110,18 +110,19 @@ button.act:hover { background: #33373d; }
       <h2 data-i18n="h.play">Cómo se toca</h2>
       <ul data-i18n="play">
         <li><b>Cuatro gestos por botón</b>: <b>toque</b> = su página en el canal (otra vez: la siguiente) · <b>mantener</b> = su capa en vivo, con el teclado dibujado · <b>2 s</b> = configuración (HOME, SEQ, EDIT, SAVE, REC) · <b>HOME + botón</b> = su versión global.</li>
-        <li><b>ALGORITHM</b> = el canal. En HOME aparece un recuadro y a los 400 ms entras. Dentro de un canal cambia y conserva la página. <b>SELECT</b> recorre las pestañas.</li>
+        <li><b>HOME es el mezclador BX-1</b>: SELECT = el canal, ALGORITHM = BPM, K1-K4 = volumen, envío FX, filtro del master y BEAT FX. <b>SEQ</b> o <b>EDIT</b> entran al canal; <b>HOME + SELECT</b> cambia de canal desde cualquier pantalla.</li>
+        <li>Dentro de un canal: <b>SELECT</b> recorre las pestañas y <b>ALGORITHM</b> es el modo de la máquina (instrumento, pad, BB-303/B-MINI, algoritmo, tabla, chorus). PRESETS = el sonido.</li>
         <li><b>Mantener HOME</b> en cualquier pantalla: blancas = patrón en cola (dos = cadena), negras 1-6 = mute (mantener = solo), 7-10 = escenas, 11 = FILL. K1-K4 = BPM, swing, largo, drive.</li>
-        <li><b>HOME +</b> OCT- / OCT+ = deshacer / rehacer · PLAY = desde el paso 1 · REC = song rec · SEQ = canción · FX = delay global · EDIT = copiar canal · SAVE = guardar como.</li>
+        <li><b>HOME +</b> OCT- / OCT+ = deshacer / rehacer · PLAY = desde el paso 1 · REC = song rec · SEQ = canción · FX = delay y reverb · EDIT = copiar canal · SAVE = guardar como.</li>
         <li><b>Capas</b>: SEQ largo y velocidad · EDIT borrar · ENV acentos · LFO repetir/ligar · FX punch-in · SCL acordes · ARP arpegio o roll · SAVE copiar patrón · GLO tono + tap tempo.</li>
-        <li><b>Sampler (T2)</b>: fila TU (blanca = generador, blanca + negra = slice fijo) y fila SUENA. K1-K4 = VARIAR, ANCLAR, REPETIR, ROMPER. REC abre la GRABADORA; EDIT 2 s = TOMAS; EDIT en una toma = CORTAR.</li>
-        <li><b>Canales libres</b> T4-T6: SELECT hasta la pestaña MAS y ALGORITHM cambia el MOTOR (SYNTH, MONO, KIT, MIDI). Preguntas: OCT+ = sí, HOME = no.</li>
+        <li><b>BP-1 (T2)</b>: 16 pads con tus tomas, en una rejilla como la de la batería. REC abre la GRABADORA; EDIT = PADS; EDIT 2 s = TOMAS; SEQ otra vez = BREAK.</li>
+        <li><b>REC</b> en un canal de notas guarda el micro-tiempo, el largo y lo que mueves en K1-K4. Mantén un paso y toca otra blanca: nota larga. Preguntas: OCT+ = sí, HOME = no.</li>
         <li>Clic derecho en un botón o tecla la deja <b>presionada</b> (para combos con ratón).</li>
       </ul>
     </div>
     <div class="card">
       <h2 data-i18n="h.kbd">Teclado de la PC</h2>
-      <p data-i18n="kbd"><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> o <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · rueda del ratón sobre un knob. Mantén <kbd>Shift</kbd> y gira ALGORITHM para ir a otro canal.</p>
+      <p data-i18n="kbd"><kbd>Z</kbd>…<kbd>/</kbd> y <kbd>Q</kbd>…<kbd>P</kbd> = teclas · <kbd>Espacio</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> o <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · rueda del ratón sobre un knob. Mantén <kbd>Shift</kbd> y gira SELECT para ir a otro canal.</p>
     </div>
     <div class="card">
       <h2 data-i18n="h.hw">Hardware simulado</h2>
@@ -180,22 +181,23 @@ button.act:hover { background: #33373d; }
     'e.lang': 'Para el transporte (PLAY) y prueba otra vez: escribir la flash corta el audio.'
   };
   var EN = {
-    title: 'Firmware emulator 0.5.0-beta',
-    sub: 'The same C99 code that will run on the FM-1, compiled to WebAssembly. The firmware screens are in Spanish for now.',
+    title: 'Firmware emulator 0.6.0-beta',
+    sub: 'The same C99 code that will run on the FM-1, compiled to WebAssembly.',
     nav: '<a href="en/index.html">Home</a><a href="en/docs/manual.html">Manual</a><a href="en/docs/install.html">Install</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="?lang=es" data-lang="es" lang="es" class="lang">Español</a>',
     on: 'Power on',
     onnote: 'Audio starts when you press it (browser rule).',
     'h.play': 'How to play',
     play: '<li><b>Four gestures per button</b>: <b>tap</b> = its page on the track (again: the next one) · <b>hold</b> = its live layer, with the keyboard drawn on screen · <b>2 s</b> = settings (HOME, SEQ, EDIT, SAVE, REC) · <b>HOME + button</b> = its global version.</li>' +
-          '<li><b>ALGORITHM</b> = the track. On HOME a box shows up and you enter after 400 ms. Inside a track it switches and keeps the page. <b>SELECT</b> walks the tabs.</li>' +
+          '<li><b>HOME is the BX-1 mixer</b>: SELECT = the track, ALGORITHM = BPM, K1-K4 = volume, FX send, master filter and BEAT FX. <b>SEQ</b> or <b>EDIT</b> enter the track; <b>HOME + SELECT</b> changes track from any screen.</li>' +
+          '<li>Inside a track: <b>SELECT</b> walks the tabs and <b>ALGORITHM</b> is the machine mode (instrument, pad, BB-303/B-MINI, algorithm, table, chorus). PRESETS = the sound.</li>' +
           '<li><b>Hold HOME</b> on any screen: white keys = queue a pattern (two = chain), black 1-6 = mute (hold = solo), 7-10 = scenes, 11 = FILL. K1-K4 = BPM, swing, length, drive.</li>' +
-          '<li><b>HOME +</b> OCT- / OCT+ = undo / redo · PLAY = restart from step 1 · REC = song rec · SEQ = song · FX = global delay · EDIT = copy track · SAVE = save as.</li>' +
+          '<li><b>HOME +</b> OCT- / OCT+ = undo / redo · PLAY = restart from step 1 · REC = song rec · SEQ = song · FX = delay and reverb · EDIT = copy track · SAVE = save as.</li>' +
           '<li><b>Layers</b>: SEQ length and speed · EDIT erase · ENV accents · LFO repeat/tie · FX punch-in · SCL chords · ARP arpeggio or roll · SAVE copy pattern · GLO pitch + tap tempo.</li>' +
-          '<li><b>Sampler (T2)</b>: TU row (white = generator, white + black = pinned slice) and SUENA row (what plays). K1-K4 = VARIAR (vary), ANCLAR (anchor), REPETIR (repeat), ROMPER (break). REC opens the recorder (GRABADORA); EDIT 2 s = TOMAS (takes); EDIT on a take = CORTAR (slice).</li>' +
-          '<li><b>Free tracks</b> T4-T6: SELECT to the MAS tab and ALGORITHM changes the MOTOR (engine: SYNTH, MONO, KIT, MIDI). Questions: OCT+ = yes, HOME = no.</li>' +
+          '<li><b>BP-1 (T2)</b>: 16 pads from your takes, on a grid like the drums. REC opens the RECORDER; EDIT = PADS; EDIT 2 s = TAKES; SEQ again = BREAK.</li>' +
+          '<li><b>REC</b> on a note track keeps micro-timing, length and what you turn on K1-K4. Hold a step and tap another white key: long note. Questions: OCT+ = yes, HOME = no.</li>' +
           '<li>Right-click a button or key to keep it <b>held</b> (for mouse combos).</li>',
     'h.kbd': 'Computer keyboard',
-    kbd: '<kbd>Z</kbd>…<kbd>/</kbd> and <kbd>Q</kbd>…<kbd>P</kbd> = keys · <kbd>Space</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> or <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · mouse wheel over a knob. Hold <kbd>Shift</kbd> and turn ALGORITHM to jump to another track.',
+    kbd: '<kbd>Z</kbd>…<kbd>/</kbd> and <kbd>Q</kbd>…<kbd>P</kbd> = keys · <kbd>Space</kbd> PLAY · <kbd>Enter</kbd> REC · <kbd>Shift</kbd> or <kbd>1</kbd> HOME · <kbd>←</kbd><kbd>→</kbd> OCT · <kbd>2</kbd> SEQ <kbd>3</kbd> EDIT <kbd>4</kbd> ENV <kbd>5</kbd> FX <kbd>6</kbd> SCL <kbd>7</kbd> ARP <kbd>8</kbd> SAVE <kbd>9</kbd> LFO <kbd>0</kbd> GLO · mouse wheel over a knob. Hold <kbd>Shift</kbd> and turn SELECT to jump to another track.',
     'h.hw': 'Simulated hardware',
     'hw.spi': 'SPI to the screen (per frame)',
     'hw.budget': 'Budget at 12 MHz',

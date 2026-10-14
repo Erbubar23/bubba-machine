@@ -32,6 +32,7 @@
     <a href="changelog.html">Changelog</a>
     <div class="grp">Project</div>
     <a href="design-3.html">Design 3.0</a>
+    <a href="../../docs/diseno-0-6.html">Design 0.6 (ES)</a>
     <a href="roadmap.html" aria-current="page">Roadmap</a>
     <a href="contributing.html">Contributing</a>
     <a href="conduct.html">Code of conduct</a>
@@ -45,22 +46,28 @@
   <main class="doc">
 <h1 id="roadmap">Roadmap</h1>
 <p>Everything planned for Bubba Machine. <strong>All of it will be done, step by step</strong>, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.</p>
-<p>Items marked ✓ are already in the current version (0.5.0-beta). Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
+<p>Items marked ✓ are already in the current version (0.6.0-beta); items marked <strong>in testing</strong> are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>The goal is the best quality the FM-1 allows. What improved, what it costs and what limits it today: <a href="audio.html">audio</a>.</p>
 <p><strong>Done</strong></p>
 <ul><li>
 ✓ Engines and mix at 44.1 kHz, floating-point bus, 16-bit delay and effects capture.
 </li><li>
-✓ Modeled drums (Plaits), ANALOG with polyBLEP, 6-operator FM (msfa) and ACID.
+✓ Modeled drums (Plaits), 6-operator FM (msfa) and the ACID bass.
 </li><li>
 ✓ 32 KiB data cache and audio compiled for speed.
+</li><li>
+✓ <strong>The 0.6 machines:</strong> B-MINI, BITTAL (alias-free wavetable, from Vital presets) and BUNO-6 (with stereo chorus).
+</li><li>
+✓ <strong>Reverb</strong> with per-track send, <strong>master filter</strong> and <strong>BEAT FX</strong>.
+</li><li>
+<strong>In testing:</strong> audio on both cores (T4-T6 on the second; on the computer it gives the same samples) and the screen with SPI at 30 MHz.
 </li></ul>
 <p><strong>Planned</strong></p>
 <ol><li>
-<strong>Audio on both cores.</strong> The second core gives 1.83× (measured): more voices and room for effects.
+<strong>Measure 0.6 on the FM-1:</strong> each machine's sound and load, BUNO-6's chorus and high-pass (approximate values today) and even volume across BITTAL sounds. Then turn both cores and the fast screen on by default.
 </li><li>
-<strong>Master effects:</strong> reverb and chorus (from Mutable Instruments), tape delay, compressor and leveler.
+<strong>Master effects:</strong> tape delay, compressor and leveler.
 </li><li>
 <strong>ACID 2.0:</strong> Open303 in floating point, with an acid line generator.
 </li><li>
@@ -72,12 +79,12 @@
 </li><li>
 <strong>Oversampled clipper</strong>, so high DRIVE doesn't alias.
 </li><li>
-<strong>Faster screen:</strong> SPI at 30 MHz (2.2× measured) and DMA transfers, which frees processor time for audio.
+<strong>Screen over DMA:</strong> SPI at 30 MHz is already in testing; with DMA the transfer leaves the processor free for audio.
 </li><li>
 <strong>Measure the FM-1's analog output</strong> (noise, distortion, response) with an audio interface.
 </li></ol>
-<h2 id="interface-live-05">Interface: Live 0.5</h2>
-<p>0.5 organizes the FM-1 into two places: <strong>playing live</strong> (HOME and its pages) and <strong>working on a track</strong> (inside a track). The key lights are white only and don't say what each key does, so every screen shows it on the key strip.</p>
+<h2 id="interface">Interface</h2>
+<p>The interface organizes the FM-1 into two places: <strong>playing live</strong> (HOME and its pages) and <strong>working on a track</strong> (inside a track). The key lights are white only and don't say what each key does, so every screen shows it on the key strip.</p>
 <p><strong>Done</strong></p>
 <ul><li>
 ✓ <strong>Key strip on screen:</strong> the 11 black and 16 white keys with a short name and the same intensity as their light.
@@ -87,14 +94,14 @@
 ✓ <strong>Pad sampler:</strong> 16 pads made from your takes, like a KO II or an OP-1 field, on a grid like the drums, with BREAK to vary it.
 </li><li>
 ✓ <strong>MUTES</strong> and <strong>FILL</strong> screens, and drums in sections of 8.
+</li><li>
+✓ <strong>The 0.6 face:</strong> header, viewport, keyboard and dials always in the same place; the <strong>BX-1</strong> mixer on HOME; ALGORITHM as each machine's mode.
+</li><li>
+✓ <strong>Expressive REC:</strong> micro-timing, gate and P-Locks of what you turn while holding the note; long notes with two white keys.
 </li></ul>
 <p><strong>Planned: playing live (HOME again = the next page)</strong></p>
 <ol><li>
-<strong>PERFORM:</strong> K1-K4 as show macros that never move (DJ FILTER, DELAY, REVERB, MORPH). On every HOME page, the same black keys: 1-6 mutes (hold = solo), 7-10 scenes, 11 FILL.
-</li><li>
-<strong>MORPH A·B:</strong> move from one sound state to another with a knob.
-</li><li>
-<strong>FX MASTER:</strong> the master effects on one page.
+<strong>MORPH A·B:</strong> move from one sound state to another with a knob (HOME's fourth macro).
 </li><li>
 <strong>SCENES AND SONG:</strong> build and play the song with the scenes.
 </li></ol>
@@ -120,18 +127,22 @@
 </li><li>
 <strong>Recording straight onto a pad</strong> (REC + pad, like the KO II) and undo for pad edits.
 </li><li>
-<strong>Language packs from the web installer</strong>, without the command line, and more languages made by the community.
+✓ <strong>Plug and play web installer:</strong> installs the ready-made package without the V15 and loads Spanish at the end.
 </li><li>
-<strong>Web editor:</strong> load and download patterns and takes over USB (today takes are uploaded with <code>tools/fm1/toma.py</code>), and DX7 <code>.syx</code> FM banks.
+✓ <strong>Web sound editor:</strong> Vital presets and DX7 <code>.syx</code> banks, sent to the FM-1 over WebMIDI.
+</li><li>
+<strong>More languages</strong> made by the community.
+</li><li>
+<strong>Web pattern and take editor:</strong> load and download them over USB (today takes are uploaded with <code>tools/fm1/toma.py</code>).
 </li><li>
 <strong>Free kit and take packs</strong> (CC0 or GPL), made by the community.
 </li><li>
 <strong>Bluetooth MIDI</strong>, if the hardware and processor allow it (no promise: no free firmware has shown it yet).
 </li></ul>
-<h2 id="in-design-06-its-own-identity-and-machines">In design: 0.6, its own identity and machines</h2>
-<p>Six fixed machines named after the originals they nod to (BR-8, BP-1, BB-303 / B-MINI, BX-7, BITTAL, BUNO-6, and the BX-1 mixer) on four sound cores, a new visual identity and Vital presets converted in the web editor. The design is decided and not yet implemented (in Spanish): <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_0.6.md"><code>DISENO_0.6.md</code></a>.</p>
 <h2 id="done">Done</h2>
 <ul><li>
+<strong>0.6.0-beta:</strong> six fixed machines, the new face, the sound bank and the plug and play installer. The design is in <a href="../../docs/diseno-0-6.html"><code>DISENO_0.6.md</code></a> (in Spanish).
+</li><li>
 <strong>0.5.0-beta:</strong> the pad sampler and the English screen, with Spanish as a language pack.
 </li><li>
 <strong>0.4.0-beta:</strong> the first version for the FM-1, sounds computed live and 44.1 kHz audio. See the <a href="changelog.html">changelog</a>.
@@ -143,7 +154,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

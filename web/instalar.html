@@ -67,7 +67,7 @@ pre#log { background: #000; color: #9aa1a8; font-size: 12px; padding: 10px; bord
 </header>
 <main>
 <h1 data-t="h1">Instalar en el M-VAVE FM-1</h1>
-<p class="small" data-t="intro">Conecta el FM-1 por USB (cable de datos) y préndelo. La página lo lee sola; elige qué instalar y pulsa el botón.</p>
+<p class="small" data-t="intro">Conecta el FM-1 por USB (cable de datos) y préndelo. La página lo encuentra sola y deja lista la versión más nueva de Bubba Machine: solo pulsa <b>Instalar</b>. No hace falta bajar nada.</p>
 
 <section>
   <h2 data-t="h_dev">1. Tu FM-1</h2>
@@ -81,8 +81,8 @@ pre#log { background: #000; color: #9aa1a8; font-size: 12px; padding: 10px; bord
   <div id="opciones"></div>
   <div class="line info" id="pkg"><span class="dot"></span><div class="txt" id="pkgt">…</div></div>
   <div id="falta" hidden>
-    <b data-t="faltah">Falta el firmware de fábrica de M-VAVE (FM-1 V15)</b>
-    <p class="small" data-t="faltawhy">Todo se instala con el cargador oficial de M-VAVE, que viene en ese archivo, y Bubba Machine se arma sobre él aquí, en tu navegador (este sitio no puede publicarlo). Descárgalo y arrástralo aquí, o elígelo. Se pide una sola vez: el navegador lo recuerda.</p>
+    <b data-t="faltah">Para esto hace falta el firmware de fábrica de M-VAVE (FM-1 V15)</b>
+    <p class="small" data-t="faltawhy">Volver al firmware de fábrica (o instalar una versión vieja) usa el archivo original de M-VAVE, que este sitio no publica. Descárgalo y arrástralo aquí, o elígelo. Se pide una sola vez: el navegador lo recuerda. Para instalar Bubba Machine no hace falta.</p>
     <a href="https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc" data-t="bajar">Descargar FM-1.fwsc</a> <input type="file" id="fstock" accept=".fwsc">
   </div>
 </section>
@@ -90,9 +90,11 @@ pre#log { background: #000; color: #9aa1a8; font-size: 12px; padding: 10px; bord
 <section>
   <h2 data-t="h_go">3. Instalar</h2>
   <button id="go" disabled>…</button>
+  <label class="small" id="eslab"><input type="checkbox" id="es" checked> <span data-t="es">Al terminar, la pantalla en español (se carga sola)</span></label>
   <p class="risk" data-t="risk">Firmware no oficial, <b>beta</b>, sin garantía (GPL-3.0, secciones 15 y 16). Lo que guardaste en el firmware actual (patrones de X0X, por ejemplo) se puede perder, y hasta la v1 una actualización de Bubba Machine puede borrar lo que guardaste en él. No desconectes el cable ni cierres la página mientras escribe. Siempre puedes volver al de fábrica eligiéndolo arriba.</p>
   <div id="estado"></div>
   <progress id="bar" max="100" value="0"></progress>
+  <p id="despues" hidden data-t="despues">Y ahora: <a href="sonidos.html">sonidos de Vital y bancos de la DX7</a> para BITTAL, B-MINI, BUNO-6 y BX-7, o el <a href="docs/manual.html">manual</a>.</p>
 </section>
 
 <details id="mas">

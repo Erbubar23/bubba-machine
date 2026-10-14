@@ -1,6 +1,6 @@
 # Bubba Machine 0.6: identidad propia y máquinas
 
-> **Estado: diseño decidido (2026-10-14), sin implementar** salvo la zona de tomas (sección 7). Parte de un prompt externo ("Prompt Maestro": mezclador MX-1, Bubba Drums, sampler OP-1, bajos 303 / D MINI, FM DX7 y un wavetable que carga presets de Vital) y lo contrasta con lo que medimos en el FM-1. Lo que el prompt dice y el aparato no hace está corregido aquí, con su fuente.
+> **Estado: implementado en la 0.6.0-beta (2026-10-14), sin probar en el aparato.** Falta medir en el FM-1 el sonido y la carga de cada máquina, el chorus y el pasa-altos de BUNO-6 (valores aproximados), PANTALLA RÁPIDA y DOS NÚCLEOS; la pantalla por DMA queda para después. El manual de uso es [MANUAL.md](MANUAL.md). Parte de un prompt externo ("Prompt Maestro": mezclador MX-1, Bubba Drums, sampler OP-1, bajos 303 / D MINI, FM DX7 y un wavetable que carga presets de Vital) y lo contrasta con lo que medimos en el FM-1. Lo que el prompt dice y el aparato no hace está corregido aquí, con su fuente.
 
 ## 1. La idea en una línea
 

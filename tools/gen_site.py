@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, 'web')
 REPO = 'https://github.com/Erbubar23/bubba-machine/blob/main/'
 SITE = 'https://erbubar23.github.io/bubba-machine/'
-VERSION = '0.5.0-beta'
+VERSION = '0.6.0-beta'
 
 LANGS = {'es': 'docs', 'en': 'en/docs'}          # carpeta de salida dentro de web/
 
@@ -30,6 +30,7 @@ PAGES = [
                         'en': ('changelog', 'Changelog', 'docs/en/CHANGELOG.md')}),
     ('design3', 'project', {'es': ('diseno-3', 'Diseño 3.0', 'docs/DISENO_3.0.md'),
                             'en': ('design-3', 'Design 3.0', 'docs/en/DESIGN_3.0.md')}),
+    ('design06', 'project', {'es': ('diseno-0-6', 'Diseño 0.6', 'docs/DISENO_0.6.md')}),
     ('roadmap', 'project', {'es': ('hoja-de-ruta', 'Hoja de ruta', 'docs/HOJA_DE_RUTA.md'),
                             'en': ('roadmap', 'Roadmap', 'docs/en/ROADMAP.md')}),
     ('contrib', 'project', {'es': ('contribuir', 'Contribuir', 'CONTRIBUTING.md'),
@@ -46,7 +47,7 @@ PAGES = [
     ('memory', 'tech', {'es': ('memoria', 'Memoria', 'docs/MEMORIA.md')}),
     ('design02', 'tech', {'es': ('diseno-0-2', 'Diseño 0.2', 'docs/DISENO_0.2.md')}),
 ]
-ES_ONLY_EN = {'spec': 'Specification (ES)', 'memory': 'Memory budget (ES)', 'design02': 'Design 0.2 (ES)'}
+ES_ONLY_EN = {'design06': 'Design 0.6 (ES)', 'spec': 'Specification (ES)', 'memory': 'Memory budget (ES)', 'design02': 'Design 0.2 (ES)'}
 
 TXT = {
     'es': {
@@ -64,7 +65,7 @@ TXT = {
         'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.',
     },
 }
-IMAGES = ['00-home', '02-seq-tr', '05-time', '17-chords', '20-layer-home', '31-sampler-seq', '34-rec', '37-pads', '38-box']
+IMAGES = ['00-home', '02-seq-tr', '37-pads', '52-seq-long-note', '56b-fm-alg5', '57-bittal-table', '60-buno-dco', '51-rec-gate-micro']
 
 BY_SRC = {os.path.normpath(p[2]): (lang, p[0]) for _, _, d in PAGES for lang, p in d.items()}
 

@@ -118,8 +118,9 @@ def fm1(app):
                         os.path.join(out, 'app-%s.bin' % app), pkg, '--vm', '0xE5000:0x8000'])
     if r.returncode:
         sys.exit(r.returncode)
-    # el .fwsc va a la release de GitHub (lo pide el FM-1 Firmware Hub); el instalador web publica
-    # solo app.bin y arma el paquete en el navegador sobre el V15 de cada quien
+    # El .fwsc armado va a la release de GitHub (lo pide el FM-1 Firmware Hub) y desde 0.6 también al
+    # sitio: el instalador web lo instala tal cual, sin pedir el V15 (plug and play). El app.bin queda
+    # para versiones viejas y para armar el paquete en el navegador si alguien trae su propio V15.
     pub = os.path.join(ROOT, 'web', 'fm1')
     os.makedirs(pub, exist_ok=True)
     nombre = base + '.bin'
@@ -127,26 +128,42 @@ def fm1(app):
         data = f.read()
     with open(os.path.join(pub, nombre), 'wb') as f:
         f.write(data)
+    with open(pkg, 'rb') as f, open(os.path.join(pub, base + '.fwsc'), 'wb') as g:
+        g.write(f.read())
+    manifiesto(pub)
+    print('para el instalador web: web/fm1/%s (+ versiones.json)' % nombre)
+
+
+def manifiesto(pub):
+    """web/fm1/versiones.json: lo que ofrece el instalador web, según los archivos que hay en web/fm1/."""
     lista = []
     for n in sorted(os.listdir(pub)):
         if n.endswith('.bin'):
             d = open(os.path.join(pub, n), 'rb').read()
             diag = '-diag-' in n
             v = n[len('bubba-diag-' if diag else 'bubba-machine-'):-4]
-            lista.append({'archivo': n, 'sha256': hashlib.sha256(d).hexdigest(), 'bytes': len(d),
+            fw = n[:-4] + '.fwsc'
+            seis = [int(k) for k in v.split('-')[0].split('.') if k.isdigit()] >= [0, 6]   # desde 0.6: máquinas
+            extra = {}
+            if os.path.isfile(os.path.join(pub, fw)):
+                fd = open(os.path.join(pub, fw), 'rb').read()
+                extra = {'fwsc': fw, 'fwsc_sha256': hashlib.sha256(fd).hexdigest()}
+            lista.append({'archivo': n, 'sha256': hashlib.sha256(d).hexdigest(), 'bytes': len(d), **extra,
                           'nombre': ('Diagnóstico %s' if diag else 'Bubba Machine %s') % v,
                           'nombre_en': ('Diagnostic %s' if diag else 'Bubba Machine %s') % v,
                           'detalle': 'Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.' if diag else
-                          'El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una '
-                          'actualización puede borrar lo guardado.',
+                          ('El groovebox completo: %s, secuenciador, sampler y sonido. Beta: una actualización puede '
+                           'borrar lo guardado.' % ('seis máquinas' if seis else '6 canales')),
                           'detalle_en': 'No sound: shows every button, key and knob to check the device.' if diag else
-                          'The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may '
-                          'erase what you saved.'})
-    lista.sort(key=lambda x: ('-diag-' in x['archivo'], x['archivo']))
+                          ('The full groovebox: %s, sequencer, sampler and sound. Beta: an update may erase what '
+                           'you saved.' % ('six machines' if seis else '6 channels'))})
+    def ver(x):                                     # la más nueva primero: 0.10 va después de 0.9
+        nums = [int(p) for p in x['archivo'].split('-')[2].split('.') if p.isdigit()]
+        return nums
+    lista.sort(key=lambda x: ('-diag-' in x['archivo'], [-k for k in ver(x)]))
     with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(lista, f, ensure_ascii=False, indent=1)
         f.write('\n')
-    print('para el instalador web: web/fm1/%s (+ versiones.json)' % nombre)
 
 
 def version():
@@ -157,6 +174,7 @@ def version():
 
 
 def site():
+    manifiesto(os.path.join(ROOT, 'web', 'fm1'))
     r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'gen_site.py')])
     if r.returncode:
         sys.exit(r.returncode)

@@ -10,7 +10,7 @@ All CPU figures were measured on the author's FM-1 with the firmware console (`t
 |---|---|
 | Processor | JieLi AC791N, two cores at 360 MHz with a single-precision FPU |
 | Output | external codec over I2S, **24-bit stereo at 44,117.6 Hz** (24 MHz / 544, fixed by hardware) |
-| Memory for recorded sound | 24 KiB of flash: one take of up to 1.5 s (since 0.6 the rest belongs to the sound bank) |
+| Memory for recorded sound | 100 KiB of flash shared between takes (up to 3 s each) and user sounds |
 
 ## What improved
 
@@ -39,7 +39,9 @@ Measured on the device, the FPU is **1.5× faster** than the 64-bit integer math
 | Engine | What it uses | License |
 |---|---|---|
 | **Modeled drums** | kick, snare and hi-hat models from **Plaits** (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion | MIT |
-| **ANALOG** | **polyBLEP** oscillators (anti-aliasing), LP 24/12, BP or HP filter with resonance and drive, ADSR, LFO, sync and ring | own and MIT (Plaits/stmlib) |
+| **B-MINI** | three **polyBLEP** oscillators (anti-aliasing), ladder filter with drive, two envelopes and LFO | own and MIT (Plaits/stmlib) |
+| **BITTAL** | tables built from a 256-harmonic spectrum in **7 levels, one per octave**: each note uses the level whose highest harmonic stays below 19 kHz, so there is **no aliasing** on any note; unison, filter and macros | own; factory sounds from freely licensed Vital presets |
+| **BUNO-6** | one polyBLEP oscillator per voice, high-pass, 24 dB filter and a two-line modulated **stereo chorus**, like a Juno's | own |
 | **6-operator FM** | **msfa**, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms | Apache-2.0 |
 | **ACID** | 4-pole ladder filter with resonance, accent and slide | own |
 
@@ -74,20 +76,21 @@ Removing the recorded kits and wavetables made the program 148 KiB smaller and f
 
 This is a beta. What limits quality today, plainly:
 
-- **The sampler records at 16 kHz and 8 bits.** Today the flash leaves 24 KiB for takes (one of 1.5 s); at 16 bits it would be half that. With the filter before recording and the dither in `toma.py` it sounds clean, but **it stops around 7 kHz** and has 8-bit noise. It is the weakest point and the next one to solve.
+- **The sampler records at 16 kHz and 8 bits.** Takes share 100 KiB of flash with user sounds (about 6 s in total); at 16 bits it would be half that. With the filter before recording and the dither in `toma.py` it sounds clean, but **it stops around 7 kHz** and has 8-bit noise. It is the weakest point and the next one to solve.
 - **The delay runs at 22 kHz:** repeats reach 11 kHz, like a tape delay. That is on purpose, so 1.5 s fits in RAM, but it isn't hi-fi.
 - **The clipper has no oversampling:** with very high DRIVE it can alias a little.
 - **ACID is our own engine, not Open303.** The plan is to move to Open303 (MIT) in float.
 - **msfa's FM is fixed point**, like the original DX7. That's part of its character, not a flaw, but it isn't float.
-- **No reverb, chorus or master compressor yet.** Only the soft clipper.
-- **Audio uses a single core.** The second one gives 1.83× (measured); using it is what will allow more voices and effects.
+- **The reverb (Dattorro) runs at half rate** to fit the budget: its tails reach 11 kHz. No master compressor yet.
+- **BUNO-6's chorus and high-pass use approximate values** (Juno-6 times and depth from published measurements); they still need an ear check on the device.
+- **Audio on both cores is in testing** (SYSTEM › TWO CORES, off by default): on the computer it gives the same samples, but it still has to be measured on the FM-1.
 - **We haven't measured the analog output** (noise, distortion and response of the FM-1's codec and amplifier). Everything above is the digital side.
 - **Tested on a single FM-1.**
 
 ## What's next
 
-1. Audio on **both cores**.
-2. **Master effects**: Mutable Instruments reverb and chorus, tape delay, compressor and leveler.
+1. **Measure 0.6 on the FM-1:** each machine's load, both cores and even volume across the bank sounds.
+2. **Master effects**: tape delay, compressor and leveler.
 3. **ACID with Open303** in float.
 4. A **higher-quality sampler**, within what the flash allows.
 5. **Measure the analog output** with an audio interface.

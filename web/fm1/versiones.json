@@ -1,5 +1,16 @@
 [
  {
+  "archivo": "bubba-machine-0.6.0-beta.bin",
+  "sha256": "81466c7190668dfa5bf206e4b9591dd623e8b330c791dd70f70fc8cf4ab9c806",
+  "bytes": 423692,
+  "fwsc": "bubba-machine-0.6.0-beta.fwsc",
+  "fwsc_sha256": "45b1e7f2c17d87f42deb2bbfa6be3dd5dd45fd69d75b6cb24831fd869c91cd34",
+  "nombre": "Bubba Machine 0.6.0-beta",
+  "nombre_en": "Bubba Machine 0.6.0-beta",
+  "detalle": "El groovebox completo: seis máquinas, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
+  "detalle_en": "The full groovebox: six machines, sequencer, sampler and sound. Beta: an update may erase what you saved."
+ },
+ {
   "archivo": "bubba-machine-0.5.0-beta.bin",
   "sha256": "61d0decff3d3cfe8e91229631fafe96015920de86a3ba5754d661dc1d2040ea0",
   "bytes": 340492,
@@ -9,20 +20,13 @@
   "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
  },
  {
-  "archivo": "bubba-machine-0.6.0-beta.bin",
-  "sha256": "81466c7190668dfa5bf206e4b9591dd623e8b330c791dd70f70fc8cf4ab9c806",
-  "bytes": 423692,
-  "nombre": "Bubba Machine 0.6.0-beta",
-  "nombre_en": "Bubba Machine 0.6.0-beta",
-  "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
-  "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
- },
- {
-  "archivo": "bubba-diag-0.5.0-beta.bin",
-  "sha256": "3df9767bdf47266fccf70613827a60e32609fbb6a2efcc1851b87f3d600e823f",
+  "archivo": "bubba-diag-0.6.0-beta.bin",
+  "sha256": "cea652ac0c1f572fd97c84350028f2c73845f090bd92fd5c32e409d13b38c058",
   "bytes": 124840,
-  "nombre": "Diagnóstico 0.5.0-beta",
-  "nombre_en": "Diagnostic 0.5.0-beta",
+  "fwsc": "bubba-diag-0.6.0-beta.fwsc",
+  "fwsc_sha256": "9191a6a40f105f3c3955f80eba3ead6df460a078c5537b7ae6f4bb65c196906f",
+  "nombre": "Diagnóstico 0.6.0-beta",
+  "nombre_en": "Diagnostic 0.6.0-beta",
   "detalle": "Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.",
   "detalle_en": "No sound: shows every button, key and knob to check the device."
  }

@@ -32,6 +32,7 @@
     <a href="cambios.html" aria-current="page">Cambios</a>
     <div class="grp">Proyecto</div>
     <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="diseno-0-6.html">Diseño 0.6</a>
     <a href="hoja-de-ruta.html">Hoja de ruta</a>
     <a href="contribuir.html">Contribuir</a>
     <a href="conducta.html">Código de conducta</a>
@@ -45,10 +46,54 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
-<h2 id="sin-publicar">[Sin publicar]</h2>
+<h2 id="060-beta---sin-publicar">[0.6.0-beta] - sin publicar</h2>
+<p><strong>Beta, todavía no probada en el aparato:</strong> pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador.</p>
+<p><strong>Seis máquinas fijas en vez de motores a elegir</strong>, una cara nueva y un banco de sonidos. El formato de los patrones cambia (formato 7): los patrones guardados se borran al primer arranque (las tomas se quedan). El diseño completo está en <a href="diseno-0-6.html">DISENO_0.6</a>.</p>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+<strong>Seis máquinas, una por canal</strong>, con nombres que recuerdan a las que las inspiraron: <strong>BR-8</strong> (T1, batería modelada), <strong>BP-1</strong> (T2, sampler de pads), <strong>BB-303</strong> o <strong>B-MINI</strong> (T3, se cambia con ALGORITHM y las notas se quedan), <strong>BX-7</strong> (T4, FM), <strong>BITTAL</strong> (T5, wavetable) y <strong>BUNO-6</strong> (T6, polifónico). En HOME, el mezclador <strong>BX-1</strong>.
+</li><li>
+<strong>B-MINI:</strong> tres osciladores (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) en registros de 32' a 2', ruido, filtro escalera con drive, CONTOUR y LOUDNESS, LFO y glide.
+</li><li>
+<strong>BITTAL:</strong> dos osciladores de tabla (hasta 8 frames, armados desde un espectro de 256 armónicos y sin aliasing en ninguna nota), unísono de hasta 4, filtro LP 24/12, BP, HP o escalera, dos ADSR, LFO y 4 macros con destino. Las páginas de los osciladores dibujan la tabla en 2.5D. ALGORITHM elige la tabla del oscilador 1 entre las del banco.
+</li><li>
+<strong>BUNO-6:</strong> 6 voces con un oscilador cada una (sierra, pulso con PWM, sub y ruido), pasa-altos de 4 posiciones, filtro de 24 dB, una ADSR, LFO con retardo y <strong>chorus estéreo</strong> I, II o I+II (ALGORITHM).
+</li><li>
+<strong>Banco de sonidos</strong> (.bsnap) para B-MINI, BITTAL y BUNO-6: 37 de fábrica. Los de BITTAL y B-MINI salen de presets de Vital con licencia libre (CC0, Unlicense y GPL-3.0), renombrados y con su crédito en <a href="creditos.html">CREDITOS.md</a>; los 12 de BUNO-6 son propios, hechos en Vital. <code>tools/gen_snaps.mjs</code> los arma con los commits de origen fijados.
+</li><li>
+<strong>Sonidos propios:</strong> el editor web (<code>sonidos.html</code>) convierte un preset de Vital en un sonido de Bubba Machine y lo manda al FM-1 por WebMIDI; también carga <strong>bancos .syx de la DX7</strong> (32 voces) en BX-7. En la computadora: <code>tools/vital2bsnap.mjs</code> y <code>tools/fm1/sonido.py</code>. En el emulador, el botón <em>Sonido</em>.
+</li><li>
+<strong>BX-7:</strong> el dibujo del algoritmo como en una DX7 (portadoras, moduladores, realimentación y nivel de cada operador) y PRESETS con las voces de tus bancos.
+</li><li>
+<strong>Reverb</strong> (Dattorro) con envío por canal en MEZCLA y su página en HOME + FX; <strong>filtro del master</strong> (pasa-bajos a la izquierda, pasa-altos a la derecha) y <strong>BEAT FX</strong> (un punch-in que queda puesto) en HOME.
+</li><li>
+<strong>REC expresivo</strong> en los canales de notas: cada nota guarda su micro-tiempo y su gate reales, se corta en el compás si sigue apretada y lo que mueves en K1-K4 mientras la sostienes queda como P-Lock. Con REC, SELECT elige un paso, ALGORITHM su largo (hasta TIE) y PRESETS su micro-tiempo.
+</li><li>
+<strong>Nota larga con dos blancas:</strong> mantén el paso donde empieza y toca la blanca donde termina.
+</li><li>
+<strong>BP-1, loop de sustain</strong> (página LOOP del pad): sostenido repite un tramo y al soltar sigue hasta el final.
+</li><li>
+<strong>MIDI OUT por canal</strong> (MAS): el canal suena y además manda sus notas por MIDI. Reemplaza al motor MIDI.
+</li><li>
+<strong>Carga del audio</strong> (CPU) en la cabecera.
+</li><li>
+<strong>Dos pruebas en SISTEMA</strong>, apagadas de fábrica: <strong>PANTALLA RÁPIDA</strong> (SPI a 30 MHz: el cuadro baja de 85 a 39 ms) y <strong>DOS NÚCLEOS</strong> (T4-T6 en el segundo núcleo; en la computadora da las mismas muestras). Si el FM-1 se cuelga o arranca en modo seguro, las dos se apagan solas.
+</li><li>
+<strong>Instalador web plug and play:</strong> la página baja el paquete ya armado de Bubba Machine (sin pedir el V15 de M-VAVE), lo instala y, si está en español, carga el paquete de idioma al terminar. El V15 solo hace falta para volver al firmware de fábrica.
+</li></ul>
 <h3 id="cambiado">Cambiado</h3>
 <ul><li>
-<strong>La memoria de tomas guarda una sola toma, de hasta 1.5 s</strong> (24 KiB; antes 100 KiB y 6.4 s): el tamaño del loop de prueba. Los 76 KiB que quedan se reservan para el banco de sonidos de la 0.6 (<a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_0.6.md">diseño</a>). La grabadora y <code>tools/fm1/toma.py</code> aceptan hasta 1.53 s; las tomas guardadas fuera de los primeros 24 KiB se pierden.
+<strong>La cara nueva:</strong> cabecera, visor, teclado y diales siempre en el mismo lugar, con paleta neón (cian lo activo, ámbar los valores, rojo REC y mute, verde menta las notas largas). En SEQ las blancas son los pasos; los diales de K1-K4 muestran valor y nombre.
+</li><li>
+<strong>Las perillas:</strong> en HOME, SELECT es el cursor del mezclador, ALGORITHM el BPM y K1-K4 volumen, envío FX, filtro y BEAT FX. Dentro de un canal, ALGORITHM es el modo de la máquina (instrumento, pad, algoritmo, tabla, chorus). Se cambia de canal con HOME + SELECT. Fuera el recuadro de 400 ms y ENTRADA AUTO.
+</li><li>
+<strong>Las tomas comparten 100 KiB de flash con los sonidos del banco</strong> (las tomas desde abajo, los sonidos desde arriba). Hasta 3 s por toma.
+</li><li>
+Fuera <strong>ANALOG</strong>, los canales libres, <strong>KIT</strong> en T4-T6 y el motor <strong>MIDI</strong>: cada canal es su máquina.
+</li><li>
+22 voces en total, con un tope por canal.
+</li><li>
+Audio determinista: suena igual en cada arranque.
 </li></ul>
 <h2 id="050-beta---2026-10-12">[0.5.0-beta] - 2026-10-12</h2>
 <p><strong>Beta, todavía no probada en el aparato:</strong> pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador.</p>
@@ -249,7 +294,7 @@ Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

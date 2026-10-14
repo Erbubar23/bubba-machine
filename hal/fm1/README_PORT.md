@@ -1,8 +1,8 @@
 # Port al FM-1
 
-**Estado (0.5.0-beta, octubre de 2026):** compilan y se empaquetan dos firmwares, que corren en el FM-1 del autor (beta: un solo aparato probado):
+**Estado (0.6.0-beta, octubre de 2026):** compilan y se empaquetan dos firmwares, que corren en el FM-1 del autor (beta: un solo aparato probado):
 
-- **Bubba Machine** (`fm1_main.c`): el núcleo completo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, la pantalla, USB-MIDI, el guardado y el servicio de actualización. `app.bin` de 559 008 bytes (quedan 23 KB).
+- **Bubba Machine** (`fm1_main.c`): el núcleo completo con sonido por el codec (ALNK0), la matriz y los LEDs por interrupción, la pantalla, USB-MIDI, el guardado y el servicio de actualización; a prueba, el audio en los dos núcleos (tarea `audio2`) y la pantalla con SPI a 30 MHz (`fm1_lcd_speed`), las dos apagadas de fábrica y apagadas solas tras un cuelgue o el modo seguro. `app.bin` de 423 692 bytes (quedan 158 428).
 - **Diagnóstico** (`fm1_diag.c`): sin sonido, muestra cada botón, tecla y perilla con su cruce en la matriz. Sirve para comprobar el aparato o calibrar.
 
 Regla del proyecto: el código es propio. Los drivers son los del **SDK AC79 de JieLi (Apache-2.0)**; de Felucca y X0X solo se toman hechos de hardware (pines, mapa de la matriz, direcciones verificadas), nunca su código.

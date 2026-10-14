@@ -32,6 +32,7 @@
     <a href="cambios.html">Cambios</a>
     <div class="grp">Proyecto</div>
     <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="diseno-0-6.html">Diseño 0.6</a>
     <a href="hoja-de-ruta.html">Hoja de ruta</a>
     <a href="contribuir.html">Contribuir</a>
     <a href="conducta.html">Código de conducta</a>
@@ -47,7 +48,7 @@
 <p>Bubba Machine tiene un objetivo: <strong>la mejor calidad de audio que permite el FM-1</strong>. Esta página cuenta qué se cambió para llegar ahí en la 0.4.0-beta, cuánto cuesta cada cosa en el aparato y, con la misma franqueza, <strong>lo que todavía no está a la altura</strong>.</p>
 <p>Todas las cifras de CPU se midieron en el FM-1 del autor con la consola del firmware (<code>tools/fm1/traza.py</code>). Los detalles de cada medición están en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> y <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a>.</p>
 <h2 id="el-aparato">El aparato</h2>
-<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Procesador</td><td>JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple</td></tr><tr><td>Salida</td><td>codec externo por I2S, <strong>estéreo de 24 bits a 44 117.6 Hz</strong> (24 MHz / 544, fijo por hardware)</td></tr><tr><td>Memoria para sonidos grabados</td><td>24 KiB de flash: una toma de hasta 1.5 s (desde la 0.6, el resto es del banco de sonidos)</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Procesador</td><td>JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple</td></tr><tr><td>Salida</td><td>codec externo por I2S, <strong>estéreo de 24 bits a 44 117.6 Hz</strong> (24 MHz / 544, fijo por hardware)</td></tr><tr><td>Memoria para sonidos grabados</td><td>100 KiB de flash compartidos entre las tomas (hasta 3 s cada una) y los sonidos del usuario</td></tr></tbody></table></div>
 <h2 id="lo-que-mejoró">Lo que mejoró</h2>
 <h3 id="1-todo-a-441-khz">1. Todo a 44.1 kHz</h3>
 <p>En la 0.3 los motores calculaban a 22 kHz y cada muestra se repetía dos veces para llegar a la salida. Eso corta todo arriba de 11 kHz y deja imágenes (agudos falsos) por encima.</p>
@@ -57,7 +58,7 @@
 <p>Medido en el aparato, la FPU es <strong>1.5× más rápida</strong> que la aritmética entera de 64 bits que usaba la 0.3, así que pasar a float fue más rápido y además más limpio.</p>
 <h3 id="3-sonidos-calculados-en-vivo-sin-grabaciones-de-baja-resolución">3. Sonidos calculados en vivo, sin grabaciones de baja resolución</h3>
 <p>La 0.3 tenía kits de batería grabados a 22 kHz en μ-law de 8 bits (nada arriba de 11 kHz) y tablas de onda de baja resolución. <strong>Se fueron todos.</strong> Ahora cada sonido se calcula en el momento con bibliotecas de síntesis probadas:</p>
-<div class="tbl"><table><thead><tr><th>Motor</th><th>Qué usa</th><th>Licencia</th></tr></thead><tbody><tr><td><strong>Batería modelada</strong></td><td>modelos de bombo, caja y hi-hat de <strong>Plaits</strong> (Mutable Instruments), en float, más palmas, cencerro, resonador, ruido y percusión FM propios</td><td>MIT</td></tr><tr><td><strong>ANALOG</strong></td><td>osciladores con <strong>polyBLEP</strong> (anti-aliasing), filtro LP 24/12, BP o HP con resonancia y drive, ADSR, LFO, sync y ring</td><td>propio y MIT (Plaits/stmlib)</td></tr><tr><td><strong>FM de 6 operadores</strong></td><td><strong>msfa</strong>, el motor de Dexed y la misma base del firmware de fábrica; los 32 algoritmos de la DX7</td><td>Apache-2.0</td></tr><tr><td><strong>ACID</strong></td><td>filtro escalera de 4 polos con resonancia, acento y slide</td><td>propio</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Motor</th><th>Qué usa</th><th>Licencia</th></tr></thead><tbody><tr><td><strong>Batería modelada</strong></td><td>modelos de bombo, caja y hi-hat de <strong>Plaits</strong> (Mutable Instruments), en float, más palmas, cencerro, resonador, ruido y percusión FM propios</td><td>MIT</td></tr><tr><td><strong>BX-7, FM de 6 operadores</strong></td><td><strong>msfa</strong>, el motor de Dexed y la misma base del firmware de fábrica; los 32 algoritmos de la DX7</td><td>Apache-2.0</td></tr><tr><td><strong>BB-303</strong></td><td>filtro escalera de 4 polos con resonancia, acento y slide</td><td>propio</td></tr><tr><td><strong>B-MINI</strong></td><td>tres osciladores con <strong>polyBLEP</strong> (anti-aliasing), filtro escalera con drive, dos envolventes y LFO</td><td>propio y MIT (Plaits/stmlib)</td></tr><tr><td><strong>BITTAL</strong></td><td>tablas armadas desde un espectro de 256 armónicos en <strong>7 niveles, uno por octava</strong>: cada nota usa el nivel cuyo armónico más alto queda por debajo de 19 kHz, así que <strong>no hay aliasing</strong> en ninguna nota; unísono, filtro y macros</td><td>propio; los sonidos de fábrica, de presets de Vital con licencia libre</td></tr><tr><td><strong>BUNO-6</strong></td><td>un oscilador por voz con polyBLEP, pasa-altos, filtro de 24 dB y <strong>chorus estéreo</strong> de dos líneas moduladas, como el de un Juno</td><td>propio</td></tr></tbody></table></div>
 <p>El acento no solo sube el volumen: cambia el golpe, como en una caja de ritmos real.</p>
 <h3 id="4-una-salida-sin-clics-ni-escalones">4. Una salida sin clics ni escalones</h3>
 <ul><li>
@@ -80,7 +81,7 @@ La interpolación sin interpolar (DROP) pasó a <strong>LINEAL</strong>, y el sa
 <h2 id="lo-que-todavía-no-está-a-la-altura">Lo que todavía no está a la altura</h2>
 <p>Esto es una beta. Lo que hoy limita la calidad, sin adornos:</p>
 <ul><li>
-<strong>El sampler graba a 16 kHz y 8 bits.</strong> Hoy la flash deja 24 KiB para tomas (una de 1.5 s); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de <code>toma.py</code> suena limpio, pero <strong>no pasa de unos 7 kHz</strong> y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
+<strong>El sampler graba a 16 kHz y 8 bits.</strong> Las tomas comparten 100 KiB de flash con los sonidos del usuario (unos 6 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de <code>toma.py</code> suena limpio, pero <strong>no pasa de unos 7 kHz</strong> y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
 </li><li>
 <strong>El delay trabaja a 22 kHz:</strong> las repeticiones llegan hasta 11 kHz, como un delay de cinta. Es a propósito, para que quepa 1.5 s en la RAM, pero no es alta fidelidad.
 </li><li>
@@ -90,9 +91,11 @@ La interpolación sin interpolar (DROP) pasó a <strong>LINEAL</strong>, y el sa
 </li><li>
 <strong>El FM de msfa es de punto fijo</strong>, como la DX7 original. Es parte de su carácter, no un defecto, pero no es float.
 </li><li>
-<strong>No hay reverb, chorus ni compresor en el master todavía.</strong> Solo el clipper suave.
+<strong>La reverb (Dattorro) corre a la mitad de la frecuencia</strong> para que quepa en el presupuesto: sus colas llegan hasta 11 kHz. No hay compresor en el master todavía.
 </li><li>
-<strong>El audio usa un solo núcleo.</strong> El segundo rinde 1.83× medido; usarlo es lo que permitirá más voces y efectos.
+<strong>El chorus y el pasa-altos de BUNO-6 tienen valores aproximados</strong> (tiempos y profundidad del Juno-6 sacados de mediciones publicadas); falta compararlos de oído en el aparato.
+</li><li>
+<strong>El audio en los dos núcleos está a prueba</strong> (SISTEMA › DOS NÚCLEOS, apagado de fábrica): en la computadora da las mismas muestras, pero falta medirlo en el FM-1.
 </li><li>
 <strong>No medimos la salida analógica</strong> (ruido, distorsión y respuesta del codec y del amplificador del FM-1). Todo lo de arriba es la parte digital.
 </li><li>
@@ -100,9 +103,9 @@ La interpolación sin interpolar (DROP) pasó a <strong>LINEAL</strong>, y el sa
 </li></ul>
 <h2 id="lo-que-sigue">Lo que sigue</h2>
 <ol><li>
-Audio en los <strong>dos núcleos</strong>.
+<strong>Medir la 0.6 en el FM-1:</strong> la carga de cada máquina, los dos núcleos y el volumen parejo entre los sonidos del banco.
 </li><li>
-<strong>Efectos de master</strong>: reverb y chorus de Mutable Instruments, delay de cinta, compresor y nivelador.
+<strong>Efectos de master</strong>: delay de cinta, compresor y nivelador.
 </li><li>
 <strong>ACID con Open303</strong> en float.
 </li><li>
@@ -116,7 +119,7 @@ Un <strong>sampler de más calidad</strong>, dentro de lo que deja la flash.
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

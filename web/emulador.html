@@ -132,7 +132,7 @@ button.act:hover { background: #33373d; }
     </div>
     <div class="card">
       <h2 data-i18n="h.smp">Sampler y memoria</h2>
-      <p data-i18n="smp">En el FM-1 la GRABADORA graba la mezcla (REC en T2): hasta 3 s por toma y 6.4 s en total. Aquí además puedes cargar un audio como toma nueva. Úsala desde T2 &gt; TOMAS (EDIT 2 s): N1 = un kit de pads con la toma, N4 = la toma en un pad, EDIT = PADS.</p>
+      <p data-i18n="smp">En el FM-1 la GRABADORA graba la mezcla (REC en T2): una toma de hasta 1.5 s. Aquí además puedes cargar un audio como toma nueva. Úsala desde T2 &gt; TOMAS (EDIT 2 s): N1 = un kit de pads con la toma, N4 = la toma en un pad, EDIT = PADS.</p>
       <div class="acts">
         <button class="act" id="wavbtn" type="button" data-i18n="b.wava">WAV a TOMAS</button>
         <input type="file" id="wav" accept="audio/*" hidden>
@@ -143,7 +143,7 @@ button.act:hover { background: #33373d; }
       <p data-i18n="fwlang">La pantalla del FM-1 viene en inglés. El español es un paquete de idioma que se carga aparte (en el aparato, con <code>tools/fm1/idioma.py</code>); después se cambia en SISTEMA (HOME 2 s) &gt; LANGUAGE.</p>
       <div class="stat"><span data-i18n="hw.takes">Memoria de tomas libre</span><span id="tfree">-</span></div>
       <div class="meter"><div id="tmeter"></div></div>
-      <div class="stat"><span data-i18n="hw.take1">Máximo por toma</span><span>3.0 s · 48 KB</span></div>
+      <div class="stat"><span data-i18n="hw.take1">Máximo por toma</span><span>1.5 s · 24 KB</span></div>
       <p id="msg" style="color:var(--yellow)"></p>
     </div>
   </aside>
@@ -197,7 +197,7 @@ button.act:hover { background: #33373d; }
     'hw.takes': 'Free take memory',
     'hw.take1': 'Maximum per take',
     'h.smp': 'Sampler and memory',
-    smp: 'On the FM-1 the recorder (RECORD) records the mix (REC on T2): up to 3 s per take and 6.4 s in total. Here you can also load audio as a new take. Use it from T2 &gt; TAKES (EDIT 2 s): N1 = a pad kit from the take, N4 = the take on one pad, EDIT = PADS.',
+    smp: 'On the FM-1 the recorder (RECORD) records the mix (REC on T2): one take of up to 1.5 s. Here you can also load audio as a new take. Use it from T2 &gt; TAKES (EDIT 2 s): N1 = a pad kit from the take, N4 = the take on one pad, EDIT = PADS.',
     fwlang: 'The FM-1 screen is in English. Other languages are packs loaded separately (on the device, with <code>tools/fm1/idioma.py</code>); then you switch in SYSTEM (HOME 2 s) &gt; LANGUAGE.',
     'b.wava': 'WAV to TAKES',
     'b.midi': 'Enable MIDI IN',

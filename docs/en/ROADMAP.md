@@ -59,6 +59,10 @@ The goal is the best quality the FM-1 allows. What improved, what it costs and w
 - **Free kit and take packs** (CC0 or GPL), made by the community.
 - **Bluetooth MIDI**, if the hardware and processor allow it (no promise: no free firmware has shown it yet).
 
+## In design: 0.6, its own identity and machines
+
+Six fixed machines named after the originals they nod to (BR-8, BP-1, BB-303 / B-MINI, BX-7, BITTAL, BUNO-6, and the BX-1 mixer) on four sound cores, a new visual identity and Vital presets converted in the web editor. The design is decided and not yet implemented (in Spanish): [`DISENO_0.6.md`](../DISENO_0.6.md).
+
 ## Done
 
 - **0.5.0-beta:** the pad sampler and the English screen, with Spanish as a language pack.

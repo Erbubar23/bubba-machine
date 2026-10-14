@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — biblioteca de tomas del sampler (DISENO_3.0, Grabadora).
  *
- * 128 KiB de flash (32 sectores) para tomas de largo libre: hasta BM_TAKES tomas de
- * hasta 3 s (la RAM de grabación), 8.1 s en total. Cada toma ocupa sectores seguidos:
+ * 24 KiB de flash (6 sectores) para tomas de largo libre: hoy cabe una de 1.5 s (BM_SMP_REC_MAX);
+ * el resto de la zona vieja es del banco de sonidos (BM_SNAP_LO). Cada toma ocupa sectores seguidos:
  * cabecera de 128 B al inicio del primero y el audio detrás (8 bit a 16 kHz). Se
  * reproducen directo desde la flash (XIP). La cabecera se escribe al final (commit). */
 #ifndef BM_TAKES_H

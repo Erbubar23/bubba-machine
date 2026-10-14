@@ -115,14 +115,14 @@ static void boot(int erase)
     run_ms(UI_BOOT_MS + 100);
 }
 
-/* Arranque con una toma de prueba: un compás a 120 BPM hecho aquí (bombo en 1 y 3, caja en 2 y 4,
- * hats en corcheas), como si se hubiera grabado. */
+/* Arranque con una toma de prueba: un compás a 161 BPM hecho aquí (bombo en 1 y 3, caja en 2 y 4,
+ * hats en corcheas), como si se hubiera grabado. Mide como la toma de prueba: un compás a 161 BPM. */
 static void boot_loop(void)
 {
-    static int8_t d[32000];
+    static int8_t d[23851];
     memset(d, 0, sizeof d);
     for (int b = 0; b < 8; b++) {
-        int at = b * 4000;
+        int at = b * 2981;
         for (int i = 0; i < 1500; i++) {
             float e = 1.0f - i / 1500.0f, v;
             if (b % 2 == 0 && (b / 2) % 2 == 0) v = 100.0f * e * e * (float)sin(6.2831853 * 60.0 * i / 16000.0);       /* bombo */
@@ -136,7 +136,7 @@ static void boot_loop(void)
     bm_sim_platform(&sim, &pf);
     bm_take tk[BM_TAKES];
     memset(tk, 0, sizeof tk);
-    bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, sizeof d, 1200, 1);
+    bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, sizeof d, 1610, 1);
     boot(0);
 }
 
@@ -245,24 +245,22 @@ static void test_takes(void)
     for (uint32_t i = 0; i < BM_SMP_REC_MAX; i++) d[i] = (int8_t)((i * 7) & 0x7F);
     CHECK(bm_takes_scan(pf.flash, pf.flash_map, pf.user, tk) == 0);
     uint32_t full = bm_takes_free(tk);
-    CHECK(bm_takes_room(tk) == BM_SMP_REC_MAX);
-    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, BM_SMP_REC_MAX, 1600, 2) == 0);   /* 3 s */
-    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, 20000, 1200, 1) == 1);
-    CHECK(tk[0].valid && tk[1].valid && tk[1].len == 20000 && tk[1].data[123] == d[123] && tk[1].gain == 64);
-    CHECK(bm_takes_free(tk) < full);
-    tk[1].nmarks = 3; tk[1].marks[0] = 0; tk[1].marks[1] = 5000; tk[1].marks[2] = 12000; tk[1].gain = 80;
+    CHECK(bm_takes_room(tk) == BM_SMP_REC_MAX && full == BM_SMP_REC_MAX);   /* la zona es una toma */
+    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, BM_SMP_REC_MAX + 1, 1600, 1) == -1);
+    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, 20000, 1600, 1) == 0);     /* 5 sectores */
+    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, 3000, 1200, 1) == 1);      /* el último */
+    CHECK(tk[0].valid && tk[1].valid && tk[1].len == 3000 && tk[1].data[123] == d[123] && tk[1].gain == 64);
+    CHECK(bm_takes_free(tk) == 0 && bm_takes_room(tk) == 0);
+    tk[1].nmarks = 3; tk[1].marks[0] = 0; tk[1].marks[1] = 1000; tk[1].marks[2] = 2000; tk[1].gain = 80;
     static uint8_t scratch[BM_SECTOR];
     CHECK(bm_takes_update(pf.flash, &tk[1], scratch) == 0);
     static bm_take tk2[BM_TAKES];
     CHECK(bm_takes_scan(pf.flash, pf.flash_map, pf.user, tk2) == 2);
-    CHECK(tk2[1].nmarks == 3 && tk2[1].marks[2] == 12000 && tk2[1].gain == 80 && tk2[1].bpm_x10 == 1200 && tk2[1].data[999] == d[999]);
-    int n = 2;
-    while (bm_takes_write(pf.flash, pf.flash_map, pf.user, tk2, d, 16000, 1200, 1) >= 0) n++;
-    CHECK(n >= 3 && bm_takes_room(tk2) < 16000);                 /* 6.4 s: 16 KiB son del idioma */
-    printf("  %d tomas (3 s + 1.25 s + 1 s...) llenan la biblioteca de %u.%u s\n", n,
-           (unsigned)(full / BM_SMP_RATE), (unsigned)(full * 10u / BM_SMP_RATE % 10u));
+    CHECK(tk2[1].nmarks == 3 && tk2[1].marks[2] == 2000 && tk2[1].gain == 80 && tk2[1].bpm_x10 == 1200 && tk2[1].data[999] == d[999]);
+    CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk2, d, 16000, 1200, 1) < 0);    /* llena */
+    printf("  la zona guarda %u.%02u s (una toma)\n", (unsigned)(full / BM_SMP_RATE), (unsigned)(full * 100u / BM_SMP_RATE % 100u));
     CHECK(bm_takes_erase(pf.flash, &tk2[0]) == 0);
-    CHECK(bm_takes_room(tk2) == BM_SMP_REC_MAX);                       /* el hueco de 3 s vuelve */
+    CHECK(bm_takes_room(tk2) == 5u * BM_SECTOR - BM_TAKE_HDR);                 /* el hueco vuelve */
     sim.flash[BM_TAKE_LO + tk2[1].sector * BM_SECTOR + BM_TAKE_HDR + 500] ^= 0x55;   /* byte dañado */
     static bm_take tk3[BM_TAKES];
     bm_takes_scan(pf.flash, pf.flash_map, pf.user, tk3);
@@ -700,12 +698,12 @@ static void test_pads(void)
     printf("sampler de pads: kit desde una toma, rejilla, modos de tecla, TRIM, BREAK y captura\n");
     boot_loop();
     const bm_take *tk = &app.take[0];
-    CHECK(tk->valid && tk->len == 32000);
+    CHECK(tk->valid && tk->len == 23851);
     /* la demo arma el kit desde la toma (en los golpes) y la rejilla la toca en orden */
     int n = 0;
     for (int i = 0; i < BM_LANES; i++) n += bm_pad_ok(&app.pat.pad[i]);
     CHECK(n >= 6 && n <= 8 && app.pat.pad[0].src == 0 && app.pat.pad[0].start == 0);
-    CHECK(app.pat.pad[1].start > 3500 && app.pat.pad[1].start < 4500);      /* el 2.o golpe del loop, a los 4000 */
+    CHECK(app.pat.pad[1].start > 2500 && app.pat.pad[1].start < 3500);      /* el 2.o golpe del loop, a los 2981 */
     CHECK((app.pat.tr[1].st[0][0] & ST_ON) && (app.pat.tr[1].st[1][2] & ST_ON) && app.pat.tr[1].lane[0].len == 16);
     CHECK(app.pat.tr[1].lane[0].choke == 1 && (app.pat.pad[0].flags & PAD_TEMPO));
     ch(1);
@@ -814,7 +812,7 @@ static void test_pads(void)
     CHECK(app.cut_v1 - app.cut_v0 == tk->len / 2);
     /* HIT (N4): el inicio vuelve al golpe */
     black(3, 40);
-    CHECK(app.pat.pad[1].start > 3800 && app.pat.pad[1].start < 4300);
+    CHECK(app.pat.pad[1].start > 2600 && app.pat.pad[1].start < 3300);   /* el golpe, a los 2981 (con su ventana antes) */
     run_ms(UI_TOAST_MS + 100);
     shot("37-pads");
     enc(ENC_K3, -3);

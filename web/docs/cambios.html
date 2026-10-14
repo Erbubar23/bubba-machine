@@ -45,6 +45,11 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
+<h2 id="sin-publicar">[Sin publicar]</h2>
+<h3 id="cambiado">Cambiado</h3>
+<ul><li>
+<strong>La memoria de tomas guarda una sola toma, de hasta 1.5 s</strong> (24 KiB; antes 100 KiB y 6.4 s): el tamaño del loop de prueba. Los 76 KiB que quedan se reservan para el banco de sonidos de la 0.6 (<a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_0.6.md">diseño</a>). La grabadora y <code>tools/fm1/toma.py</code> aceptan hasta 1.53 s; las tomas guardadas fuera de los primeros 24 KiB se pierden.
+</li></ul>
 <h2 id="050-beta---2026-10-12">[0.5.0-beta] - 2026-10-12</h2>
 <p><strong>Beta, todavía no probada en el aparato:</strong> pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador.</p>
 <p><strong>La pantalla pasa al inglés</strong>, para que Bubba Machine se entienda en todo el mundo. El español sigue disponible como paquete de idioma, que no viene cargado. <strong>La memoria de tomas baja de 7.4 s a 6.4 s</strong>: 16 KiB de la flash son ahora del paquete de idioma, y una toma que usaba ese lugar se pierde. <strong>El sampler pasa a ser de pads</strong> y el formato de los patrones cambia: los patrones guardados se borran al primer arranque (las tomas se quedan).</p>

@@ -33,7 +33,8 @@ Si en el FM-1 falta RAM, lo primero que se achica es la arena (`BM_ARENA_LEN` en
 | Programa (app.bin) | hasta 568 KiB | Firmware sobre el SDK de JieLi; el de diagnóstico mide 121 KiB. Lo escribe el cargador oficial dentro de `0x000000-0x092FFF` junto con el arranque del chip |
 | Patrones | 160 KiB | `0x97000`: 20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling |
 | Registro de arranques | 4 KiB | `0xBF000`: cuenta los arranques fallidos (modo seguro y modo del chip) |
-| Tomas | 100 KiB | `0xC0000`: biblioteca de largo libre: hasta 8 tomas de hasta 3 s, 6.4 s en total, en sectores seguidos con la cabecera al inicio. Se reproducen directo desde la flash |
+| Tomas | 24 KiB | `0xC0000`: por ahora una toma de hasta 1.53 s (sectores seguidos con la cabecera al inicio). Se reproduce directo desde la flash |
+| Banco de sonidos | 76 KiB | `0xC6000`: reservado para los snapshots de la 0.6 ([DISENO_0.6](DISENO_0.6.md)); sin usar todavía |
 | Idioma | 16 KiB | `0xD9000`: el paquete de idioma de la pantalla (`core/bm_lang.h`), si se cargó uno. Se lee directo de la flash |
 | Globales | 12 KiB | `0xDD000`: 3 sectores en rotación |
 | Cargador en espera | 20 KiB | `0xE0000`: el cargador de actualización mientras se instala una versión nueva |

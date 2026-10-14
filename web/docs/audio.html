@@ -47,7 +47,7 @@
 <p>Bubba Machine tiene un objetivo: <strong>la mejor calidad de audio que permite el FM-1</strong>. Esta página cuenta qué se cambió para llegar ahí en la 0.4.0-beta, cuánto cuesta cada cosa en el aparato y, con la misma franqueza, <strong>lo que todavía no está a la altura</strong>.</p>
 <p>Todas las cifras de CPU se midieron en el FM-1 del autor con la consola del firmware (<code>tools/fm1/traza.py</code>). Los detalles de cada medición están en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> y <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a>.</p>
 <h2 id="el-aparato">El aparato</h2>
-<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Procesador</td><td>JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple</td></tr><tr><td>Salida</td><td>codec externo por I2S, <strong>estéreo de 24 bits a 44 117.6 Hz</strong> (24 MHz / 544, fijo por hardware)</td></tr><tr><td>Memoria para sonidos grabados</td><td>100 KiB de flash para las tomas del sampler</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Procesador</td><td>JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple</td></tr><tr><td>Salida</td><td>codec externo por I2S, <strong>estéreo de 24 bits a 44 117.6 Hz</strong> (24 MHz / 544, fijo por hardware)</td></tr><tr><td>Memoria para sonidos grabados</td><td>24 KiB de flash: una toma de hasta 1.5 s (desde la 0.6, el resto es del banco de sonidos)</td></tr></tbody></table></div>
 <h2 id="lo-que-mejoró">Lo que mejoró</h2>
 <h3 id="1-todo-a-441-khz">1. Todo a 44.1 kHz</h3>
 <p>En la 0.3 los motores calculaban a 22 kHz y cada muestra se repetía dos veces para llegar a la salida. Eso corta todo arriba de 11 kHz y deja imágenes (agudos falsos) por encima.</p>
@@ -80,7 +80,7 @@ La interpolación sin interpolar (DROP) pasó a <strong>LINEAL</strong>, y el sa
 <h2 id="lo-que-todavía-no-está-a-la-altura">Lo que todavía no está a la altura</h2>
 <p>Esto es una beta. Lo que hoy limita la calidad, sin adornos:</p>
 <ul><li>
-<strong>El sampler graba a 16 kHz y 8 bits.</strong> La flash del FM-1 deja 100 KiB para tomas (6.4 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de <code>toma.py</code> suena limpio, pero <strong>no pasa de unos 7 kHz</strong> y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
+<strong>El sampler graba a 16 kHz y 8 bits.</strong> Hoy la flash deja 24 KiB para tomas (una de 1.5 s); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de <code>toma.py</code> suena limpio, pero <strong>no pasa de unos 7 kHz</strong> y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
 </li><li>
 <strong>El delay trabaja a 22 kHz:</strong> las repeticiones llegan hasta 11 kHz, como un delay de cinta. Es a propósito, para que quepa 1.5 s en la RAM, pero no es alta fidelidad.
 </li><li>

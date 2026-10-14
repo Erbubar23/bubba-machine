@@ -45,6 +45,11 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="unreleased">[Unreleased]</h2>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>Take memory holds a single take, up to 1.5 s</strong> (24 KiB; it was 100 KiB and 6.4 s): the length of the test loop. The remaining 76 KiB are reserved for the 0.6 sound bank (design in Spanish: <code>docs/DISENO_0.6.md</code>). The recorder and <code>tools/fm1/toma.py</code> accept up to 1.53 s; takes saved beyond the first 24 KiB are lost.
+</li></ul>
 <h2 id="050-beta---2026-10-12">[0.5.0-beta] - 2026-10-12</h2>
 <p><strong>Beta, not yet tried on the device:</strong> it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.</p>
 <p><strong>The screen switches to English</strong>, so Bubba Machine can be understood worldwide. Spanish is still available as a language pack, not loaded by default. <strong>Take memory goes down from 7.4 s to 6.4 s</strong>: 16 KiB of flash now belong to the language pack, and a take that used that space is lost. <strong>The sampler becomes a pad sampler</strong> and the pattern format changes: saved patterns are erased at the first boot (takes stay).</p>

@@ -51,7 +51,7 @@
 #define BM_FXBUF_LEN     32768u   /* int16 a BM_FS ≈ 0.74 s (stutter/reverse/tape) */
 #define BM_ARENA_LEN     (BM_DELAY_LEN * 2u + BM_FXBUF_LEN * 2u)
 #define BM_SMP_RATE      16000u   /* sampler a 16 kHz, 8 bit */
-#define BM_SMP_REC_MAX   49152u   /* ≈ 3.07 s grabando (cabe en la biblioteca de tomas) */
+#define BM_SMP_REC_MAX   24448u   /* ≈ 1.53 s: lo que cabe en la zona de tomas (6 sectores menos la cabecera) */
 #define BM_SLICES        16       /* cortes de un loop del sampler (uno por blanca) */
 #define BM_PENDING_LEN   8192u    /* caché de un patrón sucio en formato disperso */
 #define BM_CMDQ_LEN      128
@@ -85,8 +85,10 @@
  * tomas, idioma (0xD9000), globales, cargador en espera (0xE0000) y ajustes del SDK (0xE5000-0xECFFF). */
 #define BM_STORE_LO      0x097000u
 #define BM_STORE_HI      0x0BF000u  /* log de patrones: 20 slots de 8 KiB */
-#define BM_TAKE_LO       0x0C0000u  /* biblioteca de tomas: 100 KiB ≈ 6.4 s a 16 kHz */
-#define BM_TAKE_HI       0x0D9000u
+#define BM_TAKE_LO       0x0C0000u  /* tomas: 24 KiB, una toma de 1.5 s (un compás a 160 BPM) */
+#define BM_TAKE_HI       0x0C6000u
+#define BM_SNAP_LO       0x0C6000u  /* reservado: banco de sonidos (docs/DISENO_0.6.md), 76 KiB sin usar todavía */
+#define BM_SNAP_HI       0x0D9000u
 #define BM_LANG_LO       0x0D9000u  /* paquete de idioma (bm_lang.h): 16 KiB */
 #define BM_LANG_HI       0x0DD000u
 #define BM_TAKE_HDR      128u       /* cabecera al inicio del primer sector de cada toma */

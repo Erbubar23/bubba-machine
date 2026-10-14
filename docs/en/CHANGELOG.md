@@ -2,6 +2,11 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [Unreleased]
+
+### Changed
+- **Take memory holds a single take, up to 1.5 s** (24 KiB; it was 100 KiB and 6.4 s): the length of the test loop. The remaining 76 KiB are reserved for the 0.6 sound bank (design in Spanish: `docs/DISENO_0.6.md`). The recorder and `tools/fm1/toma.py` accept up to 1.53 s; takes saved beyond the first 24 KiB are lost.
+
 ## [0.5.0-beta] - 2026-10-12
 
 **Beta, not yet tried on the device:** it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.

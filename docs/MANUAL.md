@@ -223,7 +223,7 @@ Grabar, guardar y armar el kit son pasos separados.
    - La toma queda **SIN GUARDAR**: las blancas la escuchan en 16 partes. **Se guarda al parar** el transporte, porque escribir la flash detiene el audio, y si el kit estaba vacío, lo arma. HOME = descartar.
 2. **TOMAS** (EDIT 2 s en T2, o la pestaña): la biblioteca, con la onda de la toma marcada. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas la escuchan en 16 partes (sostenida: sigue). **N1** = kit en los golpes, **N2** = 16 partes iguales, **N3** = 8, **N4** = la toma entera en el pad elegido, **N11** = borrar (pregunta; sus pads quedan vacíos). Si el kit ya tiene pads, armar uno nuevo pregunta. Un punto amarillo = el kit usa esa toma.
 
-**Cuánto cabe:** cada toma, hasta 3 s (la RAM de grabación, 48 KB); todas juntas, unos 6.4 s (100 KiB de flash, 8 bits a 16 kHz = 16 KB por segundo). El emulador muestra la memoria libre junto al botón para cargar audio.
+**Cuánto cabe:** por ahora, una toma de hasta 1.5 s (24 KiB de flash, 8 bits a 16 kHz = 16 KB por segundo). El emulador muestra la memoria libre junto al botón para cargar audio.
 
 ## Canales de notas (T3, ANALOG, FM, ACID, MIDI)
 

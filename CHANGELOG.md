@@ -2,6 +2,11 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [Sin publicar]
+
+### Cambiado
+- **La memoria de tomas guarda una sola toma, de hasta 1.5 s** (24 KiB; antes 100 KiB y 6.4 s): el tamaño del loop de prueba. Los 76 KiB que quedan se reservan para el banco de sonidos de la 0.6 ([diseño](docs/DISENO_0.6.md)). La grabadora y `tools/fm1/toma.py` aceptan hasta 1.53 s; las tomas guardadas fuera de los primeros 24 KiB se pierden.
+
 ## [0.5.0-beta] - 2026-10-12
 
 **Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador.

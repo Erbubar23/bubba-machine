@@ -59,6 +59,10 @@ La 0.5 ordena el FM-1 en dos lugares: **tocar en vivo** (HOME y sus vueltas) y *
 - **Packs de kits y tomas libres** (CC0 o GPL), hechos por la comunidad.
 - **Bluetooth MIDI**, si el hardware y el procesador lo permiten (sin promesa: ningún firmware libre lo ha demostrado).
 
+## En diseño: 0.6, identidad propia y máquinas
+
+Seis máquinas fijas con nombres que remiten a las originales (BR-8, BP-1, BB-303 / B-MINI, BX-7, BITTAL, BUNO-6, y el mezclador BX-1) sobre cuatro núcleos, una cara visual nueva y presets de Vital convertidos en el editor web. El diseño está decidido y falta implementarlo: [`DISENO_0.6.md`](DISENO_0.6.md).
+
 ## Hecho
 
 - **0.5.0-beta:** el sampler de pads y la pantalla en inglés, con el español como paquete de idioma.

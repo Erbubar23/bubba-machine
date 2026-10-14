@@ -212,7 +212,7 @@ Recording, keeping and building the kit are separate steps.
    - The take stays **UNSAVED**: the white keys play it in 16 parts. **It is saved when you stop** the transport, because writing flash stops the audio, and if the kit was empty, it builds it. HOME = discard.
 2. **TAKES** (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). **N1** = kit on the hits, **N2** = 16 equal parts, **N3** = 8, **N4** = the whole take on the selected pad, **N11** = delete (asks; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
 
-**How much fits:** each take, up to 3 s (the recording RAM, 48 KB); all together, about 6.4 s (100 KiB of flash, 8 bits at 16 kHz = 16 KB per second). The emulator shows the free memory next to the button for loading audio.
+**How much fits:** for now, one take of up to 1.5 s (24 KiB of flash, 8 bits at 16 kHz = 16 KB per second). The emulator shows the free memory next to the button for loading audio.
 
 ## Note tracks (T3, ANALOG, FM, ACID, MIDI)
 

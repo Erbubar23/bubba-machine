@@ -10,7 +10,7 @@ Todas las cifras de CPU se midieron en el FM-1 del autor con la consola del firm
 |---|---|
 | Procesador | JieLi AC791N, dos núcleos a 360 MHz con FPU de precisión simple |
 | Salida | codec externo por I2S, **estéreo de 24 bits a 44 117.6 Hz** (24 MHz / 544, fijo por hardware) |
-| Memoria para sonidos grabados | 100 KiB de flash para las tomas del sampler |
+| Memoria para sonidos grabados | 100 KiB de flash compartidos entre las tomas (hasta 3 s cada una) y los sonidos del usuario |
 
 ## Lo que mejoró
 
@@ -39,9 +39,11 @@ La 0.3 tenía kits de batería grabados a 22 kHz en μ-law de 8 bits (nada arrib
 | Motor | Qué usa | Licencia |
 |---|---|---|
 | **Batería modelada** | modelos de bombo, caja y hi-hat de **Plaits** (Mutable Instruments), en float, más palmas, cencerro, resonador, ruido y percusión FM propios | MIT |
-| **ANALOG** | osciladores con **polyBLEP** (anti-aliasing), filtro LP 24/12, BP o HP con resonancia y drive, ADSR, LFO, sync y ring | propio y MIT (Plaits/stmlib) |
-| **FM de 6 operadores** | **msfa**, el motor de Dexed y la misma base del firmware de fábrica; los 32 algoritmos de la DX7 | Apache-2.0 |
-| **ACID** | filtro escalera de 4 polos con resonancia, acento y slide | propio |
+| **BX-7, FM de 6 operadores** | **msfa**, el motor de Dexed y la misma base del firmware de fábrica; los 32 algoritmos de la DX7 | Apache-2.0 |
+| **BB-303** | filtro escalera de 4 polos con resonancia, acento y slide | propio |
+| **B-MINI** | tres osciladores con **polyBLEP** (anti-aliasing), filtro escalera con drive, dos envolventes y LFO | propio y MIT (Plaits/stmlib) |
+| **BITTAL** | tablas armadas desde un espectro de 256 armónicos en **7 niveles, uno por octava**: cada nota usa el nivel cuyo armónico más alto queda por debajo de 19 kHz, así que **no hay aliasing** en ninguna nota; unísono, filtro y macros | propio; los sonidos de fábrica, de presets de Vital con licencia libre |
+| **BUNO-6** | un oscilador por voz con polyBLEP, pasa-altos, filtro de 24 dB y **chorus estéreo** de dos líneas moduladas, como el de un Juno | propio |
 
 El acento no solo sube el volumen: cambia el golpe, como en una caja de ritmos real.
 
@@ -74,20 +76,21 @@ El programa quedó 148 KiB más chico y se liberaron 64 KiB de RAM al sacar los 
 
 Esto es una beta. Lo que hoy limita la calidad, sin adornos:
 
-- **El sampler graba a 16 kHz y 8 bits.** La flash del FM-1 deja 100 KiB para tomas (6.4 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de `toma.py` suena limpio, pero **no pasa de unos 7 kHz** y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
+- **El sampler graba a 16 kHz y 8 bits.** Las tomas comparten 100 KiB de flash con los sonidos del usuario (unos 6 s en total); a 16 bits serían la mitad. Con el filtro antes de grabar y el dither de `toma.py` suena limpio, pero **no pasa de unos 7 kHz** y tiene el ruido de 8 bits. Es el punto más débil y el próximo a resolver.
 - **El delay trabaja a 22 kHz:** las repeticiones llegan hasta 11 kHz, como un delay de cinta. Es a propósito, para que quepa 1.5 s en la RAM, pero no es alta fidelidad.
 - **El clipper no tiene sobremuestreo:** con el DRIVE muy alto puede generar algo de aliasing.
 - **ACID es un motor propio, no Open303.** El plan es pasar a Open303 (MIT) en float.
 - **El FM de msfa es de punto fijo**, como la DX7 original. Es parte de su carácter, no un defecto, pero no es float.
-- **No hay reverb, chorus ni compresor en el master todavía.** Solo el clipper suave.
-- **El audio usa un solo núcleo.** El segundo rinde 1.83× medido; usarlo es lo que permitirá más voces y efectos.
+- **La reverb (Dattorro) corre a la mitad de la frecuencia** para que quepa en el presupuesto: sus colas llegan hasta 11 kHz. No hay compresor en el master todavía.
+- **El chorus y el pasa-altos de BUNO-6 tienen valores aproximados** (tiempos y profundidad del Juno-6 sacados de mediciones publicadas); falta compararlos de oído en el aparato.
+- **El audio en los dos núcleos está a prueba** (SISTEMA › DOS NÚCLEOS, apagado de fábrica): en la computadora da las mismas muestras, pero falta medirlo en el FM-1.
 - **No medimos la salida analógica** (ruido, distorsión y respuesta del codec y del amplificador del FM-1). Todo lo de arriba es la parte digital.
 - **Probado en un solo FM-1.**
 
 ## Lo que sigue
 
-1. Audio en los **dos núcleos**.
-2. **Efectos de master**: reverb y chorus de Mutable Instruments, delay de cinta, compresor y nivelador.
+1. **Medir la 0.6 en el FM-1:** la carga de cada máquina, los dos núcleos y el volumen parejo entre los sonidos del banco.
+2. **Efectos de master**: delay de cinta, compresor y nivelador.
 3. **ACID con Open303** en float.
 4. Un **sampler de más calidad**, dentro de lo que deja la flash.
 5. **Medir la salida analógica** con una interfaz de audio.

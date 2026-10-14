@@ -32,6 +32,7 @@
     <a href="changelog.html" aria-current="page">Changelog</a>
     <div class="grp">Project</div>
     <a href="design-3.html">Design 3.0</a>
+    <a href="../../docs/diseno-0-6.html">Design 0.6 (ES)</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="contributing.html">Contributing</a>
     <a href="conduct.html">Code of conduct</a>
@@ -45,6 +46,55 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="060-beta---2026-10-14">[0.6.0-beta] - 2026-10-14</h2>
+<p><strong>Beta, not yet tested on the device:</strong> it passes the automated tests and the emulator. If something fails on the FM-1, go back to 0.5.0-beta or to the factory firmware from the installer.</p>
+<p><strong>Six fixed machines instead of engines to pick</strong>, a new face and a sound bank. The pattern format changes (format 7): saved patterns are erased on first boot (takes are kept).</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Six machines, one per track</strong>, named after the ones that inspired them: <strong>BR-8</strong> (T1, modeled drums), <strong>BP-1</strong> (T2, pad sampler), <strong>BB-303</strong> or <strong>B-MINI</strong> (T3, switched with ALGORITHM, notes stay), <strong>BX-7</strong> (T4, FM), <strong>BITTAL</strong> (T5, wavetable) and <strong>BUNO-6</strong> (T6, polysynth). On HOME, the <strong>BX-1</strong> mixer.
+</li><li>
+<strong>B-MINI:</strong> three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, CONTOUR and LOUDNESS, LFO and glide.
+</li><li>
+<strong>BITTAL:</strong> two wavetable oscillators (up to 8 frames, built from a 256-harmonic spectrum, alias-free on every note), up to 4-voice unison, LP 24/12, BP, HP or ladder filter, two ADSRs, LFO and 4 macros with targets. The oscillator pages draw the table in 2.5D. ALGORITHM picks oscillator 1's table from the bank.
+</li><li>
+<strong>BUNO-6:</strong> 6 voices with one oscillator each (saw, pulse with PWM, sub and noise), 4-position high-pass, 24 dB filter, one ADSR, delayed LFO and <strong>stereo chorus</strong> I, II or I+II (ALGORITHM).
+</li><li>
+<strong>Sound bank</strong> (.bsnap) for B-MINI, BITTAL and BUNO-6: 37 factory sounds. BITTAL's and B-MINI's come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0), renamed and credited in <a href="credits.html">CREDITS.md</a>; BUNO-6's 12 are original, made in Vital. <code>tools/gen_snaps.mjs</code> builds them with the source commits pinned.
+</li><li>
+<strong>Your own sounds:</strong> the web editor (<code>sonidos.html</code>) turns a Vital preset into a Bubba Machine sound and sends it to the FM-1 over WebMIDI; it also loads <strong>DX7 .syx banks</strong> (32 voices) into BX-7. On the computer: <code>tools/vital2bsnap.mjs</code> and <code>tools/fm1/sonido.py</code>. In the emulator, the <em>Sound</em> button.
+</li><li>
+<strong>BX-7:</strong> the algorithm drawn as on a DX7 (carriers, modulators, feedback and each operator's level) and PRESETS with the voices of your banks.
+</li><li>
+<strong>Reverb</strong> (Dattorro) with a per-track send in MIX and its page in HOME + FX; <strong>master filter</strong> (low-pass to the left, high-pass to the right) and <strong>BEAT FX</strong> (a punch-in that stays on) on HOME.
+</li><li>
+<strong>Expressive REC</strong> on note tracks: each note keeps its real micro-timing and gate, is cut at the bar if still held, and whatever you turn on K1-K4 while holding it stays as a P-Lock. With REC, SELECT picks a step, ALGORITHM its gate (up to TIE) and PRESETS its micro-timing.
+</li><li>
+<strong>Long note with two white keys:</strong> hold the step where it starts and tap the white key where it ends.
+</li><li>
+<strong>BP-1 sustain loop</strong> (the pad's LOOP page): held, it repeats a section; let go and it plays on to the end.
+</li><li>
+<strong>Per-track MIDI OUT</strong> (MORE): the track plays and also sends its notes over MIDI. Replaces the MIDI engine.
+</li><li>
+<strong>Audio load</strong> (CPU) in the header.
+</li><li>
+<strong>Two tests in SYSTEM</strong>, off by default: <strong>FAST SCREEN</strong> (SPI at 30 MHz: a frame drops from 85 to 39 ms) and <strong>TWO CORES</strong> (T4-T6 on the second core; on the computer it gives the same samples). If the FM-1 hangs or boots into safe mode, both switch themselves off.
+</li><li>
+<strong>Plug and play web installer:</strong> the page downloads the ready-made Bubba Machine package (no M-VAVE V15 needed), installs it and, if the page is in Spanish, loads the language pack at the end. The V15 is only needed to go back to the factory firmware.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>The new face:</strong> header, viewport, keyboard and dials always in the same place, with a neon palette (cyan active, amber values, red REC and mutes, mint long notes). On SEQ the white keys are the steps; the K1-K4 dials show value and name.
+</li><li>
+<strong>The knobs:</strong> on HOME, SELECT is the mixer cursor, ALGORITHM the BPM and K1-K4 volume, FX send, filter and BEAT FX. Inside a track, ALGORITHM is the machine's mode (instrument, pad, algorithm, table, chorus). HOME + SELECT changes track. The 400 ms box and AUTO ENTER are gone.
+</li><li>
+<strong>Takes share 100 KiB of flash with the bank sounds</strong> (takes from the bottom, sounds from the top). Up to 3 s per take.
+</li><li>
+Gone: <strong>ANALOG</strong>, free tracks, <strong>KIT</strong> on T4-T6 and the <strong>MIDI</strong> engine: each track is its machine.
+</li><li>
+22 voices in total, with a per-track cap.
+</li><li>
+Deterministic audio: it sounds the same on every boot.
+</li></ul>
 <h2 id="050-beta---2026-10-12">[0.5.0-beta] - 2026-10-12</h2>
 <p><strong>Beta, not yet tried on the device:</strong> it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.</p>
 <p><strong>The screen switches to English</strong>, so Bubba Machine can be understood worldwide. Spanish is still available as a language pack, not loaded by default. <strong>Take memory goes down from 7.4 s to 6.4 s</strong>: 16 KiB of flash now belong to the language pack, and a take that used that space is lost. <strong>The sampler becomes a pad sampler</strong> and the pattern format changes: saved patterns are erased at the first boot (takes stay).</p>
@@ -244,7 +294,7 @@ FM-1 port skeleton (structure, pins and matrix scanning).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

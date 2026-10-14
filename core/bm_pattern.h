@@ -2,26 +2,27 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — modelo de patrón (DISENO_3.0).
  *
- * Un patrón tiene 6 canales: 3 fijos y 3 libres.
- *   T1 batería: estilo TR, 16 instrumentos con su línea de 64 pasos (un byte por paso)
+ * Un patrón tiene 6 canales y cada uno es una máquina fija (docs/DISENO_0.6.md):
+ *   T1 BR-8:    batería estilo TR, 16 instrumentos con su línea de 64 pasos (un byte por paso)
  *               y P-Locks en una lista dispersa.
- *   T2 sampler: 16 pads (trozos de las tomas, como un KO II o un OP-1 field) en una rejilla TR
+ *   T2 BP-1:    16 pads (trozos de las tomas, como un KO II o un OP-1 field) en una rejilla TR
  *               como la de T1: una línea por pad. La página BREAK varía lo que suena.
- *   T3 bajo:    pasos con hasta 4 notas de 8 bytes + loopera.
- *   T4-T6:      libres. SYNTH, MONO, MIDI (notas, como T3) o KIT (rejilla TR, como T1).
+ *   T3 BB-303 o B-MINI, T4 BX-7, T5 BITTAL, T6 BUNO-6: pasos con hasta 4 notas de 8 bytes + loopera.
  * Cada canal tiene su largo y su velocidad; cada instrumento TR, su largo. */
 #ifndef BM_PATTERN_H
 #define BM_PATTERN_H
 
 #include "bm_types.h"
 
-/* ------------------------------------------------------------ notas: StepEvent de 8 bytes */
+/* ------------------------------------------------------------ notas: StepEvent de 10 bytes */
 typedef struct {
     uint8_t note;      /* 0..127; 0xFF = vacío */
     uint8_t vel;       /* 1..127: BM_VEL_GHOST, BM_VEL_NORMAL o BM_VEL_ACC */
     uint8_t len;       /* bits 0-6 largo en pasos (1..127); bit 7 = TIE/GLIDE */
     uint8_t prob;      /* 0..100 %, o BM_PROB_FILL / BM_PROB_NOFILL */
     uint8_t lk[4];     /* P-Locks de las 4 macros; 0xFF = valor del canal */
+    uint8_t gate;      /* REC expresivo: 0 = el último paso entero; 10..99 = % del último paso que suena */
+    int8_t micro;      /* REC expresivo: ticks antes (-) o después (+) del paso; -11..11 a 96 PPQN */
 } bm_event;
 
 #define BM_EV_EMPTY    0xFFu
@@ -68,7 +69,7 @@ typedef struct {
     uint8_t flags;
     uint8_t attack, release;   /* 0..127 */
     uint16_t start, len;       /* muestras dentro de la toma */
-    uint8_t rsv[2];
+    uint8_t loop_s, loop_e;    /* LOOP: el tramo que se repite al sostener, en 1/255 del pad (loop_e 0 = el pad entero) */
 } bm_pad;                      /* 12 bytes */
 
 /* ------------------------------------------------------------ loopera de los canales de notas */
@@ -80,11 +81,10 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-/* 0.4: ANALOG reemplaza a BAJO, SYNTH, MONO y el ANALOG viejo; CUERDA y MODAL aún no se eligen. */
-enum { ENG_DRUM, ENG_BREAK, ENG_ANALOG, ENG_FM, ENG_ACID, ENG_CUERDA, ENG_MODAL, ENG_KIT, ENG_MIDI, ENG_COUNT };
+/* 0.6: cada canal es una máquina. T3 cambia entre BB-303 (ACID) y B-MINI con ALGORITHM. */
+enum { ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_MINI, ENG_FM, ENG_BITTAL, ENG_BUNO, ENG_COUNT };
 enum { KIND_TR, KIND_NOTE };
-extern const char *const bm_engine_names[ENG_COUNT];
-#define BM_FREE0   3           /* T4: primer canal libre */
+extern const char *const bm_engine_names[ENG_COUNT];     /* nombres de las máquinas: BR-8, BP-1, BB-303... */
 
 /* ------------------------------------------------------------ parámetros de canal: 48 bytes */
 enum { MAC_1, MAC_2, MAC_3, MAC_4 };
@@ -106,14 +106,16 @@ typedef struct {
     uint8_t arp_mode, arp_rate, arp_oct, arp_gate;
     uint8_t speed;         /* SPD_* */
     uint8_t length;        /* notas: 1..64 pasos (TR: largo por instrumento) */
-    uint8_t engine;        /* ENG_*: fijo en T1-T3, elegible en T4-T6 */
+    uint8_t engine;        /* ENG_*: fijo; T3 elige BB-303 o B-MINI */
     uint8_t accent;        /* cuánto más fuerte suena un acento (0 = igual) */
     uint8_t midi_ch;       /* MIDI: canal 0..15 */
     uint8_t scl_root, scl; /* escala propia del canal; scl 0xFF = la del proyecto */
     uint8_t gen[4];        /* sampler, BREAK: VARY ANCHOR REPEAT BREAK (0..127; todo en 0 = la rejilla tal cual) */
     uint8_t rt[4];         /* sampler, BREAK: peso de los retrig 2X 3X 4X 8X */
     uint8_t loop_b, chance_b, pitch;   /* sin uso desde los pads */
-    uint8_t rsv[9];
+    uint8_t rsend;         /* envío a la reverb (el delay es send) */
+    uint8_t midi_out;      /* 1 = además manda sus notas por MIDI (canal midi_ch) */
+    uint8_t rsv[7];
 } bm_track;
 
 /* ------------------------------------------------------------ metadatos: 64 bytes */
@@ -129,10 +131,13 @@ typedef struct {
     uint8_t chord_set, chord_voicing, chord_oct, strum;
     uint8_t fmt;           /* BM_FMT */
     uint8_t transpose;     /* tono de todo el proyecto, 24 = 0 (capa TONO de GLO) */
-    uint8_t rsv[45];
+    uint8_t rv_size, rv_damp, rv_mix;  /* reverb del master */
+    uint8_t mfilt;         /* filtro del master: 64 = abierto, menos = pasa-bajos, más = pasa-altos */
+    uint8_t beatfx;        /* BEAT FX de HOME (K4): 0 = apagado, 1..16 un efecto de PUNCH sostenido */
+    uint8_t rsv[40];
 } bm_meta;
 
-/* T3-T6: notas, o con el motor KIT, una rejilla TR. */
+/* T3-T6: notas (la unión con la rejilla deja copiar canales enteros con el mismo buffer). */
 typedef union { bm_event ev[BM_STEPS][BM_EVENTS]; bm_tr tr; } bm_notes;
 
 typedef struct {
@@ -157,13 +162,12 @@ typedef struct {
 /* ------------------------------------------------------------ acceso según el tipo de canal */
 static inline int bm_kind(const bm_pattern *p, int t)
 {
-    if (t <= 1 || p->trk[t].engine == ENG_KIT) return KIND_TR;
-    return KIND_NOTE;
+    (void)p;
+    return t <= 1 ? KIND_TR : KIND_NOTE;
 }
 static inline bool bm_is_pads(int t) { return t == 1; }                                         /* T2: rejilla de pads */
 static inline bool bm_is_tr(const bm_pattern *p, int t) { return bm_kind(p, t) == KIND_TR && !bm_is_pads(t); }   /* batería */
 static inline bool bm_is_grid(const bm_pattern *p, int t) { return bm_kind(p, t) == KIND_TR; }   /* batería o pads */
-static inline bool bm_is_free(int t) { return t >= BM_FREE0; }
 static inline bm_tr *bm_trk_tr(bm_pattern *p, int t) { return t < BM_TR_TRACKS ? &p->tr[t] : &p->nt[t - BM_TR_TRACKS].tr; }
 static inline const bm_tr *bm_trk_trc(const bm_pattern *p, int t) { return t < BM_TR_TRACKS ? &p->tr[t] : &p->nt[t - BM_TR_TRACKS].tr; }
 static inline bm_event *bm_ev(bm_pattern *p, int t, int s, int k) { return &p->nt[t - BM_TR_TRACKS].ev[s][k]; }
@@ -177,8 +181,9 @@ void bm_track_defaults(bm_track *t, int track);
 void bm_tr_defaults(bm_tr *tr);
 void bm_pattern_init(bm_pattern *p);
 void bm_track_clear_events(bm_pattern *p, int track);
-bool bm_engine_ok(int track, int engine);       /* T3: BAJO o ACID · T4-T6: cualquiera de notas o KIT */
-void bm_track_set_engine(bm_pattern *p, int track, int engine);   /* entre notas y KIT, el canal empieza vacío */
+bool bm_engine_ok(int track, int engine);       /* la máquina de cada canal; T3: BB-303 o B-MINI */
+int  bm_track_engine(int track);                 /* la máquina de fábrica del canal */
+void bm_track_set_engine(bm_pattern *p, int track, int engine);   /* T3: cambia de máquina (las notas quedan) */
 int  bm_pattern_count_events(const bm_pattern *p);
 int  bm_master_steps(const bm_meta *m);       /* 0 = infinito */
 
@@ -194,6 +199,10 @@ void bm_tr_lock_clear_step(bm_tr *tr, int step, int lane);
 /* Pads: vacía uno · ¿suena? (tiene toma y largo) */
 void bm_pad_clear(bm_pad *p);
 static inline bool bm_pad_ok(const bm_pad *p) { return p->src < 8 && p->len > 0; }
+/* el loop de sustain (como el OP-1): sostenido repite [inicio, fin) y al soltar sigue hasta el final */
+static inline bool bm_pad_has_loop(const bm_pad *p) { return p->loop_e > p->loop_s; }
+static inline uint32_t bm_pad_loop_start(const bm_pad *p) { return (uint32_t)p->len * p->loop_s / 255u; }
+static inline uint32_t bm_pad_loop_end(const bm_pad *p) { return bm_pad_has_loop(p) ? (uint32_t)p->len * p->loop_e / 255u : p->len; }
 
 /* Escalas y acordes */
 #define BM_SCALES 9

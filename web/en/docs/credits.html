@@ -32,6 +32,7 @@
     <a href="changelog.html">Changelog</a>
     <div class="grp">Project</div>
     <a href="design-3.html">Design 3.0</a>
+    <a href="../../docs/diseno-0-6.html">Design 0.6 (ES)</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="contributing.html">Contributing</a>
     <a href="conduct.html">Code of conduct</a>
@@ -45,19 +46,35 @@
   <main class="doc">
 <h1 id="credits-and-third-parties">Credits and third parties</h1>
 <h2 id="authorship">Authorship</h2>
-<p>Bubba Machine is a new project by <a href="https://github.com/Erbubar23">Erbubar23</a>, released under <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">GPL-3.0-or-later</a>. All code, factory sounds, screen fonts and the logo are original to the project.</p>
+<p>Bubba Machine is a new project by <a href="https://github.com/Erbubar23">Erbubar23</a>, released under <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">GPL-3.0-or-later</a>. The project's own code, screen fonts and logo are original; third-party libraries and presets are listed below with their license.</p>
 <h2 id="hardware-knowledge">Hardware knowledge</h2>
 <ul><li>
 <strong>Felucca</strong> (<a href="https://github.com/hugelton/Felucca">hugelton/Felucca</a>, GPL-3.0-only), by Leo Kuroshita and Hügelton Instruments. Its public reverse engineering documented the FM-1 hardware. Bubba Machine <strong>does not use its code</strong>: only hardware facts (pins, timings, memory map), cited with their source in <code>docs/SPEC_V3.md</code> §11.
 </li><li>
 <strong>JieLi AC79 SDK</strong> (Apache-2.0): register reference for the port. When the port uses SDK binaries (bootloader, configuration), they will be distributed under their Apache-2.0 license, which is compatible with GPL-3.0.
 </li></ul>
+<h2 id="synthesis-libraries-in-third_party">Synthesis libraries (in <code>third_party/</code>)</h2>
+<div class="tbl"><table><thead><tr><th>Library</th><th>What for</th><th>License</th></tr></thead><tbody><tr><td><strong>msfa</strong> ("music synthesizer for android", by Google, maintained by <a href="https://codeberg.org/dcoredump/Synth_Dexed">Dexed</a>)</td><td>BX-7's 6-operator engine</td><td>Apache-2.0</td></tr><tr><td><strong>Plaits</strong> (<a href="https://github.com/pichenettes/eurorack">Mutable Instruments</a>, by Emilie Gillet)</td><td>BR-8's kicks, snares and hats, the variable-shape oscillator, the sine and the overdrive</td><td>MIT</td></tr><tr><td><strong>stmlib</strong> (Mutable Instruments)</td><td>State-variable filter, polyBLEP, interpolator</td><td>MIT</td></tr></tbody></table></div>
+<p>Details (commits, changes) are in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/third_party/README.md"><code>third_party/README.md</code></a>. The reverb follows the algorithm published by Jon Dattorro (1997); the implementation is original.</p>
+<h2 id="factory-sounds">Factory sounds</h2>
+<p>BR-8, BX-7 and BUNO-6 sounds are original to the project (BUNO-6's 12 were made in Vital). The 25 B-MINI and BITTAL sounds come from <strong>community Vital presets</strong> under free licenses: they are downloaded at a pinned commit, converted to the Bubba Machine format (<code>tools/gen_snaps.mjs</code>, <code>assets/presets/banco.json</code>) and given our own name. Credit and license belong to their authors:</p>
+<div class="tbl"><table><thead><tr><th>Sound</th><th>Machine</th><th>Original preset</th><th>Author</th><th>License</th></tr></thead><tbody><tr><td>SUB ONE</td><td>B-MINI</td><td>Sub 1</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>SUB GROWL</td><td>B-MINI</td><td>Sub 56</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>CURIOUS</td><td>B-MINI</td><td>Curious Bass</td><td><a href="https://github.com/abstractionmage/Vital-Presets">Abstraction Mage</a></td><td>CC0-1.0</td></tr><tr><td>808 BASS</td><td>B-MINI</td><td>bad 808</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>HEAVY LOW</td><td>B-MINI</td><td>low part of heavy bass</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>REESE</td><td>B-MINI</td><td>reese bass</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>SAW MOTION</td><td>BITTAL</td><td>Saw Movement 45</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>WIDE SYNTH</td><td>BITTAL</td><td>i have an itch</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>SIREN</td><td>BITTAL</td><td>Sirenengesang</td><td><a href="https://github.com/abstractionmage/Vital-Presets">Abstraction Mage</a></td><td>CC0-1.0</td></tr><tr><td>COOL LEAD</td><td>BITTAL</td><td>cool synth</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>HARD LEAD</td><td>BITTAL</td><td>hard lead</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>NICE LEAD</td><td>BITTAL</td><td>nice lead</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>DIGI PIANO</td><td>BITTAL</td><td>PIANO</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>SOFT KEYS</td><td>BITTAL</td><td>pinaon 12</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>CHORD STAB</td><td>BITTAL</td><td>Chord 3</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>BACK KEYS</td><td>BITTAL</td><td>cute background keys</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>GLASS KEYS</td><td>BITTAL</td><td>keys per P</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>CHILL CHORD</td><td>BITTAL</td><td>smooth chill chords</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>MOVE ARP</td><td>BITTAL</td><td>move arp</td><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a></td><td>GPL-3.0</td></tr><tr><td>SPACE PLUCK</td><td>BITTAL</td><td>super space pluck</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>ARP LINE</td><td>BITTAL</td><td>arp</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>BELL</td><td>BITTAL</td><td>bishu's better bell</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>WOOD PLUCK</td><td>BITTAL</td><td>wood pluck</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>SPACY PLUCK</td><td>BITTAL</td><td>spacy plucks</td><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a></td><td>Unlicense</td></tr><tr><td>LOW PAD</td><td>BITTAL</td><td>Low-mid Simplicity</td><td><a href="https://github.com/abstractionmage/Vital-Presets">Abstraction Mage</a></td><td>CC0-1.0</td></tr></tbody></table></div>
+<p>The repositories:</p>
+<ul><li>
+<a href="https://github.com/nahush2321/Vitalium-presets">nahush2321</a>, commit <code>025728f9a630</code> — GPL-3.0
+</li><li>
+<a href="https://github.com/Mxm40b/vital-presets">Mxm40b (mxmfrpr)</a>, commit <code>c6e8bc13e474</code> — Unlicense
+</li><li>
+<a href="https://github.com/abstractionmage/Vital-Presets">Abstraction Mage</a>, commit <code>023763ab9b39</code> — CC0-1.0
+</li></ul>
+<p>.bsnap files converted from a GPL-3.0 preset stay GPL-3.0, like the firmware. <strong>Vital</strong> is a synthesizer by Matt Tytel; Bubba Machine reads its preset format but has no relation to Vital or its author, and does not use its code.</p>
 <h2 id="what-ships-with-the-firmware-or-the-emulator">What ships with the firmware or the emulator</h2>
 <div class="tbl"><table><thead><tr><th>Component</th><th>Where</th><th>License</th></tr></thead><tbody><tr><td>Emscripten runtime</td><td>inside <code>web/bm.js</code></td><td>MIT / University of Illinois</td></tr><tr><td>AKWF waves (optional, only if you build with <code>--akwf</code>)</td><td><code>core/gen/bm_rom.c</code></td><td>CC0</td></tr></tbody></table></div>
 <h2 id="tools">Tools</h2>
 <p>Python, NumPy, Pillow, Docker, GCC and Emscripten are used to build and generate data, but they are not distributed with the firmware.</p>
 <h2 id="trademarks">Trademarks</h2>
 <p>M-VAVE and FM-1 are trademarks of their respective owners. Bubba Machine is not affiliated with or endorsed by M-VAVE. The names are used only to state which device it is compatible with.</p>
+<p>The machine names (BR-8, BP-1, BB-303, B-MINI, BX-7, BITTAL, BUNO-6, BX-1) recall the TR-8, OP-1, TB-303, Minimoog, DX7, Vital and Juno-6, which are trademarks of their owners (Roland, Teenage Engineering, Moog, Yamaha, Vital Audio). Bubba Machine has no relation to them and does not copy their code or sounds.</p>
 <h2 id="no-warranty">No warranty</h2>
 <p>As the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">license</a> says (sections 15 and 16), this software comes <strong>with no warranty</strong>. Installing unofficial firmware can brick the device. Do it at your own risk, with a backup, and only with a version that says it is tested on hardware.</p>
     <p class="src">This page is generated from <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/en/CREDITS.md">docs/en/CREDITS.md</a>. Spotted a mistake? Edit the file and send a pull request.</p>
@@ -65,7 +82,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

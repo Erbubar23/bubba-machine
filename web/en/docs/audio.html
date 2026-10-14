@@ -32,6 +32,7 @@
     <a href="changelog.html">Changelog</a>
     <div class="grp">Project</div>
     <a href="design-3.html">Design 3.0</a>
+    <a href="../../docs/diseno-0-6.html">Design 0.6 (ES)</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="contributing.html">Contributing</a>
     <a href="conduct.html">Code of conduct</a>
@@ -47,7 +48,7 @@
 <p>Bubba Machine has one goal: <strong>the best audio quality the FM-1 allows</strong>. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, <strong>what isn't there yet</strong>.</p>
 <p>All CPU figures were measured on the author's FM-1 with the firmware console (<code>tools/fm1/traza.py</code>). The details of each measurement are in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> and <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a> (Spanish).</p>
 <h2 id="the-device">The device</h2>
-<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>100 KiB of flash for sampler takes</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>100 KiB of flash shared between takes (up to 3 s each) and user sounds</td></tr></tbody></table></div>
 <h2 id="what-improved">What improved</h2>
 <h3 id="1-everything-at-441-khz">1. Everything at 44.1 kHz</h3>
 <p>In 0.3 the engines ran at 22 kHz and every sample was repeated twice to reach the output. That cuts everything above 11 kHz and leaves images (false highs) above it.</p>
@@ -57,7 +58,7 @@
 <p>Measured on the device, the FPU is <strong>1.5× faster</strong> than the 64-bit integer math 0.3 used, so moving to float was both faster and cleaner.</p>
 <h3 id="3-sounds-computed-live-no-low-resolution-recordings">3. Sounds computed live, no low-resolution recordings</h3>
 <p>0.3 had drum kits recorded at 22 kHz in 8-bit μ-law (nothing above 11 kHz) and low-resolution wavetables. <strong>They are all gone.</strong> Every sound is now computed on the spot with proven synthesis libraries:</p>
-<div class="tbl"><table><thead><tr><th>Engine</th><th>What it uses</th><th>License</th></tr></thead><tbody><tr><td><strong>Modeled drums</strong></td><td>kick, snare and hi-hat models from <strong>Plaits</strong> (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion</td><td>MIT</td></tr><tr><td><strong>ANALOG</strong></td><td><strong>polyBLEP</strong> oscillators (anti-aliasing), LP 24/12, BP or HP filter with resonance and drive, ADSR, LFO, sync and ring</td><td>own and MIT (Plaits/stmlib)</td></tr><tr><td><strong>6-operator FM</strong></td><td><strong>msfa</strong>, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms</td><td>Apache-2.0</td></tr><tr><td><strong>ACID</strong></td><td>4-pole ladder filter with resonance, accent and slide</td><td>own</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Engine</th><th>What it uses</th><th>License</th></tr></thead><tbody><tr><td><strong>Modeled drums</strong></td><td>kick, snare and hi-hat models from <strong>Plaits</strong> (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion</td><td>MIT</td></tr><tr><td><strong>B-MINI</strong></td><td>three <strong>polyBLEP</strong> oscillators (anti-aliasing), ladder filter with drive, two envelopes and LFO</td><td>own and MIT (Plaits/stmlib)</td></tr><tr><td><strong>BITTAL</strong></td><td>tables built from a 256-harmonic spectrum in <strong>7 levels, one per octave</strong>: each note uses the level whose highest harmonic stays below 19 kHz, so there is <strong>no aliasing</strong> on any note; unison, filter and macros</td><td>own; factory sounds from freely licensed Vital presets</td></tr><tr><td><strong>BUNO-6</strong></td><td>one polyBLEP oscillator per voice, high-pass, 24 dB filter and a two-line modulated <strong>stereo chorus</strong>, like a Juno's</td><td>own</td></tr><tr><td><strong>6-operator FM</strong></td><td><strong>msfa</strong>, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms</td><td>Apache-2.0</td></tr><tr><td><strong>ACID</strong></td><td>4-pole ladder filter with resonance, accent and slide</td><td>own</td></tr></tbody></table></div>
 <p>Accent doesn't just raise the level: it changes the hit, like a real drum machine.</p>
 <h3 id="4-an-output-without-clicks-or-steps">4. An output without clicks or steps</h3>
 <ul><li>
@@ -80,7 +81,7 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 <h2 id="what-isnt-there-yet">What isn't there yet</h2>
 <p>This is a beta. What limits quality today, plainly:</p>
 <ul><li>
-<strong>The sampler records at 16 kHz and 8 bits.</strong> The FM-1's flash leaves 100 KiB for takes (6.4 s in total); at 16 bits it would be half that. With the filter before recording and the dither in <code>toma.py</code> it sounds clean, but <strong>it stops around 7 kHz</strong> and has 8-bit noise. It is the weakest point and the next one to solve.
+<strong>The sampler records at 16 kHz and 8 bits.</strong> Takes share 100 KiB of flash with user sounds (about 6 s in total); at 16 bits it would be half that. With the filter before recording and the dither in <code>toma.py</code> it sounds clean, but <strong>it stops around 7 kHz</strong> and has 8-bit noise. It is the weakest point and the next one to solve.
 </li><li>
 <strong>The delay runs at 22 kHz:</strong> repeats reach 11 kHz, like a tape delay. That is on purpose, so 1.5 s fits in RAM, but it isn't hi-fi.
 </li><li>
@@ -90,9 +91,11 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 </li><li>
 <strong>msfa's FM is fixed point</strong>, like the original DX7. That's part of its character, not a flaw, but it isn't float.
 </li><li>
-<strong>No reverb, chorus or master compressor yet.</strong> Only the soft clipper.
+<strong>The reverb (Dattorro) runs at half rate</strong> to fit the budget: its tails reach 11 kHz. No master compressor yet.
 </li><li>
-<strong>Audio uses a single core.</strong> The second one gives 1.83× (measured); using it is what will allow more voices and effects.
+<strong>BUNO-6's chorus and high-pass use approximate values</strong> (Juno-6 times and depth from published measurements); they still need an ear check on the device.
+</li><li>
+<strong>Audio on both cores is in testing</strong> (SYSTEM › TWO CORES, off by default): on the computer it gives the same samples, but it still has to be measured on the FM-1.
 </li><li>
 <strong>We haven't measured the analog output</strong> (noise, distortion and response of the FM-1's codec and amplifier). Everything above is the digital side.
 </li><li>
@@ -100,9 +103,9 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 </li></ul>
 <h2 id="whats-next">What's next</h2>
 <ol><li>
-Audio on <strong>both cores</strong>.
+<strong>Measure 0.6 on the FM-1:</strong> each machine's load, both cores and even volume across the bank sounds.
 </li><li>
-<strong>Master effects</strong>: Mutable Instruments reverb and chorus, tape delay, compressor and leveler.
+<strong>Master effects</strong>: tape delay, compressor and leveler.
 </li><li>
 <strong>ACID with Open303</strong> in float.
 </li><li>
@@ -116,7 +119,7 @@ A <strong>higher-quality sampler</strong>, within what the flash allows.
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

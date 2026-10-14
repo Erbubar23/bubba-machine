@@ -5,6 +5,7 @@
 #include "bm_takes.h"
 #include <math.h>
 #include "bm_util.h"
+#include "bm_snap.h"
 
 #define TAKE_MAGIC 0x34544D42u   /* "BMT4": 16 cortes (las de "BMT3" ya no se leen) */
 
@@ -75,6 +76,7 @@ int bm_takes_scan(const bm_flash_ops *f, bm_map_fn map, void *mu, bm_take tk[BM_
 static void used_map(const bm_take tk[BM_TAKES], uint8_t used[BM_TAKE_SECTORS])
 {
     memset(used, 0, BM_TAKE_SECTORS);
+    bm_snaps_mark(used, (int)BM_TAKE_SECTORS);                /* la zona es compartida con los sonidos */
     for (int i = 0; i < BM_TAKES; i++)
         if (tk[i].valid) for (int k = 0; k < tk[i].nsect; k++) used[tk[i].sector + k] = 1;
 }
@@ -88,6 +90,13 @@ static int largest_run(const uint8_t used[BM_TAKE_SECTORS], int *at)
         run = 0;
     }
     return best;
+}
+
+void bm_takes_used(const bm_take tk[BM_TAKES], uint8_t *used)
+{
+    memset(used, 0, BM_TAKE_SECTORS);
+    for (int i = 0; i < BM_TAKES; i++)
+        if (tk[i].valid) for (int k = 0; k < tk[i].nsect; k++) used[tk[i].sector + k] = 1;
 }
 
 uint32_t bm_takes_room(const bm_take tk[BM_TAKES])
@@ -164,6 +173,7 @@ int bm_takes_erase(const bm_flash_ops *f, bm_take *t)
 int bm_takes_format(const bm_flash_ops *f)
 {
     for (int s = 0; s < (int)BM_TAKE_SECTORS; s++) if (f->erase(sec_addr(s))) return -1;
+    bm_snaps_format();
     return 0;
 }
 

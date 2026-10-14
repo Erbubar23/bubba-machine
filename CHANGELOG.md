@@ -2,6 +2,37 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [0.6.0-beta] - 2026-10-14
+
+**Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador.
+
+**Seis máquinas fijas en vez de motores a elegir**, una cara nueva y un banco de sonidos. El formato de los patrones cambia (formato 7): los patrones guardados se borran al primer arranque (las tomas se quedan). El diseño completo está en [DISENO_0.6](docs/DISENO_0.6.md).
+
+### Agregado
+- **Seis máquinas, una por canal**, con nombres que recuerdan a las que las inspiraron: **BR-8** (T1, batería modelada), **BP-1** (T2, sampler de pads), **BB-303** o **B-MINI** (T3, se cambia con ALGORITHM y las notas se quedan), **BX-7** (T4, FM), **BITTAL** (T5, wavetable) y **BUNO-6** (T6, polifónico). En HOME, el mezclador **BX-1**.
+- **B-MINI:** tres osciladores (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) en registros de 32' a 2', ruido, filtro escalera con drive, CONTOUR y LOUDNESS, LFO y glide.
+- **BITTAL:** dos osciladores de tabla (hasta 8 frames, armados desde un espectro de 256 armónicos y sin aliasing en ninguna nota), unísono de hasta 4, filtro LP 24/12, BP, HP o escalera, dos ADSR, LFO y 4 macros con destino. Las páginas de los osciladores dibujan la tabla en 2.5D. ALGORITHM elige la tabla del oscilador 1 entre las del banco.
+- **BUNO-6:** 6 voces con un oscilador cada una (sierra, pulso con PWM, sub y ruido), pasa-altos de 4 posiciones, filtro de 24 dB, una ADSR, LFO con retardo y **chorus estéreo** I, II o I+II (ALGORITHM).
+- **Banco de sonidos** (.bsnap) para B-MINI, BITTAL y BUNO-6: 37 de fábrica. Los de BITTAL y B-MINI salen de presets de Vital con licencia libre (CC0, Unlicense y GPL-3.0), renombrados y con su crédito en [CREDITOS.md](CREDITOS.md); los 12 de BUNO-6 son propios, hechos en Vital. `tools/gen_snaps.mjs` los arma con los commits de origen fijados.
+- **Sonidos propios:** el editor web (`sonidos.html`) convierte un preset de Vital en un sonido de Bubba Machine y lo manda al FM-1 por WebMIDI; también carga **bancos .syx de la DX7** (32 voces) en BX-7. En la computadora: `tools/vital2bsnap.mjs` y `tools/fm1/sonido.py`. En el emulador, el botón *Sonido*.
+- **BX-7:** el dibujo del algoritmo como en una DX7 (portadoras, moduladores, realimentación y nivel de cada operador) y PRESETS con las voces de tus bancos.
+- **Reverb** (Dattorro) con envío por canal en MEZCLA y su página en HOME + FX; **filtro del master** (pasa-bajos a la izquierda, pasa-altos a la derecha) y **BEAT FX** (un punch-in que queda puesto) en HOME.
+- **REC expresivo** en los canales de notas: cada nota guarda su micro-tiempo y su gate reales, se corta en el compás si sigue apretada y lo que mueves en K1-K4 mientras la sostienes queda como P-Lock. Con REC, SELECT elige un paso, ALGORITHM su largo (hasta TIE) y PRESETS su micro-tiempo.
+- **Nota larga con dos blancas:** mantén el paso donde empieza y toca la blanca donde termina.
+- **BP-1, loop de sustain** (página LOOP del pad): sostenido repite un tramo y al soltar sigue hasta el final.
+- **MIDI OUT por canal** (MAS): el canal suena y además manda sus notas por MIDI. Reemplaza al motor MIDI.
+- **Carga del audio** (CPU) en la cabecera.
+- **Dos pruebas en SISTEMA**, apagadas de fábrica: **PANTALLA RÁPIDA** (SPI a 30 MHz: el cuadro baja de 85 a 39 ms) y **DOS NÚCLEOS** (T4-T6 en el segundo núcleo; en la computadora da las mismas muestras). Si el FM-1 se cuelga o arranca en modo seguro, las dos se apagan solas.
+- **Instalador web plug and play:** la página baja el paquete ya armado de Bubba Machine (sin pedir el V15 de M-VAVE), lo instala y, si está en español, carga el paquete de idioma al terminar. El V15 solo hace falta para volver al firmware de fábrica.
+
+### Cambiado
+- **La cara nueva:** cabecera, visor, teclado y diales siempre en el mismo lugar, con paleta neón (cian lo activo, ámbar los valores, rojo REC y mute, verde menta las notas largas). En SEQ las blancas son los pasos; los diales de K1-K4 muestran valor y nombre.
+- **Las perillas:** en HOME, SELECT es el cursor del mezclador, ALGORITHM el BPM y K1-K4 volumen, envío FX, filtro y BEAT FX. Dentro de un canal, ALGORITHM es el modo de la máquina (instrumento, pad, algoritmo, tabla, chorus). Se cambia de canal con HOME + SELECT. Fuera el recuadro de 400 ms y ENTRADA AUTO.
+- **Las tomas comparten 100 KiB de flash con los sonidos del banco** (las tomas desde abajo, los sonidos desde arriba). Hasta 3 s por toma.
+- Fuera **ANALOG**, los canales libres, **KIT** en T4-T6 y el motor **MIDI**: cada canal es su máquina.
+- 22 voces en total, con un tope por canal.
+- Audio determinista: suena igual en cada arranque.
+
 ## [0.5.0-beta] - 2026-10-12
 
 **Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador.

@@ -11,6 +11,7 @@
 #include "bm_gfx.h"
 #include "bm_params.h"
 #include "bm_lang.h"
+#include "bm_snap.h"
 
 typedef struct {
     void (*blit)(void *u, int x, int y, int w, int h, const uint16_t *px);
@@ -48,9 +49,11 @@ enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
-    uint8_t enter;          /* recuadro de ALGORITHM: 0, 250, 400, 800 ms u OFF */
+    uint8_t enter;          /* sin uso desde 0.6 (el recuadro de ALGORITHM se fue) */
     uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
-    uint8_t rsv[21];
+    uint8_t fast_lcd;       /* 1 = SPI a 30 MHz con DMA (a prueba; el modo seguro lo apaga) */
+    uint8_t dual_core;      /* 1 = el audio en los dos núcleos (a prueba; el modo seguro lo apaga) */
+    uint8_t rsv[19];
 } bm_settings;
 
 typedef struct {
@@ -184,6 +187,16 @@ typedef struct bm_app {
     int8_t punch_key;
     uint32_t clip_until;
     uint16_t edits_seen;
+    uint8_t cpu;                  /* carga del audio en % (la cabecera) */
+    uint8_t rec_gate;             /* REC de notas: el largo con que se graban (10..100 %, 100 = TIE) */
+    int8_t rec_micro;             /* REC de notas: corrimiento en ticks (-12..12) */
+    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · HOME + FX otra vez: REVERB */
+    int8_t tie_from;              /* paso sostenido para una nota larga (blanca + otra blanca) */
+    int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
+    uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
+    uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
+    uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
+    uint16_t snap_len;
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);
@@ -192,6 +205,7 @@ void bm_app_key(bm_app *a, int key, int down, uint32_t now);
 void bm_app_encoder(bm_app *a, int id, int delta, uint32_t now);
 void bm_app_master(bm_app *a, uint16_t adc10);
 void bm_app_battery(bm_app *a, uint8_t pct);
+void bm_app_cpu(bm_app *a, int pct);                  /* la carga del audio, para la cabecera */
 void bm_app_midi_in(bm_app *a, uint8_t byte);
 void bm_app_tick(bm_app *a, uint32_t now);
 void bm_app_audio(bm_app *a, int32_t *out_lr, uint32_t frames);
@@ -200,6 +214,11 @@ void bm_app_takes_reload(bm_app *a);   /* tras escribir una toma desde fuera (ed
  * zona), 1 = n bytes en off, 2 = terminar (lo revisa y lo activa), 3 = quitarlo. 0 = salió bien. */
 int  bm_app_lang_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
 const uint8_t *bm_app_lang_pack(const bm_app *a);   /* el paquete de la flash si está sano, o NULL */
+/* Un sonido (.bsnap, o un banco de BX-7) desde afuera, solo en STOP: sub 0 = empezar, 1 = n bytes en
+ * off, 2 = guardarlo en la zona compartida (lo revisa), 3 = borrar uno del usuario: off = máquina << 8 |
+ * su número en PRESETS (en BX-7, el número de banco del usuario).
+ * 0 = salió bien. */
+int  bm_app_sound_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
 
 /* Fuentes del sampler: 0..7 = toma, BM_SRC_ROM|i = loop de fábrica. */
 int  bm_app_sources(const bm_app *a, uint8_t out[BM_TAKES + 8]);   /* lista de fuentes que existen */

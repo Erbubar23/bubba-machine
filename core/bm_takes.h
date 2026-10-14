@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — biblioteca de tomas del sampler (DISENO_3.0, Grabadora).
  *
- * 128 KiB de flash (32 sectores) para tomas de largo libre: hasta BM_TAKES tomas de
- * hasta 3 s (la RAM de grabación), 8.1 s en total. Cada toma ocupa sectores seguidos:
+ * 100 KiB de flash compartidos con los snapshots del usuario (core/bm_snap.h): las tomas se ubican
+ * desde abajo y los snapshots desde arriba. Hasta 3 s por toma (la RAM). Cada toma ocupa sectores seguidos:
  * cabecera de 128 B al inicio del primero y el audio detrás (8 bit a 16 kHz). Se
  * reproducen directo desde la flash (XIP). La cabecera se escribe al final (commit). */
 #ifndef BM_TAKES_H
@@ -41,6 +41,8 @@ int  bm_takes_erase(const bm_flash_ops *f, bm_take *t);
 /* Cortes en los ataques (golpes o sílabas). min_gap: muestras mínimas entre cortes; sens 0..127.
  * Devuelve cuántos (el primero siempre 0), ordenados. */
 int  bm_slice_onsets(const int8_t *d, uint32_t len, uint32_t min_gap, int sens, uint32_t out[BM_SLICES]);
+/* sectores de la zona que ocupan las tomas (used[BM_TAKE_SECTORS], sin los sonidos) */
+void bm_takes_used(const bm_take tk[BM_TAKES], uint8_t *used);
 /* Borra toda la zona (al pasar de 0.2 a 0.3). */
 int  bm_takes_format(const bm_flash_ops *f);
 

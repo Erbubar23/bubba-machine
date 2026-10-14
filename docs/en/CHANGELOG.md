@@ -2,6 +2,37 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.6.0-beta] - 2026-10-14
+
+**Beta, not yet tested on the device:** it passes the automated tests and the emulator. If something fails on the FM-1, go back to 0.5.0-beta or to the factory firmware from the installer.
+
+**Six fixed machines instead of engines to pick**, a new face and a sound bank. The pattern format changes (format 7): saved patterns are erased on first boot (takes are kept).
+
+### Added
+- **Six machines, one per track**, named after the ones that inspired them: **BR-8** (T1, modeled drums), **BP-1** (T2, pad sampler), **BB-303** or **B-MINI** (T3, switched with ALGORITHM, notes stay), **BX-7** (T4, FM), **BITTAL** (T5, wavetable) and **BUNO-6** (T6, polysynth). On HOME, the **BX-1** mixer.
+- **B-MINI:** three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, CONTOUR and LOUDNESS, LFO and glide.
+- **BITTAL:** two wavetable oscillators (up to 8 frames, built from a 256-harmonic spectrum, alias-free on every note), up to 4-voice unison, LP 24/12, BP, HP or ladder filter, two ADSRs, LFO and 4 macros with targets. The oscillator pages draw the table in 2.5D. ALGORITHM picks oscillator 1's table from the bank.
+- **BUNO-6:** 6 voices with one oscillator each (saw, pulse with PWM, sub and noise), 4-position high-pass, 24 dB filter, one ADSR, delayed LFO and **stereo chorus** I, II or I+II (ALGORITHM).
+- **Sound bank** (.bsnap) for B-MINI, BITTAL and BUNO-6: 37 factory sounds. BITTAL's and B-MINI's come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0), renamed and credited in [CREDITS.md](CREDITS.md); BUNO-6's 12 are original, made in Vital. `tools/gen_snaps.mjs` builds them with the source commits pinned.
+- **Your own sounds:** the web editor (`sonidos.html`) turns a Vital preset into a Bubba Machine sound and sends it to the FM-1 over WebMIDI; it also loads **DX7 .syx banks** (32 voices) into BX-7. On the computer: `tools/vital2bsnap.mjs` and `tools/fm1/sonido.py`. In the emulator, the *Sound* button.
+- **BX-7:** the algorithm drawn as on a DX7 (carriers, modulators, feedback and each operator's level) and PRESETS with the voices of your banks.
+- **Reverb** (Dattorro) with a per-track send in MIX and its page in HOME + FX; **master filter** (low-pass to the left, high-pass to the right) and **BEAT FX** (a punch-in that stays on) on HOME.
+- **Expressive REC** on note tracks: each note keeps its real micro-timing and gate, is cut at the bar if still held, and whatever you turn on K1-K4 while holding it stays as a P-Lock. With REC, SELECT picks a step, ALGORITHM its gate (up to TIE) and PRESETS its micro-timing.
+- **Long note with two white keys:** hold the step where it starts and tap the white key where it ends.
+- **BP-1 sustain loop** (the pad's LOOP page): held, it repeats a section; let go and it plays on to the end.
+- **Per-track MIDI OUT** (MORE): the track plays and also sends its notes over MIDI. Replaces the MIDI engine.
+- **Audio load** (CPU) in the header.
+- **Two tests in SYSTEM**, off by default: **FAST SCREEN** (SPI at 30 MHz: a frame drops from 85 to 39 ms) and **TWO CORES** (T4-T6 on the second core; on the computer it gives the same samples). If the FM-1 hangs or boots into safe mode, both switch themselves off.
+- **Plug and play web installer:** the page downloads the ready-made Bubba Machine package (no M-VAVE V15 needed), installs it and, if the page is in Spanish, loads the language pack at the end. The V15 is only needed to go back to the factory firmware.
+
+### Changed
+- **The new face:** header, viewport, keyboard and dials always in the same place, with a neon palette (cyan active, amber values, red REC and mutes, mint long notes). On SEQ the white keys are the steps; the K1-K4 dials show value and name.
+- **The knobs:** on HOME, SELECT is the mixer cursor, ALGORITHM the BPM and K1-K4 volume, FX send, filter and BEAT FX. Inside a track, ALGORITHM is the machine's mode (instrument, pad, algorithm, table, chorus). HOME + SELECT changes track. The 400 ms box and AUTO ENTER are gone.
+- **Takes share 100 KiB of flash with the bank sounds** (takes from the bottom, sounds from the top). Up to 3 s per take.
+- Gone: **ANALOG**, free tracks, **KIT** on T4-T6 and the **MIDI** engine: each track is its machine.
+- 22 voices in total, with a per-track cap.
+- Deterministic audio: it sounds the same on every boot.
+
 ## [0.5.0-beta] - 2026-10-12
 
 **Beta, not yet tried on the device:** it passes the automated tests and the emulator. If something goes wrong on the FM-1, go back to 0.4.0-beta or the stock firmware from the installer.

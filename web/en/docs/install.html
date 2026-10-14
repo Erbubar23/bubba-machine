@@ -32,6 +32,7 @@
     <a href="changelog.html">Changelog</a>
     <div class="grp">Project</div>
     <a href="design-3.html">Design 3.0</a>
+    <a href="../../docs/diseno-0-6.html">Design 0.6 (ES)</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="contributing.html">Contributing</a>
     <a href="conduct.html">Code of conduct</a>
@@ -44,8 +45,8 @@
     <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
   <main class="doc">
 <h1 id="installing-bubba-machine">Installing Bubba Machine</h1>
-<h2 id="current-status-beta-050-beta">Current status: beta (0.5.0-beta)</h2>
-<p>Bubba Machine for the FM-1 has a <strong>full firmware, with sound</strong>, a <strong>diagnostic firmware</strong> and a <strong>web installer</strong>. It runs on the author's FM-1, but it is a <strong>beta</strong>: tested on a single device and still changing a lot. <strong>0.5.0-beta has not been tried on the device yet</strong> (it passes the automated tests and the emulator); if something goes wrong, go back to 0.4.0-beta or the stock firmware from the installer. Technical progress is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
+<h2 id="current-status-beta-060-beta">Current status: beta (0.6.0-beta)</h2>
+<p>Bubba Machine for the FM-1 has a <strong>full firmware, with sound</strong>, a <strong>diagnostic firmware</strong> and a <strong>web installer</strong>. It runs on the author's FM-1, but it is a <strong>beta</strong>: tested on a single device and still changing a lot. <strong>0.6.0-beta has not been tried on the device yet</strong> (it passes the automated tests and the emulator); if something goes wrong, go back to 0.5.0-beta or the stock firmware from the installer. Technical progress is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
 <blockquote><p><strong>What you save may be lost when you update.</strong> There is no backward compatibility until v1: if a new version changes how patterns, the song, settings or takes are stored, the old data is erased on first boot and the demo comes back. If something matters to you, record it from the audio output before updating.</p></blockquote>
 <p>Every version is also published as <code>bubba-machine-&lt;version&gt;.fwsc</code> in the <a href="https://github.com/Erbubar23/bubba-machine/releases">GitHub releases</a>, for installers that use that package (such as the <a href="https://fm1.designburgapps.com/">FM-1 Firmware Hub</a>).</p>
 <p>If you don't want to risk your FM-1, use the emulator (below): it runs the same code.</p>
@@ -57,7 +58,7 @@ Press <strong>Power on</strong>. It starts with a demo.
 </li><li>
 With the computer keyboard:
 <ul><li>
-<strong>Space</strong> is PLAY, <strong>Enter</strong> is REC and <strong>Shift</strong> is HOME (the modifier: hold it and turn ALGORITHM to jump to another track).
+<strong>Space</strong> is PLAY, <strong>Enter</strong> is REC and <strong>Shift</strong> is HOME (the modifier: hold it and turn SELECT to jump to another track).
 </li><li>
 Numbers <strong>1-9 and 0</strong> are HOME, SEQ, EDIT, ENV, FX, SCL, ARP, SAVE, LFO and GLO, and the <strong>arrows</strong> are OCT− and OCT+.
 </li><li>
@@ -70,18 +71,21 @@ In <strong>Sampler and memory</strong> you can load a WAV of up to 3 s as a new 
 </li></ol>
 <p>The emulator runs exactly the same C code that will run on the device.</p>
 <h2 id="how-to-install">How to install</h2>
-<p>You need a computer with <strong>Chrome or Edge</strong> (Web MIDI), a <strong>USB data cable</strong> and the <strong>FM-1.fwsc</strong> file (FM-1 V15) that M-VAVE publishes on its site.</p>
+<p>It is <strong>plug and play</strong>: you need a computer with <strong>Chrome or Edge</strong> (Web MIDI) and a <strong>USB data cable</strong>. Nothing else.</p>
 <ol><li>
 Connect the FM-1 over USB and switch it on. It may run the factory firmware, X0X or Bubba Machine. Close any other app using its MIDI.
 </li><li>
 Open the <strong>installer</strong> (<code>instalar.html?lang=en</code> on the site) and accept the MIDI permission. The page <strong>reads the FM-1 by itself</strong> and says which firmware it runs.
 </li><li>
-Choose what to install: <strong>Bubba Machine</strong>, the <strong>Diagnostic</strong> (no sound, to check buttons, keys and knobs) or M-VAVE's <strong>Factory firmware</strong>.
+The page has already picked the newest <strong>Bubba Machine</strong> (you can also pick the <strong>Diagnostic</strong>, no sound, to check buttons, keys and knobs, or M-VAVE's <strong>Factory firmware</strong>).
 </li><li>
-Press the button and confirm. Don't unplug until it says "Done".
+Press <strong>Install</strong> and confirm. Don't unplug until it says "Done".
+</li><li>
+If the <strong>"screen in Spanish"</strong> box is checked (it is on the Spanish page), at the end the page waits for the FM-1 to boot and loads the language pack. Then it points you to the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/sonidos.html">sound editor</a> and the manual.
 </li></ol>
 <p>If the page doesn't find the FM-1, under "Your FM-1" it shows which MIDI ports it sees and what is wrong with them (for example "busy" when REAPER or another app has it open).</p>
-<p>The first time, the page asks for <strong>M-VAVE's FM-1.fwsc</strong> (FM-1 V15), which M-VAVE publishes on its site: the package is <strong>built in your browser</strong> on top of that file, because this site only publishes our part, never M-VAVE's. It is checked to be exactly that file, and the browser remembers it for next time.</p>
+<p>The page downloads <strong>the same <code>.fwsc</code> package as the release</strong> (the one the FM-1 Firmware Hub uses) and checks its SHA-256 before writing anything.</p>
+<p><strong>M-VAVE's FM-1.fwsc</strong> (FM-1 V15) is only needed to <strong>go back to the factory firmware</strong> or for an old version without a published package: then the page asks for it (M-VAVE publishes it on its site), checks it is exactly that file and the browser remembers it for next time.</p>
 <p><strong>From a copy of the repository</strong> (for example, for a version you built yourself): <code>py -3 tools/fm1/servir.py</code> opens the installer at <code>http://localhost:8765/instalar.html</code> and hands it V15 directly (taken from <code>~/jieli/stock/FM-1.fwsc</code> or downloaded from M-VAVE once), so there is nothing to choose. Under <strong>More options</strong> you can install a file of your own.</p>
 <p>How it works inside:</p>
 <ul><li>
@@ -123,7 +127,7 @@ py -3 tools/fm1/rescate.py restaurar FM-1.fwsc</code></pre>
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

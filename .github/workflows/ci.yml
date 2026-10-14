@@ -31,5 +31,8 @@ jobs:
       - name: Pruebas del núcleo
         run: python tools/build.py test
 
+      - name: El conversor de sonidos (Vital y DX7)
+        run: node tests/test_bsnap.mjs
+
       - name: Rescate del FM-1 contra un chip simulado
         run: python tests/test_rescate.py

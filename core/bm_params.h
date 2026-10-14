@@ -27,19 +27,46 @@ typedef struct {
 
 typedef struct { const char *name; uint8_t n; bm_pdef p[4]; } bm_ppage;
 
-/* ------------------------------------------------------------ ANALOG */
-enum { AN_W1, AN_SUB, AN_NOISE, AN_W2, AN_SEMI2, AN_FINE2, AN_MIX2, AN_SYNC, AN_RING, AN_PENV2, AN_GLIDE,
-       AN_FTYPE, AN_DRIVE, AN_KEYT, AN_VELF, AN_FA, AN_FD, AN_FS, AN_FR, AN_AA, AN_AD, AN_AS, AN_AR,
-       AN_LSHAPE, AN_LRATE, AN_LDEST, AN_LAMT, AN_MODE, AN_VELA, AN_NPRM };
-/* macros: 0 CORTE, 1 RESO, 2 ENV>FILTRO (64 = nada), 3 FORMA de la onda 1 */
-enum { AN_WAVE_SAW, AN_WAVE_SQR, AN_WAVE_TRI, AN_WAVE_SIN, AN_WAVE_SUPER, AN_WAVES };
-enum { AN_F_LP24, AN_F_LP12, AN_F_BP, AN_F_HP, AN_FILTERS };
-enum { AN_L_SIN, AN_L_TRI, AN_L_SAW, AN_L_SQR, AN_L_SH, AN_LSHAPES };
-enum { AN_D_PITCH, AN_D_CUT, AN_D_SHAPE, AN_D_AMP, AN_LDESTS };
-enum { AN_M_POLY, AN_M_MONO, AN_M_LEGATO, AN_MODES };
-#define BM_AN_PAGES 9
-enum { AN_PG_OSC1, AN_PG_OSC2, AN_PG_CROSS, AN_PG_FILTER, AN_PG_FILTER2, AN_PG_FILT, AN_PG_AMP, AN_PG_LFO, AN_PG_VOICE };   /* páginas */
-extern const bm_ppage bm_an_pages[BM_AN_PAGES];
+/* ------------------------------------------------------------ B-MINI (T3): tres osciladores y escalera
+ * macros: 0 CUTOFF, 1 EMPHASIS, 2 OSC TUNE (64 = afinado), 3 CONTOUR (cantidad de la envolvente) */
+enum { MN_W1, MN_R1, MN_L1, MN_W2, MN_R2, MN_T2, MN_L2, MN_W3, MN_R3, MN_T3, MN_L3, MN_NOISE,
+       MN_DRIVE, MN_KEYT, MN_VELF, MN_FA, MN_FD, MN_FS, MN_FR, MN_AA, MN_AD, MN_AS, MN_AR,
+       MN_LRATE, MN_LAMT, MN_LDEST, MN_GLIDE, MN_MODE, MN_VELA, MN_NPRM };
+enum { MN_WAVE_TRI, MN_WAVE_SHARK, MN_WAVE_SAW, MN_WAVE_SQR, MN_WAVE_WIDE, MN_WAVE_NARROW, MN_WAVES };
+enum { MN_D_PITCH, MN_D_CUT, MN_LDESTS };
+enum { WM_POLY, WM_MONO, WM_LEGATO, WM_MODES };
+#define BM_MN_PAGES 9
+extern const bm_ppage bm_mn_pages[BM_MN_PAGES];
+
+/* ------------------------------------------------------------ BUNO-6 (T6): un DCO por voz y chorus
+ * macros: 0 FREQ, 1 RES, 2 ENV, 3 PWM */
+enum { BN_SAW, BN_PULSE, BN_RANGE, BN_SUB, BN_NOISE, BN_PWMSRC, BN_LFODCO, BN_HPF, BN_ENVPOL, BN_LFOVCF,
+       BN_KEYT, BN_VELF, BN_A, BN_D, BN_S, BN_R, BN_VCA, BN_LRATE, BN_LDELAY, BN_CHORUS, BN_VELA, BN_NPRM };
+enum { BN_PWM_LFO, BN_PWM_MAN, BN_PWM_ENV, BN_PWMS };
+enum { BN_CH_OFF, BN_CH_I, BN_CH_II, BN_CH_BOTH, BN_CHORUSES };
+#define BM_BN_PAGES 6
+extern const bm_ppage bm_bn_pages[BM_BN_PAGES];
+extern const char *const bm_bn_chorus_names[BN_CHORUSES];
+
+/* ------------------------------------------------------------ BITTAL (T5): dos wavetables de un snapshot
+ * Las 4 macros son las 4 macros del snapshot: cada una mueve un destino (BT_MxD) con su cantidad. */
+enum { BT_L1, BT_S1, BT_F1, BT_P1, BT_U1, BT_D1, BT_TAB1,
+       BT_L2, BT_S2, BT_F2, BT_P2, BT_U2, BT_D2, BT_TAB2,
+       BT_FT, BT_CUT, BT_RES, BT_DRIVE, BT_FENV, BT_KEYT, BT_VELF,
+       BT_AA, BT_AD, BT_AS, BT_AR, BT_MA, BT_MD, BT_MS, BT_MR,
+       BT_LSHAPE, BT_LRATE, BT_LDEST, BT_LAMT,
+       BT_M1D, BT_M1A, BT_M2D, BT_M2A, BT_M3D, BT_M3A, BT_M4D, BT_M4A,
+       BT_MODE, BT_GLIDE, BT_VELA, BT_NPRM };
+enum { BT_F_LP24, BT_F_LP12, BT_F_BP, BT_F_HP, BT_F_LADDER, BT_F_OFF, BT_FILTERS };
+enum { BT_L_SIN, BT_L_TRI, BT_L_SAW, BT_L_SQR, BT_L_SH, BT_LSHAPES };
+enum { BT_D_PITCH, BT_D_CUT, BT_D_POS, BT_D_AMP, BT_LDESTS };
+enum { BTM_NONE, BTM_CUT, BTM_RES, BTM_POS1, BTM_POS2, BTM_POS, BTM_LVL2, BTM_DET, BTM_LFO, BTM_FENV, BTM_DRIVE,
+       BTM_REL, BTM_SPACE, BTM_TARGETS };
+#define BM_BT_PAGES 12
+extern const bm_ppage bm_bt_pages[BM_BT_PAGES];
+extern const char *const bm_btm_names[BTM_TARGETS];
+/* cuánto mueve la macro i (0..127, 64 = nada) el destino dest en un canal BITTAL: -1..1 */
+float bm_bt_macro(const uint8_t *prm, const uint8_t mac[4], int dest);
 
 /* ------------------------------------------------------------ batería: un instrumento (bm_lane) */
 enum { LN_LEN, LN_LEVEL, LN_TUNE, LN_DECAY, LN_MODEL, LN_TONE, LN_COLOR, LN_CHOKE };   /* = campos de bm_lane */
@@ -53,17 +80,16 @@ extern const bm_kit bm_kits[BM_KITS_N];
 void bm_kit_apply(bm_tr *tr, int kit);                 /* carga el kit en las líneas (no toca largos ni pasos) */
 const char *bm_lane_label(const bm_tr *tr, int kit, int lane);   /* nombre del kit, o del modelo si se cambió */
 
-/* ------------------------------------------------------------ presets de los motores de notas */
-typedef struct { const char *name; uint8_t macro[4]; const uint8_t *diff; } bm_preset;   /* diff: pares (parámetro, valor) sobre la base, hasta 0xFF */
-extern const bm_preset bm_an_presets[];
-extern const int bm_an_npresets;
-
 /* páginas del editor del motor del canal (NULL si no tiene) */
 const bm_ppage *bm_engine_pages(int engine, int *n);
+/* la página de una función en el editor de la máquina (-1 si no tiene) */
+enum { EPG_AMP, EPG_FENV, EPG_LFO };
+int  bm_engine_page_of(int engine, int what);
+static inline bool bm_engine_paged(int engine) { return engine == ENG_MINI || engine == ENG_BITTAL || engine == ENG_BUNO; }
 /* valor actual de un parámetro de un canal y su escritura directa (sin cola de comandos) */
 int  bm_prm_get(const bm_pattern *p, int t, const bm_pdef *d);
 void bm_prm_defaults(bm_pattern *p, int t);            /* parámetros del motor del canal a fábrica */
-void bm_preset_apply(bm_pattern *p, int t, int preset);
+void bm_preset_apply(bm_pattern *p, int t, int preset);   /* snapshot preset del banco de la máquina del canal */
 void bm_prm_fmt(const bm_pdef *d, int v, char *buf, int cap);
 
 /* traducción a valores físicos (compartida por la pantalla y los motores) */

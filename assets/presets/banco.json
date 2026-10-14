@@ -1,0 +1,36 @@
+{
+  "_": "Banco de fábrica de Bubba Machine (docs/DISENO_0.6.md §4.4). Cada preset se baja de su repositorio en el commit fijado, se convierte con web/bsnap.js y queda en assets/presets/bsnap/. Los nombres son nuestros; el crédito y la licencia, de sus autores. Lo arma tools/gen_snaps.mjs.",
+  "repos": {
+    "nahush": {"url": "https://github.com/nahush2321/Vitalium-presets", "commit": "025728f9a630d921050cf7eac0d514baee6b6994", "license": "GPL3"},
+    "mxm40b": {"url": "https://github.com/Mxm40b/vital-presets", "commit": "c6e8bc13e474bb35726f44812750b37b72d0016d", "license": "UNLICENSE"},
+    "amage": {"url": "https://github.com/abstractionmage/Vital-Presets", "commit": "023763ab9b394f5adf65089def75f6a4f6e3aa85", "license": "CC0"}
+  },
+  "presets": [
+    {"name": "SUB ONE", "machine": "B-MINI", "repo": "nahush", "path": "Presets (1)/Sub 1.vital", "author": "NAHUSH"},
+    {"name": "SUB GROWL", "machine": "B-MINI", "repo": "nahush", "path": "Presets (1)/Sub 56.vital", "author": "NAHUSH"},
+    {"name": "CURIOUS", "machine": "B-MINI", "repo": "amage", "path": "Presets/Curious Bass.vital", "author": "ABSTR. MAGE"},
+    {"name": "808 BASS", "machine": "B-MINI", "repo": "mxm40b", "path": "bad 808.vital", "author": "MXMFRPR"},
+    {"name": "HEAVY LOW", "machine": "B-MINI", "repo": "mxm40b", "path": "low part of heavy bass.vital", "author": "MXMFRPR"},
+    {"name": "REESE", "machine": "B-MINI", "repo": "mxm40b", "path": "reese bass.vital", "author": "MXMFRPR"},
+
+    {"name": "SAW MOTION", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/Saw Movement 45.vital", "author": "NAHUSH"},
+    {"name": "WIDE SYNTH", "machine": "BITTAL", "repo": "mxm40b", "path": "i have an itch.vital", "author": "MXMFRPR"},
+    {"name": "SIREN", "machine": "BITTAL", "repo": "amage", "path": "Presets/Sirenengesang.vital", "author": "ABSTR. MAGE"},
+    {"name": "COOL LEAD", "machine": "BITTAL", "repo": "mxm40b", "path": "cool synth.vital", "author": "MXMFRPR"},
+    {"name": "HARD LEAD", "machine": "BITTAL", "repo": "mxm40b", "path": "hard lead.vital", "author": "MXMFRPR"},
+    {"name": "NICE LEAD", "machine": "BITTAL", "repo": "mxm40b", "path": "nice lead.vital", "author": "MXMFRPR"},
+    {"name": "DIGI PIANO", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/PIANO.vital", "author": "NAHUSH"},
+    {"name": "SOFT KEYS", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/pinaon 12.vital", "author": "NAHUSH"},
+    {"name": "CHORD STAB", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/Chord 3.vital", "author": "NAHUSH"},
+    {"name": "BACK KEYS", "machine": "BITTAL", "repo": "mxm40b", "path": "cute background keys.vital", "author": "MXMFRPR"},
+    {"name": "GLASS KEYS", "machine": "BITTAL", "repo": "mxm40b", "path": "keys per P.vital", "author": "MXMFRPR"},
+    {"name": "CHILL CHORD", "machine": "BITTAL", "repo": "mxm40b", "path": "smooth chill chords.vital", "author": "MXMFRPR"},
+    {"name": "MOVE ARP", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/move arp.vital", "author": "NAHUSH"},
+    {"name": "SPACE PLUCK", "machine": "BITTAL", "repo": "mxm40b", "path": "super space pluck.vital", "author": "MXMFRPR"},
+    {"name": "ARP LINE", "machine": "BITTAL", "repo": "mxm40b", "path": "arp.vital", "author": "MXMFRPR"},
+    {"name": "BELL", "machine": "BITTAL", "repo": "mxm40b", "path": "bishu's better bell.vital", "author": "MXMFRPR"},
+    {"name": "WOOD PLUCK", "machine": "BITTAL", "repo": "mxm40b", "path": "wood pluck.vital", "author": "MXMFRPR"},
+    {"name": "SPACY PLUCK", "machine": "BITTAL", "repo": "mxm40b", "path": "spacy plucks.vital", "author": "MXMFRPR"},
+    {"name": "LOW PAD", "machine": "BITTAL", "repo": "amage", "path": "Presets/Low-mid Simplicity.vital", "author": "ABSTR. MAGE"}
+  ]
+}

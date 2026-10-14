@@ -9,6 +9,7 @@
 #include "device/device.h"
 #include "device/gpio.h"
 #include "asm/spi.h"
+#include "asm/includes.h"
 #include "fm1_hw.h"
 
 static void *spi;
@@ -66,6 +67,13 @@ void fm1_lcd_blit(void *u, int x, int y, int w, int h, const uint16_t *px)
         data(tx, (uint32_t)n * 2u);
     }
     fm1_paso("S0");
+}
+
+/* SISTEMA > FAST SCREEN (a prueba): SPI a 30 MHz (divisor 1) en vez de 12 MHz (4). Medido: el
+ * cuadro entero pasa de 85 a 39 ms (docs/TRAZA_FM1.md); falta confirmar a la vista que se ve bien. */
+void fm1_lcd_speed(int fast)
+{
+    JL_SPI1->BAUD = fast ? 1 : 4;
 }
 
 void fm1_lcd_init(void)

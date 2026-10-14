@@ -57,7 +57,7 @@ static void syn_gates_off(bm_ctx *c)
 void bm_engines_sync(bm_ctx *c)
 {
     for (int t = 0; t < BM_TRACKS; t++) {
-        const bm_engine_vt *vt = bm_engine_vt_for(c->pat->trk[t].engine);
+        const bm_engine_vt *vt = c->pat->trk[t].midi_out && t >= BM_TR_TRACKS ? &bm_eng_midi_out : bm_engine_vt_for(c->pat->trk[t].engine);
         if (c->eng[t].vt == vt) continue;
         for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == t) { c->voice[i].active = 0; c->voice[i].pend = 0; }
         if (t >= BM_TR_TRACKS)
@@ -205,36 +205,71 @@ static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 }
 
 /* ------------------------------------------------------------ canales de notas */
-static void fire_syn(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
+/* Una nota del paso s. El largo es en pasos; con gate (REC expresivo) el último paso suena solo ese
+ * porcentaje, y con TIE se liga a la siguiente (slide). */
+static int fire_ev(bm_ctx *c, int t, int s, int k, int tps, bool fill)
 {
     int i = t - BM_TR_TRACKS;
     const bm_track *tr = &c->pat->trk[t];
     bm_engine *e = &c->eng[t];
-    int len = tr->length ? tr->length : 16;
-    int s = (int)(n % (uint32_t)len);
-    int fired = 0;
+    const bm_event *ev = bm_evc(c->pat, t, s, k);
+    if (bm_event_empty(ev) || tr->mute) return 0;
+    if (ev->prob == BM_PROB_FILL) { if (!fill) return 0; }
+    else if (ev->prob == BM_PROB_NOFILL) { if (fill) return 0; }
+    else if (!c->fill && ev->prob < 100 && (bm_xorshift32(&c->rng) % 100u) >= ev->prob) return 0;
+    for (int j = 0; j < 4; j++)
+        if (ev->lk[j] != BM_LOCK_NONE) e->vt->set_macro(e, (uint8_t)(BM_MACRO_LOCK | j), ev->lk[j]);
+    int legato = c->gate[i][k].ticks && c->gate[i][k].tie;
+    uint8_t prev = c->gate[i][k].note;
+    if (legato) e->vt->set_macro(e, BM_MACRO_LEGATO, 1);
     int nv = bm_vel(c, t, 0);
+    int vel = ev->vel >= BM_VEL_ACC ? 127 : bm_clampi(nv * ev->vel / BM_VEL_NORMAL, 1, 127);
+    e->vt->note_on(e, ev->note, (uint8_t)vel);
+    if (c->gate[i][k].ticks && prev != ev->note) e->vt->note_off(e, prev);
+    int l = ev->len & BM_LEN_MASK;
+    if (l < 1) l = 1;
+    c->gate[i][k].note = ev->note;
+    c->gate[i][k].tie = (ev->len & BM_LEN_TIE) ? 1 : 0;
+    int ticks = c->gate[i][k].tie ? l * tps + tps / 4 : l * tps - 4;
+    if (!c->gate[i][k].tie && ev->gate >= 10 && ev->gate < 100) ticks = (l - 1) * tps + bm_clampi(tps * ev->gate / 100, 2, tps - 2);
+    c->gate[i][k].ticks = (uint16_t)(ticks > 1 ? ticks : 1);
+    return 1;
+}
+
+static void dq_push(bm_ctx *c, int t, int s, int k, int wait, bool fill)
+{
+    if (c->dq_n >= 16 || wait <= 0) { if (wait <= 0) fire_ev(c, t, s, k, bm_track_tps(c, t), fill); return; }
+    c->dq[c->dq_n].t = (uint8_t)t; c->dq[c->dq_n].s = (uint8_t)s; c->dq[c->dq_n].k = (uint8_t)k;
+    c->dq[c->dq_n].fill = fill; c->dq[c->dq_n].wait = (uint8_t)wait;
+    c->dq_n++;
+}
+
+static void dq_tick(bm_ctx *c)
+{
+    for (int i = 0; i < c->dq_n;) {
+        if (--c->dq[i].wait == 0) {
+            int t = c->dq[i].t;
+            if (fire_ev(c, t, c->dq[i].s, c->dq[i].k, bm_track_tps(c, t), c->dq[i].fill)) c->st.trig[t]++;
+            c->dq[i] = c->dq[--c->dq_n];
+        } else i++;
+    }
+}
+
+static void fire_syn(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
+{
+    const bm_track *tr = &c->pat->trk[t];
+    int len = tr->length ? tr->length : 16;
+    int s = (int)(n % (uint32_t)len), s1 = (int)((n + 1) % (uint32_t)len);
+    int fired = 0;
     for (int k = 0; k < BM_EVENTS; k++) {
         const bm_event *ev = bm_evc(c->pat, t, s, k);
-        if (bm_event_empty(ev)) continue;
-        if (ev->prob == BM_PROB_FILL) { if (!fill) continue; }
-        else if (ev->prob == BM_PROB_NOFILL) { if (fill) continue; }
-        else if (!c->fill && ev->prob < 100 && (bm_xorshift32(&c->rng) % 100u) >= ev->prob) continue;
-        if (tr->mute) continue;
-        for (int j = 0; j < 4; j++)
-            if (ev->lk[j] != BM_LOCK_NONE) e->vt->set_macro(e, (uint8_t)(BM_MACRO_LOCK | j), ev->lk[j]);
-        int legato = c->gate[i][k].ticks && c->gate[i][k].tie;
-        uint8_t prev = c->gate[i][k].note;
-        if (legato) e->vt->set_macro(e, BM_MACRO_LEGATO, 1);
-        int vel = ev->vel >= BM_VEL_ACC ? 127 : bm_clampi(nv * ev->vel / BM_VEL_NORMAL, 1, 127);
-        e->vt->note_on(e, ev->note, (uint8_t)vel);
-        if (c->gate[i][k].ticks && prev != ev->note) e->vt->note_off(e, prev);
-        int l = ev->len & BM_LEN_MASK;
-        if (l < 1) l = 1;
-        c->gate[i][k].note = ev->note;
-        c->gate[i][k].tie = (ev->len & BM_LEN_TIE) ? 1 : 0;
-        c->gate[i][k].ticks = (uint16_t)(c->gate[i][k].tie ? l * tps + tps / 4 : l * tps - 4);
-        fired = 1;
+        if (bm_event_empty(ev) || ev->micro < 0) continue;     /* las adelantadas ya se pusieron en cola */
+        if (ev->micro > 0) dq_push(c, t, s, k, ev->micro, fill);
+        else fired |= fire_ev(c, t, s, k, tps, fill);
+    }
+    for (int k = 0; k < BM_EVENTS; k++) {                      /* las del paso siguiente que van antes */
+        const bm_event *ev = bm_evc(c->pat, t, s1, k);
+        if (!bm_event_empty(ev) && ev->micro < 0) dq_push(c, t, s1, k, tps + ev->micro, fill);
     }
     if (fired) c->st.trig[t]++;
 }
@@ -461,6 +496,7 @@ void bm_seq_start(bm_ctx *c, int restart)
 void bm_seq_stop(bm_ctx *c)
 {
     c->playing = 0;
+    c->dq_n = 0;
     syn_gates_off(c);
     memset(c->rq, 0, sizeof c->rq);
     for (int i = 0; i < BM_SYN_TRACKS; i++) {
@@ -623,6 +659,7 @@ void bm_seq_tick(bm_ctx *c)
                 c->gate[i][k].tie = 0;
             }
     rq_tick(c);
+    dq_tick(c);
     bool fill = fill_now(c);
     c->st.fill = fill;
     for (int t = 0; t < BM_TRACKS; t++) {

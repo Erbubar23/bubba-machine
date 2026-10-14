@@ -20,7 +20,7 @@
 #include "bm_rom.h"
 #include "bm_fm.h"
 #include "bm_app.h"
-#include "bm_analog.h"
+#include "bm_wave.h"
 #include "bm_params.h"
 
 void fm1_log(const char *s);
@@ -317,20 +317,20 @@ static void bench_pantalla(int solo)
 
 /* El motor FM por piezas: un operador, uno modulado, uno con realimentación y la voz entera
  * (msfa, core/bm_fm.cpp), en ns por muestra. */
-/* 34: ANALOG por piezas, con el preset arg */
+/* 34: una voz de cada máquina del núcleo WAVE (B-MINI, BITTAL, BUNO-6) con el snapshot arg */
 static void bench_an(int preset)
 {
     enum { REPS = 1000 };
     static bm_pattern p;
     bm_pattern_init(&p);
-    p.trk[3].engine = ENG_ANALOG;
-    bm_preset_apply(&p, 3, preset);
-    uint32_t t[8];
-    bm_an_bench(p.prm[3], p.trk[3].macro, fm1_scan_now_ticks, t, REPS);
-    static const char *const NOM[8] = {"AN oscilador (bloque)  ", "AN SVF coef por muestra", "AN SoftClip            ",
-                                       "AN semitonos a razon   ", "AN voz entera          ", "bucle vacio            ",
-                                       "division float         ", "expf (por bloque)      "};
-    for (int i = 0; i < 8; i++) log_mil(NOM[i], ns(t[i], (i == 7 ? 1u : 64u) * REPS), i == 7 ? "ns/llamada" : "ns/muestra");
+    p.trk[2].engine = ENG_MINI;
+    bm_preset_apply(&p, 2, preset);
+    bm_preset_apply(&p, 4, preset);
+    bm_preset_apply(&p, 5, preset);
+    uint32_t t[3];
+    bm_wv_bench(p.prm[2], p.prm[4], p.prm[5], p.trk[4].macro, fm1_scan_now_ticks, t, REPS);
+    static const char *const NOM[3] = {"B-MINI voz entera      ", "BITTAL voz entera      ", "BUNO-6 voz entera      "};
+    for (int i = 0; i < 3; i++) log_mil(NOM[i], ns(t[i], 64u * REPS), "ns/muestra");
 }
 
 static void bench_fm(int patch)

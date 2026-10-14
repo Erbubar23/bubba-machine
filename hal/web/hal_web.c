@@ -101,5 +101,17 @@ EMSCRIPTEN_KEEPALIVE int bm_web_lang_load(int n)
 }
 EMSCRIPTEN_KEEPALIVE int bm_web_lang_on(void) { return ready && app.set.lang && bm_app_lang_pack(&app) != NULL; }
 
+/* Sonidos: el JS (web/bsnap.js) deja un .bsnap (o un banco de BX-7) en sound_buf y lo guarda en la
+ * zona que comparten tomas y sonidos, como lo haría tools/fm1/sonido.py en el aparato. */
+static uint8_t sound_buf[BM_SNAP_MAX];
+EMSCRIPTEN_KEEPALIVE uint8_t *bm_web_sound_buf(void) { return sound_buf; }
+EMSCRIPTEN_KEEPALIVE int bm_web_sound_load(int n)
+{
+    if (!ready || n <= 0 || (uint32_t)n > sizeof sound_buf) return -1;
+    if (bm_app_sound_load(&app, 0, 0, NULL, 0) || bm_app_sound_load(&app, 1, 0, sound_buf, (uint32_t)n)) return -1;
+    return bm_app_sound_load(&app, 2, 0, NULL, 0);
+}
+EMSCRIPTEN_KEEPALIVE int bm_web_sound_count(int eng) { return eng == ENG_FM ? bm_fm_count() : bm_snap_count(eng); }
+
 EMSCRIPTEN_KEEPALIVE int bm_web_view(void) { return app.view; }
 EMSCRIPTEN_KEEPALIVE int bm_web_playing(void) { return app.ctx.st.playing; }

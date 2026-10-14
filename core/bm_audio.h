@@ -183,7 +183,7 @@ struct bm_engine {
     uint8_t legato_next;
 };
 
-extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_analog, bm_eng_midi, bm_eng_acid, bm_eng_fm;
+extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_acid, bm_eng_fm, bm_eng_midi_out;
 /* FM: lo que hacen las macros sobre el patch (para la pantalla) */
 int bm_fm_alg_of(const bm_track *t, int m4);          /* algoritmo 1..32 */
 int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
@@ -243,6 +243,8 @@ typedef struct bm_ctx {
     bm_looper lp[BM_SYN_TRACKS];
     bm_arp arp[BM_TRACKS];
     bm_strum strum[8];
+    struct { uint8_t t, s, k, fill; uint8_t wait; } dq[16];   /* notas corridas en el tiempo (micro) */
+    uint8_t dq_n;
 
     /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores) */
     int32_t tbuf[BM_TRACKS][BM_BLOCK];
@@ -258,6 +260,7 @@ typedef struct bm_ctx {
     uint8_t punch_req, punch_cur;
     uint32_t punch_t, punch_w0, punch_rp;
     float pf_ic1[2], pf_ic2[2];
+    float mf_ic1[2], mf_ic2[2];  /* filtro del master */
     float sh_l, sh_r, gate_g;
     uint16_t master_target, master_gain;
     uint8_t drive, clip_hold;
@@ -281,6 +284,14 @@ typedef struct bm_ctx {
     uint32_t gen_blk;            /* bloque de 16 pasos que ya se decidió (+1; 0 = ninguno) */
     uint8_t pchain[8], pchain_n, pchain_pos;
 
+    /* audio en dos núcleos (a prueba): los canales de par_mask los calcula otra tarea. par_go la
+     * despierta con el tramo [done, done + n) y par_wait espera a que termine. */
+    void (*par_go)(void *u, uint32_t done, uint32_t n);
+    void (*par_wait)(void *u);
+    void *par_user;
+    uint8_t par_mask;
+    volatile uint8_t par_on, par_tact, par_defer;
+
     /* callbacks */
     bm_swap_fn swap; void *swap_user;
     bm_midi_out_fn midi_out; void *midi_user;
@@ -289,6 +300,8 @@ typedef struct bm_ctx {
 void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_audio_mem *mem);
 void bm_audio_render(bm_ctx *c, int32_t *out_lr, uint32_t out_frames);
 void bm_audio_overload(bm_ctx *c);
+/* la otra tarea del audio en dos núcleos: calcula los canales de par_mask en el tramo pedido */
+void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n);
 
 /* internos */
 bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato);
@@ -300,6 +313,7 @@ void bm_seq_set_bpm(bm_ctx *c, uint16_t bpm_x10);
 void bm_seq_strum_block(bm_ctx *c, uint32_t frames);
 void bm_dsp_mix(bm_ctx *c, int32_t *out_lr, uint32_t n);
 void bm_dsp_tick(bm_ctx *c);
+void bm_dsp_reset(void);
 void bm_live_note(bm_ctx *c, int track, uint8_t note, uint8_t vel, int on);
 uint32_t bm_ticks_to_samples(const bm_ctx *c, uint32_t ticks);
 int bm_track_tps(const bm_ctx *c, int t);

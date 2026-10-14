@@ -28,7 +28,7 @@ void app_ask(bm_app *a, int kind, int arg, int arg2, const char *l1, const char 
 /* estado */
 static inline int app_playing(const bm_app *a) { return a->ctx.st.playing; }
 static inline int app_kind(const bm_app *a, int t) { return bm_kind(&a->pat, t); }
-static inline int app_midi(const bm_app *a, int t) { return a->pat.trk[t].engine == ENG_MIDI; }
+static inline int app_midi(const bm_app *a, int t) { (void)a; (void)t; return 0; }   /* 0.6: MIDI es MIDI OUT por canal */
 enum { BOX_HOME, BOX_CH, BOX_LANE };
 static inline int app_engine(const bm_app *a, int t) { return a->pat.trk[t].engine; }
 int  app_scale(const bm_app *a, int t, int *root);   /* escala del canal (o la del proyecto) */
@@ -59,6 +59,7 @@ void app_paste_track(bm_app *a, int t);
 void *app_track_data(bm_app *a, int t);
 size_t app_track_size(int t);
 void app_init_sound(bm_app *a, int t);
+void app_bass_machine(bm_app *a, int eng);          /* T3: BB-303 o B-MINI (las notas quedan) */
 
 /* entrada (bm_input.c) */
 void app_on_gesture(void *u, int id, bm_gkind k);

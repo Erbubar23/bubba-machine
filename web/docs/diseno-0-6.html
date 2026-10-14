@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · GENERADO por tools/gen_site.py desde docs/DISENO_0.6.md: no editar a mano. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine 0.6: identidad propia y máquinas · Bubba Machine</title>
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="../index.html"><img src="../img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio">
+      <a href="../emulador.html?lang=es">Emulador</a>
+      <a href="manual.html">Manual</a>
+      <a href="instalar.html">Instalar</a>
+      <a href="hoja-de-ruta.html">Hoja de ruta</a>
+      <a href="contribuir.html">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine">Código</a>
+      <a class="lang" href="../en/index.html" hreflang="en" lang="en" data-lang="en">English</a>
+    </nav>
+  </div>
+</header>
+<div class="docs">
+  <aside aria-label="Documentación"><div class="grp">Usar</div>
+    <a href="manual.html">Manual</a>
+    <a href="instalar.html">Instalar</a>
+    <a href="cambios.html">Cambios</a>
+    <div class="grp">Proyecto</div>
+    <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="diseno-0-6.html" aria-current="page">Diseño 0.6</a>
+    <a href="hoja-de-ruta.html">Hoja de ruta</a>
+    <a href="contribuir.html">Contribuir</a>
+    <a href="conducta.html">Código de conducta</a>
+    <a href="creditos.html">Créditos</a>
+    <div class="grp">Técnico</div>
+    <a href="audio.html">Audio</a>
+    <a href="desarrollo.html">Desarrollo</a>
+    <a href="spec.html">Especificación</a>
+    <a href="memoria.html">Memoria</a>
+    <a href="diseno-0-2.html">Diseño 0.2</a></aside>
+  <main class="doc">
+<h1 id="bubba-machine-06-identidad-propia-y-máquinas">Bubba Machine 0.6: identidad propia y máquinas</h1>
+<blockquote><p><strong>Estado: implementado en la 0.6.0-beta (2026-10-14), sin probar en el aparato.</strong> Falta medir en el FM-1 el sonido y la carga de cada máquina, el chorus y el pasa-altos de BUNO-6 (valores aproximados), PANTALLA RÁPIDA y DOS NÚCLEOS; la pantalla por DMA queda para después. El manual de uso es <a href="manual.html">MANUAL.md</a>. Parte de un prompt externo ("Prompt Maestro": mezclador MX-1, Bubba Drums, sampler OP-1, bajos 303 / D MINI, FM DX7 y un wavetable que carga presets de Vital) y lo contrasta con lo que medimos en el FM-1. Lo que el prompt dice y el aparato no hace está corregido aquí, con su fuente.</p></blockquote>
+<h2 id="1-la-idea-en-una-línea">1. La idea en una línea</h2>
+<p><strong>El FM-1 se convierte en seis máquinas fijas sobre cuatro núcleos de sonido, con una sola cara visual.</strong> Cada máquina lleva un nombre que remite a la original (BX-7 por la DX7, BB-303 por la TB-303...), sin copiar la marca. No se eligen motores: cada canal <em>es</em> una máquina. Y la idea del autor: <strong>el núcleo wavetable carga presets de Vital y las otras máquinas de síntesis salen de ese mismo núcleo, limitadas a su función</strong> (un bajo ácido no tiene unísono de 5 voces; un pad no tiene slide).</p>
+<h2 id="2-lo-que-dice-el-prompt-contra-nuestros-datos">2. Lo que dice el prompt contra nuestros datos</h2>
+<div class="tbl"><table><thead><tr><th>El prompt dice</th><th>Lo medido / lo real</th><th>Qué hacemos</th></tr></thead><tbody><tr><td>CPU pi32v2 a 240 MHz</td><td><strong>360 MHz</strong>, dos núcleos con FPU (240 es el firmware de fábrica)</td><td>Presupuesto con 360 MHz y un solo núcleo hasta que el audio use los dos (<a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/ARQUITECTURA_FM1.md">ARQUITECTURA_FM1</a>)</td></tr><tr><td>DSP en coma fija Q15/Q31</td><td>La FPU es <strong>1.5× más rápida</strong> que la aritmética entera de 64 bits que usaba la 0.3 (<a href="audio.html">AUDIO</a>)</td><td>El cálculo sigue en float. Las <strong>tablas</strong> sí en int16 (la mitad de memoria)</td></tr><tr><td>44.1 kHz</td><td>El codec corre a <strong>44 117.6 Hz</strong> (24 MHz / 544)</td><td>Se afina con la frecuencia real, como hoy</td></tr><tr><td>Encoder con push / shift "en décimas"</td><td><strong>Los 7 encoders no tienen pulsador</strong> (<a href="spec.html">SPEC_V3</a> §2)</td><td>Las décimas de BPM con HOME + ALGORITHM (HOME es nuestro modificador)</td></tr><tr><td>LEDs que iluminan la escala, estela de colores</td><td><strong>Las luces son solo blancas</strong>: encendida, media (15 %), tenue (~4 %), apagada</td><td>La estela de un TIE sí (intensidades); lo que hace cada tecla lo dice la pantalla</td></tr><tr><td>Teclas 1-27 numeradas en fila (1-6 mute, 7-22 escenas)</td><td>11 negras + 16 blancas, y ya tenemos una gramática: negras 1-6 mutes, 7-10 escenas, 11 FILL; blancas = pasos o patrones</td><td>Se queda nuestra gramática: es la misma idea con las teclas que existen</td></tr><tr><td>4 franjas sin tira de teclas</td><td>Regla del proyecto: <strong>cada pantalla dice qué hace cada tecla</strong></td><td>La franja de pasos pasa a ser el teclado dibujado (sección 5)</td></tr><tr><td>Wavetable de <strong>256 muestras × 8 frames</strong></td><td>256 muestras = 128 armónicos: un bajo en La1 (55 Hz) se corta en <strong>7 kHz</strong>. Vital usa <strong>2048 muestras</strong> por frame y 257 posiciones (medido en sus presets)</td><td>Guardar el <strong>espectro</strong> (hasta 256 armónicos) y armar las tablas en RAM (sección 4)</td></tr><tr><td>Mezclador con envíos de efectos y Beat FX</td><td><strong>No hay reverb, chorus ni compresor</strong> todavía: solo delay y clipper (<a href="audio.html">AUDIO</a>)</td><td>Los efectos pasan a ser requisito, no extra (sección 6)</td></tr><tr><td>Telemetría y visor 2.5D en tiempo real</td><td>La pantalla va por SPI a 12 MHz: un cuadro completo tarda ~100 ms</td><td>Pantalla rápida (SPI 30 MHz + DMA, 2.2× medido) <strong>antes</strong> de la interfaz nueva</td></tr><tr><td>Micro-tipografía; wireframes de 50 columnas</td><td>Con la letra 5×7 caben <strong>40 caracteres</strong> por línea, sin márgenes</td><td>Cada franja con ≤ 32 caracteres; los textos del prompt se recortan</td></tr><tr><td>"VITAL LITE", "MX-1", "TB-303", "D MINI", "OP-1", "DX7" en pantalla</td><td>El código de Vital (GPL-3.0 o posterior) <strong>prohíbe usar el nombre "Vital"</strong> para nombrar binarios hechos con él; los otros son marcas de Roland, Behringer, Teenage Engineering y Yamaha</td><td><strong>Nombres que remiten a la original sin ser ella</strong>: la B de Bubba en lugar de la letra de la marca (sección 3.1)</td></tr><tr><td>Presets de Vital precargados</td><td>Los presets de fábrica de Vital tienen una licencia aparte que <strong>no permite redistribuirlos</strong> (README de mtytel/vital)</td><td>Solo presets con licencia libre, o propios (sección 4.4)</td></tr></tbody></table></div>
+<p>Lo que el prompt pide y <strong>ya existe</strong>: Bubba Drums (T1, Plaits, 16 instrumentos, rejilla TR); el sampler de pads (T2) con inicio, largo, tono y modo LOOP; ACID (filtro escalera, acento, slide); FM de 6 operadores con los 32 algoritmos (msfa); la grabación libre con el largo de cada nota (hasta 4 compases); P-Locks manteniendo un paso; MEZCLA y ESCENAS en HOME; el secuenciador a 96 PPQN desde el contador de muestras.</p>
+<h2 id="3-arquitectura-seis-máquinas-cuatro-núcleos">3. Arquitectura: seis máquinas, cuatro núcleos</h2>
+<div class="tbl"><table><thead><tr><th>Canal</th><th>Máquina</th><th>Remite a</th><th>Núcleo</th></tr></thead><tbody><tr><td>—</td><td><strong>BX-1</strong> (HOME, el mezclador)</td><td>Roland AIRA MX-1</td><td>—</td></tr><tr><td>T1</td><td><strong>BR-8</strong> (Bubba Drums, kits 808 y 909)</td><td>Roland TR-8 / TR-808 / TR-909</td><td>DRUMS (Plaits)</td></tr><tr><td>T2</td><td><strong>BP-1</strong> (sampler de pads)</td><td>Teenage Engineering OP-1 / KO II</td><td>SAMPLER</td></tr><tr><td>T3</td><td><strong>BB-303</strong> o <strong>B-MINI</strong> (ALGORITHM las cambia)</td><td>Roland TB-303 / Minimoog Model D (D MINI)</td><td><strong>WAVE</strong></td></tr><tr><td>T4</td><td><strong>BX-7</strong></td><td>Yamaha DX7</td><td>FM (msfa)</td></tr><tr><td>T5</td><td><strong>BITTAL</strong></td><td>Vital</td><td><strong>WAVE</strong></td></tr><tr><td>T6</td><td><strong>BUNO-6</strong></td><td>Roland Juno-6 / 60 / 106</td><td><strong>WAVE</strong></td></tr></tbody></table></div>
+<h3 id="31-los-nombres">3.1 Los nombres</h3>
+<p>La regla: <strong>la B de Bubba toma el lugar de la primera letra</strong> y se conserva el número o la forma, para que se reconozca la máquina sin usar su marca. En la cabecera de cada pantalla va el nombre corto (≤ 8 caracteres). El sitio y el manual dicen "inspirado en" y que Bubba no tiene relación con esas marcas. <strong>BITTAL</strong> es la elección del autor (2026-10-14). Con dos T se distingue más de "Vital", que su README pide no usar para nombrar binarios.</p>
+<h3 id="32-un-núcleo-wave-cuatro-máquinas">3.2 Un núcleo WAVE, cuatro máquinas</h3>
+<p><strong>Por qué un núcleo para todas las máquinas sustractivas y de tablas.</strong> Hoy ANALOG y ACID son dos motores con dos bucles calientes. En la 0.4 aprendimos que cada bucle se optimiza a mano (pasadas cortas: casi 2×; filtro cada 8 muestras; coeficientes en caché). Con un solo núcleo:</p>
+<ul><li>
+<strong>un bucle que optimizar y medir</strong>, con caminos especializados por cara (en C++ con plantillas, como ya compilamos los motores), para que BB-303 no pague el unísono de BITTAL;
+</li><li>
+<strong>un formato de sonido para todo</strong> (el snapshot, sección 4): un preset de Vital se carga en la máquina cuyos límites respeta (un bajo de un oscilador en B-MINI, una cuerda de sierra y pulso en BUNO-6);
+</li><li>
+<strong>menos programa</strong>: ANALOG y ACID se van; su oscilador polyBLEP y su filtro escalera son el modo "clásico" de WAVE.
+</li></ul>
+<div class="tbl"><table><thead><tr><th>Cara</th><th>Osciladores</th><th>Filtro</th><th>Envolventes y modulación</th><th>Voces</th><th>Lo propio de la cara</th></tr></thead><tbody><tr><td><strong>BB-303</strong></td><td>1, sierra o cuadrada (polyBLEP)</td><td>escalera 4 polos</td><td>ENV MOD + DECAY; ACCENT</td><td>mono</td><td>slide con las notas ligadas; el acento carga la envolvente como una 303</td></tr><tr><td><strong>B-MINI</strong></td><td>3 clásicos (polyBLEP), desafinación y mezcla</td><td>escalera 4 polos con drive cálido (CUTOFF, EMPHASIS, CONTOUR)</td><td>2 ADSR con sustain real</td><td>mono / legato</td><td>notas largas con sustain; glide</td></tr><tr><td><strong>BITTAL</strong></td><td>2 wavetables (de un snapshot) + unísono ≤ 4</td><td>1 filtro: ANALOG, LADDER, DIGITAL, DIRTY o DIODE</td><td>2 ADSR, 1 LFO, <strong>4 macros</strong></td><td>4 por canal</td><td>carga presets de Vital (sección 4)</td></tr><tr><td><strong>BUNO-6</strong></td><td>1 DCO por voz: sierra, pulso con PWM, sub una octava abajo y ruido</td><td>pasa-altos de 4 posiciones + pasa-bajos de 24 dB con resonancia</td><td>1 ADSR (al filtro y al volumen, o volumen en GATE), 1 LFO con retardo</td><td><strong>6</strong></td><td>el <strong>chorus I / II / I+II</strong> de BBD, que es la mitad del sonido; ALGORITHM lo elige</td></tr></tbody></table></div>
+<p><strong>BUNO-6 sale de presets de fábrica propios hechos en Vital</strong>, como pidió el autor: en Vital se arma un patch "a lo Juno" (oscilador 1 con sierra y pulso, oscilador 2 cuadrado una octava abajo como sub, ruido, filtro 1 analógico de 24 dB, filtro 2 pasa-altos, ENV 1, LFO 1 y chorus) y el editor lo traduce a los ajustes de BUNO-6; lo que quede fuera de esos límites, lo avisa y lo deja afuera. Como sus ondas son clásicas (polyBLEP), <strong>el snapshot no lleva tabla: mide ~150 B</strong>, y caben cientos en el banco.</p>
+<p>El costo esperado es el de un oscilador de ANALOG por voz (ANALOG, con dos osciladores, mide 4.1 % de un núcleo): seis voces, del orden de 15-25 % de un núcleo, a medir. El chorus de BBD hay que modelarlo (dos líneas de retardo moduladas y filtradas, en estéreo); sus velocidades y profundidades se toman del manual de servicio de Roland, no de clones.</p>
+<p><strong>Lo que no entra en WAVE:</strong> BX-7 se queda en msfa (3.3 % de un núcleo por voz, lee <code>.syx</code>; la FM de Vital no son 6 operadores con 32 algoritmos), BR-8 en Plaits y BP-1 en el sampler. Esos tres ya existen y suenan.</p>
+<p><strong>Lo que se quita</strong> (lo pidió el autor: "si hay que quitar cosas como cambiar de sintes, hay que hacerlo"):</p>
+<ul><li>
+<strong>MAS › MOTOR</strong> y la elección de motor en T4-T6: cada canal es fijo.
+</li><li>
+Los motores <strong>ANALOG</strong> y <strong>ACID</strong> como motores aparte (pasan a ser B-MINI, BUNO-6 y BB-303), y los huecos de <strong>CUERDA</strong> y <strong>MODAL</strong> del formato.
+</li><li>
+<strong>KIT</strong> en los canales libres (una segunda batería) y <strong>MIDI</strong> como motor: si se quiere MIDI, pasa a ser una opción por canal ("también manda por MIDI"), no una máquina.
+</li><li>
+La paleta por canal de hoy (azul, verde, amarillo...): la reemplazan los cuatro acentos (sección 5).
+</li><li>
+El formato de patrón cambia (canales fijos): se borra al arrancar, sin conversión (hasta la v1 no hay compatibilidad hacia atrás).
+</li></ul>
+<h2 id="4-snapshots-de-un-preset-de-vital-al-fm-1">4. Snapshots: de un preset de Vital al FM-1</h2>
+<p>El editor web hace lo que el prompt llama "Git-snapshot": lee un <code>.vital</code>, se queda con lo que el FM-1 puede tocar y lo empaqueta. <strong>Todo el cálculo pesado pasa en el navegador</strong>; el FM-1 solo carga.</p>
+<h3 id="41-qué-trae-un-vital-medido-en-356-presets">4.1 Qué trae un <code>.vital</code> (medido en 356 presets)</h3>
+<ul><li>
+Un JSON con ~780 ajustes (<code>settings</code>), <code>preset_style</code>, autor y los nombres de 4 macros.
+</li><li>
+<strong>Las wavetables viajan dentro del preset</strong>, pero no ya calculadas: son <em>componentes</em> del editor de Vital. <code>Wave Source</code> trae los frames (2048 floats en base64) y se usa tal cual; <code>Line Source</code> son puntos; <code>Audio File Source</code> trae audio y lo corta; encima van modificadores (<code>Wave Warp</code>, <code>Frequency Filter</code>, <code>Wave Folder</code>, <code>Slew Limiter</code>...).
+</li><li>
+218 de 356 presets usan solo <code>Wave Source</code> o <code>Line Source</code>: esos se leen sin el editor de Vital. Para el resto hay que <strong>compilar el código de wavetables de Vital a WASM</strong> (es GPL-3.0 o posterior, compatible con Bubba, y ya usamos emsdk).
+</li></ul>
+<h3 id="42-el-paquete-bsnap">4.2 El paquete <code>.bsnap</code></h3>
+<div class="tbl"><table><thead><tr><th>Parte</th><th>Tamaño</th><th>Qué es</th></tr></thead><tbody><tr><td>Cabecera</td><td>16 B</td><td>firma, versión, máquina (BB-303, B-MINI, BITTAL, BUNO-6), id de contenido (los 4 hex que muestra la pantalla, "#A4F9")</td></tr><tr><td>Ajustes</td><td>~96 B</td><td>niveles, transposición, unísono, posición de la tabla, filtro, 2 ADSR, LFO, glide, 4 macros (destino y cantidad)</td></tr><tr><td>Nombre, autor, licencia</td><td>32 B</td><td>para los créditos en la pantalla y en el sitio</td></tr><tr><td>Tabla (×1 o ×2; BB-303, B-MINI y BUNO-6 no llevan)</td><td>~4 KiB c/u</td><td>8 frames como <strong>espectro</strong>: hasta 256 armónicos, magnitud y fase de 8 bits</td></tr></tbody></table></div>
+<p>Con una tabla, el snapshot mide ~4.2 KB (lo mismo que dice el prompt, pero con 256 armónicos en vez de 128). Las tablas repetidas entre snapshots se guardan una vez.</p>
+<p><strong>Por qué espectro y no muestras:</strong> 256 armónicos llegan a 20 kHz desde los 78 Hz y, más abajo, sobran para un grave. Al cargar, el FM-1 arma en RAM cada frame en 1024 muestras y sus versiones por octava (sin aliasing, como un mipmap), con una IFFT por frame: unos milisegundos, una sola vez.</p>
+<h3 id="43-qué-se-traduce-y-qué-no">4.3 Qué se traduce y qué no</h3>
+<div class="tbl"><table><thead><tr><th>Se traduce</th><th>Se aproxima</th><th>No entra (el editor lo dice)</th></tr></thead><tbody><tr><td>Osciladores 1-2 (nivel, transposición, afinación, frame), unísono hasta 4, ENV 1-2, LFO 1, filtro 1, glide, legato, macros 1-4</td><td>Filtro ANALOG, DIRTY, LADDER, DIGITAL y DIODE a los nuestros; reverb, chorus, delay y drive a los envíos del canal</td><td>Oscilador 3 (se mezcla en el 2 si es estático), sampler de Vital, morph espectral, distorsión de fase, LFO 2-8, ENV 3-6, aleatorios, filtros FORMANT, COMB y PHASER, EQ, flanger, phaser</td></tr></tbody></table></div>
+<p>El editor muestra lo que se perdió y un costo estimado de CPU antes de empaquetar.</p>
+<p><strong>Las macros casi nunca vienen hechas:</strong> solo 84 de los 356 presets usan alguna y 16 les ponen nombre. Si el preset no las trae, el editor arma cuatro: <strong>TONE</strong> (corte), <strong>WAVE</strong> (posición en la tabla), <strong>MOVE</strong> (cantidad del LFO) y <strong>SPACE</strong> (envío de efectos).</p>
+<h3 id="44-presets-con-licencia-libre-en-github">4.4 Presets con licencia libre en GitHub</h3>
+<div class="tbl"><table><thead><tr><th>Repositorio</th><th>Licencia</th><th>Presets</th><th>¿Se puede usar?</th></tr></thead><tbody><tr><td><a href="https://github.com/nahush2321/Vitalium-presets">nahush2321/Vitalium-presets</a></td><td>GPL-3.0</td><td>221</td><td>sí, con crédito</td></tr><tr><td><a href="https://github.com/Mxm40b/vital-presets">Mxm40b/vital-presets</a></td><td>Unlicense</td><td>125</td><td>sí</td></tr><tr><td><a href="https://github.com/abstractionmage/Vital-Presets">abstractionmage/Vital-Presets</a></td><td>CC0-1.0</td><td>8</td><td>sí</td></tr><tr><td><a href="https://github.com/christ-offer/vitalium-presets">christ-offer/vitalium-presets</a></td><td>CC0-1.0</td><td>3</td><td>sí</td></tr><tr><td><a href="https://github.com/Miserlou/VitalPresets">Miserlou/VitalPresets</a></td><td>sin licencia (y trae presets de otros packs)</td><td>2124</td><td><strong>no</strong></td></tr><tr><td><a href="https://github.com/jpriebe/qub1t-vital-presets">jpriebe/qub1t-vital-presets</a></td><td>sin licencia</td><td>195</td><td><strong>no</strong></td></tr><tr><td>Presets de fábrica de Vital</td><td>licencia que prohíbe redistribuir</td><td>—</td><td><strong>no</strong></td></tr></tbody></table></div>
+<p>Lo que muestran esos 356 presets (lo que el FM-1 tendrá que hacer para que suenen como en Vital):</p>
+<ul><li>
+<strong>Efectos en casi todos:</strong> distorsión en 252, compresor en 221, EQ en 176, reverb en 152, chorus en 115, delay en 80. Sin reverb, chorus y drive un snapshot va a sonar seco.
+</li><li>
+<strong>Unísono:</strong> la mitad usa 4 voces o más; hay hasta 16.
+</li><li>
+<strong>Filtros:</strong> ANALOG en 300, COMB en 45, DIRTY en 32, DIGITAL en 17, LADDER y FORMANT en 12.
+</li><li>
+72 usan el sampler de Vital y 146 componentes son audio cortado en tablas.
+</li></ul>
+<p><strong>Lista inicial</strong> (caben como están: sin sampler, solo <code>Wave</code>/<code>Line Source</code>, filtros que tenemos, unísono ≤ 6). Ninguno se escuchó todavía y varios nombres son malos: en el banco de fábrica se renombran (las tres licencias lo permiten) y llevan crédito.</p>
+<div class="tbl"><table><thead><tr><th>Máquina</th><th>Preset (autor, licencia)</th></tr></thead><tbody><tr><td>BB-303 / B-MINI</td><td>Sub 1 (nahush, GPL-3.0) · Sub 56 (nahush, GPL-3.0) · Curious Bass (Abstraction Mage, CC0) · bad 808 (mxmfrpr, Unlicense) · low part of heavy bass (mxmfrpr, Unlicense) · reese bass (mxmfrpr, Unlicense)</td></tr><tr><td>BITTAL lead</td><td>Saw Movement 45 (nahush) · Synth8 (nahush) · Sirenengesang (Abstraction Mage) · cool synth · hard lead · nice lead (mxmfrpr)</td></tr><tr><td>BITTAL keys</td><td>PIANO · pinaon 12 · Chord 3 (nahush) · cute background keys · keys per P · smooth chill chords (mxmfrpr)</td></tr><tr><td>BITTAL pluck</td><td>move arp (nahush) · super space pluck · arp · bishu's better bell · wood pluck · spacy plucks (mxmfrpr)</td></tr><tr><td>BITTAL pad</td><td>Low-mid Simplicity (Abstraction Mage) — el único pad que cabe: los demás usan sampler o mucho unísono</td></tr></tbody></table></div>
+<p><strong>El banco de fábrica es esta lista inicial</strong> (decidido por el autor, 2026-10-14): se escucha, se renombra y se acredita. BUNO-6 no tiene ninguno en la lista, así que sus presets de fábrica son los propios hechos en Vital (sección 3.2). Cualquiera podrá subir los suyos desde el editor.</p>
+<h2 id="5-la-cara-visual">5. La cara visual</h2>
+<h3 id="51-paleta-pantalla-las-luces-de-las-teclas-siguen-blancas">5.1 Paleta (pantalla; las luces de las teclas siguen blancas)</h3>
+<div class="tbl"><table><thead><tr><th>Uso</th><th>Hex</th><th>RGB565</th></tr></thead><tbody><tr><td>Fondo (Void Black)</td><td><code>#0A0B10</code></td><td><code>0x0842</code></td></tr><tr><td>Rejilla sutil</td><td><code>#161925</code></td><td><code>0x10C4</code></td></tr><tr><td>Activo, ondas, cursor (Cyber Cyan)</td><td><code>#00F0FF</code></td><td><code>0x079F</code></td></tr><tr><td>Valores, filtro, paso que suena (Neon Amber)</td><td><code>#FF8A00</code></td><td><code>0xFC40</code></td></tr><tr><td>REC, saturación, mute (Laser Red)</td><td><code>#FF0055</code></td><td><code>0xF80A</code></td></tr><tr><td>Notas largas, TIE (Matrix Mint)</td><td><code>#70FF98</code></td><td><code>0x77F3</code></td></tr></tbody></table></div>
+<h3 id="52-las-franjas-con-el-teclado-dentro">5.2 Las franjas, con el teclado dentro</h3>
+<p>El prompt pone una barra de 16 pasos donde nosotros necesitamos la tira de teclas. Coinciden: <strong>16 pasos = 16 blancas</strong>. Arriba van las 11 negras, como en el aparato.</p>
+<div class="tbl"><table><thead><tr><th>Franja</th><th>Y</th><th>Contenido</th></tr></thead><tbody><tr><td>Cabecera</td><td>0-23</td><td>máquina, PLAY/REC, TIE/GATE, BPM y CPU (≤ 32 caracteres)</td></tr><tr><td>Visor</td><td>24-135</td><td>lo propio de cada máquina (mezclador, rollo de notas, onda, algoritmo, tabla)</td></tr><tr><td>Teclado</td><td>136-167</td><td>negras (136-149, 11 celdas con su nombre) y blancas = pasos (150-167, 16 celdas de 15 px, con las barras de TIE)</td></tr><tr><td>Perillas</td><td>168-239</td><td>K1-K4: dial, valor y nombre, 60 px cada una</td></tr></tbody></table></div>
+<p>El mezclador entra justo: una fila de títulos y <strong>6 canales de 16 px</strong> en los 112 px del visor (nombre, secuencia de 16 pasos, efecto, volumen).</p>
+<h3 id="53-las-perillas-grandes-hoy-y-lo-que-propone-el-prompt">5.3 Las perillas grandes: hoy y lo que propone el prompt</h3>
+<div class="tbl"><table><thead><tr><th></th><th>Hoy (0.5)</th><th>Prompt</th><th>Recomendación</th></tr></thead><tbody><tr><td><strong>SELECT</strong></td><td>la página o la fila</td><td>HOME: cursor de canal · dentro: la página</td><td><strong>como el prompt</strong></td></tr><tr><td><strong>PRESETS</strong></td><td>el sonido · en HOME, el patrón</td><td>HOME: escena/patrón · dentro: el preset o el snapshot</td><td>igual que hoy (coinciden)</td></tr><tr><td><strong>ALGORITHM</strong></td><td>el canal, con el recuadro de 400 ms</td><td>HOME: BPM · dentro: el modo (algoritmo de BX-7, BB-303 ↔ B-MINI, tabla de BITTAL, chorus de BUNO-6)</td><td><strong>como el prompt</strong>: el nombre de la perilla es justo eso</td></tr><tr><td>Entrar a un canal</td><td>girar ALGORITHM</td><td>no lo dice</td><td>en HOME, SEQ o EDIT abren el canal del cursor; <strong>HOME + SELECT</strong> cambia de canal desde cualquier pantalla</td></tr></tbody></table></div>
+<p><strong>Decidido por el autor (2026-10-14): se adopta el mapa del prompt</strong>, con la entrada a los canales de la última fila. Es el cambio más grande para quien ya toca la 0.5: el manual y la guía de HOME lo explican desde el primer arranque. Se va el recuadro de 400 ms de ALGORITHM (y su ajuste en GLO y SISTEMA).</p>
+<h2 id="6-optimizaciones-que-pide-el-cambio">6. Optimizaciones que pide el cambio</h2>
+<p>En el orden en que hacen falta, cada una medida en el FM-1 antes y después:</p>
+<ol><li>
+<strong>Pantalla rápida:</strong> SPI a 30 MHz y envío por DMA (2.2× medido). La interfaz nueva anima más (secuencias en el mezclador, la tabla girando, diales).
+</li><li>
+<strong>Audio en los dos núcleos</strong> (1.83× medido). BITTAL con unísono más las seis voces de BUNO-6 no caben en uno solo.
+</li><li>
+<strong>El núcleo WAVE</strong>: tablas en RAM (nunca leídas de la flash en el audio), int16, interpolación entre frames calculada por bloque, pasadas cortas como ANALOG. Límites: 4 voces por canal, unísono ≤ 4. Costo a medir; estimado de 5-9 % de un núcleo por voz con 2 osciladores.
+</li><li>
+<strong>Efectos:</strong> reverb de Griesinger y chorus (Clouds/Rings, MIT), drive y la mezcla de envíos por canal; además el chorus de BBD de BUNO-6, propio del canal. Sin ellos los snapshots no se parecen a Vital ni BUNO-6 a un Juno.
+</li><li>
+<strong>RAM:</strong> una tabla armada ocupa ~32 KiB (8 frames de 1024 muestras con sus octavas); dos osciladores en BITTAL, ~64 KiB. BB-303, B-MINI y BUNO-6 no usan tablas. Hay ~370 KiB libres: sobra, y hay que medirlo.
+</li><li>
+<strong>Programa:</strong> hoy 340 KB de 568 KiB. ANALOG y ACID se van; entran WAVE, los efectos y la interfaz.
+</li></ol>
+<h2 id="7-memoria-una-sola-toma-por-ahora-hecho">7. Memoria: una sola toma por ahora (hecho)</h2>
+<p>A pedido del autor, la zona de tomas queda del tamaño de la toma de prueba: <strong>un compás de <em>Buenos Aires No Duerme</em> a 161 BPM</strong> (1.49 s, 23 851 muestras a 16 kHz), sacado de la pista instrumental del proyecto del autor. El resto queda reservado para el banco de snapshots.</p>
+<p>Hay cuatro candidatos de un compás, cada uno empezando en un golpe, en <code>assets/test-samples/</code> (fuera de git: el audio no se sube): <code>buenos_aires_a_75s</code>, <code>_b_62s</code>, <code>_c_123s</code> y <code>_d_198s</code>, en <code>_hq.wav</code> (44.1 kHz) y <code>_fm1.wav</code> (16 kHz y 8 bits, como suena en el FM-1). <strong>Para esta versión se usa el primero, <code>buenos_aires_a_75s</code></strong> (decisión del autor, 2026-10-14): empieza en el segundo 74.86 de la pista, en la parte más fuerte y con más golpes. Los otros tres quedan de repuesto. Se sube con <code>py -3 tools/fm1/toma.py assets/test-samples/buenos_aires_a_75s_hq.wav --bpm 161</code>, o en el emulador con WAV a TAKES.</p>
+<div class="tbl"><table><thead><tr><th>Zona</th><th>Antes</th><th>Ahora</th></tr></thead><tbody><tr><td>Tomas</td><td><code>0xC0000-0xD8FFF</code>, 100 KiB, 6.4 s, hasta 3 s por toma</td><td><code>0xC0000-0xC5FFF</code>, <strong>24 KiB, una toma de hasta 1.53 s</strong></td></tr><tr><td>Banco de sonidos</td><td>—</td><td><code>0xC6000-0xD8FFF</code>, <strong>76 KiB reservados</strong> (~16 snapshots de una tabla; más si comparten tablas)</td></tr></tbody></table></div>
+<p><code>BM_SMP_REC_MAX</code> (lo que graba la grabadora y lo que acepta <code>tools/fm1/toma.py</code>) baja a 24 448 muestras. Las tomas guardadas fuera de los primeros 24 KiB se pierden al actualizar.</p>
+<h3 id="71-después-tomas-y-sonidos-comparten-la-zona-decidido">7.1 Después: tomas y sonidos comparten la zona (decidido)</h3>
+<p>Cuando exista el banco (fase 5), <strong>las tomas y los snapshots comparten los 100 KiB</strong> (<code>0xC0000-0xD8FFF</code>, 25 sectores) y el usuario decide cómo se reparten:</p>
+<ul><li>
+Un solo mapa de sectores para las dos bibliotecas: <strong>las tomas se ubican desde abajo y los snapshots desde arriba</strong>, cada una en sectores seguidos con su cabecera, así que el límite se mueve solo y no hay que mover datos al cambiarlo.
+</li><li>
+La pantalla de memoria muestra las dos partes (segundos de toma libres y sonidos que caben); al grabar o al cargar un sonido, si no cabe, ofrece borrar algo de la otra parte (pregunta, como todo borrado).
+</li><li>
+El banco de fábrica se escribe al instalar y ocupa lo suyo (la lista inicial: ~25 snapshots, entre ~150 B y ~8 KiB cada uno); lo que sobre es para tomas.
+</li><li>
+La toma máxima sigue limitada por la RAM de grabación (3 s), no por la zona.
+</li></ul>
+<p>Hasta la fase 5 queda como hoy: una toma de 1.5 s y el resto reservado.</p>
+<h2 id="8-plan-por-fases">8. Plan por fases</h2>
+<p>Cada fase sale cuando se probó en el FM-1. La beta que "ya integra todo" es el final de la fase 7.</p>
+<div class="tbl"><table><thead><tr><th>Fase</th><th>Qué</th><th>Se prueba con</th></tr></thead><tbody><tr><td>0 ✓</td><td>Zona de tomas de 24 KiB y banco reservado</td><td>pruebas de PC</td></tr><tr><td>1</td><td>Pantalla rápida y audio en dos núcleos</td><td>consola: µs de la UI, carga por núcleo</td></tr><tr><td>2</td><td><strong>Cara visual:</strong> paleta, franjas, componentes (cabecera, teclado, diales) y el mezclador BX-1 en HOME, sin tocar el sonido</td><td>capturas y el aparato</td></tr><tr><td>3</td><td><strong>Canales fijos:</strong> fuera MOTOR, KIT y MIDI como motor; formato nuevo</td><td>demo nueva</td></tr><tr><td>4</td><td><strong>Núcleo WAVE</strong> con BB-303 y B-MINI (reemplaza a ANALOG y ACID)</td><td>mismo sonido o mejor, costo por voz</td></tr><tr><td>5</td><td><strong>Editor web de snapshots</strong> (<code>.vital</code> → <code>.bsnap</code>), banco de fábrica, subir por USB, y la zona compartida con las tomas (7.1)</td><td>presets de la lista inicial y los patches de BUNO-6 hechos en Vital</td></tr><tr><td>6</td><td><strong>BITTAL</strong> (T5) con snapshots, macros y LFO, y <strong>BUNO-6</strong> (T6) con su chorus</td><td>costo con 4 voces y unísono; las 6 voces de BUNO-6</td></tr><tr><td>7</td><td><strong>Efectos:</strong> envíos por canal, reverb, chorus, drive, Beat FX</td><td>la demo con efectos, sin bloques tarde</td></tr><tr><td>8</td><td><strong>REC expresivo:</strong> TIE con paso inicial + final, gate fino, corte al final del compás, grabar las perillas mientras se sostiene la nota</td><td>grabar una línea larga</td></tr><tr><td>9</td><td><strong>BX-7:</strong> dibujo de los 32 algoritmos, edición y bancos <code>.syx</code></td><td>un banco de DX7</td></tr><tr><td>10</td><td><strong>BP-1:</strong> puntos de loop (sustain loop) y la vista de onda grande</td><td>notas largas desde REC</td></tr></tbody></table></div>
+<h2 id="9-decisiones-todas-tomadas-el-2026-10-14">9. Decisiones (todas tomadas el 2026-10-14)</h2>
+<ol><li>
+<del>T6</del>: <strong>BUNO-6</strong>, un polifónico a lo Juno con presets propios hechos en Vital (decidido por el autor, 2026-10-14).
+</li><li>
+<del>Perillas grandes</del>: se adopta el mapa del prompt (SELECT = canal en HOME, ALGORITHM = BPM / modo; sección 5.3) (decidido por el autor, 2026-10-14).
+</li><li>
+<del>Nombres</del>: BX-1, BR-8, BP-1, BB-303 / B-MINI, BX-7, <strong>BITTAL</strong>, BUNO-6 (decidido por el autor, 2026-10-14).
+</li><li>
+<del>Tablas de BITTAL</del>: espectro de hasta 256 armónicos, armado en RAM al cargar (sección 4.2) (decidido por el autor, 2026-10-14).
+</li><li>
+<del>Banco de fábrica</del>: la lista inicial (4.4); BUNO-6 con presets propios hechos en Vital (decidido por el autor, 2026-10-14).
+</li><li>
+<del>La toma de prueba</del>: <code>buenos_aires_a_75s</code>, el primer corte (decidido por el autor, 2026-10-14).
+</li><li>
+<del>Tomas</del>: comparten los 100 KiB con el banco y el usuario elige el reparto (7.1) (decidido por el autor, 2026-10-14).
+</li></ol>
+<h2 id="fuentes">Fuentes</h2>
+<ul><li>
+Código de Vital: &lt;https://github.com/mtytel/vital&gt; (README: licencia, nombre y presets de fábrica; <code>src/common/synth_constants.h</code>: modelos de filtro)
+</li><li>
+Presets analizados: los cuatro repositorios con licencia de la sección 4.4 (análisis propio con un script sobre el JSON)
+</li><li>
+Mediciones del FM-1: <a href="audio.html">AUDIO</a>, <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md">MOTORES</a>, <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/ARQUITECTURA_FM1.md">ARQUITECTURA_FM1</a>, <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md">TRAZA_FM1</a>
+</li></ul>
+    <p class="src">Esta página se genera desde <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/DISENO_0.6.md">docs/DISENO_0.6.md</a>. ¿Ves un error? Edita el archivo y manda un pull request.</p>
+  </main>
+</div>
+<footer>
+  <div class="in">
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+  </div>
+</footer>
+<script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>
+</body>
+</html>

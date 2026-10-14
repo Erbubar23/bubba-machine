@@ -7,21 +7,22 @@
 #include "bm_pattern.h"
 #include "bm_params.h"
 
-typedef char bm_assert_event[(sizeof(bm_event) == 8) ? 1 : -1];
+typedef char bm_assert_event[(sizeof(bm_event) == 10) ? 1 : -1];
 typedef char bm_assert_track[(sizeof(bm_track) == 48) ? 1 : -1];
 typedef char bm_assert_meta[(sizeof(bm_meta) == 64) ? 1 : -1];
 typedef char bm_assert_notes[(sizeof(bm_tr) <= sizeof(bm_notes)) ? 1 : -1];
 typedef char bm_assert_lane[(sizeof(bm_lane) == 8) ? 1 : -1];
-typedef char bm_assert_prm[(AN_NPRM <= BM_PRM) ? 1 : -1];
+typedef char bm_assert_prm[(BT_NPRM <= BM_PRM && MN_NPRM <= BM_PRM && BN_NPRM <= BM_PRM) ? 1 : -1];
 
 const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
 const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
-const char *const bm_engine_names[ENG_COUNT] = {"DRUMS", "SAMPLER", "ANALOG", "FM", "ACID", "STRING", "MODAL", "KIT", "MIDI"};
+const char *const bm_engine_names[ENG_COUNT] = {"BR-8", "BP-1", "BB-303", "B-MINI", "BX-7", "BITTAL", "BUNO-6"};
 
 void bm_event_clear(bm_event *e)
 {
     e->note = BM_EV_EMPTY; e->vel = BM_VEL_NORMAL; e->len = 1; e->prob = 100;
     e->lk[0] = e->lk[1] = e->lk[2] = e->lk[3] = BM_LOCK_NONE;
+    e->gate = 0; e->micro = 0;
 }
 
 bool bm_event_empty(const bm_event *e) { return e->note == BM_EV_EMPTY; }
@@ -43,7 +44,7 @@ void bm_track_defaults(bm_track *t, int track)
     t->arp_mode = 0; t->arp_rate = 1; t->arp_oct = 1; t->arp_gate = 60;
     t->speed = SPD_X1; t->length = 16;
     t->accent = 100; t->midi_ch = (uint8_t)track; t->scl = 0xFF; t->scl_root = 9;
-    t->engine = track == 0 ? ENG_DRUM : track == 1 ? ENG_BREAK : ENG_ANALOG;
+    t->engine = (uint8_t)bm_track_engine(track);
     t->loop_b = BM_SRC_NONE; t->pitch = 24;
     if (track == 0) { t->macro[0] = t->macro[1] = t->macro[2] = t->macro[3] = 64; }   /* batería: 64 = el kit tal cual */
     if (track == 1) {                                          /* pads: FILTER abierto, PITCH 0, DECAY nada, START 0 */
@@ -52,11 +53,11 @@ void bm_track_defaults(bm_track *t, int track)
         t->gen[0] = t->gen[1] = t->gen[2] = t->gen[3] = 0;    /* BREAK apagado: suena la rejilla */
         t->rt[0] = 100; t->rt[1] = 20; t->rt[2] = 40; t->rt[3] = 10;
     }
-    /* canales de notas: preset de ANALOG (bm_params.c), lo carga bm_pattern_init */
-    if (track == 2) t->source = 1;
-    if (track == 3) { t->source = 4; t->send = 30; }
-    if (track == 4) { t->source = 7; t->send = 20; }
-    if (track == 5) { t->source = 3; t->send = 40; }
+    /* canales de notas: el sonido de fábrica de su máquina, lo carga bm_pattern_init */
+    if (track >= 2) t->source = 0;
+    if (track == 3) { t->send = 30; t->rsend = 30; }
+    if (track == 4) { t->send = 20; t->rsend = 40; }
+    if (track == 5) { t->send = 10; t->rsend = 50; }
 }
 
 void bm_tr_defaults(bm_tr *tr)
@@ -88,37 +89,27 @@ static void sound_defaults(bm_track *t, int engine)
     else if (engine == ENG_FM) { t->macro[0] = 64; t->macro[1] = 64; t->macro[2] = 64; t->macro[3] = 64; t->source = 0; t->attack = 0; t->release = 64; }
 }
 
-bool bm_engine_ok(int track, int engine)
+int bm_track_engine(int track)
 {
-    if (track == 2) return engine == ENG_ANALOG || engine == ENG_ACID || engine == ENG_FM;
-    if (bm_is_free(track)) return engine == ENG_ANALOG || engine == ENG_FM || engine == ENG_ACID || engine == ENG_KIT || engine == ENG_MIDI;
-    return false;
+    static const uint8_t E[BM_TRACKS] = {ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_FM, ENG_BITTAL, ENG_BUNO};
+    return E[(unsigned)track % BM_TRACKS];
 }
 
-static void notes_reset(bm_pattern *p, int track)
+bool bm_engine_ok(int track, int engine)
 {
-    bm_track_clear_events(p, track);
-    p->loop[track - BM_TR_TRACKS].n = 0; p->loop[track - BM_TR_TRACKS].on = 0;
+    if (track == 2) return engine == ENG_ACID || engine == ENG_MINI;
+    return engine == bm_track_engine(track);
 }
 
 void bm_track_set_engine(bm_pattern *p, int track, int engine)
 {
     if (!bm_engine_ok(track, engine)) return;
     bm_track *t = &p->trk[track];
-    int was_tr = t->engine == ENG_KIT, was = t->engine;
+    if (t->engine == engine) return;
     t->engine = (uint8_t)engine;
-    if (engine == ENG_KIT) {
-        bm_tr *tr = &p->nt[track - BM_TR_TRACKS].tr;
-        bm_tr_defaults(tr);
-        bm_kit_apply(tr, 0);
-        t->macro[0] = t->macro[1] = t->macro[2] = t->macro[3] = 64; t->source = 0; t->duck = 0;
-        return;
-    }
-    if (was_tr) notes_reset(p, track);                      /* de rejilla a notas: empiezan vacías */
-    if (was == engine) return;
-    if (engine == ENG_ANALOG) { t->source = track == 2 ? 1 : 0; bm_preset_apply(p, track, t->source); }
-    else if (engine == ENG_MIDI) { t->macro[1] = 0; t->macro[2] = 0; t->macro[3] = 0; }   /* MIDI: programa y CC */
-    else sound_defaults(t, engine);
+    t->source = 0;
+    if (engine == ENG_ACID || engine == ENG_FM) sound_defaults(t, engine);
+    else bm_preset_apply(p, track, 0);
 }
 
 void bm_pattern_init(bm_pattern *p)
@@ -134,7 +125,11 @@ void bm_pattern_init(bm_pattern *p)
     for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) bm_track_clear_events(p, t);
     for (int i = 0; i < BM_SYN_TRACKS; i++) p->loop[i].bars = 2;
     bm_kit_apply(&p->tr[0], 0);
-    for (int t = 2; t < BM_TRACKS; t++) bm_preset_apply(p, t, p->trk[t].source);
+    p->meta.rv_size = 80; p->meta.rv_damp = 60; p->meta.rv_mix = 90; p->meta.mfilt = 64;
+    for (int t = 2; t < BM_TRACKS; t++) {
+        if (p->trk[t].engine == ENG_ACID || p->trk[t].engine == ENG_FM) sound_defaults(&p->trk[t], p->trk[t].engine);
+        else bm_preset_apply(p, t, p->trk[t].source);
+    }
 }
 
 int bm_master_steps(const bm_meta *m) { return m->master * BM_PAGE_STEPS; }
@@ -257,9 +252,12 @@ int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap)
             for (int e = 0; e < BM_EVENTS; e++) {
                 const bm_event *ev = bm_evc(p, t, s, e);
                 if (bm_event_empty(ev)) continue;
-                NEED(9);
+                bool x = ev->gate || ev->micro;                   /* gate y micro solo si hacen falta */
+                NEED(x ? 11 : 9);
                 out[o++] = (uint8_t)(s | (e << 6));
-                memcpy(out + o, ev, 8); o += 8;
+                memcpy(out + o, ev, 8);
+                if (x) { out[o + 3] |= 0x80u; out[o + 8] = ev->gate; out[o + 9] = (uint8_t)ev->micro; o += 10; }
+                else o += 8;
                 n++;
             }
         out[at] = (uint8_t)n; out[at + 1] = (uint8_t)(n >> 8);
@@ -324,8 +322,7 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
     memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
     for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
         uint8_t e = p->trk[t].engine;
-        if (t < 2) p->trk[t].engine = (uint8_t)(t == 0 ? ENG_DRUM : ENG_BREAK);   /* T2: ENG_BREAK = el motor de pads */
-        else if (!bm_engine_ok(t, e)) { p->trk[t].engine = ENG_ANALOG; bm_preset_apply(p, t, 0); }
+        if (!bm_engine_ok(t, e)) { p->trk[t].engine = (uint8_t)bm_track_engine(t); bm_preset_apply(p, t, 0); }
     }
     for (int t = 0; t < BM_TRACKS; t++) {
         if (bm_is_grid(p, t)) {
@@ -340,8 +337,16 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
             GET(9);
             int s = in[o] & 0x3F, slot = in[o] >> 6;
             o++;
-            memcpy(bm_ev(p, t, s, slot), in + o, 8);
+            bm_event *ev = bm_ev(p, t, s, slot);
+            memcpy(ev, in + o, 8);
             o += 8;
+            ev->gate = 0; ev->micro = 0;
+            if (ev->prob & 0x80u) {                               /* con gate y micro */
+                GET(2);
+                ev->prob &= 0x7Fu;
+                ev->gate = in[o]; ev->micro = (int8_t)bm_clampi((int8_t)in[o + 1], -11, 11);
+                o += 2;
+            }
         }
     }
     for (int t = 0; t < BM_SYN_TRACKS; t++) {

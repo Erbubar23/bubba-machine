@@ -8,7 +8,7 @@
 Convierte con ffmpeg a 16 kHz, mono, 8 bits (el formato de las tomas), normaliza el pico y lo
 manda en pedazos de 256 bytes. En el FM-1 queda como una toma recién grabada: suena ya como
 LOOP A y se guarda en la biblioteca de tomas al parar (STOP), como las que graba la grabadora.
-Hasta 3 s (49 152 muestras). El audio no se copia a ningún lado más: solo viaja al aparato.
+Hasta 3 s (49 152 muestras), si queda lugar en la zona que comparten tomas y sonidos. El audio no se copia a ningún lado más: solo viaja al aparato.
 Cierra antes el instalador web u otro programa que use el MIDI del FM-1.
 """
 import argparse, os, subprocess, sys, time
@@ -18,7 +18,7 @@ import consola  # noqa: E402
 from fm1_midi import Puerto  # noqa: E402
 
 SMP_RATE = 16000
-REC_MAX = 49152
+REC_MAX = 49152                     # core/bm_config.h: BM_SMP_REC_MAX (la RAM de grabación)
 TROZO = 256
 
 

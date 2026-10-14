@@ -4,11 +4,11 @@
 #include <string.h>
 #include <stddef.h>
 #include "bm_audio.h"
+#include "bm_wave.h"
 #include "bm_prof.h"
 #include "bm_util.h"
 #include "bm_fm.h"
 #include "bm_drums.h"
-#include "bm_analog.h"
 #include "bm_params.h"
 
 bool bm_cmd_push(bm_cmdq *q, const bm_cmd *c)
@@ -38,7 +38,8 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
     bm_fm_init((float)BM_FS);
     bm_drm_init((float)BM_FS);
-    bm_an_init((float)BM_FS);
+    bm_wv_init((float)BM_FS);
+    bm_dsp_reset();
     c->scene_q = -1;
     for (int t = 0; t < BM_TRACKS; t++) {
         c->eng[t].ctx = c;
@@ -187,7 +188,10 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;
         break;
     case CMD_SET_TRACK:
-        if (k->a < BM_TRACKS && k->b < sizeof(bm_track) && k->b != offsetof(bm_track, engine)) ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
+        if (k->a < BM_TRACKS && k->b < sizeof(bm_track) && k->b != offsetof(bm_track, engine)) {
+            ((uint8_t *)&c->pat->trk[k->a])[k->b] = k->c;
+            if (k->b == offsetof(bm_track, midi_out)) bm_engines_sync(c);
+        }
         break;
     case CMD_SET_META:
         if (k->b >= 2 && k->b < sizeof(bm_meta)) ((uint8_t *)&c->pat->meta)[k->b] = k->c;
@@ -337,6 +341,14 @@ void bm_audio_overload(bm_ctx *c)
     if (worst) bm_voice_fade(worst);
 }
 
+void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n)
+{
+    uint8_t act = 0;
+    for (int t = 0; t < BM_TRACKS; t++)
+        if (((c->par_mask >> t) & 1) && c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)n)) act |= (uint8_t)(1u << t);
+    c->par_tact = act;
+}
+
 void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
 {
     bm_cmd k;
@@ -372,9 +384,26 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 if (until < k2) k2 = until;
             }
             BM_PROF_RESTART();
+            int par = c->par_on && c->par_go && c->par_wait;
+            if (par) c->par_go(c->par_user, done, k2);            /* T4-T6 en el otro núcleo */
             for (int t = 0; t < BM_TRACKS; t++) {
+                if (par && ((c->par_mask >> t) & 1)) continue;
                 if (c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)k2)) c->tact |= (uint8_t)(1u << t);
                 BM_PROF_LAP(BM_P_T0 + t);
+            }
+            if (par) {
+                c->par_wait(c->par_user);
+                c->tact |= c->par_tact;
+                if (c->par_defer) {                                  /* voces que cambiaron de núcleo */
+                    c->par_defer = 0;
+                    for (int i = 0; i < BM_VOICES; i++) {
+                        bm_voice *v = &c->voice[i];
+                        if (!v->pend || v->active) continue;
+                        v->pend = 0;
+                        bm_engine *e = &c->eng[v->pend_track];
+                        e->vt->voice_start(e, v, v->pend_note, v->pend_vel, v->pend_lk, v->pend_legato);
+                    }
+                }
             }
             c->acc_q16 += k2 << 16;
             if (!can_tick && c->acc_q16 > c->spt_q16) c->acc_q16 = c->spt_q16;   /* externo: espera el próximo pulso */

@@ -10,3 +10,7 @@ assets/loops/loops.local.json
 # el FM-1 V15 de M-VAVE nunca se sube (tools/fm1/servir.py lo entrega sin copiarlo aquí)
 web/fm1/local/
 *.fwsc
+!web/fm1/*.fwsc
+
+# presets de Vital bajados por tools/gen_snaps.mjs (se rearman desde su repositorio)
+assets/presets/vital/

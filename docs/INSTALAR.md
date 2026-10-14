@@ -1,8 +1,8 @@
 # Instalar Bubba Machine
 
-## Estado actual: beta (0.5.0-beta)
+## Estado actual: beta (0.6.0-beta)
 
-Bubba Machine para el FM-1 tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Corre en el FM-1 del autor, pero es una **beta**: se probó en un solo aparato y todavía cambia mucho. **La 0.5.0-beta todavía no se probó en el aparato** (pasa las pruebas automáticas y el emulador); si algo falla, se vuelve a la 0.4.0-beta o al firmware de fábrica desde el instalador. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
+Bubba Machine para el FM-1 tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Corre en el FM-1 del autor, pero es una **beta**: se probó en un solo aparato y todavía cambia mucho. **La 0.6.0-beta todavía no se probó en el aparato** (pasa las pruebas automáticas y el emulador); si algo falla, se vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
 
 > **Lo que guardes puede perderse al actualizar.** Hasta la v1 no hay compatibilidad hacia atrás: si una versión nueva cambia cómo se guardan los patrones, la canción, los ajustes o las tomas, al primer arranque lo anterior se borra y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.
 
@@ -15,7 +15,7 @@ Si no quieres arriesgar tu FM-1, usa el emulador (abajo): corre el mismo código
 1. Abre el [emulador](https://erbubar23.github.io/bubba-machine/emulador.html) en Chrome o Edge.
 2. Pulsa **Encender**. Arranca con una demo.
 3. Con el teclado de la computadora:
-   - **Espacio** es PLAY, **Enter** es REC y **Shift** es HOME (el modificador: mantenlo y gira ALGORITHM para ir a otro canal).
+   - **Espacio** es PLAY, **Enter** es REC y **Shift** es HOME (el modificador: mantenlo y gira SELECT para ir a otro canal).
    - Los números **1-9 y 0** son HOME, SEQ, EDIT, ENV, FX, SCL, ARP, SAVE, LFO y GLO, y las **flechas** son OCT− y OCT+.
    - Las filas **Z-/** y **Q-P** tocan las teclas del FM-1.
    - La **rueda del mouse** sobre una perilla la gira.
@@ -25,16 +25,19 @@ El emulador corre exactamente el mismo código C que irá en el aparato.
 
 ## Cómo se instala
 
-Hace falta una computadora con **Chrome o Edge** (Web MIDI), un **cable USB de datos** y el archivo **FM-1.fwsc** (FM-1 V15) que M-VAVE publica en su sitio.
+Es **plug and play**: hace falta una computadora con **Chrome o Edge** (Web MIDI) y un **cable USB de datos**. Nada más.
 
 1. Conecta el FM-1 por USB y préndelo. Puede tener el firmware de fábrica, X0X o Bubba Machine. Cierra cualquier otro programa que use su MIDI.
 2. Abre el **instalador** (`instalar.html` del sitio) y acepta el permiso de MIDI. La página **lee el FM-1 sola** y dice qué firmware tiene.
-3. Elige qué instalar: **Bubba Machine**, el **Diagnóstico** (sin sonido, para comprobar botones, teclas y perillas) o el **Firmware de fábrica** de M-VAVE.
-4. Pulsa el botón y confirma. No desconectes hasta que diga «Listo».
+3. La página ya eligió la versión más nueva de **Bubba Machine** (también puedes elegir el **Diagnóstico**, sin sonido, para comprobar botones, teclas y perillas, o el **Firmware de fábrica** de M-VAVE).
+4. Pulsa **Instalar** y confirma. No desconectes hasta que diga «Listo».
+5. Si la casilla **«la pantalla en español»** está marcada (viene marcada en la página en español), al terminar la página espera a que el FM-1 arranque y le carga el paquete de idioma. Después te ofrece el [editor de sonidos](../web/sonidos.html) y el manual.
 
 Si la página no encuentra el FM-1, debajo de «Tu FM-1» muestra qué puertos MIDI ve y qué les pasa (por ejemplo, «ocupado» si REAPER u otro programa lo tiene abierto).
 
-La primera vez, la página pide el **FM-1.fwsc de M-VAVE** (FM-1 V15), que M-VAVE publica en su sitio: el paquete se **arma en tu navegador** sobre ese archivo, porque este sitio solo publica lo nuestro, nunca lo de M-VAVE. Se comprueba que sea exactamente ese archivo, y el navegador lo recuerda para la próxima vez.
+La página baja el **mismo paquete `.fwsc` de la release** (el que usa el FM-1 Firmware Hub) y comprueba su SHA-256 antes de escribir nada.
+
+El **FM-1.fwsc de M-VAVE** (FM-1 V15) solo hace falta para **volver al firmware de fábrica** o para una versión vieja sin paquete publicado: ahí la página lo pide (lo publica M-VAVE en su sitio), comprueba que sea exactamente ese archivo y el navegador lo recuerda para la próxima vez.
 
 **Desde una copia del repositorio** (por ejemplo, para una versión armada por ti): `py -3 tools/fm1/servir.py` abre el instalador en `http://localhost:8765/instalar.html` y le entrega el V15 directamente (lo toma de `~/jieli/stock/FM-1.fwsc` o lo descarga de M-VAVE una vez), así no hay que elegir nada. En **Más opciones** se puede instalar un archivo propio.
 

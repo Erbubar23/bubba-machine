@@ -6,6 +6,7 @@
 #include <string.h>
 #include "bm_params.h"
 #include "bm_drums.h"
+#include "bm_snap.h"
 
 /* ------------------------------------------------------------ valores físicos */
 float bm_cut_hz(int v) { return 20.0f * exp2f((float)v * (10.0f / 127.0f)); }
@@ -13,82 +14,89 @@ float bm_env_s(int v) { return 0.001f * powf(10.0f, (float)v * (4.0f / 127.0f));
 float bm_lfo_hz(int v) { return 0.05f * exp2f((float)v * (9.0f / 127.0f)); }
 float bm_reso_q(int v) { float x = (float)v / 127.0f; return 0.5f + 24.5f * x * x * x; }
 
-/* ------------------------------------------------------------ ANALOG */
-static const char *const WAVES1[AN_WAVES] = {"SAW", "SQUARE", "TRI", "SINE", "3 SAWS"};
-static const char *const WAVES2[4] = {"SAW", "SQUARE", "TRI", "SINE"};
-static const char *const FILTERS[AN_FILTERS] = {"LP 24", "LP 12", "BP", "HP"};
-static const char *const LSHAPES[AN_LSHAPES] = {"SINE", "TRI", "SAW", "SQUARE", "RANDOM"};
-static const char *const LDESTS[AN_LDESTS] = {"PITCH", "CUTOFF", "SHAPE", "LEVEL"};
-static const char *const MODES[AN_MODES] = {"POLY", "MONO", "LEGATO"};
-
+/* ------------------------------------------------------------ las máquinas del núcleo WAVE */
 #define P(n, s, d, m, f, l) {n, s, d, m, f, l}
-const bm_ppage bm_an_pages[BM_AN_PAGES] = {
-    {"OSC 1", 4, {P("WAVE", AN_W1, AN_WAVE_SAW, AN_WAVES - 1, PF_LIST, WAVES1), P("SHAPE", PS_M0 + 3, 0, 127, PF_PCT, 0),
-                  P("SUB", AN_SUB, 0, 127, PF_PCT, 0), P("NOISE", AN_NOISE, 0, 127, PF_PCT, 0)}},
-    {"OSC 2", 4, {P("WAVE", AN_W2, AN_WAVE_SAW, 3, PF_LIST, WAVES2), P("TUNE", AN_SEMI2, 64, 127, PF_SEMI, 0),
-                  P("FINE", AN_FINE2, 70, 127, PF_CENT, 0), P("LEVEL", AN_MIX2, 0, 127, PF_PCT, 0)}},
-    {"CROSS", 4, {P("SYNC", AN_SYNC, 0, 1, PF_ONOFF, 0), P("RING", AN_RING, 0, 127, PF_PCT, 0),
-                  P("ENV>OSC2", AN_PENV2, 64, 127, PF_BIP, 0), P("GLIDE", AN_GLIDE, 0, 127, PF_TIME, 0)}},
-    {"FILTER", 4, {P("TYPE", AN_FTYPE, AN_F_LP24, AN_FILTERS - 1, PF_LIST, FILTERS), P("CUTOFF", PS_M0 + 0, 90, 127, PF_HZ, 0),
-                   P("RESO", PS_M0 + 1, 20, 127, PF_PCT, 0), P("DRIVE", AN_DRIVE, 0, 127, PF_PCT, 0)}},
-    {"FILTER +", 3, {P("ENV AMT", PS_M0 + 2, 94, 127, PF_BIP, 0), P("KEYTRACK", AN_KEYT, 64, 127, PF_PCT, 0),
-                     P("VELOCITY", AN_VELF, 30, 127, PF_PCT, 0)}},
-    {"FILTER ENV", 4, {P("ATTACK", AN_FA, 0, 127, PF_TIME, 0), P("DECAY", AN_FD, 60, 127, PF_TIME, 0),
-                       P("SUSTAIN", AN_FS, 40, 127, PF_PCT, 0), P("RELEASE", AN_FR, 50, 127, PF_TIME, 0)}},
-    {"AMP ENV", 4, {P("ATTACK", AN_AA, 0, 127, PF_TIME, 0), P("DECAY", AN_AD, 60, 127, PF_TIME, 0),
-                      P("SUSTAIN", AN_AS, 100, 127, PF_PCT, 0), P("RELEASE", AN_AR, 50, 127, PF_TIME, 0)}},
-    {"LFO", 4, {P("SHAPE", AN_LSHAPE, AN_L_TRI, AN_LSHAPES - 1, PF_LIST, LSHAPES), P("RATE", AN_LRATE, 60, 127, PF_RATE, 0),
-                P("TARGET", AN_LDEST, AN_D_PITCH, AN_LDESTS - 1, PF_LIST, LDESTS), P("AMOUNT", AN_LAMT, 0, 127, PF_PCT, 0)}},
-    {"VOICE", 2, {P("MODE", AN_MODE, AN_M_POLY, AN_MODES - 1, PF_LIST, MODES), P("VEL>LEVEL", AN_VELA, 64, 127, PF_PCT, 0)}},
+static const char *const MN_WAVES_N[MN_WAVES] = {"TRI", "SHARK", "SAW", "SQUARE", "WIDE", "NARROW"};
+static const char *const RANGES[5] = {"32'", "16'", "8'", "4'", "2'"};
+static const char *const MN_LDESTS_N[MN_LDESTS] = {"PITCH", "CUTOFF"};
+static const char *const WMODES[WM_MODES] = {"POLY", "MONO", "LEGATO"};
+static const char *const MONO2[2] = {"MONO", "LEGATO"};
+
+const bm_ppage bm_mn_pages[BM_MN_PAGES] = {
+    {"OSC 1", 3, {P("WAVE", MN_W1, MN_WAVE_SAW, MN_WAVES - 1, PF_LIST, MN_WAVES_N), P("RANGE", MN_R1, 1, 4, PF_LIST, RANGES),
+                  P("LEVEL", MN_L1, 110, 127, PF_PCT, 0)}},
+    {"OSC 2", 4, {P("WAVE", MN_W2, MN_WAVE_SAW, MN_WAVES - 1, PF_LIST, MN_WAVES_N), P("RANGE", MN_R2, 1, 4, PF_LIST, RANGES),
+                  P("TUNE", MN_T2, 66, 127, PF_BIP, 0), P("LEVEL", MN_L2, 90, 127, PF_PCT, 0)}},
+    {"OSC 3", 4, {P("WAVE", MN_W3, MN_WAVE_SQR, MN_WAVES - 1, PF_LIST, MN_WAVES_N), P("RANGE", MN_R3, 0, 4, PF_LIST, RANGES),
+                  P("TUNE", MN_T3, 64, 127, PF_BIP, 0), P("LEVEL", MN_L3, 50, 127, PF_PCT, 0)}},
+    {"FILTER", 4, {P("CUTOFF", PS_M0 + 0, 60, 127, PF_HZ, 0), P("EMPHASIS", PS_M0 + 1, 50, 127, PF_PCT, 0),
+                   P("OSC TUNE", PS_M0 + 2, 64, 127, PF_BIP, 0), P("CONTOUR", PS_M0 + 3, 70, 127, PF_PCT, 0)}},
+    {"FILTER +", 4, {P("DRIVE", MN_DRIVE, 30, 127, PF_PCT, 0), P("KEYTRACK", MN_KEYT, 40, 127, PF_PCT, 0),
+                     P("VELOCITY", MN_VELF, 40, 127, PF_PCT, 0), P("NOISE", MN_NOISE, 0, 127, PF_PCT, 0)}},
+    {"CONTOUR", 4, {P("ATTACK", MN_FA, 0, 127, PF_TIME, 0), P("DECAY", MN_FD, 55, 127, PF_TIME, 0),
+                    P("SUSTAIN", MN_FS, 20, 127, PF_PCT, 0), P("RELEASE", MN_FR, 45, 127, PF_TIME, 0)}},
+    {"LOUDNESS", 4, {P("ATTACK", MN_AA, 0, 127, PF_TIME, 0), P("DECAY", MN_AD, 70, 127, PF_TIME, 0),
+                     P("SUSTAIN", MN_AS, 110, 127, PF_PCT, 0), P("RELEASE", MN_AR, 35, 127, PF_TIME, 0)}},
+    {"MOD", 4, {P("LFO RATE", MN_LRATE, 70, 127, PF_RATE, 0), P("AMOUNT", MN_LAMT, 0, 127, PF_PCT, 0),
+                P("TARGET", MN_LDEST, MN_D_CUT, MN_LDESTS - 1, PF_LIST, MN_LDESTS_N), P("GLIDE", MN_GLIDE, 35, 127, PF_TIME, 0)}},
+    {"VOICE", 2, {P("MODE", MN_MODE, 0, 1, PF_LIST, MONO2), P("VEL>LEVEL", MN_VELA, 40, 127, PF_PCT, 0)}},
 };
 
-/* Presets: la base es la primera definición de cada parámetro y encima van los cambios. */
-#define END 0xFF
-static const uint8_t D_SAW[] = {END};
-static const uint8_t D_BASS[] = {AN_MODE, AN_M_MONO, AN_SUB, 70, AN_FD, 52, AN_FS, 10, AN_AD, 70, AN_AS, 90, AN_AR, 30, AN_GLIDE, 40, AN_KEYT, 40, END};
-static const uint8_t D_SUB[] = {AN_MODE, AN_M_MONO, AN_W1, AN_WAVE_TRI, AN_SUB, 110, AN_FD, 40, AN_FS, 30, AN_AR, 25, AN_GLIDE, 30, END};
-static const uint8_t D_PLUCK[] = {AN_W1, AN_WAVE_SQR, AN_FD, 45, AN_FS, 0, AN_FR, 45, AN_AD, 62, AN_AS, 0, AN_AR, 55, AN_VELF, 70, END};
-static const uint8_t D_PAD[] = {AN_W2, AN_WAVE_SAW, AN_MIX2, 110, AN_FINE2, 78, AN_FA, 85, AN_FD, 95, AN_FS, 70, AN_FR, 90,
-                                AN_AA, 85, AN_AS, 120, AN_AR, 92, AN_LSHAPE, AN_L_TRI, AN_LRATE, 40, AN_LDEST, AN_D_CUT, AN_LAMT, 25, END};
-static const uint8_t D_STRINGS[] = {AN_W1, AN_WAVE_SUPER, AN_FTYPE, AN_F_LP12, AN_FA, 70, AN_FS, 90, AN_AA, 72, AN_AS, 120, AN_AR, 85, AN_KEYT, 90, END};
-static const uint8_t D_SYNC[] = {AN_MODE, AN_M_LEGATO, AN_W2, AN_WAVE_SAW, AN_MIX2, 127, AN_SEMI2, 76, AN_SYNC, 1, AN_PENV2, 100,
-                                 AN_FD, 70, AN_FS, 60, AN_GLIDE, 35, END};
-static const uint8_t D_LEAD[] = {AN_MODE, AN_M_LEGATO, AN_W2, AN_WAVE_SQR, AN_MIX2, 90, AN_FINE2, 74, AN_GLIDE, 45, AN_FS, 70,
-                                 AN_LSHAPE, AN_L_SIN, AN_LRATE, 75, AN_LAMT, 8, AN_DRIVE, 40, END};
-static const uint8_t D_BRASS[] = {AN_W2, AN_WAVE_SAW, AN_MIX2, 100, AN_FINE2, 76, AN_FA, 50, AN_FD, 75, AN_FS, 70, AN_AA, 30, AN_AS, 110, END};
-static const uint8_t D_ORGAN[] = {AN_W1, AN_WAVE_SQR, AN_W2, AN_WAVE_SIN, AN_SEMI2, 96, AN_MIX2, 100, AN_SUB, 60, AN_FTYPE, AN_F_LP12,
-                                  AN_FS, 127, AN_AD, 0, AN_AS, 127, AN_AR, 20, AN_VELA, 0, END};
-static const uint8_t D_BELL[] = {AN_W1, AN_WAVE_SIN, AN_W2, AN_WAVE_SIN, AN_SEMI2, 101, AN_FINE2, 72, AN_MIX2, 40, AN_RING, 110,
-                                 AN_FTYPE, AN_F_LP12, AN_FS, 127, AN_AD, 90, AN_AS, 0, AN_AR, 90, END};
-static const uint8_t D_PWM[] = {AN_W1, AN_WAVE_SQR, AN_LSHAPE, AN_L_TRI, AN_LRATE, 50, AN_LDEST, AN_D_SHAPE, AN_LAMT, 80,
-                                AN_FA, 20, AN_AA, 20, AN_AS, 110, AN_AR, 70, END};
-static const uint8_t D_STAB[] = {AN_W2, AN_WAVE_SAW, AN_MIX2, 110, AN_SEMI2, 83, AN_FD, 50, AN_FS, 0, AN_AD, 66, AN_AS, 0, AN_AR, 50, END};
-static const uint8_t D_SUPER[] = {AN_MODE, AN_M_LEGATO, AN_W1, AN_WAVE_SUPER, AN_SUB, 40, AN_GLIDE, 30, AN_FS, 80, AN_DRIVE, 30, END};
-static const uint8_t D_NOISE[] = {AN_W1, AN_WAVE_SIN, AN_NOISE, 127, AN_FTYPE, AN_F_BP, AN_FA, 80, AN_FD, 95, AN_FS, 0, AN_FR, 90,
-                                  AN_AA, 60, AN_AS, 127, AN_AR, 95, AN_KEYT, 127, END};
-static const uint8_t D_ACIDISH[] = {AN_MODE, AN_M_LEGATO, AN_FTYPE, AN_F_LP24, AN_FD, 48, AN_FS, 0, AN_AS, 110, AN_AR, 25,
-                                    AN_DRIVE, 70, AN_GLIDE, 30, AN_VELF, 90, END};
+static const char *const PWMS[BN_PWMS] = {"LFO", "MANUAL", "ENV"};
+static const char *const BN_RANGES[3] = {"16'", "8'", "4'"};
+static const char *const HPFS[4] = {"0", "1", "2", "3"};
+static const char *const POLS[2] = {"+", "-"};
+static const char *const VCAS[2] = {"ENV", "GATE"};
+const char *const bm_bn_chorus_names[BN_CHORUSES] = {"OFF", "I", "II", "I+II"};
 
-/* macros: CORTE, RESO, ENVOLV (64 = nada), FORMA */
-const bm_preset bm_an_presets[] = {
-    {"SAW", {90, 20, 94, 0}, D_SAW},
-    {"BASS", {45, 40, 100, 0}, D_BASS},
-    {"SUB BASS", {60, 10, 80, 0}, D_SUB},
-    {"PLUCK", {50, 35, 110, 40}, D_PLUCK},
-    {"PAD", {75, 25, 80, 0}, D_PAD},
-    {"STRINGS", {85, 10, 74, 60}, D_STRINGS},
-    {"SYNC", {100, 15, 80, 0}, D_SYNC},
-    {"LEAD", {88, 30, 86, 30}, D_LEAD},
-    {"BRASS", {60, 20, 104, 0}, D_BRASS},
-    {"ORGAN", {110, 0, 64, 50}, D_ORGAN},
-    {"BELL", {120, 0, 64, 0}, D_BELL},
-    {"PWM", {95, 20, 74, 40}, D_PWM},
-    {"STAB", {58, 45, 108, 0}, D_STAB},
-    {"SUPER", {96, 15, 80, 70}, D_SUPER},
-    {"WIND", {70, 90, 96, 0}, D_NOISE},
-    {"SQUEAL", {35, 95, 112, 20}, D_ACIDISH},
+const bm_ppage bm_bn_pages[BM_BN_PAGES] = {
+    {"DCO", 4, {P("SAW", BN_SAW, 1, 1, PF_ONOFF, 0), P("PULSE", BN_PULSE, 0, 1, PF_ONOFF, 0),
+                P("SUB", BN_SUB, 40, 127, PF_PCT, 0), P("NOISE", BN_NOISE, 0, 127, PF_PCT, 0)}},
+    {"DCO +", 4, {P("PWM", PS_M0 + 3, 50, 127, PF_PCT, 0), P("PWM BY", BN_PWMSRC, BN_PWM_LFO, BN_PWMS - 1, PF_LIST, PWMS),
+                  P("RANGE", BN_RANGE, 1, 2, PF_LIST, BN_RANGES), P("LFO>DCO", BN_LFODCO, 0, 127, PF_PCT, 0)}},
+    {"VCF", 4, {P("FREQ", PS_M0 + 0, 72, 127, PF_HZ, 0), P("RES", PS_M0 + 1, 30, 127, PF_PCT, 0),
+                P("ENV", PS_M0 + 2, 50, 127, PF_PCT, 0), P("HPF", BN_HPF, 1, 3, PF_LIST, HPFS)}},
+    {"VCF +", 4, {P("ENV POL", BN_ENVPOL, 0, 1, PF_LIST, POLS), P("LFO>VCF", BN_LFOVCF, 0, 127, PF_PCT, 0),
+                  P("KEYTRACK", BN_KEYT, 60, 127, PF_PCT, 0), P("VELOCITY", BN_VELF, 20, 127, PF_PCT, 0)}},
+    {"ENV", 4, {P("ATTACK", BN_A, 10, 127, PF_TIME, 0), P("DECAY", BN_D, 70, 127, PF_TIME, 0),
+                P("SUSTAIN", BN_S, 90, 127, PF_PCT, 0), P("RELEASE", BN_R, 60, 127, PF_TIME, 0)}},
+    {"LFO VCA", 4, {P("LFO RATE", BN_LRATE, 60, 127, PF_RATE, 0), P("LFO DELAY", BN_LDELAY, 0, 127, PF_TIME, 0),
+                    P("VCA", BN_VCA, 0, 1, PF_LIST, VCAS), P("CHORUS", BN_CHORUS, BN_CH_I, BN_CHORUSES - 1, PF_LIST, bm_bn_chorus_names)}},
 };
-const int bm_an_npresets = (int)(sizeof bm_an_presets / sizeof bm_an_presets[0]);
+
+static const char *const BT_FILTERS_N[BT_FILTERS] = {"LP 24", "LP 12", "BP", "HP", "LADDER", "OFF"};
+static const char *const BT_LSHAPES_N[BT_LSHAPES] = {"SINE", "TRI", "SAW", "SQUARE", "RANDOM"};
+static const char *const BT_LDESTS_N[BT_LDESTS] = {"PITCH", "CUTOFF", "POSITION", "LEVEL"};
+static const char *const UNIS[4] = {"1", "2", "3", "4"};
+const char *const bm_btm_names[BTM_TARGETS] = {"---", "CUTOFF", "RESO", "POS 1", "POS 2", "POSITION", "LEVEL 2", "DETUNE",
+                                               "LFO", "ENV", "DRIVE", "RELEASE", "SPACE"};
+
+const bm_ppage bm_bt_pages[BM_BT_PAGES] = {
+    {"OSC 1", 4, {P("LEVEL", BT_L1, 100, 127, PF_PCT, 0), P("TUNE", BT_S1, 64, 127, PF_SEMI, 0),
+                  P("POSITION", BT_P1, 0, 127, PF_PCT, 0), P("UNISON", BT_U1, 0, 3, PF_LIST, UNIS)}},
+    {"OSC 1 +", 3, {P("DETUNE", BT_D1, 20, 127, PF_PCT, 0), P("FINE", BT_F1, 64, 127, PF_CENT, 0),
+                    P("TABLE", BT_TAB1, 0, 63, PF_INT, 0)}},
+    {"OSC 2", 4, {P("LEVEL", BT_L2, 0, 127, PF_PCT, 0), P("TUNE", BT_S2, 64, 127, PF_SEMI, 0),
+                  P("POSITION", BT_P2, 0, 127, PF_PCT, 0), P("UNISON", BT_U2, 0, 3, PF_LIST, UNIS)}},
+    {"OSC 2 +", 3, {P("DETUNE", BT_D2, 20, 127, PF_PCT, 0), P("FINE", BT_F2, 64, 127, PF_CENT, 0),
+                    P("TABLE", BT_TAB2, 0, 63, PF_INT, 0)}},
+    {"FILTER", 4, {P("TYPE", BT_FT, BT_F_LP24, BT_FILTERS - 1, PF_LIST, BT_FILTERS_N), P("CUTOFF", BT_CUT, 100, 127, PF_HZ, 0),
+                   P("RESO", BT_RES, 15, 127, PF_PCT, 0), P("DRIVE", BT_DRIVE, 0, 127, PF_PCT, 0)}},
+    {"FILTER +", 3, {P("ENV AMT", BT_FENV, 64, 127, PF_BIP, 0), P("KEYTRACK", BT_KEYT, 64, 127, PF_PCT, 0),
+                     P("VELOCITY", BT_VELF, 20, 127, PF_PCT, 0)}},
+    {"AMP ENV", 4, {P("ATTACK", BT_AA, 0, 127, PF_TIME, 0), P("DECAY", BT_AD, 70, 127, PF_TIME, 0),
+                    P("SUSTAIN", BT_AS, 110, 127, PF_PCT, 0), P("RELEASE", BT_AR, 55, 127, PF_TIME, 0)}},
+    {"MOD ENV", 4, {P("ATTACK", BT_MA, 0, 127, PF_TIME, 0), P("DECAY", BT_MD, 65, 127, PF_TIME, 0),
+                    P("SUSTAIN", BT_MS, 40, 127, PF_PCT, 0), P("RELEASE", BT_MR, 55, 127, PF_TIME, 0)}},
+    {"LFO", 4, {P("SHAPE", BT_LSHAPE, BT_L_TRI, BT_LSHAPES - 1, PF_LIST, BT_LSHAPES_N), P("RATE", BT_LRATE, 60, 127, PF_RATE, 0),
+                P("TARGET", BT_LDEST, BT_D_POS, BT_LDESTS - 1, PF_LIST, BT_LDESTS_N), P("AMOUNT", BT_LAMT, 0, 127, PF_PCT, 0)}},
+    {"MACRO 1 2", 4, {P("M1 TO", BT_M1D, BTM_CUT, BTM_TARGETS - 1, PF_LIST, bm_btm_names), P("M1 AMT", BT_M1A, 110, 127, PF_BIP, 0),
+                      P("M2 TO", BT_M2D, BTM_POS, BTM_TARGETS - 1, PF_LIST, bm_btm_names), P("M2 AMT", BT_M2A, 120, 127, PF_BIP, 0)}},
+    {"MACRO 3 4", 4, {P("M3 TO", BT_M3D, BTM_LFO, BTM_TARGETS - 1, PF_LIST, bm_btm_names), P("M3 AMT", BT_M3A, 120, 127, PF_BIP, 0),
+                      P("M4 TO", BT_M4D, BTM_SPACE, BTM_TARGETS - 1, PF_LIST, bm_btm_names), P("M4 AMT", BT_M4A, 120, 127, PF_BIP, 0)}},
+    {"VOICE", 3, {P("MODE", BT_MODE, WM_POLY, WM_MODES - 1, PF_LIST, WMODES), P("GLIDE", BT_GLIDE, 0, 127, PF_TIME, 0),
+                  P("VEL>LEVEL", BT_VELA, 50, 127, PF_PCT, 0)}},
+};
 
 /* ------------------------------------------------------------ batería */
 static const char *const DRM_LIST[DRM_COUNT] = {"BD 808", "BD 909", "SD 808", "SD 909", "HAT 808", "METAL", "CLAP",
@@ -154,9 +162,19 @@ const char *bm_lane_label(const bm_tr *tr, int kit, int lane)
 /* ------------------------------------------------------------ comunes */
 const bm_ppage *bm_engine_pages(int engine, int *n)
 {
-    if (engine == ENG_ANALOG) { *n = BM_AN_PAGES; return bm_an_pages; }
-    *n = 0;
-    return NULL;
+    switch (engine) {
+    case ENG_MINI: *n = BM_MN_PAGES; return bm_mn_pages;
+    case ENG_BUNO: *n = BM_BN_PAGES; return bm_bn_pages;
+    case ENG_BITTAL: *n = BM_BT_PAGES; return bm_bt_pages;
+    default: *n = 0; return NULL;
+    }
+}
+
+int bm_engine_page_of(int engine, int what)
+{
+    static const int8_t PG[3][3] = {{6, 5, 7}, {6, 7, 8}, {4, 4, 5}};   /* B-MINI, BITTAL, BUNO-6 */
+    int m = engine == ENG_MINI ? 0 : engine == ENG_BITTAL ? 1 : engine == ENG_BUNO ? 2 : -1;
+    return m < 0 || what < 0 || what > 2 ? -1 : PG[m][what];
 }
 
 int bm_prm_get(const bm_pattern *p, int t, const bm_pdef *d)
@@ -176,17 +194,24 @@ void bm_prm_defaults(bm_pattern *p, int t)
     const bm_ppage *pg = bm_engine_pages(p->trk[t].engine, &n);
     for (int i = 0; i < n; i++)
         for (int k = 0; k < pg[i].n; k++) prm_set(p, t, &pg[i].p[k], pg[i].p[k].def);
-    if (p->trk[t].engine == ENG_ANALOG && t == 2) p->prm[t][AN_MODE] = AN_M_MONO;
+    if (p->trk[t].engine == ENG_BITTAL) {
+        p->trk[t].macro[0] = 64; p->trk[t].macro[1] = 0; p->trk[t].macro[2] = 0; p->trk[t].macro[3] = 0;
+    }
 }
 
+/* El preset es un snapshot del banco de la máquina (core/bm_snap.h): sus ajustes y sus macros. */
 void bm_preset_apply(bm_pattern *p, int t, int preset)
 {
-    if (p->trk[t].engine != ENG_ANALOG) return;
-    const bm_preset *s = &bm_an_presets[(preset % bm_an_npresets + bm_an_npresets) % bm_an_npresets];
+    int eng = p->trk[t].engine;
+    if (eng != ENG_MINI && eng != ENG_BITTAL && eng != ENG_BUNO) return;
     bm_prm_defaults(p, t);
-    memcpy(p->trk[t].macro, s->macro, 4);
-    for (const uint8_t *d = s->diff; *d != END; d += 2) p->prm[t][d[0]] = d[1];
-    if (t == 2 && p->prm[t][AN_MODE] == AN_M_POLY) p->prm[t][AN_MODE] = AN_M_MONO;
+    int n = bm_snap_count(eng);
+    if (!n) return;
+    const uint8_t *s = bm_snap_get(eng, (preset % n + n) % n);
+    if (!s) return;
+    memcpy(p->prm[t], s + 40, BM_PRM < BM_SNAP_PRM ? BM_PRM : BM_SNAP_PRM);
+    memcpy(p->trk[t].macro, s + 36, 4);
+    if (eng == ENG_BITTAL) { p->prm[t][BT_TAB1] = 0; p->prm[t][BT_TAB2] = 0; }
 }
 
 void bm_prm_fmt(const bm_pdef *d, int v, char *b, int cap)

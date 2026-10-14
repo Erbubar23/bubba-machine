@@ -32,6 +32,7 @@
     <a href="cambios.html">Cambios</a>
     <div class="grp">Proyecto</div>
     <a href="diseno-3.html">Diseño 3.0</a>
+    <a href="diseno-0-6.html">Diseño 0.6</a>
     <a href="hoja-de-ruta.html" aria-current="page">Hoja de ruta</a>
     <a href="contribuir.html">Contribuir</a>
     <a href="conducta.html">Código de conducta</a>
@@ -45,22 +46,28 @@
   <main class="doc">
 <h1 id="hoja-de-ruta">Hoja de ruta</h1>
 <p>Todo lo que está contemplado para Bubba Machine. <strong>Se va a hacer todo, poco a poco</strong>, sin fechas: cada paso sale cuando está probado en el FM-1. El orden dentro de cada lista es el orden en que importa hoy y puede cambiar.</p>
-<p>Lo marcado ✓ ya está en la versión actual (0.5.0-beta). Hasta la v1, cualquier versión puede borrar lo guardado (ver <a href="instalar.html">instalar</a>).</p>
+<p>Lo marcado ✓ ya está en la versión actual (0.6.0-beta); lo marcado <strong>a prueba</strong> está, pero apagado de fábrica hasta medirlo en el FM-1. Hasta la v1, cualquier versión puede borrar lo guardado (ver <a href="instalar.html">instalar</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>El objetivo es la mejor calidad que permite el FM-1. Qué se mejoró, cuánto cuesta y qué limita hoy: <a href="audio.html">audio</a>.</p>
 <p><strong>Hecho</strong></p>
 <ul><li>
 ✓ Motores y mezcla a 44.1 kHz, bus en coma flotante, delay y captura de efectos a 16 bits.
 </li><li>
-✓ Batería modelada (Plaits), ANALOG con polyBLEP, FM de 6 operadores (msfa) y ACID.
+✓ Batería modelada (Plaits), FM de 6 operadores (msfa) y el bajo ACID.
 </li><li>
 ✓ Caché de datos de 32 KiB y audio compilado para velocidad.
+</li><li>
+✓ <strong>Las máquinas de la 0.6:</strong> B-MINI, BITTAL (wavetable sin aliasing, desde presets de Vital) y BUNO-6 (con chorus estéreo).
+</li><li>
+✓ <strong>Reverb</strong> con envío por canal, <strong>filtro del master</strong> y <strong>BEAT FX</strong>.
+</li><li>
+<strong>A prueba:</strong> audio en los dos núcleos (T4-T6 en el segundo; en la computadora da las mismas muestras) y la pantalla con SPI a 30 MHz.
 </li></ul>
 <p><strong>Contemplado</strong></p>
 <ol><li>
-<strong>Audio en los dos núcleos.</strong> El segundo núcleo rinde 1.83× (medido): más voces y lugar para efectos.
+<strong>Medir la 0.6 en el FM-1:</strong> el sonido y la carga de cada máquina, el chorus y el pasa-altos de BUNO-6 (hoy con valores aproximados) y el volumen parejo entre los sonidos de BITTAL. Después, prender de fábrica los dos núcleos y la pantalla rápida.
 </li><li>
-<strong>Efectos de master:</strong> reverb y chorus (de Mutable Instruments), delay de cinta, compresor y nivelador.
+<strong>Efectos de master:</strong> delay de cinta, compresor y nivelador.
 </li><li>
 <strong>ACID 2.0:</strong> Open303 en coma flotante, con un generador de líneas acid.
 </li><li>
@@ -72,12 +79,12 @@
 </li><li>
 <strong>Clipper con sobremuestreo</strong>, para que el DRIVE alto no genere aliasing.
 </li><li>
-<strong>Pantalla más rápida:</strong> SPI a 30 MHz (2.2× medido) y envío por DMA, que libera tiempo de procesador para el audio.
+<strong>Pantalla por DMA:</strong> el SPI a 30 MHz ya está a prueba; con DMA el envío deja libre al procesador para el audio.
 </li><li>
 <strong>Medir la salida analógica</strong> del FM-1 (ruido, distorsión, respuesta) con una interfaz de audio.
 </li></ol>
-<h2 id="interfaz-live-05">Interfaz: Live 0.5</h2>
-<p>La 0.5 ordena el FM-1 en dos lugares: <strong>tocar en vivo</strong> (HOME y sus vueltas) y <strong>trabajar la pista</strong> (dentro de un canal). Las luces de las teclas son solo blancas y no dicen qué hace cada tecla, así que cada pantalla lo muestra en la tira de teclas.</p>
+<h2 id="interfaz">Interfaz</h2>
+<p>La interfaz ordena el FM-1 en dos lugares: <strong>tocar en vivo</strong> (HOME y sus vueltas) y <strong>trabajar la pista</strong> (dentro de un canal). Las luces de las teclas son solo blancas y no dicen qué hace cada tecla, así que cada pantalla lo muestra en la tira de teclas.</p>
 <p><strong>Hecho</strong></p>
 <ul><li>
 ✓ <strong>Tira de teclas en pantalla:</strong> las 11 negras y las 16 blancas con su nombre corto y la misma intensidad que su luz.
@@ -87,14 +94,14 @@
 ✓ <strong>Sampler de pads:</strong> 16 pads hechos con tus tomas, como un KO II o un OP-1 field, en una rejilla como la de la batería, con BREAK para variarla.
 </li><li>
 ✓ Pantallas de <strong>MUTES</strong> y <strong>FILL</strong>, y la batería por secciones de 8.
+</li><li>
+✓ <strong>La cara de la 0.6:</strong> cabecera, visor, teclado y diales siempre en el mismo lugar; el mezclador <strong>BX-1</strong> en HOME; ALGORITHM como el modo de cada máquina.
+</li><li>
+✓ <strong>REC expresivo:</strong> micro-tiempo, gate y P-Lock de lo que mueves mientras sostienes la nota; notas largas con dos blancas.
 </li></ul>
 <p><strong>Contemplado: tocar en vivo (HOME otra vez = la página siguiente)</strong></p>
 <ol><li>
-<strong>PERFORM:</strong> K1-K4 como macros de show que nunca cambian de lugar (FILTRO DJ, DELAY, REVERB, MORPH). En todas las páginas de HOME, las mismas negras: 1-6 mutes (mantener = solo), 7-10 escenas, 11 FILL.
-</li><li>
-<strong>MORPH A·B:</strong> pasar de un estado del sonido a otro con una perilla.
-</li><li>
-<strong>FX MASTER:</strong> los efectos del master en una página.
+<strong>MORPH A·B:</strong> pasar de un estado del sonido a otro con una perilla (la cuarta macro de HOME).
 </li><li>
 <strong>ESCENAS Y CANCIÓN:</strong> armar y tocar la canción con las escenas.
 </li></ol>
@@ -120,9 +127,13 @@
 </li><li>
 <strong>Grabar directo a un pad</strong> (REC + pad, como el KO II) y deshacer los cambios de un pad.
 </li><li>
-<strong>Paquetes de idioma desde el instalador web</strong>, sin usar la línea de comandos, y más idiomas hechos por la comunidad.
+✓ <strong>Instalador web plug and play:</strong> instala el paquete armado sin el V15 y carga el español al terminar.
 </li><li>
-<strong>Editor web:</strong> cargar y bajar patrones y tomas por USB (hoy las tomas se suben con <code>tools/fm1/toma.py</code>), y bancos de FM en formato <code>.syx</code> de la DX7.
+✓ <strong>Editor de sonidos web:</strong> presets de Vital y bancos <code>.syx</code> de la DX7, mandados al FM-1 por WebMIDI.
+</li><li>
+<strong>Más idiomas</strong> hechos por la comunidad.
+</li><li>
+<strong>Editor web de patrones y tomas:</strong> cargarlos y bajarlos por USB (hoy las tomas se suben con <code>tools/fm1/toma.py</code>).
 </li><li>
 <strong>Packs de kits y tomas libres</strong> (CC0 o GPL), hechos por la comunidad.
 </li><li>
@@ -130,6 +141,8 @@
 </li></ul>
 <h2 id="hecho">Hecho</h2>
 <ul><li>
+<strong>0.6.0-beta:</strong> seis máquinas fijas, la cara nueva, el banco de sonidos y el instalador plug and play. El diseño está en <a href="diseno-0-6.html"><code>DISENO_0.6.md</code></a>.
+</li><li>
 <strong>0.5.0-beta:</strong> el sampler de pads y la pantalla en inglés, con el español como paquete de idioma.
 </li><li>
 <strong>0.4.0-beta:</strong> la primera versión para el FM-1, sonidos calculados en vivo y audio a 44.1 kHz. Ver el <a href="cambios.html">registro de cambios</a>.
@@ -141,7 +154,7 @@
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.5.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

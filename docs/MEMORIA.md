@@ -1,12 +1,24 @@
 # Presupuesto de memoria
 
-## RAM
+## RAM del FM-1 (RAM0, ~511 KiB)
+
+La RAM0 se reparte entre lo **fijo** del firmware (`.ram0_data` + `.ram0_bss`, sale del ELF) y el **montón del sistema** de JieLi, del que salen las pilas de las tareas, el USB y el audio en el segundo núcleo. El sistema pide unos 50 KiB al arrancar. `tools/build.py fm1` lo mide en cada compilación y **falla si el montón queda por debajo de 120 KiB**: las pruebas en la computadora no lo ven.
+
+| Versión | Fija | Montón | |
+|---|---:|---:|---|
+| 0.4.0-beta / 0.5.0-beta | 337 KiB | 174 KiB | probada en el aparato (0.4) |
+| 0.6.0-beta | 472 KiB | **38 KiB** | no alcanza: no debe instalarse |
+| **0.6.1-beta** | **384 KiB** | **126 KiB** | laboratorio al montón (−59 KiB) y delay de 0.80 s (−30 KiB) |
+
+Lo más grande de lo fijo en la 0.6.1: la app (`bm_app`, con la arena de audio de 98 KiB), las tablas de BITTAL (64 KiB), la reverb (33 KiB), las voces de B-MINI, BITTAL y BUNO-6 (21 KiB) y las tablas de msfa (28 KiB). La plataforma de control (`web/control.html`) muestra el montón libre con el FM-1 conectado y avisa por debajo de 48 KiB.
+
+## RAM de la app (`bm_app`)
 
 Medido con `sizeof` en el build de PC de la 0.6.0-beta (punteros de 8 bytes; en el FM-1 son de 4, así que es un poco menos).
 
 | Bloque | Bytes | Notas |
 |---|---:|---|
-| Arena de audio (`bm_audio_mem`) | 131 072 | Delay y captura de los punch-in a 16 bits; mientras graba la GRABADORA, la arena es la toma (3 s a 16 kHz) |
+| Arena de audio (`bm_audio_mem`) | 131 072 | Delay y captura de los punch-in a 16 bits; mientras graba la GRABADORA, la arena es la toma (3 s a 16 kHz). Desde la 0.6.1, 100 832 (delay de 0.80 s) |
 | Patrón activo (`bm_pattern`) | 15 448 | Formato 7: 6 canales, rejillas TR de BR-8 y BP-1, eventos de notas de 10 bytes (gate y micro-tiempo), 48 ajustes por canal y 4 looperas |
 | Sonido que llega de afuera (`snap_buf`) | 8 800 | Un .bsnap o un banco .syx mientras se carga por USB |
 | Escritura pendiente (`pend`) | 8 192 | El patrón sin guardar, para cambiar de patrón sonando |
@@ -26,10 +38,10 @@ Fuera de `bm_app` están los búferes de BITTAL (las dos tablas armadas, 7 nivel
 | Banco de fábrica | 65 268 B | Dentro del programa: los 37 sonidos de B-MINI, BITTAL y BUNO-6 (`core/gen/bm_snap_rom.c`, con sus tablas de BITTAL) |
 | Logo de arranque | ~19 KB | RLE con paleta de 48 colores |
 | Fuentes | ~1 KB | 5×7 y 3×5 |
-| Programa (app.bin) | hasta 568 KiB | Firmware sobre el SDK de JieLi: la 0.6.0-beta mide 423 692 B (quedan 158 428 libres); el de diagnóstico, 121 KiB. Lo escribe el cargador oficial dentro de `0x000000-0x092FFF` junto con el arranque del chip |
+| Programa (app.bin) | hasta 568 KiB | Firmware sobre el SDK de JieLi: la 0.6.1-beta mide 425 068 B (quedan 157 052 libres); el de diagnóstico, 121 KiB. Lo escribe el cargador oficial dentro de `0x000000-0x092FFF` junto con el arranque del chip |
 | Patrones | 160 KiB | `0x97000`: 20 slots de 8 KiB: 16 patrones + canción/escenas + 3 libres para el wear-leveling |
 | Registro de arranques | 4 KiB | `0xBF000`: cuenta los arranques fallidos (modo seguro y modo del chip) |
-| Tomas y sonidos del usuario | 100 KiB | `0xC0000-0xD8FFF`, compartida: las tomas se ubican desde abajo (sectores seguidos con la cabecera al inicio, hasta 3 s cada una) y los sonidos del usuario (.bsnap y bancos de BX-7) desde arriba ([DISENO_0.6](DISENO_0.6.md)). Las tomas se reproducen directo desde la flash |
+| Tomas y sonidos del usuario | 100 KiB | `0xC0000-0xD8FFF`, compartida: las tomas se ubican desde abajo (sectores seguidos con la cabecera al inicio, hasta 3 s cada una y **6 s en total**) y los sonidos del usuario (.bsnap y bancos de BX-7) desde arriba ([DISENO_0.6](DISENO_0.6.md)). Las tomas se reproducen directo desde la flash |
 | Idioma | 16 KiB | `0xD9000`: el paquete de idioma de la pantalla (`core/bm_lang.h`), si se cargó uno. Se lee directo de la flash |
 | Globales | 12 KiB | `0xDD000`: 3 sectores en rotación |
 | Cargador en espera | 20 KiB | `0xE0000`: el cargador de actualización mientras se instala una versión nueva |

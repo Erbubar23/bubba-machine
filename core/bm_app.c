@@ -438,6 +438,11 @@ int bm_app_sound_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32
         app_toast(a, r ? "NOT A USER SOUND" : "SOUND DELETED");
         return r;
     }
+    case 4: {                                               /* off = su índice entre los del usuario (consola) */
+        int r = bm_snaps_erase(f, (int)off);
+        app_toast(a, r ? "NOT A USER SOUND" : "SOUND DELETED");
+        return r;
+    }
     case 2: break;
     default: return -1;
     }
@@ -457,6 +462,76 @@ void bm_app_takes_reload(bm_app *a)
 {
     if (a->pf.flash) bm_takes_scan(a->pf.flash, a->pf.flash_map, a->pf.user, a->take);
     app_send_takes(a);
+}
+
+static void put16(uint8_t *b, uint32_t v) { b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); }
+static void put32le(uint8_t *b, uint32_t v) { put16(b, v); put16(b + 2, v >> 16); }
+
+int bm_app_report(const bm_app *a, int what, int idx, uint8_t *o, int cap)
+{
+    if (what == 0) {
+        if (cap < BM_REPORT_LEN) return -1;
+        memset(o, 0, BM_REPORT_LEN);
+        uint8_t used[BM_TAKE_SECTORS];
+        bm_takes_used(a->take, used);
+        bm_snaps_mark(used, (int)BM_TAKE_SECTORS);
+        uint32_t fs = 0, ss = 0;
+        for (int s = 0; s < (int)BM_TAKE_SECTORS; s++) fs += !used[s];
+        int nt = 0;
+        for (int i = 0; i < BM_TAKES; i++) nt += a->take[i].valid;
+        for (int i = 0; i < bm_snaps_user_n(); i++) { int k = 0; bm_snaps_user_p(i, &k); ss += (uint32_t)k; }
+        const uint8_t *lp = bm_app_lang_pack(a);
+        char ln[12] = {0};
+        uint32_t lsz = lp ? bm_lang_check(lp, BM_LANG_HI - BM_LANG_LO, ln) : 0;
+        o[0] = 1;                                   /* versión del informe */
+        o[1] = (uint8_t)app_playing(a);
+        o[2] = a->cpu;
+        o[3] = a->set.dual_core;
+        o[4] = (uint8_t)nt; o[5] = (uint8_t)bm_snaps_user_n(); o[6] = BM_SNAPS_USER; o[7] = (uint8_t)(lp != NULL);
+        put32le(o + 8, bm_takes_len(a->take));
+        put32le(o + 12, BM_TAKES_MAX_LEN);
+        put32le(o + 16, bm_takes_free(a->take));
+        put32le(o + 20, bm_app_rec_room(a));
+        put32le(o + 24, BM_TAKE_HI - BM_TAKE_LO);
+        put32le(o + 28, fs * BM_SECTOR);
+        put32le(o + 32, ss * BM_SECTOR);
+        put16(o + 36, BM_SMP_RATE);
+        put32le(o + 38, BM_SMP_REC_MAX);
+        memcpy(o + 42, ln, 12);
+        put16(o + 54, lsz);
+        put16(o + 56, BM_LANG_HI - BM_LANG_LO);
+        strncpy((char *)o + 58, BM_VERSION_STR, 14);
+        return BM_REPORT_LEN;
+    }
+    if (what == 1) {                                /* toma: id, largo, BPM, compases, ganancia, pads que la usan */
+        if (idx < 0 || idx >= BM_TAKES || cap < 12) return -1;
+        const bm_take *t = &a->take[idx];
+        memset(o, 0, 12);
+        o[0] = t->valid; o[1] = (uint8_t)idx;
+        put32le(o + 2, t->valid ? t->len : 0);
+        put16(o + 6, t->bpm_x10);
+        o[8] = t->bars; o[9] = t->gain;
+        for (int i = 0; i < BM_LANES; i++) o[10] += t->valid && a->pat.pad[i].src == idx && a->pat.pad[i].len;
+        o[11] = t->nmarks;
+        return 12;
+    }
+    if (what == 2) {                                /* sonido del usuario: máquina, tamaño, sectores, nombre, autor, licencia, huella */
+        int ns = 0;
+        const uint8_t *p = bm_snaps_user_p(idx, &ns);
+        if (!p || cap < 32) return -1;
+        o[0] = p[4]; o[1] = p[6]; o[2] = (uint8_t)ns; o[3] = 0;
+        o[4] = p[10]; o[5] = p[11];                /* tamaño (como en la cabecera) */
+        o[6] = p[8]; o[7] = p[9];                  /* huella */
+        memcpy(o + 8, p + 12, 12);
+        memcpy(o + 20, p + 24, 12);
+        return 32;
+    }
+    return -1;
+}
+
+void bm_app_take_delete(bm_app *a, int id)
+{
+    if (id >= 0 && id < BM_TAKES) a->ext_take_del = (uint8_t)(id + 1);
 }
 
 uint32_t bm_app_rec_room(const bm_app *a)
@@ -713,6 +788,7 @@ static void settings_defaults(bm_settings *s)
 {
     memset(s, 0, sizeof *s);
     s->ver = BM_FMT; s->sync_ppqn = 2; s->drive = 25; s->led_dim = 1; s->autosave = 1; s->enter = 2;
+    s->dual_core = 1;       /* 0.6.1: encendido de fábrica para probarlo en el aparato (un cuelgue lo apaga) */
 }
 
 static void apply_settings(bm_app *a)
@@ -1039,6 +1115,11 @@ void bm_app_tick(bm_app *a, uint32_t now)
         if (a->song_dirty) app_job(a, JOB_SAVE_SONG, 0);
         if (a->set_dirty) app_job(a, JOB_SAVE_GLOB, 0);
         app_toast(a, "AUTOSAVED");
+    }
+    if (a->ext_take_del && !app_playing(a)) {      /* pedido de la consola: como N11 en TOMAS */
+        int id = a->ext_take_del - 1;
+        a->ext_take_del = 0;
+        if (id < BM_TAKES && a->take[id].valid) app_job(a, JOB_TAKE_ERASE, id);
     }
     jobs_run(a);
     if (a->view == V_CH && a->track == 1) {                 /* el dibujo de la onda que se ve */

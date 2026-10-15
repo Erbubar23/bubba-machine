@@ -1262,13 +1262,13 @@ static void draw_takes(bm_gfx *g, const bm_app *a)
         if (st->smp_pos_src == 0 && st->smp_pos < a->take[src].len)
             gfx_vline(g, 4 + (int)((uint64_t)st->smp_pos * 231u / a->take[src].len), y, h, C_ORANGE);
     }
-    /* la zona compartida: tomas desde abajo, sonidos de BITTAL desde arriba */
-    uint32_t total = (uint32_t)(BM_TAKE_HI - BM_TAKE_LO), freeb = bm_takes_free(a->take);
+    /* las tomas: hasta 6 s en total, en la zona que comparten con los sonidos */
+    uint32_t total = BM_TAKES_MAX_LEN, freeb = bm_takes_free(a->take);
     if (gfx_strip_hit(g, PY + 67, 12)) {
         unsigned fs = (unsigned)(freeb * 10u / BM_SMP_RATE);
         snprintf(b, sizeof b, TF("FREE %u.%u S - %d SOUNDS ON TOP"), fs / 10, fs % 10, bm_snaps_user_n());
         gfx_small(g, 4, PY + 67, b, C_GREY);
-        uint32_t used = total - freeb;
+        uint32_t used = total > freeb ? total - freeb : 0;
         gfx_fill(g, 4, PY + 75, 232, 3, C_DDGREY);
         gfx_fill(g, 4, PY + 75, (int)(used * 232u / total), 3, C_GREY);
     }
@@ -1304,7 +1304,7 @@ static void draw_rec(bm_gfx *g, const bm_app *a)
     }
     if (gfx_strip_hit(g, PY + 46, 6)) {
         unsigned fs = (unsigned)(bm_takes_free(a->take) * 10u / BM_SMP_RATE);
-        snprintf(b, sizeof b, TF("SHARED ZONE: FREE %u.%u S"), fs / 10, fs % 10);
+        snprintf(b, sizeof b, TF("TAKES: FREE %u.%u OF 6 S"), fs / 10, fs % 10);
         gfx_small(g, 4, PY + 46, b, C_GREY);
         gfx_small(g, 236 - gfx_small_w("MAX 3.0 S PER TAKE"), PY + 46, "MAX 3.0 S PER TAKE", C_GREY);
     }

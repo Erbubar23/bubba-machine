@@ -252,7 +252,7 @@ static void test_takes(void)
     for (uint32_t i = 0; i < BM_SMP_REC_MAX; i++) d[i] = (int8_t)((i * 7) & 0x7F);
     CHECK(bm_takes_scan(pf.flash, pf.flash_map, pf.user, tk) == 0);
     uint32_t full = bm_takes_free(tk);
-    CHECK(full == 25u * BM_SECTOR - BM_TAKE_HDR && bm_takes_room(tk) == BM_SMP_REC_MAX);
+    CHECK(full == BM_TAKES_MAX_LEN && bm_takes_room(tk) == BM_SMP_REC_MAX);   /* 6 s en total, aunque la zona tenga más */
     CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, BM_SMP_REC_MAX, 1600, 2) == 0);   /* 3 s */
     CHECK(bm_takes_write(pf.flash, pf.flash_map, pf.user, tk, d, 20000, 1200, 1) == 1);
     CHECK(tk[0].valid && tk[1].valid && tk[1].len == 20000 && tk[1].data[123] == d[123] && tk[1].gain == 64);
@@ -270,7 +270,7 @@ static void test_takes(void)
     CHECK(bm_snaps_user_n() == 1 && bm_snap_count(ENG_BITTAL) == n0 + 1 && bm_snap_is_user(ENG_BITTAL, n0));
     CHECK(strcmp(bm_snap_name(ENG_BITTAL, n0), "MY SOUND") == 0);
     uint32_t after = bm_takes_free(tk);
-    CHECK(after < full - 20000 - BM_SMP_REC_MAX);                /* el sonido ocupa lo suyo */
+    CHECK(after <= full - 20000 - BM_SMP_REC_MAX);               /* el sonido ocupa lo suyo */
     tk[1].nmarks = 3; tk[1].marks[0] = 0; tk[1].marks[1] = 5000; tk[1].marks[2] = 12000; tk[1].gain = 80;
     static uint8_t scratch[BM_SECTOR];
     CHECK(bm_takes_update(pf.flash, &tk[1], scratch) == 0);
@@ -281,6 +281,7 @@ static void test_takes(void)
     int n = 2;
     while (bm_takes_write(pf.flash, pf.flash_map, pf.user, tk2, d, 16000, 1200, 1) >= 0) n++;
     CHECK(n >= 3 && bm_takes_room(tk2) < 16000);
+    CHECK(bm_takes_len(tk2) <= BM_TAKES_MAX_LEN && bm_takes_free(tk2) <= BM_TAKES_MAX_LEN - bm_takes_len(tk2));   /* el tope de 6 s */
     bm_snaps_scan(pf.flash, pf.flash_map, pf.user);
     CHECK(bm_snaps_user_n() == 1);                               /* las tomas no pisaron el sonido */
     printf("  %d tomas y 1 sonido en la zona de %u.%u s\n", n, (unsigned)(full / BM_SMP_RATE), (unsigned)(full * 10u / BM_SMP_RATE % 10u));
@@ -291,6 +292,32 @@ static void test_takes(void)
     static bm_take tk3[BM_TAKES];
     bm_takes_scan(pf.flash, pf.flash_map, pf.user, tk3);
     CHECK(!tk3[1].valid);
+}
+
+static uint32_t le32(const uint8_t *b) { return (uint32_t)b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24; }
+
+static void test_report(void)
+{
+    printf("informe de memoria para la consola (orden 23) y borrar una toma desde afuera\n");
+    boot_loop();
+    uint8_t r[BM_REPORT_LEN + 8];
+    CHECK(bm_app_report(&app, 0, 0, r, 10) == -1);
+    CHECK(bm_app_report(&app, 0, 0, r, sizeof r) == BM_REPORT_LEN);
+    CHECK(r[0] == 1 && r[3] == 1);                                   /* versión 1; dos núcleos de fábrica */
+    CHECK(le32(r + 12) == BM_TAKES_MAX_LEN && le32(r + 24) == BM_TAKE_HI - BM_TAKE_LO);
+    CHECK(le32(r + 8) + le32(r + 16) <= BM_TAKES_MAX_LEN && le32(r + 20) <= BM_SMP_REC_MAX);
+    CHECK(strncmp((const char *)r + 58, BM_VERSION_STR, 14) == 0 && r[6] == BM_SNAPS_USER);
+    int id = -1;
+    for (int i = 0; i < BM_TAKES && id < 0; i++) if (app.take[i].valid) id = i;
+    uint8_t t[16];
+    CHECK(bm_app_report(&app, 1, BM_TAKES, t, sizeof t) == -1 && bm_app_report(&app, 2, 99, t, 64) == -1);
+    if (id >= 0) {
+        CHECK(bm_app_report(&app, 1, id, t, sizeof t) == 12 && t[0] == 1 && le32(t + 2) == app.take[id].len);
+        bm_app_take_delete(&app, id);
+        run_ms(200);
+        CHECK(!app.take[id].valid);
+        CHECK(bm_app_report(&app, 0, 0, r, sizeof r) == BM_REPORT_LEN && r[4] == 0);
+    } else CHECK(0);                                                 /* boot_loop deja una toma */
 }
 
 typedef struct { int log[64]; int n; } glog;
@@ -1628,6 +1655,7 @@ int main(int argc, char **argv)
     test_pack();
     test_store();
     test_takes();
+    test_report();
     test_gesture();
     test_timing();
     test_tr_features();

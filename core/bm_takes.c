@@ -99,6 +99,20 @@ void bm_takes_used(const bm_take tk[BM_TAKES], uint8_t *used)
         if (tk[i].valid) for (int k = 0; k < tk[i].nsect; k++) used[tk[i].sector + k] = 1;
 }
 
+/* lo que ya ocupan las tomas, contra el tope de 6 s (BM_TAKES_MAX_LEN) */
+uint32_t bm_takes_len(const bm_take tk[BM_TAKES])
+{
+    uint32_t n = 0;
+    for (int i = 0; i < BM_TAKES; i++) if (tk[i].valid) n += tk[i].len;
+    return n;
+}
+
+static uint32_t cap_left(const bm_take tk[BM_TAKES])
+{
+    uint32_t n = bm_takes_len(tk);
+    return n >= BM_TAKES_MAX_LEN ? 0 : BM_TAKES_MAX_LEN - n;
+}
+
 uint32_t bm_takes_room(const bm_take tk[BM_TAKES])
 {
     int ids = 0;
@@ -107,7 +121,8 @@ uint32_t bm_takes_room(const bm_take tk[BM_TAKES])
     uint8_t used[BM_TAKE_SECTORS];
     used_map(tk, used);
     int run = largest_run(used, NULL);
-    uint32_t bytes = run ? (uint32_t)run * BM_SECTOR - BM_TAKE_HDR : 0;
+    uint32_t bytes = run ? (uint32_t)run * BM_SECTOR - BM_TAKE_HDR : 0, cap = cap_left(tk);
+    if (bytes > cap) bytes = cap;
     return bytes > BM_SMP_REC_MAX ? BM_SMP_REC_MAX : bytes;
 }
 
@@ -117,13 +132,14 @@ uint32_t bm_takes_free(const bm_take tk[BM_TAKES])
     used_map(tk, used);
     uint32_t n = 0;
     for (int s = 0; s < (int)BM_TAKE_SECTORS; s++) n += !used[s];
-    return n ? n * BM_SECTOR - BM_TAKE_HDR : 0;
+    uint32_t bytes = n ? n * BM_SECTOR - BM_TAKE_HDR : 0, cap = cap_left(tk);
+    return bytes > cap ? cap : bytes;
 }
 
 int bm_takes_write(const bm_flash_ops *f, bm_map_fn map, void *mu, bm_take tk[BM_TAKES],
                    const int8_t *data, uint32_t len, uint16_t bpm_x10, uint8_t bars)
 {
-    if (!len || len > BM_SMP_REC_MAX) return -1;
+    if (!len || len > BM_SMP_REC_MAX || len > cap_left(tk)) return -1;
     int id = -1;
     for (int i = 0; i < BM_TAKES && id < 0; i++) if (!tk[i].valid) id = i;
     if (id < 0) return -1;

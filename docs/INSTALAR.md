@@ -1,8 +1,8 @@
 # Instalar Bubba Machine
 
-## Estado actual: beta (0.6.0-beta)
+## Estado actual: beta (0.6.1-beta)
 
-Bubba Machine para el FM-1 tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Corre en el FM-1 del autor, pero es una **beta**: se probó en un solo aparato y todavía cambia mucho. **La 0.6.0-beta todavía no se probó en el aparato** (pasa las pruebas automáticas y el emulador); si algo falla, se vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
+Bubba Machine para el FM-1 tiene **firmware completo, con sonido**, un **firmware de diagnóstico** y un **instalador web**. Corre en el FM-1 del autor, pero es una **beta**: se probó en un solo aparato y todavía cambia mucho. **La 0.6.1-beta todavía no se probó en el aparato** (pasa las pruebas automáticas y el emulador; la 0.6.0-beta no debe instalarse: le faltaba RAM); si algo falla, se vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador. El avance técnico está en [`hal/fm1/README_PORT.md`](../hal/fm1/README_PORT.md).
 
 > **Lo que guardes puede perderse al actualizar.** Hasta la v1 no hay compatibilidad hacia atrás: si una versión nueva cambia cómo se guardan los patrones, la canción, los ajustes o las tomas, al primer arranque lo anterior se borra y vuelve la demo. Si algo te importa, grábalo por la salida de audio antes de actualizar.
 
@@ -31,7 +31,7 @@ Es **plug and play**: hace falta una computadora con **Chrome o Edge** (Web MIDI
 2. Abre el **instalador** (`instalar.html` del sitio) y acepta el permiso de MIDI. La página **lee el FM-1 sola** y dice qué firmware tiene.
 3. La página ya eligió la versión más nueva de **Bubba Machine** (también puedes elegir el **Diagnóstico**, sin sonido, para comprobar botones, teclas y perillas, o el **Firmware de fábrica** de M-VAVE).
 4. Pulsa **Instalar** y confirma. No desconectes hasta que diga «Listo».
-5. Si la casilla **«la pantalla en español»** está marcada (viene marcada en la página en español), al terminar la página espera a que el FM-1 arranque y le carga el paquete de idioma. Después te ofrece el [editor de sonidos](../web/sonidos.html) y el manual.
+5. Después, la [plataforma de control](../web/control.html) carga el idioma de la pantalla, las tomas y los sonidos, y muestra la memoria.
 
 Si la página no encuentra el FM-1, debajo de «Tu FM-1» muestra qué puertos MIDI ve y qué les pasa (por ejemplo, «ocupado» si REAPER u otro programa lo tiene abierto).
 

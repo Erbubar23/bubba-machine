@@ -21,7 +21,6 @@ enum {
 
 #define K15 (1.0f / 32768.0f)
 #define FX_MASK (BM_FXBUF_LEN - 1u)
-#define DLY_MASK (BM_DELAY_LEN - 1u)
 
 static inline int16_t to16(float x)                 /* 1.0 -> 32767, con saturación y redondeo */
 {
@@ -278,11 +277,11 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             c->d_acc += in_g * (S[i] + thr * (L[i] + R[i]));
             float dv;
             if (c->fx_w & 1u) {
-                uint32_t rd = (c->dly_w - dd) & DLY_MASK;
+                uint32_t rd = c->dly_w >= dd ? c->dly_w - dd : c->dly_w + BM_DELAY_LEN - dd;   /* el búfer no es potencia de 2 */
                 c->d_prev = c->d_cur;
                 c->d_cur = (float)dly[rd] * K15;
                 dly[c->dly_w] = to16(c->d_acc * 0.5f + c->d_cur * fb);
-                c->dly_w = (c->dly_w + 1u) & DLY_MASK;
+                if (++c->dly_w >= BM_DELAY_LEN) c->dly_w = 0;
                 c->d_acc = 0.0f;
                 dv = 0.5f * (c->d_prev + c->d_cur);
             } else dv = c->d_cur;

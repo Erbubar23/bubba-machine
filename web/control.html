@@ -1,0 +1,106 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · Copyright (C) 2026 Erbubar23 -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubba Machine · Control</title>
+<link rel="icon" href="img/icon.svg">
+<link rel="stylesheet" href="site.css">
+<style>
+:root { --void: #0a0b10; --grid: #161925; --cy: #00f0ff; --amb: #ff8a00; --las: #ff0055; --mint: #70ff98; }
+body { background: var(--void); }
+main { max-width: 1060px; margin: 0 auto; padding: 20px; }
+h1 { font: 700 30px/1.1 var(--display); color: var(--cy); margin: 18px 0 6px; }
+h2 { font: 700 20px/1.2 var(--display); margin: 0 0 10px; }
+.lead { color: var(--mut); margin: 0 0 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.card { background: #10121a; border: 1px solid var(--grid); border-radius: 12px; padding: 16px 18px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; }
+select, button, input[type=number], input[type=text] { min-height: 40px; border-radius: 10px; border: 1px solid #2a3044; background: #161925; color: var(--txt); padding: 0 12px; font: 600 14px var(--body); }
+input[type=number] { width: 90px; } input[type=text] { width: 150px; }
+button.go { background: var(--cy); color: #071016; border: 0; }
+button.del { color: var(--las); border-color: #4a1428; min-height: 32px; padding: 0 10px; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.drop { border: 2px dashed #2a3044; border-radius: 12px; padding: 18px; text-align: center; color: var(--mut); cursor: pointer; }
+.drop.on { border-color: var(--cy); color: var(--txt); }
+.bar { height: 10px; background: #1b1f2c; border-radius: 6px; overflow: hidden; display: flex; margin: 4px 0 2px; }
+.bar i { display: block; height: 100%; }
+.m { display: flex; justify-content: space-between; font-size: 14px; color: var(--mut); }
+.m b { color: var(--txt); font-weight: 600; }
+#estado { font: 600 15px var(--body); }
+.ok { color: var(--mint); } .warn { color: var(--amb); } .bad { color: var(--las); } .c { color: var(--cy); }
+ul.av { list-style: none; padding: 0; margin: 6px 0 0; }
+ul.av li { padding: 6px 10px; border-radius: 8px; margin: 4px 0; font-size: 14px; background: #161925; border-left: 3px solid var(--mint); }
+ul.av li.warn { border-color: var(--amb); } ul.av li.bad { border-color: var(--las); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--grid); }
+th { color: var(--mut); font-weight: 600; }
+.log { white-space: pre-wrap; font: 13px var(--mono); color: var(--mut); min-height: 1.4em; margin: 6px 0 0; }
+progress { width: 100%; height: 8px; }
+.off { opacity: .45; pointer-events: none; }
+.small { font-size: 13px; color: var(--mut); }
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="img/icon.svg" alt="">Bubba Machine</a>
+<nav><a href="instalar.html" data-t="nav.inst">Instalar</a><a href="emulador.html" data-t="nav.emu">Emulador</a><a href="docs/manual.html" data-t="nav.man">Manual</a><a href="#" id="langsw" class="lang">English</a></nav></div></header>
+<main>
+<h1 data-t="h1">Control del FM-1</h1>
+<p class="lead" data-t="lead">Conecta tu FM-1 con Bubba Machine por USB y adminístralo desde aquí: tomas del sampler, sonidos (presets de Vital y bancos de la DX7), el idioma de la pantalla y la memoria. Todo pasa por la consola USB-MIDI; sin el FM-1 conectado, esta página no hace nada.</p>
+
+<div class="card">
+  <div class="row"><span id="estado" data-t="st.wait">Buscando el FM-1…</span><button id="conectar" class="go" data-t="b.connect">Conectar</button></div>
+  <ul class="av" id="avisos"></ul>
+</div>
+
+<div id="panel" class="off">
+<div class="grid" style="margin-top:14px">
+  <div class="card">
+    <h2 data-t="h.mem">Memoria</h2>
+    <div class="m"><span data-t="m.ram">RAM libre (montón del sistema)</span><b id="mram">—</b></div><div class="bar"><i id="bram"></i></div>
+    <div class="m"><span data-t="m.cpu">Carga del audio</span><b id="mcpu">—</b></div><div class="bar"><i id="bcpu"></i></div>
+    <div class="m"><span data-t="m.takes">Tomas (tope 6 s)</span><b id="mtak">—</b></div><div class="bar"><i id="btak"></i></div>
+    <div class="m"><span data-t="m.zone">Zona de tomas y sonidos (100 KiB)</span><b id="mzon">—</b></div><div class="bar" id="bzon"></div>
+    <div class="m"><span data-t="m.lang">Paquete de idioma (16 KiB)</span><b id="mlan">—</b></div><div class="bar"><i id="blan"></i></div>
+    <p class="small" id="minfo"></p>
+  </div>
+
+  <div class="card">
+    <h2 data-t="h.takes">Tomas del sampler</h2>
+    <table><thead><tr><th>#</th><th data-t="t.len">Largo</th><th>BPM</th><th data-t="t.pads">Pads</th><th></th></tr></thead><tbody id="ltak"></tbody></table>
+    <div class="drop" id="dtak" tabindex="0" data-t="d.take" style="margin-top:12px">Suelta un audio (WAV, MP3, FLAC…) o haz clic</div>
+    <input type="file" id="ftak" accept="audio/*,.wav,.mp3,.flac,.ogg,.aiff" hidden>
+    <div id="tprev" hidden>
+      <div class="row"><label data-t="t.from">Desde (s)</label><input type="number" id="tfrom" min="0" step="0.01" value="0">
+        <label data-t="t.dur">Largo (s)</label><input type="number" id="tdur" min="0.1" step="0.001" value="3">
+        <label>BPM</label><input type="number" id="tbpm" min="40" max="240" step="0.1" value="120"></div>
+      <div class="row"><button id="tplay" data-t="b.listen">Escuchar como en el FM-1</button><button id="tsend" class="go" data-t="b.sendtake">Mandar al FM-1</button></div>
+      <p class="small" id="tinfo"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-t="h.snd">Sonidos</h2>
+    <table><thead><tr><th data-t="s.mach">Máquina</th><th data-t="s.name">Nombre</th><th data-t="s.auth">Autor</th><th>KB</th><th></th></tr></thead><tbody id="lsnd"></tbody></table>
+    <div class="row"><label for="smach" data-t="s.mach">Máquina</label>
+      <select id="smach"><option value="BITTAL">BITTAL · T5</option><option value="B-MINI">B-MINI · T3</option><option value="BUNO-6">BUNO-6 · T6</option></select>
+      <input type="text" id="sname" maxlength="12" placeholder="NOMBRE" data-tp="s.ph"></div>
+    <div class="drop" id="dsnd" tabindex="0" data-t="d.snd">Suelta un preset de Vital (.vital), un banco de la DX7 (.syx) o un .bsnap</div>
+    <input type="file" id="fsnd" accept=".vital,.syx,.bsnap" hidden>
+    <div id="sprev" hidden><p class="small" id="sinfo"></p><button id="ssend" class="go" data-t="b.sendsnd">Mandar al FM-1</button></div>
+  </div>
+
+  <div class="card">
+    <h2 data-t="h.lang">Idioma de la pantalla</h2>
+    <p class="small" data-t="l.txt">La pantalla viene en inglés. El paquete de idioma es un agregado aparte: vive en su propia zona de 16 KiB y no ocupa memoria de tomas ni de sonidos. Se cambia aquí.</p>
+    <div class="row"><button id="les" class="go" data-t="b.es">Cargar español</button><button id="lfile" data-t="b.lfile">Otro paquete (.bmlang)…</button><button id="loff" data-t="b.loff">Quitar (inglés)</button></div>
+    <input type="file" id="flan" accept=".bmlang" hidden>
+  </div>
+</div>
+<div class="card" style="margin-top:14px"><progress id="bar" max="100" value="0"></progress><p class="log" id="log"></p></div>
+</div>
+</main>
+<script type="module" src="control.js?v=1"></script>
+</body>
+</html>

@@ -48,7 +48,7 @@
 <p>Bubba Machine turns the FM-1 into a live groovebox with <strong>six fixed machines</strong>, each named after the machine that inspired it: <strong>BR-8</strong> (drums), <strong>BP-1</strong> (pad sampler), <strong>BB-303</strong> or <strong>B-MINI</strong> (bass), <strong>BX-7</strong> (6-operator FM), <strong>BITTAL</strong> (wavetable that loads Vital presets) and <strong>BUNO-6</strong> (polysynth with chorus). HOME holds the <strong>BX-1</strong> mixer. Every track has its own length and its own speed.</p>
 <blockquote><p>The names recall famous machines (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6), but Bubba Machine has no relation to their brands or makers.</p></blockquote>
 <p>The interface fits in two sentences: <strong>four gestures per button, and they mean the same thing on every button. HOME everywhere.</strong></p>
-<blockquote><p><strong>The screen is in English.</strong> Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you can load (see <a href="#screen-language">Screen language</a>).</p></blockquote>
+<blockquote><p><strong>The screen is in English.</strong> Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you load from the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/control.html">control platform</a> (see <a href="#screen-language">Screen language</a>).</p></blockquote>
 <blockquote><p>0.6 changed the pattern format. <strong>It does not read what an earlier version saved</strong>: on first boot it erases the patterns and starts with the demo (takes are kept).</p></blockquote>
 <h2 id="four-gestures-per-button">Four gestures per button</h2>
 <div class="tbl"><table><thead><tr><th>Gesture</th><th>When</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Tap</strong></td><td>under 300 ms</td><td>Opens its page on the track you are on. Again: the next page of the same button</td></tr><tr><td><strong>Hold</strong></td><td>300 ms or more</td><td>Its <strong>live layer</strong>: while you hold it, the keys do that job and the screen draws the keyboard with what each key does. Let go and you are back</td></tr><tr><td><strong>Hold 2 s</strong></td><td>2 s without touching anything else</td><td>Its settings or its dangerous action. A ring fills at the top; touching anything cancels it. Only on HOME, SEQ, EDIT, SAVE and REC</td></tr><tr><td><strong>HOME + button</strong></td><td>with HOME held</td><td>The <strong>global version</strong> of the button: for the whole project, not just the track</td></tr></tbody></table></div>
@@ -177,7 +177,7 @@ The take stays <strong>UNSAVED</strong>: the white keys play it in 16 parts. <st
 </li><li>
 <strong>TAKES</strong> (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). <strong>N1</strong> = kit on the hits, <strong>N2</strong> = 16 equal parts, <strong>N3</strong> = 8, <strong>N4</strong> = the whole take on the selected pad, <strong>N11</strong> = delete (asks; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
 </li></ol>
-<p><strong>How much fits:</strong> takes share <strong>100 KiB</strong> of flash with your bank sounds: takes are stored from the bottom and sounds from the top, so you decide the split (8 bits at 16 kHz = 16 KB per second, up to 3 s per take). TAKES shows what is free and how many of your sounds are on top.</p>
+<p><strong>How much fits:</strong> up to <strong>6 s of takes in total</strong> (8 bits at 16 kHz = 16 KB per second, up to 3 s per take). They live in the 100 KiB flash zone shared with your bank sounds: takes from the bottom and sounds from the top. TAKES shows what is free of the 6 s and how many of your sounds are on top; the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/control.html">control platform</a> shows all the memory and warns before it fills up.</p>
 <h2 id="note-tracks-t3-t6">Note tracks (T3-T6)</h2>
 <ul><li>
 <strong>SEQ:</strong> the page is only about this track. On top, the page's 16 steps as a <strong>piano roll</strong>: each note at its pitch and with its length (long ones in mint, early or late ones shifted from their step). White keys are those steps (up to 4 notes per step). Below, the track's bars and the playhead. <strong>Hold a step</strong> and play <strong>black 1-8</strong> to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
@@ -224,7 +224,7 @@ The take stays <strong>UNSAVED</strong>: the white keys play it in 16 parts. <st
 </li><li>
 <strong>BUNO-6</strong> has its own stereo <strong>chorus</strong> (I, II or I+II, with ALGORITHM). BITTAL's <strong>SPACE</strong> macro adds reverb send.
 </li><li>
-<strong>HOME + FX:</strong> the delay (time, feedback, mix) and the sidechain release. HOME + FX again: the <strong>reverb</strong> (size, damping, mix).
+<strong>HOME + FX:</strong> the delay (time, feedback, mix; up to 0.80 s, so 1/4 gets shorter below 75 BPM) and the sidechain release. HOME + FX again: the <strong>reverb</strong> (size, damping, mix).
 </li><li>
 <strong>On HOME:</strong> the <strong>master filter</strong> (K3) and <strong>BEAT FX</strong> (K4).
 </li><li>
@@ -243,8 +243,8 @@ The flash is <strong>only written when stopped</strong> (writing pauses the audi
 <strong>Copying:</strong> SAVE held + white key copies the pattern; HOME + EDIT copies a track onto another one in the same pattern (notes to notes, hits to hits; ALGORITHM picks the target, OCT+ pastes). Machines don't change.
 </li></ul>
 <h2 id="system-home-2-s">System (HOME 2 s)</h2>
-<p>Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · <strong>FAST SCREEN</strong> and <strong>TWO CORES</strong> (tests, off by default) · takes, sounds and free memory · <strong>LANGUAGE</strong> · version.</p>
-<p><strong>The two tests:</strong> <strong>FAST SCREEN</strong> raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). <strong>TWO CORES</strong> computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off.</p>
+<p>Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · <strong>FAST SCREEN</strong> (test, off by default) and <strong>TWO CORES</strong> (test, on by default since 0.6.1) · takes, sounds and free memory · <strong>LANGUAGE</strong> · version.</p>
+<p><strong>The two tests:</strong> <strong>FAST SCREEN</strong> raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). <strong>TWO CORES</strong> computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on and which core ran the second job.</p>
 <h2 id="midi">MIDI</h2>
 <ul><li>
 <strong>Input</strong> (USB and TRS): channels 1-6 = Bubba Machine's tracks. On grids, the note picks the instrument (0-15); on the sampler, the pad.
@@ -253,10 +253,24 @@ The flash is <strong>only written when stopped</strong> (writing pauses the audi
 </li><li>
 <strong>Output:</strong> MIDI Clock when the clock is internal, and the notes of tracks with <strong>MIDI OUT</strong>.
 </li></ul>
+<h2 id="control-platform">Control platform</h2>
+<p>The <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/control.html">control platform</a> manages the FM-1 from Chrome or Edge, over USB. <strong>It only works with the FM-1 connected</strong> and Bubba Machine 0.6.1-beta or newer; there is no emulator mode.</p>
+<ul><li>
+<strong>Memory:</strong> free system RAM, audio load, the 6 s of takes, the 100 KiB zone shared by takes and sounds, and the language pack. It refreshes every 2 s.
+</li><li>
+<strong>Warnings based on what you are doing:</strong> low RAM (the FM-1 could hang), high audio load or late blocks (dropouts), takes or zone nearly full, the 12-sound maximum, whether TWO CORES is on and, before sending anything, whether it fits or what to delete.
+</li><li>
+<strong>Takes:</strong> drop an audio file (WAV, MP3, FLAC…); the page turns it into 16 kHz, 8 bits as the FM-1 records, you pick where it starts and how long, listen to it exactly as it will sound and send it with its BPM. You can delete them too.
+</li><li>
+<strong>Sounds:</strong> Vital presets (.vital) for BITTAL, B-MINI or BUNO-6, DX7 banks (.syx) for BX-7 and .bsnap files. You can delete yours too.
+</li><li>
+<strong>Language:</strong> load Spanish, another .bmlang pack, or go back to English.
+</li></ul>
+<p>To write (send or delete) the transport has to be stopped: writing flash cuts the audio. The page says so and keeps the buttons off while it plays.</p>
 <h2 id="screen-language">Screen language</h2>
 <p>The screen is in <strong>English</strong>. Other languages are <strong>packs</strong> that are not loaded by default: one pack lives in its own 16 KiB of flash (it does not touch patterns or takes, and a firmware update does not erase it).</p>
 <ul><li>
-<strong>Load Spanish on the FM-1:</strong> the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/instalar.html">web installer</a> loads it by itself at the end (the "screen in Spanish" box). Or, with the transport stopped, <code>py -3 tools/fm1/idioma.py lang/es.bmlang</code>. <strong>SYSTEM › LANGUAGE</strong> then switches between English and the pack. <code>--quitar</code> removes it.
+<strong>Load Spanish on the FM-1:</strong> the language pack is a separate add-on with its own 16 KiB zone: load or remove it on the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/control.html">control platform</a>, with the FM-1 connected and the transport stopped. Or from the computer, with the transport stopped, <code>py -3 tools/fm1/idioma.py lang/es.bmlang</code>. <strong>SYSTEM › LANGUAGE</strong> then switches between English and the pack. <code>--quitar</code> removes it.
 </li><li>
 <strong>In the emulator:</strong> the button under <em>Sampler and memory</em> loads or removes the Spanish pack.
 </li><li>
@@ -267,7 +281,7 @@ The flash is <strong>only written when stopped</strong> (writing pauses the audi
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.1-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

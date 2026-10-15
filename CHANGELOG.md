@@ -2,7 +2,7 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
-## [0.6.1-beta] - sin publicar
+## [0.6.1-beta] - 2026-10-14
 
 **La 0.6.0-beta no debe instalarse:** dejaba 38 KiB de RAM para el sistema del FM-1, que necesita unos 50 KiB al arrancar, así que lo más probable es que no arrancara bien. La 0.6.1-beta deja 126 KiB y el instalador ya no ofrece la 0.6.0. Beta, todavía no probada en el aparato.
 

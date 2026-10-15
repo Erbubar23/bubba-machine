@@ -74,7 +74,7 @@ SDK_C := \
 	apps/common/system/system_reset_reason.c \
 	apps/common/system/version.c \
 	apps/common/update/update.c \
-	cpu/wl82/debug.c \
+\
 	cpu/wl82/key/adc_api.c \
 	cpu/wl82/port_waked_up.c \
 	cpu/wl82/setup.c \
@@ -84,7 +84,7 @@ SDK_S := include_lib/driver/version.z.S include_lib/system/version.z.S include_l
 	include_lib/utils/version.z.S
 
 # nuestro
-OWN_C := hal/fm1/sdk/board.c hal/fm1/fm1_boot.c hal/fm1/fm1_lcd.c hal/fm1/fm1_keys.c \
+OWN_C := hal/fm1/sdk/board.c hal/fm1/sdk/wl82_debug.c core/bm_printf.c hal/fm1/fm1_boot.c hal/fm1/fm1_lcd.c hal/fm1/fm1_keys.c \
 	hal/fm1/fm1_usb_midi.c hal/fm1/fm1_update.c hal/fm1/fm1_flash.c core/bm_gfx.c core/bm_lang.c core/gen/bm_font.c \
 	core/gen/bm_logo.c
 ifeq ($(APP),diag)
@@ -153,9 +153,16 @@ $(OUT)/sdk/%.o: $(SDK)/%.S
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(SDK_WARN) $(DEFINES) $(INCLUDES) -c $< -o $@
 
+# la copia de cpu/wl82/debug.c del SDK: con los avisos del SDK, no con los nuestros
+$(OUT)/own/hal/fm1/sdk/wl82_debug.o: OWN_WARN := $(SDK_WARN)
+
+# Todo el C de Bubba (core/ y hal/fm1/) usa el snprintf propio (core/bm_printf.c): el del SDK no
+# entiende %+d ni %f, corría los argumentos y un %s leía un número como puntero (0.7, PADS).
+OWN_PRINTF := -Dsnprintf=bm_snprintf -Dvsnprintf=bm_vsnprintf
+
 $(OUT)/own/%.o: $(REPO)/%.c
 	@mkdir -p $(@D)
-	$(CC) $(if $(filter $(FAST_C),$*.c),$(FAST),$(CFLAGS)) $(OWN_WARN) $(DEFINES) $(INCLUDES) -c $< -o $@
+	$(CC) $(if $(filter $(FAST_C),$*.c),$(FAST),$(CFLAGS)) $(OWN_WARN) $(DEFINES) $(if $(filter core/% hal/fm1/fm1_%,$*),$(OWN_PRINTF)) $(INCLUDES) -c $< -o $@
 
 $(OUT)/own/%.o: $(REPO)/%.cpp
 	@mkdir -p $(@D)

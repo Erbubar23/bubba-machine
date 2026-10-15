@@ -18,6 +18,10 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Less text:** the hint lines show for the first 4 seconds of a page and then go away; the bottom hint line, the CPU readout ("CPU!" only when the audio does not keep up), HOME's column headers and its master bar are gone.
 - FADERS left HOME's cycle: the MIX page already has every level.
 
+### Fixed
+- **The FM-1 restarted on BP-1's PADS page.** The SDK's snprintf does not understand `%+d` (nor `%f`): it skipped the argument, the next ones shifted, and the pad line's last `%s` read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (`core/bm_printf.c`), checked against the C library's on the computer. The 30 `%+d` on screen also showed wrong text before.
+- **Processor faults leave a trace:** a copy of the SDK's exception handler (`hal/fm1/sdk/wl82_debug.c`) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.
+
 ## [0.6.3-beta] - unreleased
 
 **Two cores that really work in parallel.** Measured on the FM-1 with a six-machine pattern.

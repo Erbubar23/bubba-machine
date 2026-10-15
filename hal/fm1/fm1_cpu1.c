@@ -58,6 +58,7 @@ typedef struct {
 } c1_mb_t;
 static c1_mb_t mb __attribute__((aligned(64)));
 static volatile uint8_t modo;                       /* FM1_C1_* */
+volatile uint8_t fm1_c1_trabajo[2];                 /* el núcleo está dentro de un trabajo (para la huella de una falla) */
 static uint32_t espera_max;                         /* ticks del barrido */
 
 /* el trabajo pendiente, si hay uno y el buzón se leyó bien (en RAM, como el giro) */
@@ -74,8 +75,11 @@ SEC_USED(.volatile_ram_code) static void c1_uno(void)
         C1_SYNC();
         return;
     }
-    if (fn)
+    if (fn) {
+        fm1_c1_trabajo[current_cpu_id() & 1] = 1;
         fn(arg);
+        fm1_c1_trabajo[current_cpu_id() & 1] = 0;
+    }
     mb.cpu = current_cpu_id();
     if (mb.cpu == mb.desde)                         /* en serie: el que pidió está esperando aquí mismo */
         mb.mismo++;

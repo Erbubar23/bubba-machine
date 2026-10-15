@@ -130,8 +130,9 @@ def fm1(app):
     os.makedirs(out, exist_ok=True)
     env = dict(os.environ, MSYS_NO_PATHCONV='1')
     cmd = ('ulimit -n 8096; make -s -C /src/hal/fm1/sdk SDK=/sdk OUT=/tmp/fm1 APP=%s && '
-           'cp /tmp/fm1/app.bin /src/build/fm1/app-%s.bin && cp /tmp/fm1/sections.txt /src/build/fm1/sections-%s.txt'
-           % (app, app, app))
+           'cp /tmp/fm1/app.bin /src/build/fm1/app-%s.bin && cp /tmp/fm1/sections.txt /src/build/fm1/sections-%s.txt && '
+           'cp /tmp/fm1/sdk.elf /src/build/fm1/sdk-%s.elf'
+           % (app, app, app, app))
     r = subprocess.run(['docker', 'run', '--rm', '-v', ROOT.replace('\\', '/') + ':/src',
                         '-v', AC79_SDK.replace('\\', '/') + ':/sdk:ro', '-v', JIELI_VOLUME + ':/opt/jieli:ro',
                         GCC_IMAGE, 'bash', '-c', cmd], env=env)

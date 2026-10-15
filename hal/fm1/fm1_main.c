@@ -732,6 +732,30 @@ static void bubba_task(void *p)
     adc_add_sample_ch(FM1_ADC_BATT);
     fm1_boot_stage(E_PANTALLA);
     {
+        uint32_t pc; uint8_t ce, db;
+        if (fm1_excepcion_previa(&pc, &ce, &db)) {   /* antes que el perro: comparten los 8 bytes */
+            cuelgue = 1;
+            char l[96], *p = l;
+            static const char H[] = "0123456789ABCDEF";
+            static const char *const TK[8] = {"?", "bubba", "audio", "app_core", "sys_event", "timer", "-", "otra"};
+            uint32_t eb = (ce >> 2) & 31u, dbb = db & 31u;
+            const char *s = "falla: nucleo ";
+            while (*s) *p++ = *s++;
+            *p++ = (char)('0' + (ce & 1u));
+            s = (ce & 0x80u) ? " RETI 0x" : " PC 0x"; while (*s) *p++ = *s++;
+            for (int i = 28; i >= 0; i -= 4) *p++ = H[(pc >> i) & 15u];
+            s = " MIGA "; while (*s) *p++ = *s++;
+            *p++ = (char)('0' + eb / 10u); *p++ = (char)('0' + eb % 10u);
+            s = " DBG "; while (*s) *p++ = *s++;
+            *p++ = (char)('0' + dbb / 10u); *p++ = (char)('0' + dbb % 10u);
+            s = " tarea "; while (*s) *p++ = *s++;
+            s = TK[db >> 5]; while (*s) *p++ = *s++;
+            if (ce & 2u) { s = " (reparto)"; while (*s) *p++ = *s++; }
+            *p = 0;
+            fm1_log(l);
+        }
+    }
+    {
         char c[5];
         if (fm1_cuelgue_previo(c)) {
             cuelgue = 1;

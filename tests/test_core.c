@@ -12,6 +12,7 @@
 #include "../core/bm_rom.h"
 #include "../core/bm_drums.h"
 #include "../core/bm_snap.h"
+#include "../core/bm_printf.h"
 #include "../core/bm_wt.h"
 #include "../core/bm_fm.h"
 #include "../core/bm_params.h"
@@ -1304,6 +1305,29 @@ static void test_notes(void)
 static void par_go_sim(void *u, uint32_t done, uint32_t n) { bm_audio_par_process((bm_ctx *)u, done, n); }
 static void par_wait_sim(void *u) { (void)u; }
 
+/* el snprintf propio (el del FM-1 no entiende %+d ni %f): igual que el de la biblioteca */
+static void test_printf(void)
+{
+    printf("snprintf propio: igual que el de la biblioteca en los formatos de la pantalla\n");
+    char a[64], b[64];
+    int bad = 0, n = 0;
+#define CMP(...) do { int ra = bm_snprintf(a, sizeof a, __VA_ARGS__), rb = snprintf(b, sizeof b, __VA_ARGS__); n++; \
+        if (ra != rb || strcmp(a, b)) { bad++; printf("  distinto: [%s] [%s]\n", a, b); } } while (0)
+    CMP("%s  %+d ST  %u MS%s%s", "ONESHOT", 3, 162u, "  REV", "");
+    CMP("%+d", 0); CMP("%+d", -7); CMP("%+d ST", 12); CMP("% d", 5); CMP("%d", -2147483647 - 1);
+    CMP("%02d", 7); CMP("%02d", -3); CMP("%03u", 5u); CMP("%2d", 123); CMP("%-4d|", 9); CMP("%04X", 0xABu);
+    CMP("%x %X %#x %o", 255u, 255u, 255u, 8u); CMP("%u", 4294967295u); CMP("%lu %ld %lld", 7ul, -8l, -9ll);
+    CMP("%c%c", 'O', 'K'); CMP("%5c|%-3c|", 'x', 'y'); CMP("%%"); CMP("100%%");
+    CMP("%.9s", "ABCDEFGHIJKLMNOP"); CMP("%.*s", 3, "abcdef"); CMP("%8s|%-8s|", "ab", "cd"); CMP("%.0s|", "zz");
+    CMP("%.1f KHZ", 1.25); CMP("%.2f HZ", 0.333); CMP("%.1f", -2.95); CMP("%f", 3.5); CMP("%6.2f|", 1.5); CMP("%.0f", 2.5);
+    CMP("%d%%", 85); CMP("T%d LEVEL", 3); CMP("A%02d", 16); CMP("%u.%03uS", 1u, 45u);
+    /* corto: trunca igual y devuelve lo que habría escrito */
+    { int ra = bm_snprintf(a, 5, "%s", "ABCDEFGH"), rb = snprintf(b, 5, "%s", "ABCDEFGH"); n++; if (ra != rb || strcmp(a, b)) bad++; }
+#undef CMP
+    printf("  %d formatos, %d distintos\n", n, bad);
+    CHECK(bad == 0);
+}
+
 static void test_dual_core(void)
 {
     printf("audio en dos núcleos: T4-T6 (o T1-T3) aparte dan las mismas muestras\n");
@@ -1720,6 +1744,7 @@ int main(int argc, char **argv)
     test_free_rec();
     test_rec_expressive();
     test_sounds();
+    test_printf();
     test_dual_core();
     test_engines();
     test_key_screens();

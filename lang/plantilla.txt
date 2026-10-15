@@ -41,6 +41,9 @@
 # core/bm_input.c
 %s LENGTH
 
+# core/bm_printf.c
+0123456789ABCDEF
+
 # core/bm_ui_draw.c
 1 BAR = %u.%u S
 

@@ -1,10 +1,10 @@
 [
  {
   "archivo": "bubba-machine-0.7.0-beta.bin",
-  "sha256": "1872f837e02fee68b8239383cfc89da64870e81200b3a726e84e7bc8d710eac1",
-  "bytes": 430172,
+  "sha256": "6dade2c445fb85b8f08af9c53c6ba38ab0e5790a8b88e59983a74ce3011b4ed5",
+  "bytes": 432540,
   "fwsc": "bubba-machine-0.7.0-beta.fwsc",
-  "fwsc_sha256": "e4eb8c2431b87e35aebbf41385b2dae02ce26cd355c8a15ebac7bb069518120d",
+  "fwsc_sha256": "f150304e59e0197e5fa2c80ce62a312da829f03c3b64bd1eac3adb268ba043bf",
   "nombre": "Bubba Machine 0.7.0-beta",
   "nombre_en": "Bubba Machine 0.7.0-beta",
   "detalle": "El groovebox completo: seis máquinas, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
@@ -51,6 +51,17 @@
   "nombre_en": "Bubba Machine 0.5.0-beta",
   "detalle": "El groovebox completo: 6 canales, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",
   "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
+ },
+ {
+  "archivo": "bubba-diag-0.7.0-beta.bin",
+  "sha256": "bcd158d4871e7e1815341fa22de173dc6f57537d36403e5138a6dcf97dda4f0c",
+  "bytes": 124712,
+  "fwsc": "bubba-diag-0.7.0-beta.fwsc",
+  "fwsc_sha256": "22ccdeee8893787207bab3c7a8cc022df0827744c1a5a3b78a381c4d84db397b",
+  "nombre": "Diagnóstico 0.7.0-beta",
+  "nombre_en": "Diagnostic 0.7.0-beta",
+  "detalle": "Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.",
+  "detalle_en": "No sound: shows every button, key and knob to check the device."
  },
  {
   "archivo": "bubba-diag-0.6.2-beta.bin",

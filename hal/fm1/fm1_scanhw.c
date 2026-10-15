@@ -144,6 +144,19 @@ static void perro(void)
     cpu_reset();
 }
 
+/* una falla del procesador antes de este arranque (hal/fm1/sdk/wl82_debug.c la dejó): 1 y sus datos */
+int fm1_excepcion_previa(uint32_t *pc, uint8_t *cpu_emu, uint8_t *dbg)
+{
+    volatile uint8_t *m = (volatile uint8_t *)PERRO_ADR;
+    if (m[0] != 0xBBu || m[1] != 0xB0u)
+        return 0;
+    *pc = (uint32_t)m[2] | (uint32_t)m[3] << 8 | (uint32_t)m[4] << 16 | (uint32_t)m[5] << 24;
+    *cpu_emu = m[6];
+    *dbg = m[7];
+    m[0] = m[1] = 0;
+    return 1;
+}
+
 int fm1_cuelgue_previo(char out[5])
 {
     volatile uint8_t *m = (volatile uint8_t *)PERRO_ADR;

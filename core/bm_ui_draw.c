@@ -19,6 +19,12 @@
 #include <math.h>
 
 #define PY   36    /* primera fila útil de una página de canal (debajo de las pestañas) */
+
+/* La miga del dibujo (0.7, temporal): qué parte de la pantalla se estaba dibujando. Si el
+ * procesador falla, hal/fm1/sdk/wl82_debug.c la guarda en la huella y la consola la muestra.
+ * 0 = fuera del dibujo. */
+volatile uint8_t bm_ui_paso;
+#define PASO(n) (bm_ui_paso = (uint8_t)(n))
 #define VB   135   /* última fila del visor */
 
 static uint16_t dim(uint16_t c) { return (uint16_t)((c >> 1) & 0x7BEF); }
@@ -120,7 +126,9 @@ static void draw_legend(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_LEGEND_Y, BM_LEGEND_H)) return;
     bm_legend L[4];
+    PASO(30);
     bm_app_legend(a, L);
+    PASO(29);
     gfx_fill(g, 0, BM_LEGEND_Y, BM_LCD_W, BM_LEGEND_H, C_BLACK);
     gfx_hline(g, 0, BM_LEGEND_Y, BM_LCD_W, C_DDGREY);
     for (int i = 0; i < 4; i++) {
@@ -259,7 +267,9 @@ static void draw_keys(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_KEYS_Y, BM_KEYS_H)) return;
     bm_keyfn K[BM_KEYS];
+    PASO(31);
     bm_app_keys(a, K);
+    PASO(28);
     gfx_fill(g, 0, BM_KEYS_Y, BM_LCD_W, BM_KEYS_H, C_BLACK);
     gfx_hline(g, 0, BM_KEYS_Y, BM_LCD_W, C_DDGREY);
     int wy = BM_KEYS_Y + 15;
@@ -732,6 +742,7 @@ static void take_map(bm_gfx *g, const bm_app *a, int src, uint32_t len, int y, i
  * el medio la onda grande con el pad entre corchetes cian y su loop (sustain) en verde menta. */
 static void draw_pads(bm_gfx *g, const bm_app *a)
 {
+    PASO(12);
     int sel = a->sel_lane[1] & 15, page = a->ed_page[1] % 4;
     const bm_pad *p = &a->pat.pad[sel];
     const bm_status *st = &a->ctx.st;
@@ -805,6 +816,7 @@ static void draw_pads(bm_gfx *g, const bm_app *a)
         if (st->smp_pos_src == p->src && st->smp_pos >= v0 && st->smp_pos < v1) gfx_vline(g, VX(st->smp_pos), wy, wh, C_ORANGE);
     }
 #undef VX
+    PASO(14);
     if (gfx_strip_hit(g, wy + wh + 2, 6)) {
         unsigned ms = (unsigned)((uint32_t)p->len * 1000u / BM_SMP_RATE);
         snprintf(b, sizeof b, "%s  %+d ST  %u MS%s%s", T(bm_pad_mode_name(p->mode)), p->pitch - 24, ms,
@@ -813,6 +825,7 @@ static void draw_pads(bm_gfx *g, const bm_app *a)
         snprintf(b, sizeof b, "X%d", 1 << (a->cut_zoom & 3));
         gfx_small(g, 236 - gfx_small_w(b), wy + wh + 2, b, C_GREY);
     }
+    PASO(15);
     bool holding = a->pad_key >= 0 && a->keys_down[a->pad_key];
     static const char *const HL[4] = {N_("K1 START - K2 END - EDIT = SOUND, ENV, LOOP"), N_("K3 PLAY: ONESHOT, KEY, THRU OR LOOP"), N_("ATTACK, RELEASE, CHOKE GROUP, TEMPO SYNC"),
                                       N_("HELD: THE LOOP REPEATS - RELEASED: TO THE END")};
@@ -1811,19 +1824,21 @@ static void draw_toast(bm_gfx *g, const bm_app *a)
 /* ------------------------------------------------------------ entrada */
 static void draw_channel(bm_gfx *g, const bm_app *a)
 {
+    PASO(8);
     draw_tabs(g, a);
     int t = a->track, kind = app_kind(a, t);
+    PASO(9);
     switch (a->page) {
     case PG_SEQ:
         if (kind == KIND_TR) draw_seq_tr(g, a);
         else draw_seq_syn(g, a);
         break;
-    case PG_SOUND: draw_sound(g, a); break;
+    case PG_SOUND: PASO(11); draw_sound(g, a); break;
     case PG_INST: draw_inst(g, a); break;
-    case PG_MIX: draw_ch_mix(g, a); break;
-    case PG_MORE: draw_more(g, a); break;
-    case PG_BREAK: draw_break(g, a); break;
-    case PG_TAKES: draw_takes(g, a); break;
+    case PG_MIX: PASO(18); draw_ch_mix(g, a); break;
+    case PG_MORE: PASO(19); draw_more(g, a); break;
+    case PG_BREAK: PASO(16); draw_break(g, a); break;
+    case PG_TAKES: PASO(17); draw_takes(g, a); break;
     case PG_ENV: draw_env(g, a); break;
     case PG_ARP: draw_arp(g, a); break;
     case PG_LOOP: draw_loop(g, a); break;
@@ -1844,13 +1859,15 @@ void bm_app_draw(bm_gfx *g, void *user)
         gfx_text(g, 4, 231, "V" BM_VERSION_STR, C_DGREY, 1);
         return;
     }
+    PASO(1);
     hints_update(a);
     draw_status(g, a);
     gfx_clip(g, 0, BM_CTX_Y, BM_LCD_W, BM_CTX_H);
+    PASO(2);
     if (a->layer && a->layer != L_CHORDS) draw_layer(g, a);
     else if (a->layer == L_CHORDS) { gfx_text(g, 4, 26, "LIVE CHORDS", C_GREEN, 1); draw_chords(g, a, 36); }
     else switch (a->view) {
-    case V_HOME: draw_home(g, a); break;
+    case V_HOME: PASO(3); draw_home(g, a); break;
     case V_MIX: draw_mix(g, a); break;
     case V_SCENES: draw_scenes(g, a); break;
     case V_SONG: draw_song(g, a); break;
@@ -1864,13 +1881,20 @@ void bm_app_draw(bm_gfx *g, void *user)
     case V_COPYCH: draw_copych(g, a); break;
     default: break;
     }
+    PASO(24);
     if (a->box_on) draw_box(g, a);
+    PASO(25);
     if (a->ov.on) draw_overlay(g, a);
+    PASO(26);
     if (a->ask) draw_ask(g, a);
+    PASO(27);
     if (a->toast_until && !a->ask) draw_toast(g, a);
     gfx_noclip(g);
+    PASO(28);
     draw_keys(g, a);
+    PASO(29);
     draw_legend(g, a);
+    PASO(0);
     if (a->now < a->clip_until) {
         gfx_fill(g, 0, 0, BM_LCD_W, 2, C_RED); gfx_fill(g, 0, BM_LCD_H - 2, BM_LCD_W, 2, C_RED);
         gfx_fill(g, 0, 0, 2, BM_LCD_H, C_RED); gfx_fill(g, BM_LCD_W - 2, 0, 2, BM_LCD_H, C_RED);

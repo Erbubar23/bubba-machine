@@ -66,6 +66,7 @@ void fm1_miga(const char *c);                             /* paso actual, en una
 void fm1_paso(const char *c);                             /* sub-paso (sin dibujar): dentro de la pantalla, la flash… */
 void fm1_latido(void);                                    /* el bucle principal sigue vivo */
 int  fm1_perro(int on);                                   /* perro guardián del bucle (apagado en actualizaciones); devuelve cómo estaba */
+int  fm1_excepcion_previa(uint32_t *pc, uint8_t *cpu_emu, uint8_t *dbg);   /* una falla del procesador antes de arrancar */
 int  fm1_cuelgue_previo(char out[5]);                     /* lo que anotó el perro antes de reiniciar, 0 si nada */
 void fm1_boot_note(const char c[4]);                      /* anota 4 caracteres en el registro de este arranque */                                   /* pausa barrido y audio mientras se escribe la flash */                        /* la zona de datos se lee sin descifrar por XIP */
 int  fm1_flash_read(uint32_t a, void *d, uint32_t n);

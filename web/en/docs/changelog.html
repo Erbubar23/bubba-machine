@@ -68,6 +68,12 @@
 </li><li>
 FADERS left HOME's cycle: the MIX page already has every level.
 </li></ul>
+<h3 id="fixed">Fixed</h3>
+<ul><li>
+<strong>The FM-1 restarted on BP-1's PADS page.</strong> The SDK's snprintf does not understand <code>%+d</code> (nor <code>%f</code>): it skipped the argument, the next ones shifted, and the pad line's last <code>%s</code> read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (<code>core/bm_printf.c</code>), checked against the C library's on the computer. The 30 <code>%+d</code> on screen also showed wrong text before.
+</li><li>
+<strong>Processor faults leave a trace:</strong> a copy of the SDK's exception handler (<code>hal/fm1/sdk/wl82_debug.c</code>) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.
+</li></ul>
 <h2 id="063-beta---unreleased">[0.6.3-beta] - unreleased</h2>
 <p><strong>Two cores that really work in parallel.</strong> Measured on the FM-1 with a six-machine pattern.</p>
 <h3 id="changed">Changed</h3>

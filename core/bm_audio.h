@@ -49,6 +49,7 @@ typedef enum {
     CMD_MIDI_SEND,      /* a,b,c = bytes MIDI de salida (b o c = 0xFF: no se mandan) */
     CMD_MASTER,         /* i=0..1023 */
     CMD_DRIVE,          /* a=0..127 */
+    CMD_MOVE,           /* a = MOVE de HOME, con signo (-63..63; 0 = la mezcla tal cual) */
     CMD_SYNC,           /* a=modo b=ppqn c=latencia ms */
     CMD_CLOCK,          /* a=0 interno, 1 externo */
     CMD_MIDI,           /* a=byte MIDI entrante */
@@ -261,6 +262,8 @@ typedef struct bm_ctx {
     uint32_t punch_t, punch_w0, punch_rp;
     float pf_ic1[2], pf_ic2[2];
     float mf_ic1[2], mf_ic2[2];  /* filtro del master */
+    float dj_ic1[BM_TRACKS], dj_ic2[BM_TRACKS];   /* el filtro DJ de cada canal (K2 de HOME) */
+    int8_t move;                 /* MOVE (PRESETS en HOME): < 0 oscuro y con eco, > 0 brillante y con reverb */
     float sh_l, sh_r, gate_g;
     uint16_t master_target, master_gain;
     uint8_t drive, clip_hold;

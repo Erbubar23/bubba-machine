@@ -58,6 +58,7 @@ typedef struct {
 
 typedef struct {
     uint8_t on, enc, pct, ghost;
+    uint8_t beat;                 /* el tempo: cuatro bloques con el beat en vez de la barra */
     uint16_t color;
     char title[22], val[12], unit[6];
     uint32_t until;
@@ -191,7 +192,8 @@ typedef struct bm_app {
     uint8_t cpu;                  /* carga del audio en % (la cabecera) */
     uint8_t rec_gate;             /* REC de notas: el largo con que se graban (10..100 %, 100 = TIE) */
     int8_t rec_micro;             /* REC de notas: corrimiento en ticks (-12..12) */
-    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · HOME + FX otra vez: REVERB */
+    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · en la página FX de HOME: DELAY > REVERB > MASTER */
+    int8_t move;                  /* MOVE de HOME (PRESETS): -63..63, en vivo, no se guarda */
     int8_t tie_from;              /* paso sostenido para una nota larga (blanca + otra blanca) */
     int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
     uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */

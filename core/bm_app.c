@@ -118,6 +118,7 @@ void app_overlay(bm_app *a, int enc, const char *title, const char *val, const c
     o->on = 1; o->enc = (uint8_t)enc; o->pct = (uint8_t)bm_clampi(pct, 0, 255);
     o->ghost = (uint8_t)(ghost < 0 ? 255 : bm_clampi(ghost, 0, 254));
     o->color = col;
+    o->beat = 0;
     snprintf(o->title, sizeof o->title, "%s", title);
     snprintf(o->val, sizeof o->val, "%s", val);
     snprintf(o->unit, sizeof o->unit, "%s", unit);

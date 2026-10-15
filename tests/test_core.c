@@ -440,20 +440,31 @@ static void test_navigation(void)
     shot("00-home");
     int bpm = app.pat.meta.bpm_x10;
     enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                       /* HOME: ALGORITHM = BPM */
-    CHECK(app.pat.meta.bpm_x10 == bpm + 20 && app.view == V_HOME);
+    CHECK(app.pat.meta.bpm_x10 == bpm + 20 && app.view == V_HOME && app.ov.beat && app.ov.color == C_TEMPO);
+    shot("05b-home-tempo");
     enc(ENC_ALGO, -2);
     enc(ENC_SELECT, 1); enc(ENC_SELECT, 1);                   /* SELECT: el cursor del mezclador */
     CHECK(app.track == 2 && app.view == V_HOME && !app.box_on);
     int lv = app.pat.trk[2].level;
     enc(ENC_K1, -2);                                          /* K1 = el volumen del canal del cursor */
     CHECK(app.pat.trk[2].level == lv - 2);
-    enc(ENC_K3, -20);                                         /* K3 = el filtro del master */
-    CHECK(app.pat.meta.mfilt < 60);
-    enc(ENC_K3, 20);
-    enc(ENC_K4, 1);                                           /* K4 = BEAT FX */
-    CHECK(app.pat.meta.beatfx == 1);
+    enc(ENC_K2, -2);                                          /* K2 = el filtro DJ del canal: a la izquierda pasa-bajos */
+    CHECK(app.pat.trk[2].djf == 2);
+    enc(ENC_K2, 2); enc(ENC_K2, 1);                           /* a la derecha pasa-altos */
+    CHECK(app.pat.trk[2].djf == 64 + 1);
+    enc(ENC_K2, -1);                                          /* al centro: abierto */
+    CHECK(app.pat.trk[2].djf == 0);
+    int sd = app.pat.trk[2].send, rv2 = app.pat.trk[2].rsend;
+    enc(ENC_K3, 2); enc(ENC_K4, 2);                           /* K3 = delay, K4 = reverb */
+    CHECK(app.pat.trk[2].send == sd + 2 && app.pat.trk[2].rsend == rv2 + 2);
+    enc(ENC_PRESETS, -2);                                     /* PRESETS = MOVE (los patrones: las blancas) */
+    run_ms(30);
+    CHECK(app.move == -2 && app.ctx.move == -2 && app.view == V_HOME);
     shot("01-home-mixer");
-    enc(ENC_K4, -1);
+    enc(ENC_PRESETS, 2);
+    run_ms(30);
+    CHECK(app.move == 0 && app.ctx.move == 0);
+    enc(ENC_K3, -2); enc(ENC_K4, -2);
     btn(BTN_SEQ, 30);                                         /* SEQ entra al canal del cursor */
     CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SEQ);
     shot("06-seq-bass");
@@ -490,8 +501,16 @@ static void test_navigation(void)
     CHECK(app.pat.trk[3].duck == dk + 2);
     btn(BTN_HOME, 30);
     CHECK(app.view == V_HOME);
-    btn(BTN_HOME, 30); CHECK(app.view == V_MIX);
-    shot("39-faders");
+    /* HOME otra vez: las páginas de BX-1, MIX > FX > TEMPO > ESCENAS > SONG */
+    btn(BTN_HOME, 30); CHECK(app.view == V_FXG && app.fx_page == 0);
+    btn(BTN_FX, 30); btn(BTN_FX, 30); CHECK(app.view == V_FXG && app.fx_page == 2);   /* FX: DELAY > REVERB > MASTER */
+    enc(ENC_K1, -20);                                          /* MASTER: K1 = el filtro del master */
+    CHECK(app.pat.meta.mfilt < 60);
+    enc(ENC_K2, 1);                                            /* K2 = BEAT FX */
+    CHECK(app.pat.meta.beatfx == 1);
+    shot("39-home-fx-master");
+    enc(ENC_K1, 20); enc(ENC_K2, -1);
+    btn(BTN_HOME, 30); CHECK(app.view == V_GLO);
     btn(BTN_HOME, 30); CHECK(app.view == V_SCENES);
     btn(BTN_HOME, 30); CHECK(app.view == V_SONG);
     btn(BTN_HOME, 30); CHECK(app.view == V_HOME);
@@ -1594,7 +1613,7 @@ static void test_ui_flow(void)
     shot("22-roll");
     kup(bm_white_key(2)); up(BTN_ARP); run_ms(100);
     btn(BTN_HOME, 30); btn(BTN_HOME, 30);
-    btn(BTN_HOME, 30);
+    btn(BTN_HOME, 30); btn(BTN_HOME, 30);
     CHECK(app.view == V_SCENES);
     white(5, 40);
     white(0, 40);

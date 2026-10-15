@@ -115,7 +115,8 @@ typedef struct {
     uint8_t loop_b, chance_b, pitch;   /* sin uso desde los pads */
     uint8_t rsend;         /* envío a la reverb (el delay es send) */
     uint8_t midi_out;      /* 1 = además manda sus notas por MIDI (canal midi_ch) */
-    uint8_t rsv[7];
+    uint8_t djf;           /* filtro DJ del canal (K2 de HOME): 0 abierto, 1-63 pasa-bajos, 65-127 pasa-altos */
+    uint8_t rsv[6];
 } bm_track;
 
 /* ------------------------------------------------------------ metadatos: 64 bytes */

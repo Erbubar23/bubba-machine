@@ -296,6 +296,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         break;
     case CMD_MASTER: c->master_target = (uint16_t)k->u.i; break;
     case CMD_DRIVE: c->drive = k->a; break;
+    case CMD_MOVE: c->move = (int8_t)k->a; break;
     case CMD_SYNC: c->sync_mode = k->a; c->sync_ppqn = k->b; c->sync_lat = k->c; break;
     case CMD_CLOCK:
         c->ext_clock = k->a; c->ext_budget = 0; c->ext_seen = 0; c->st.ext_ok = 0;

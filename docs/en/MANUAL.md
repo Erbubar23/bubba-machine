@@ -27,10 +27,10 @@ There are never two layers at once: with a layer open, holding another button do
 
 | Knob | On HOME | Inside a track |
 |---|---|---|
-| **SELECT** | The **cursor**: picks the mixer track | The page (the tabs at the top) or the row of a list. With a step held, its accent |
-| **ALGORITHM** | The **BPM** (HOME + ALGORITHM: in tenths) | The machine's **mode** (table below). On a list, it changes the highlighted value |
-| **PRESETS** | The pattern | The sound: kit, patch or a sound from the bank |
-| **K1-K4** | **VOL** of the cursor track · **FX SEND** (reverb) · master **FILTER** · **BEAT FX** | Whatever the four dials at the bottom say. With HOME held: BPM, swing, master length and drive |
+| **SELECT** | The **cursor**: picks the mixer track | The page (its name and dots at the top) or the row of a list. With a step held, its accent |
+| **ALGORITHM** | The **tempo** (HOME + ALGORITHM: in tenths) | The machine's **mode** (table below). On a list, it changes the highlighted value |
+| **PRESETS** | **MOVE**: one knob that moves the whole mix (below). Patterns are on the white keys | The sound: kit, patch or a sound from the bank |
+| **K1-K4** | The cursor track as a mixer strip: **LEVEL** · **FILTER** (DJ: left low-pass, right high-pass) · **DELAY** · **REVERB** | Whatever the four dials at the bottom say. With HOME held: BPM, swing, master length and drive |
 
 **Entering a track:** on HOME, SELECT moves the cursor to the track and **SEQ** or **EDIT** enter it. From any screen, **HOME + SELECT** shows a box with the target track and you enter when you let go of HOME.
 
@@ -51,10 +51,10 @@ There are never two layers at once: with a layer open, holding another button do
 
 Four strips, always in the same place:
 
-1. **Header:** the machine you are on (BX-1 on HOME), PLAY/REC, pattern and bar, BPM and the **audio load** (CPU). While recording notes it shows the gate they are recorded with (TIE or G75%). Also the 2 s ring and the battery.
-2. **Viewport:** what each screen shows. Inside a track, its tabs on top.
+1. **Header:** the machine you are on (BX-1 on HOME; inside a track, "<" and its name: HOME goes back), PLAY/REC, pattern and bar and the tempo in its own yellow. "CPU!" only appears if the audio does not keep up. While recording notes it shows the gate they are recorded with (TIE or G75%). Also the 2 s ring and the battery.
+2. **Viewport:** what each screen shows. Inside a track, the page name and one dot per page; on HOME, BX-1's pages. The hint lines show for the first 4 seconds of a page and then go away.
 3. **Keyboard:** the 11 black and 16 white keys with what each one does and the same state as its light. On SEQ **the white keys are the 16 steps**; on a note track, a mint bar marks long notes.
-4. **Knobs:** K1-K4 as four dials with their value and name, in physical order. Below, what SELECT, ALGORITHM and PRESETS do on that screen.
+4. **Knobs:** K1-K4 as four dials with their value and name, in physical order.
 
 The palette: blue-black background, **cyan** for what is active, **amber** for values and the playing step, **laser red** for REC and mutes, **mint green** for long notes. A **red border** = the mix clipped.
 
@@ -80,13 +80,13 @@ The palette: blue-black background, **cyan** for what is active, **amber** for v
 
 The FM-1 has no SHIFT, so HOME does three jobs:
 
-1. **The BX-1 mixer:** one row per track with its machine, its sequence (pulses for hits, mint blocks for long notes), its most used effect (DLY, REV, DCK) and its volume with the peak. At the bottom, the BEAT FX and the master filter. SELECT moves the cursor, K1-K4 mix (see the knobs table) and SEQ or EDIT enter the track. HOME again: FADERS (the six volumes), SCENES and SONG.
+1. **The BX-1 mixer:** HOME is a machine of its own, with five pages: **MIX › FX › TEMPO › SCENES › SONG** (HOME again goes to the next one). MIX has one row per track with its machine, its sequence (pulses for hits, mint blocks for long notes), LP or HP when its filter is on, and its volume with the peak. SELECT moves the cursor, K1-K4 mix it (see the knobs table) and SEQ or EDIT enter that machine; HOME brings you back.
 2. **A controller that follows you:** holding HOME brings the controller to any screen. You edit the bass and, without leaving, mute or queue the next pattern.
 3. **Modifier:** HOME + button = its global version (table above).
 
 If you used HOME as a modifier, letting go does **not** take you to the home screen: HOME only navigates on a clean tap.
 
-**Keys with HOME (on the HOME screen, on FADERS or while holding HOME):**
+**Keys with HOME (on the HOME screen or while holding HOME):**
 
 | Key | What it does |
 |---|---|
@@ -95,7 +95,9 @@ If you used HOME as a modifier, letting go does **not** take you to the home scr
 | **Black 7-10** | Launch scenes A-D |
 | **Black 11** | FILL while you hold it |
 
-**BEAT FX** (K4 on HOME): one of the 16 punch-in effects stays on (stutter, reverse, tape, gate, sweeps, bitcrush…) until you turn it back to OFF. **FILTER** (K3): open in the middle; to the left, low-pass; to the right, high-pass.
+**MOVE** (PRESETS on HOME): at 0 the mix is untouched. To the left the master low-pass closes and the whole mix goes into the echo (darker, more repeats); to the right the master high-pass opens and the mix washes into the reverb. It is a live control: it is not saved. The tempo box is yellow and its four blocks flash with the beat.
+
+**FX page** (HOME › FX): FX again goes **DELAY › REVERB › MASTER**. MASTER has the master **FILTER** (open in the middle; left low-pass, right high-pass), **BEAT FX** (one of the 16 punch-in effects stays on until you turn it back to OFF) and **DRIVE**.
 
 ## The six machines
 
@@ -315,9 +317,9 @@ The **master length** (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all track
 - **Each track's MIX** (FX): level, pan, **delay** send and **reverb** send. FX again: **duck** (sidechain from the T1 kick).
 - **BUNO-6** has its own stereo **chorus** (I, II or I+II, with ALGORITHM). BITTAL's **SPACE** macro adds reverb send.
 - **HOME + FX:** the delay (time, feedback, mix; up to 0.80 s, so 1/4 gets shorter below 75 BPM) and the sidechain release. HOME + FX again: the **reverb** (size, damping, mix).
-- **On HOME:** the **master filter** (K3) and **BEAT FX** (K4).
+- **On HOME:** each track's **filter** (K2) and **MOVE** (PRESETS). The **master filter**, **BEAT FX** and **DRIVE** are on HOME › FX › MASTER.
 - **FX held:** 16 punch-ins (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high).
-- **DRIVE** (HOME + K4): saturation of the mix.
+- **DRIVE** (HOME › FX › MASTER, or HOME + K4): saturation of the mix.
 
 ## Saving
 

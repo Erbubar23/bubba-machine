@@ -46,6 +46,28 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="070-beta---unreleased">[0.7.0-beta] - unreleased</h2>
+<p><strong>One machine per screen.</strong> HOME becomes the BX-1 machine with its own pages, and every screen loses the text it did not need. Design: the "Bubba Machine UI 0.7" canvas.</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>MOVE</strong> (PRESETS on HOME): one knob that moves the whole mix. Left: the master low-pass closes and the mix goes into the echo. Right: the master high-pass opens and the mix washes into the reverb. Live, not saved.
+</li><li>
+<strong>A DJ filter on every track</strong> (K2 on HOME): left low-pass, right high-pass, open in the middle. It uses a reserved byte of the track, so saved patterns keep working.
+</li><li>
+<strong>HOME's pages:</strong> MIX › FX › TEMPO › SCENES › SONG, shown as a strip at the top. The FX page has a third sub-page, MASTER: master filter, BEAT FX and drive.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>HOME's K1-K4:</strong> level, filter, delay and reverb of the cursor track (before: volume, reverb send, master filter, BEAT FX).
+</li><li>
+<strong>Tempo</strong> has its own color (yellow) in the header and in its box, which shows four beat blocks. Turning ALGORITHM no longer lights K1's dial.
+</li><li>
+<strong>Inside a machine:</strong> "&lt;" before its name (HOME goes back), and the page name with one dot per page instead of the row of tabs.
+</li><li>
+<strong>Less text:</strong> the hint lines show for the first 4 seconds of a page and then go away; the bottom hint line, the CPU readout ("CPU!" only when the audio does not keep up), HOME's column headers and its master bar are gone.
+</li><li>
+FADERS left HOME's cycle: the MIX page already has every level.
+</li></ul>
 <h2 id="063-beta---unreleased">[0.6.3-beta] - unreleased</h2>
 <p><strong>Two cores that really work in parallel.</strong> Measured on the FM-1 with a six-machine pattern.</p>
 <h3 id="changed">Changed</h3>

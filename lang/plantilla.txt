@@ -44,9 +44,6 @@
 # core/bm_ui_draw.c
 1 BAR = %u.%u S
 
-# core/bm_ui_draw.c
-1-4 LAUNCH 5-8 STORE
-
 # core/bm_input.c
 4 NOTES PER STEP
 
@@ -384,7 +381,7 @@ COWBELL
 COWBL
 
 # core/bm_ui_draw.c
-CPU
+CPU!
 
 # core/bm_input.c
 CPY
@@ -403,9 +400,6 @@ DAMP
 
 # core/bm_input.c
 DB
-
-# core/bm_ui_draw.c
-DCK
 
 # core/bm_params.c
 DCO
@@ -452,7 +446,7 @@ DIM
 # core/bm_input.c
 DIR
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c
 DLY
 
 # core/bm_input.c
@@ -484,9 +478,6 @@ DUCK (SIDECHAIN)
 
 # core/gen/bm_fm_rom.c
 E.PIANO
-
-# core/bm_ui_draw.c
-EACH TRACK: FX > DELAY AND REVERB SENDS
 
 # core/bm_input.c
 ECHO
@@ -605,7 +596,7 @@ FILL PLAYS - WHITE = HIT ONLY IN THE FILL
 # core/bm_input.c
 FILL PLAYS - WHITE = NOTE ONLY IN THE FILL
 
-# core/bm_input.c core/bm_params.c
+# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
 FILTER
 
 # core/bm_params.c
@@ -666,10 +657,7 @@ FWD
 FX
 
 # core/bm_ui_draw.c
-FX AGAIN = DELAY / REVERB - HOLD FX = PUNCH-IN
-
-# core/bm_input.c
-FX SEND
+FX AGAIN = DELAY > REVERB > MASTER
 
 # core/bm_input.c
 GAIN
@@ -691,12 +679,6 @@ GLIDE
 
 # core/bm_ui_draw.c
 GLIDE %dMS (WITH TIE)
-
-# core/bm_ui_draw.c
-GLO AGAIN = CLOSE
-
-# core/bm_ui_draw.c
-GLOBAL
 
 # core/bm_snap.c
 GPL-3.0
@@ -747,6 +729,9 @@ HOLD EDIT + BLACK 4 = CAPTURE INTO THE GRID
 HOLD ENV = PAINT ACCENTS
 
 # core/bm_ui_draw.c
+HOLD FX = PUNCH-IN
+
+# core/bm_ui_draw.c
 HOLD GLO = TRANSPOSE, PLAY = TAP
 
 # core/bm_ui_draw.c
@@ -776,7 +761,7 @@ HOME = DISCARD - REC = ANOTHER TAKE
 # core/bm_ui_draw.c
 HOME NO
 
-# core/bm_params.c
+# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
 HP
 
 # core/bm_input.c core/bm_params.c core/bm_ui_draw.c
@@ -1004,6 +989,9 @@ LOOP OUT
 # core/bm_params.c
 LOUDNESS
 
+# core/bm_input.c core/bm_ui_draw.c
+LP
+
 # core/bm_params.c
 LP 12
 
@@ -1064,17 +1052,11 @@ MANUAL
 # core/gen/bm_fm_rom.c
 MARIMBA
 
-# core/bm_input.c
+# core/bm_input.c core/bm_ui_draw.c
 MASTER
-
-# core/bm_ui_draw.c
-MASTER FILT
 
 # core/bm_input.c
 MASTER FILTER
-
-# core/bm_ui_draw.c
-MASTER FX
 
 # core/bm_input.c core/bm_ui_draw.c
 MASTER LENGTH
@@ -1115,7 +1097,7 @@ MIDI PROGRAM
 # core/bm_pattern.c
 MINOR
 
-# core/bm_app.c core/bm_drums.cpp core/bm_input.c
+# core/bm_app.c core/bm_drums.cpp core/bm_input.c core/bm_ui_draw.c
 MIX
 
 # core/bm_pattern.c
@@ -1147,6 +1129,21 @@ MONO: ONE VOICE, RETRIGGERS
 
 # core/bm_app.c
 MORE
+
+# core/bm_input.c
+MOVE  BRIGHT + WASH
+
+# core/bm_input.c
+MOVE  DARK + ECHO
+
+# core/bm_input.c
+MOVE  OFF
+
+# core/bm_ui_draw.c
+MOVE BRIGHT
+
+# core/bm_ui_draw.c
+MOVE DARK
 
 # core/bm_input.c
 MST FILT
@@ -1577,7 +1574,7 @@ RESON
 # core/bm_drums.cpp
 RESONATOR
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c
 REV
 
 # core/bm_input.c
@@ -1698,22 +1695,10 @@ SELECT = ROW - ALGORITHM = CHANGE
 SELECT HIT - ALGORITHM PROB - PRESETS LENGTH
 
 # core/bm_ui_draw.c
-SELECT PAGE - ALGORITHM MODE - PRESETS SOUND
-
-# core/bm_ui_draw.c
 SELECT PICKS, SAVE RUNS - HOLD SAVE = COPY PATTERN
-
-# core/bm_ui_draw.c
-SELECT ROW - ALGORITHM CHANGES
-
-# core/bm_ui_draw.c
-SELECT TRACK - ALGORITHM BPM - PRESETS PATTERN
 
 # core/bm_app.c
 SEQ
-
-# core/bm_ui_draw.c
-SEQ / GATE STREAM
 
 # core/bm_input.c
 SET
@@ -1935,9 +1920,6 @@ SWING  50=STRAIGHT
 SYNC
 
 # core/bm_ui_draw.c
-SYNC 1/16
-
-# core/bm_ui_draw.c
 SYNC LATENCY
 
 # core/bm_ui_draw.c
@@ -1962,13 +1944,16 @@ SYSTEM
 T%d COPIED TO T%d
 
 # core/bm_input.c
+T%d DELAY
+
+# core/bm_input.c
 T%d ERASED
 
 # core/bm_app.c
 T%d ERASED (HOME+OCT- UNDOES)
 
 # core/bm_input.c
-T%d FX SEND
+T%d FILTER
 
 # core/bm_input.c
 T%d IS NOW %s
@@ -1977,10 +1962,16 @@ T%d IS NOW %s
 T%d LENGTH %d
 
 # core/bm_input.c
+T%d LEVEL
+
+# core/bm_input.c
 T%d MUTE
 
 # core/bm_input.c
 T%d PLAYS
+
+# core/bm_input.c
+T%d REVERB
 
 # core/bm_input.c
 T%d SPEED
@@ -1990,9 +1981,6 @@ T%d SPEED %s
 
 # core/bm_input.c
 T%d TRANSPOSE
-
-# core/bm_input.c
-T%d VOLUME
 
 # core/bm_input.c
 T%d: %d BAR
@@ -2060,7 +2048,7 @@ TAPE
 # core/bm_input.c core/bm_params.c
 TARGET
 
-# core/bm_input.c
+# core/bm_input.c core/bm_ui_draw.c
 TEMPO
 
 # core/bm_input.c
@@ -2156,12 +2144,6 @@ TRIAD
 # core/bm_ui_draw.c
 TRIM
 
-# core/bm_ui_draw.c
-TRK  MACHINE
-
-# core/bm_input.c
-TRK VOL
-
 # core/bm_input.c core/bm_params.c
 TUNE
 
@@ -2239,9 +2221,6 @@ VOICE
 
 # core/bm_input.c
 VOICING
-
-# core/bm_ui_draw.c
-VOL
 
 # core/bm_params.c
 WAVE

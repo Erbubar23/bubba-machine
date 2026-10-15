@@ -217,20 +217,29 @@ static void legend_home(const bm_app *a, bm_legend *L)
     const bm_track *tr = &a->pat.trk[a->track];
     const bm_meta *m = &a->pat.meta;
     char b[12];
-    snprintf(b, sizeof b, "%d", tr->level); L4(L, 0, "TRK VOL", b, tr->level * 2);
-    fmt_pct(tr->rsend, b, sizeof b); L4(L, 1, "FX SEND", b, tr->rsend * 2);
-    if (m->mfilt >= 60 && m->mfilt <= 68) snprintf(b, sizeof b, "OPEN");
-    else if (m->mfilt < 60) snprintf(b, sizeof b, "LP %d", m->mfilt);
-    else snprintf(b, sizeof b, "HP %d", m->mfilt - 64);
-    L4(L, 2, "MST FILT", b, m->mfilt * 2);
-    L4(L, 3, "BEAT FX", BEATFX_N[m->beatfx % 17], m->beatfx * 15);
+    (void)m;
+    int p = !tr->djf || tr->djf == 64 ? 0 : tr->djf < 64 ? -(int)tr->djf : (int)tr->djf - 64;
+    snprintf(b, sizeof b, "%d", tr->level); L4(L, 0, "LEVEL", b, tr->level * 2);
+    if (!p) snprintf(b, sizeof b, "OPEN"); else snprintf(b, sizeof b, "%s %d", p < 0 ? "LP" : "HP", p < 0 ? -p : p);
+    L4(L, 1, "FILTER", b, (p + 64) * 2);
+    fmt_pct(tr->send, b, sizeof b); L4(L, 2, "DELAY", b, tr->send * 2);
+    fmt_pct(tr->rsend, b, sizeof b); L4(L, 3, "REVERB", b, tr->rsend * 2);
 }
 
 static void legend_fx(const bm_app *a, bm_legend *L)
 {
     const bm_meta *m = &a->pat.meta;
     char b[12];
-    if (a->fx_page && a->layer != L_PUNCH) {
+    if (a->fx_page == 2 && a->layer != L_PUNCH) {
+        if (m->mfilt >= 60 && m->mfilt <= 68) snprintf(b, sizeof b, "OPEN");
+        else if (m->mfilt < 60) snprintf(b, sizeof b, "LP %d", m->mfilt);
+        else snprintf(b, sizeof b, "HP %d", m->mfilt - 64);
+        L4(L, 0, "MST FILT", b, m->mfilt * 2);
+        L4(L, 1, "BEAT FX", BEATFX_N[m->beatfx % 17], m->beatfx * 15);
+        fmt_pct(a->set.drive, b, sizeof b); L4(L, 2, "DRIVE", b, a->set.drive * 2);
+        return;
+    }
+    if (a->fx_page == 1 && a->layer != L_PUNCH) {
         fmt_pct(m->rv_size, b, sizeof b); L4(L, 0, "SIZE", b, m->rv_size * 2);
         fmt_pct(m->rv_damp, b, sizeof b); L4(L, 1, "DAMP", b, m->rv_damp * 2);
         fmt_pct(m->rv_mix, b, sizeof b); L4(L, 2, "REV MIX", b, m->rv_mix * 2);
@@ -1849,6 +1858,7 @@ static void close_layer(bm_app *a, int id)
 /* Toque de un botón: su página en el canal donde estás. Otra vez: la siguiente. */
 static void button_page(bm_app *a, int id)
 {
+    if (id == BTN_FX && a->view == V_FXG) { a->fx_page = (uint8_t)((a->fx_page + 1) % 3); return; }   /* DELAY > REVERB > MASTER */
     int t = a->track, kind = app_kind(a, t), midi = app_midi(a, t);
     int cur = a->view == V_CH ? a->page : -1, pg = PG_SEQ;
     switch (id) {
@@ -1906,7 +1916,7 @@ static void home_combo(bm_app *a, int id)
     case BTN_PLAY: app_push(a, CMD_PLAY, app_playing(a) ? 2 : 1, 0, 0); app_toast(a, "FROM STEP 1"); break;
     case BTN_REC: a->song_rec = !a->song_rec; a->song_rec_loops = a->ctx.st.loops; app_toast(a, a->song_rec ? "SONG REC ON" : "SONG REC OFF"); break;
     case BTN_SEQ: app_set_view(a, V_SONG); break;
-    case BTN_FX: if (a->view == V_FXG) a->fx_page ^= 1; else { a->fx_page = 0; app_set_view(a, V_FXG); } break;
+    case BTN_FX: if (a->view == V_FXG) a->fx_page = (uint8_t)((a->fx_page + 1) % 3); else { a->fx_page = 0; app_set_view(a, V_FXG); } break;
     case BTN_SCL: app_set_view(a, V_SCLG); break;
     case BTN_SAVE: a->save_row = 1; a->save_target = (uint8_t)((a->ctx.st.pattern + 1) % BM_PATTERNS); app_set_view(a, V_SAVE); break;
     case BTN_EDIT: {
@@ -2135,9 +2145,10 @@ void app_on_gesture(void *u, int id, bm_gkind k)
                 return;
             }
             if (a->view == V_COPYCH) { app_set_view(a, V_CH); app_toast(a, "CANCELED"); return; }
-            int nv = V_HOME;
-            if (a->view == V_HOME) nv = V_MIX;
-            else if (a->view == V_MIX) nv = V_SCENES;
+            int nv = V_HOME;                                 /* las páginas de BX-1: MIX > FX > TEMPO > ESCENAS > SONG */
+            if (a->view == V_HOME) { nv = V_FXG; a->fx_page = 0; }
+            else if (a->view == V_FXG) nv = V_GLO;
+            else if (a->view == V_GLO) nv = V_SCENES;
             else if (a->view == V_SCENES) nv = V_SONG;
             app_set_view(a, nv);
         } else if (k == G_HOLD) { a->home_used = 0; open_layer(a, id); }
@@ -2306,7 +2317,8 @@ static bool enc_global(bm_app *a, int k, int d)
         int bpm = bm_clampi(m->bpm_x10 + d * 10, 400, 2400);
         app_push_i(a, CMD_SET_BPM, 0, 0, 0, bpm); app_edited(a);
         snprintf(b, sizeof b, "%d.%d", bpm / 10, bpm % 10);
-        app_overlay(a, 0, "TEMPO", b, "BPM", (bpm - 400) * 255 / 2000, -1, bm_knob_color(0));
+        app_overlay(a, -1, "TEMPO", b, "BPM", (bpm - 400) * 255 / 2000, -1, C_TEMPO);
+        a->ov.beat = 1;
         return true;
     }
     case 1: {
@@ -2407,40 +2419,63 @@ static void enc_bpm_fine(bm_app *a, int d)
     int bpm = bm_clampi(a->pat.meta.bpm_x10 + (d > 0 ? 1 : -1), 400, 2400);
     app_push_i(a, CMD_SET_BPM, 0, 0, 0, bpm); app_edited(a);
     char b[12]; snprintf(b, sizeof b, "%d.%d", bpm / 10, bpm % 10);
-    app_overlay(a, -1, "TEMPO (FINE)", b, "BPM", (bpm - 400) * 255 / 2000, -1, C_ORANGE);
+    app_overlay(a, -1, "TEMPO (FINE)", b, "BPM", (bpm - 400) * 255 / 2000, -1, C_TEMPO);
+    a->ov.beat = 1;
 }
 
-/* HOME, K1-K4: el volumen y el envío a la reverb del canal del cursor, el filtro y el BEAT FX del master */
+/* filtro DJ: posición -63..63 (0 abierto) <-> djf (0 abierto, 1-63 pasa-bajos, 65-127 pasa-altos) */
+static int djf_pos(uint8_t djf) { return !djf || djf == 64 ? 0 : djf < 64 ? -(int)djf : (int)djf - 64; }
+static uint8_t djf_of(int pos) { return (uint8_t)(pos < 0 ? -pos : pos > 0 ? 64 + pos : 0); }
+static void fmt_djf(uint8_t djf, char *b, int cap)
+{
+    int p = djf_pos(djf);
+    if (!p) snprintf(b, (size_t)cap, "OPEN");
+    else snprintf(b, (size_t)cap, "%s %d", p < 0 ? "LP" : "HP", p < 0 ? -p : p);
+}
+
+/* HOME (0.7), K1-K4: el canal del cursor como una tira de mezclador: nivel, filtro DJ, delay, reverb */
 static void enc_home(bm_app *a, int k, int d)
 {
     int t = a->track;
     const bm_track *tr = &a->pat.trk[t];
-    bm_meta *m = &a->pat.meta;
     char b[16], ti[22];
     switch (k) {
     case 0:
-        snprintf(ti, sizeof ti, TF("T%d VOLUME"), t + 1);
+        snprintf(ti, sizeof ti, TF("T%d LEVEL"), t + 1);
         enc_track_u8(a, t, 0, TRK_OFF(level), tr->level, d, 0, 127, ti, 2);
         return;
-    case 1:
-        snprintf(ti, sizeof ti, TF("T%d FX SEND"), t + 1);
-        enc_track_u8(a, t, 1, TRK_OFF(rsend), tr->rsend, d, 0, 127, ti, 2);
-        return;
-    case 2: {
-        int nv = bm_clampi(m->mfilt + d, 0, 127);
-        app_set_meta(a, META_OFF(mfilt), nv);
-        if (nv >= 60 && nv <= 68) snprintf(b, sizeof b, "OPEN"); else if (nv < 60) snprintf(b, sizeof b, "LP %d", nv); else snprintf(b, sizeof b, "HP %d", nv - 64);
-        app_overlay(a, 2, "MASTER FILTER", b, "", nv * 2, 128, bm_knob_color(2));
+    case 1: {
+        int p = bm_clampi(djf_pos(tr->djf) + d, -63, 63);
+        app_set_track(a, t, TRK_OFF(djf), djf_of(p));
+        a->pat.trk[t].djf = djf_of(p);
+        fmt_djf(djf_of(p), b, sizeof b);
+        snprintf(ti, sizeof ti, TF("T%d FILTER"), t + 1);
+        app_overlay(a, 1, ti, b, "", (p + 64) * 2, 128, bm_knob_color(1));
         return;
     }
-    case 3: {
-        int nv = bm_clampi(m->beatfx + (d > 0 ? 1 : -1), 0, 16);
-        app_set_meta(a, META_OFF(beatfx), nv);
-        app_overlay(a, 3, "BEAT FX", BEATFX_N[nv], "", nv * 15, -1, bm_knob_color(3));
+    case 2:
+        snprintf(ti, sizeof ti, TF("T%d DELAY"), t + 1);
+        enc_track_u8(a, t, 2, TRK_OFF(send), tr->send, d, 0, 127, ti, 2);
         return;
-    }
+    case 3:
+        snprintf(ti, sizeof ti, TF("T%d REVERB"), t + 1);
+        enc_track_u8(a, t, 3, TRK_OFF(rsend), tr->rsend, d, 0, 127, ti, 2);
+        return;
     default: return;
     }
+}
+
+/* HOME, PRESETS = MOVE (0.7): una perilla que mueve toda la mezcla. A la izquierda cierra el filtro
+ * del master y manda la mezcla al eco; a la derecha abre el pasa-altos y la lava en la reverb. En
+ * vivo: no se guarda. Los patrones se eligen con las blancas. */
+static void enc_move(bm_app *a, int d)
+{
+    a->move = (int8_t)bm_clampi(a->move + d, -63, 63);
+    app_push(a, CMD_MOVE, (uint8_t)a->move, 0, 0);
+    char b[8];
+    snprintf(b, sizeof b, "%+d", a->move);
+    app_overlay(a, -1, a->move < 0 ? "MOVE  DARK + ECHO" : a->move > 0 ? "MOVE  BRIGHT + WASH" : "MOVE  OFF",
+                a->move ? b : "0", "", (a->move + 64) * 2, 128, C_PINK);
 }
 
 static void box_turn_in(bm_app *a, int d, int lane);
@@ -2912,7 +2947,7 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
     switch (a->view) {
     case V_HOME: case V_SCENES:
         if (id == ENC_ALGO) enc_global(a, 0, d);               /* ALGORITHM = BPM */
-        else if (id == ENC_PRESETS) enc_pattern(a, d);
+        else if (id == ENC_PRESETS) enc_move(a, d);            /* PRESETS = MOVE (los patrones: las blancas) */
         else if (id == ENC_SELECT) a->track = (uint8_t)bm_clampi(a->track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
         else if (a->view == V_HOME) enc_home(a, k, d);
         else enc_global(a, k, d);
@@ -3000,7 +3035,20 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
     }
 fxg:
     if (k < 0 || k > 3) return;
-    if (a->fx_page && a->layer != L_PUNCH && k < 3) {           /* REVERB: tamaño, amortiguación, mezcla */
+    if (a->fx_page == 2 && a->layer != L_PUNCH) {               /* MASTER: filtro, BEAT FX, drive */
+        if (k == 0) {
+            int nv = bm_clampi(m->mfilt + d, 0, 127);
+            app_set_meta(a, META_OFF(mfilt), nv);
+            if (nv >= 60 && nv <= 68) snprintf(b, sizeof b, "OPEN"); else if (nv < 60) snprintf(b, sizeof b, "LP %d", nv); else snprintf(b, sizeof b, "HP %d", nv - 64);
+            app_overlay(a, 0, "MASTER FILTER", b, "", nv * 2, 128, bm_knob_color(0));
+        } else if (k == 1) {
+            int nv = bm_clampi(m->beatfx + (d > 0 ? 1 : -1), 0, 16);
+            app_set_meta(a, META_OFF(beatfx), nv);
+            app_overlay(a, 1, "BEAT FX", BEATFX_N[nv], "", nv * 15, -1, bm_knob_color(1));
+        } else if (k == 2) enc_global(a, 3, d);                 /* DRIVE */
+        return;
+    }
+    if (a->fx_page == 1 && a->layer != L_PUNCH && k < 3) {      /* REVERB: tamaño, amortiguación, mezcla */
         static const uint8_t RO[3] = {META_OFF(rv_size), META_OFF(rv_damp), META_OFF(rv_mix)};
         const uint8_t cur[3] = {m->rv_size, m->rv_damp, m->rv_mix};
         int nv = bm_clampi(cur[k] + d, 0, 127);

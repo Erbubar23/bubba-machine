@@ -2,6 +2,22 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.7.0-beta] - unreleased
+
+**One machine per screen.** HOME becomes the BX-1 machine with its own pages, and every screen loses the text it did not need. Design: the "Bubba Machine UI 0.7" canvas.
+
+### Added
+- **MOVE** (PRESETS on HOME): one knob that moves the whole mix. Left: the master low-pass closes and the mix goes into the echo. Right: the master high-pass opens and the mix washes into the reverb. Live, not saved.
+- **A DJ filter on every track** (K2 on HOME): left low-pass, right high-pass, open in the middle. It uses a reserved byte of the track, so saved patterns keep working.
+- **HOME's pages:** MIX › FX › TEMPO › SCENES › SONG, shown as a strip at the top. The FX page has a third sub-page, MASTER: master filter, BEAT FX and drive.
+
+### Changed
+- **HOME's K1-K4:** level, filter, delay and reverb of the cursor track (before: volume, reverb send, master filter, BEAT FX).
+- **Tempo** has its own color (yellow) in the header and in its box, which shows four beat blocks. Turning ALGORITHM no longer lights K1's dial.
+- **Inside a machine:** "<" before its name (HOME goes back), and the page name with one dot per page instead of the row of tabs.
+- **Less text:** the hint lines show for the first 4 seconds of a page and then go away; the bottom hint line, the CPU readout ("CPU!" only when the audio does not keep up), HOME's column headers and its master bar are gone.
+- FADERS left HOME's cycle: the MIX page already has every level.
+
 ## [0.6.3-beta] - unreleased
 
 **Two cores that really work in parallel.** Measured on the FM-1 with a six-machine pattern.

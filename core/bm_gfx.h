@@ -25,6 +25,7 @@
 #define C_RED     RGB565(255, 0, 85)      /* #FF0055 Laser Red: REC, saturación, mute */
 #define C_GREEN   RGB565(112, 255, 152)   /* #70FF98 Matrix Mint: notas largas, TIE */
 #define C_YELLOW  RGB565(255, 210, 63)
+#define C_TEMPO   C_YELLOW                /* el tempo: su propio color, no el de un canal (0.7) */
 #define C_PINK    RGB565(255, 43, 214)    /* magenta */
 #define C_VIOLET  RGB565(157, 123, 255)
 #define C_BLUE    RGB565(61, 123, 255)

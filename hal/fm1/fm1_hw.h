@@ -141,7 +141,8 @@ int  fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn);
  * activar · 3 quitar (vuelve el inglés). Solo con el transporte parado. Devuelve 0 si se aceptó. */
 int  fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn);
 int  fm1_sonido(int sub, uint32_t off, const uint8_t *nib, uint32_t nn);   /* consola 22: sonidos (.bsnap, bancos de BX-7) */
-void fm1_lcd_speed(int fast);                       /* SPI de la pantalla: 30 MHz (1) o 12 MHz (0) */
+void fm1_lcd_speed(int fast);
+int  fm1_informe(int sub, int idx, uint8_t *out, int cap);   /* consola 23: memoria, tomas y sonidos */                       /* SPI de la pantalla: 30 MHz (1) o 12 MHz (0) */
 uint32_t fm1_scan_now_us(void);                     /* reloj de microsegundos (TIMER5) */
 uint32_t fm1_scan_now_ticks(void);                  /* ticks del timer (~60 MHz), para tramos cortos */
 uint32_t fm1_scan_ticks_hz(void);

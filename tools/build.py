@@ -90,6 +90,31 @@ AC79_SDK = os.environ.get('AC79_SDK', os.path.join(os.path.expanduser('~'), 'jie
 FM1_V15 = os.environ.get('FM1_V15', os.path.join(os.path.expanduser('~'), 'jieli', 'stock', 'FM-1.fwsc'))
 
 
+HEAP_MIN = 120 * 1024   # el SDK pide ~50 KiB al arrancar, el audio en el segundo núcleo y las pruebas, el resto
+
+
+def ram_check(path):
+    """La RAM0 (~511 KiB) se reparte entre lo fijo del firmware (.ram0_data + .ram0_bss) y el montón del SDK
+    (tareas, USB, el segundo núcleo). Las pruebas en la computadora no lo ven: se mira aquí, en el ELF."""
+    sec = {}
+    for ln in open(path, encoding='utf-8', errors='replace'):
+        f = ln.split()
+        if len(f) >= 4 and f[1].startswith('.'):
+            try:
+                sec[f[1]] = (int(f[3], 16), int(f[2], 16))
+            except ValueError:
+                pass
+    if '.ram0_bss' not in sec or '.boot_info' not in sec:
+        sys.exit('ram_check: no encuentro .ram0_bss o .boot_info en ' + path)
+    a, n = sec['.ram0_bss']
+    fin = (a + n + 31) // 32 * 32
+    heap = sec['.boot_info'][0] - 32 - fin
+    fija = sec['.ram0_bss'][1] + sec.get('.ram0_data', (0, 0))[1]
+    print('RAM0: fija %d KiB, montón del SDK %d KiB (mínimo %d KiB)' % (fija // 1024, heap // 1024, HEAP_MIN // 1024))
+    if heap < HEAP_MIN:
+        sys.exit('RAM: el montón queda en %d KiB y hacen falta %d KiB: el firmware no arrancaría bien' % (heap // 1024, HEAP_MIN // 1024))
+
+
 def fm1(app):
     """compila el firmware del FM-1 sobre el SDK de JieLi y lo empaqueta sobre el V15 oficial"""
     if app not in ('diag', 'bubba'):
@@ -112,6 +137,7 @@ def fm1(app):
                         GCC_IMAGE, 'bash', '-c', cmd], env=env)
     if r.returncode:
         sys.exit(r.returncode)
+    ram_check(os.path.join(out, 'sections-%s.txt' % app))
     base = 'bubba-%s-%s' % ('diag' if app == 'diag' else 'machine', version())
     pkg = os.path.join(out, base + '.fwsc')
     r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'fm1', 'fwsc.py'), 'armar', FM1_V15,

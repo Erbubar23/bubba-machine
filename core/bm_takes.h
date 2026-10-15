@@ -32,6 +32,7 @@ int  bm_takes_scan(const bm_flash_ops *f, bm_map_fn map, void *mu, bm_take tk[BM
 uint32_t bm_takes_room(const bm_take tk[BM_TAKES]);
 /* Muestras libres en total (para la barra de memoria). */
 uint32_t bm_takes_free(const bm_take tk[BM_TAKES]);
+uint32_t bm_takes_len(const bm_take tk[BM_TAKES]);    /* muestras que ocupan las tomas (tope: BM_TAKES_MAX_LEN) */
 /* Guarda una toma nueva. Devuelve su id, o -1 si no cabe o falla la flash. */
 int  bm_takes_write(const bm_flash_ops *f, bm_map_fn map, void *mu, bm_take tk[BM_TAKES],
                     const int8_t *data, uint32_t len, uint16_t bpm_x10, uint8_t bars);

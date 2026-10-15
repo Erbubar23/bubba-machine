@@ -4,15 +4,14 @@
 // La página del instalador (instalar.html), plug and play: conectas el FM-1 y la página hace el
 // resto. Pide MIDI, lee el FM-1 (y lo vuelve a buscar cuando se conecta o se desconecta), elige la
 // versión más nueva de Bubba Machine y la baja ya armada (web/fm1/*.fwsc, el mismo paquete de la
-// release). Queda un botón: Instalar. Al terminar, si la página está en español, carga el español
-// en la pantalla (web/fm1_consola.js). La escritura la hace web/fm1_update.js.
+// release). Queda un botón: Instalar. La escritura la hace web/fm1_update.js. El idioma de la pantalla,
+// las tomas y los sonidos se administran después en la plataforma de control (control.html).
 //
 // El V15 de M-VAVE solo hace falta para volver al firmware de fábrica o para una versión sin
 // paquete publicado (se arma en el navegador, web/fm1_pack.js). De dónde sale, en orden: lo que el
 // navegador ya guardó (IndexedDB) → fm1/local/FM-1.fwsc (tools/fm1/servir.py) → a mano.
 import { Actualizador, revisarPaquete, FalloFM1, V15_SHA256, sha256 } from "./fm1_update.js?v=5";
 import { armarPaquete } from "./fm1_pack.js?v=5";
-import { enviar, esperar } from "./fm1_consola.js?v=1";
 
 const EN = new URLSearchParams(location.search).get("lang") === "en";
 const T = {
@@ -35,8 +34,6 @@ const T = {
     seguro: (n, d) => `Se va a instalar ${n} en ${d}.\n\nEs firmware beta, sin garantía. Lo guardado en el firmware actual se puede perder.\nNo desconectes el cable ni cierres la página hasta que diga «Listo».\n\n¿Instalar ahora?`,
     seguroF: (d) => `Se va a instalar el firmware de fábrica de M-VAVE (V15) en ${d}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
     seguroC: (n) => `Se va a terminar de escribir ${n}.\nNo desconectes el cable hasta que diga «Listo».\n\n¿Seguir?`,
-    idioma: "Cargando el español en la pantalla…", idiomaok: (t) => `Listo: el FM-1 arrancó con ${t}, con la pantalla en español.`,
-    idiomamal: (e) => `Bubba Machine quedó instalada, pero el español no se cargó (${e}). Se puede cargar después en el emulador o con tools/fm1/idioma.py.`,
   },
   en: {
     pidiendo: "Chrome is asking for MIDI permission: accept the prompt next to the address bar.",
@@ -57,8 +54,6 @@ const T = {
     seguro: (n, d) => `${n} will be installed on ${d}.\n\nThis is beta firmware, with no warranty. What the current firmware saved may be lost.\nDon't unplug the cable or close the page until it says "Done".\n\nInstall now?`,
     seguroF: (d) => `M-VAVE's factory firmware (V15) will be installed on ${d}.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
     seguroC: (n) => `${n} will finish being written.\nDon't unplug the cable until it says "Done".\n\nContinue?`,
-    idioma: "Loading Spanish on the screen…", idiomaok: (t) => `Done: the FM-1 started with ${t}, with the screen in Spanish.`,
-    idiomamal: (e) => `Bubba Machine is installed, but Spanish did not load (${e}). You can load it later.`,
   },
 }[EN ? "en" : "es"];
 
@@ -69,8 +64,7 @@ if (EN) {
     nav: '<a href="en/index.html">Home</a><a href="emulador.html?lang=en">Emulator</a><a href="en/docs/install.html">Guide</a><a href="https://github.com/Erbubar23/bubba-machine">Code</a><a href="instalar.html" class="lang">Español</a>',
     h1: "Install on the M-VAVE FM-1",
     intro: "Connect the FM-1 over USB (data cable) and switch it on. The page finds it by itself and gets the newest Bubba Machine ready: just press <b>Install</b>. Nothing to download.",
-    es: "When done, the screen in Spanish (loads by itself)",
-    despues: 'Next: <a href="sonidos.html?lang=en">Vital sounds and DX7 banks</a> for BITTAL, B-MINI, BUNO-6 and BX-7, or the <a href="en/docs/manual.html">manual</a>.',
+    despues: 'Next: the <a href="control.html?lang=en">control platform</a> (screen language, takes, Vital sounds, DX7 banks and memory) or the <a href="en/docs/manual.html">manual</a>.',
     h_dev: "1. Your FM-1", permitir: "Allow MIDI", h_que: "2. What do you want to install?",
     faltah: "This needs M-VAVE's factory firmware (FM-1 V15)",
     faltawhy: "Going back to the factory firmware (or installing an old version) uses M-VAVE's original file, which this site does not publish. Download it and drop it here, or choose it. It is asked only once: the browser remembers it. Installing Bubba Machine does not need it.",
@@ -82,8 +76,6 @@ if (EN) {
     help: "<li><b>The FM-1 doesn't show up:</b> under \"Your FM-1\" you can see which MIDI ports the page found. If it says \"busy\", close the app using it (REAPER or another DAW, M-UPGRADE, another tab with an installer) and unplug and replug the cable.</li><li><b>The install was interrupted:</b> the FM-1 stays in update mode (it shows as \"ota-FM-1\"). Reconnect it: the button changes to \"Resume the install\".</li><li><b>Bubba Machine doesn't start:</b> after two failed starts it enters <b>safe mode</b> (a notice on screen, no sound, USB on): reinstall or go back to the factory firmware from here.</li><li><b>Not even safe mode starts:</b> the FM-1 drops into the chip's own update mode and is rescued from a computer (<a href=\"en/docs/install.html\">install guide</a>, \"If something goes wrong\").</li>",
   };
   for (const el of document.querySelectorAll("[data-t]")) if (tx[el.dataset.t] !== undefined) el.innerHTML = tx[el.dataset.t];
-  const es = document.getElementById("es");
-  if (es) es.checked = false;                              /* en inglés, la pantalla queda en inglés */
 }
 
 // qué firmware es, por la versión que contesta al saludo
@@ -351,16 +343,7 @@ async function correr(pkg, nombre, pregunta, fn) {
     const fin = await fn(pkg, paso);
     $("bar").value = 100;
     if (fin !== pkg.ident) say(T.distinto(fin, pkg.ident), "bad");
-    else if (/^Bubba Machine/.test(nombre) && $("es") && $("es").checked && acc) {
-      say(T.idioma, "info");                               /* plug and play: el español, solo */
-      try {
-        if (!(await esperar(acc))) throw new Error("no arrancó a tiempo");
-        const pack = new Uint8Array(await (await fetch("lang/es.bmlang", { cache: "no-cache" })).arrayBuffer());
-        await enviar(acc, 0x21, pack, (x) => { $("bar").value = 100 * x; });
-        $("bar").value = 100;
-        say(T.idiomaok(fin), "ok");
-      } catch (e) { say(T.idiomamal(e.message || e), "bad"); }
-    } else say(T.hecho(fin), "ok");
+    else say(T.hecho(fin), "ok");
     if (/^Bubba Machine/.test(nombre)) $("despues").hidden = false;
   } catch (e) {
     say(e.message, "bad");

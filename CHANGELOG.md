@@ -2,6 +2,21 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [0.6.1-beta] - sin publicar
+
+**La 0.6.0-beta no debe instalarse:** dejaba 38 KiB de RAM para el sistema del FM-1, que necesita unos 50 KiB al arrancar, así que lo más probable es que no arrancara bien. La 0.6.1-beta deja 126 KiB y el instalador ya no ofrece la 0.6.0. Beta, todavía no probada en el aparato.
+
+### Agregado
+- **Plataforma de control** (`control.html`): con el FM-1 conectado por USB, muestra la memoria (RAM libre, carga del audio, tomas, la zona compartida y el idioma) con avisos según lo que estás haciendo, sube y borra tomas (convierte el audio en el navegador), carga y borra sonidos (Vital, .syx, .bsnap) y carga o quita el paquete de idioma. Sin el FM-1 no hace nada.
+- **Consola, orden 23:** el informe de memoria y la biblioteca (tomas y sonidos del usuario) y borrar una toma; la orden 22 borra un sonido del usuario por su número.
+- **Control de RAM al compilar el firmware:** `build.py fm1` falla si el montón del sistema queda por debajo de 120 KiB. Las pruebas en la computadora no podían verlo.
+
+### Cambiado
+- **RAM:** los búferes del laboratorio (~59 KiB) se piden al montón solo mientras corre una prueba, y el **delay baja a 0.80 s** (antes 1.49 s; con 1/4, por debajo de 75 BPM se acorta). La RAM fija baja de 472 a 384 KiB.
+- **El sampler tiene un tope de 6 s de tomas en total**; el resto de la zona de 100 KiB queda para los sonidos.
+- **DOS NÚCLEOS viene encendido de fábrica** para probarlo en el aparato. Un cuelgue o el modo seguro lo apagan.
+- **El paquete de idioma se administra en la plataforma de control**: el instalador ya no lo carga.
+
 ## [0.6.0-beta] - 2026-10-14
 
 **Beta, todavía no probada en el aparato:** pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador.

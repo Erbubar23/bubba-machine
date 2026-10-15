@@ -1718,9 +1718,6 @@ SHAKE
 # core/bm_params.c
 SHAPE
 
-# core/bm_ui_draw.c
-SHARED ZONE: FREE %u.%u S
-
 # core/bm_params.c
 SHARK
 
@@ -2035,6 +2032,9 @@ TAKES FULL: DELETE ONE
 
 # core/bm_ui_draw.c
 TAKES+SOUNDS
+
+# core/bm_ui_draw.c
+TAKES: FREE %u.%u OF 6 S
 
 # core/bm_ui_draw.c
 TAKES: N1 = KIT FROM A TAKE

@@ -46,6 +46,26 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
+<h2 id="061-beta---sin-publicar">[0.6.1-beta] - sin publicar</h2>
+<p><strong>La 0.6.0-beta no debe instalarse:</strong> dejaba 38 KiB de RAM para el sistema del FM-1, que necesita unos 50 KiB al arrancar, así que lo más probable es que no arrancara bien. La 0.6.1-beta deja 126 KiB y el instalador ya no ofrece la 0.6.0. Beta, todavía no probada en el aparato.</p>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+<strong>Plataforma de control</strong> (<code>control.html</code>): con el FM-1 conectado por USB, muestra la memoria (RAM libre, carga del audio, tomas, la zona compartida y el idioma) con avisos según lo que estás haciendo, sube y borra tomas (convierte el audio en el navegador), carga y borra sonidos (Vital, .syx, .bsnap) y carga o quita el paquete de idioma. Sin el FM-1 no hace nada.
+</li><li>
+<strong>Consola, orden 23:</strong> el informe de memoria y la biblioteca (tomas y sonidos del usuario) y borrar una toma; la orden 22 borra un sonido del usuario por su número.
+</li><li>
+<strong>Control de RAM al compilar el firmware:</strong> <code>build.py fm1</code> falla si el montón del sistema queda por debajo de 120 KiB. Las pruebas en la computadora no podían verlo.
+</li></ul>
+<h3 id="cambiado">Cambiado</h3>
+<ul><li>
+<strong>RAM:</strong> los búferes del laboratorio (~59 KiB) se piden al montón solo mientras corre una prueba, y el <strong>delay baja a 0.80 s</strong> (antes 1.49 s; con 1/4, por debajo de 75 BPM se acorta). La RAM fija baja de 472 a 384 KiB.
+</li><li>
+<strong>El sampler tiene un tope de 6 s de tomas en total</strong>; el resto de la zona de 100 KiB queda para los sonidos.
+</li><li>
+<strong>DOS NÚCLEOS viene encendido de fábrica</strong> para probarlo en el aparato. Un cuelgue o el modo seguro lo apagan.
+</li><li>
+<strong>El paquete de idioma se administra en la plataforma de control</strong>: el instalador ya no lo carga.
+</li></ul>
 <h2 id="060-beta---2026-10-14">[0.6.0-beta] - 2026-10-14</h2>
 <p><strong>Beta, todavía no probada en el aparato:</strong> pasa las pruebas automáticas y el emulador. Si algo falla en el FM-1, vuelve a la 0.5.0-beta o al firmware de fábrica desde el instalador.</p>
 <p><strong>Seis máquinas fijas en vez de motores a elegir</strong>, una cara nueva y un banco de sonidos. El formato de los patrones cambia (formato 7): los patrones guardados se borran al primer arranque (las tomas se quedan). El diseño completo está en <a href="diseno-0-6.html">DISENO_0.6</a>.</p>
@@ -294,7 +314,7 @@ Esqueleto del port al FM-1 (estructura, pines y escaneo de la matriz).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
+    <p>Bubba Machine 0.6.1-beta · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

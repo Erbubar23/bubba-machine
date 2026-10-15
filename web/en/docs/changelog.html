@@ -46,6 +46,26 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="061-beta---unreleased">[0.6.1-beta] - unreleased</h2>
+<p><strong>Do not install 0.6.0-beta:</strong> it left 38 KiB of RAM for the FM-1 system, which needs about 50 KiB at boot, so it most likely did not start properly. 0.6.1-beta leaves 126 KiB and the installer no longer offers 0.6.0. Beta, not yet tested on the device.</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Control platform</strong> (<code>control.html</code>): with the FM-1 connected over USB, it shows the memory (free RAM, audio load, takes, the shared zone and the language) with warnings based on what you are doing, uploads and deletes takes (the audio is converted in the browser), loads and deletes sounds (Vital, .syx, .bsnap) and loads or removes the language pack. Without the FM-1 it does nothing.
+</li><li>
+<strong>Console, command 23:</strong> the memory and library report (takes and user sounds) and deleting a take; command 22 deletes a user sound by its number.
+</li><li>
+<strong>RAM check when building the firmware:</strong> <code>build.py fm1</code> fails if the system heap drops below 120 KiB. The computer tests could not see it.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>RAM:</strong> the lab buffers (~59 KiB) are taken from the heap only while a test runs, and the <strong>delay drops to 0.80 s</strong> (was 1.49 s; a 1/4 delay gets shorter below 75 BPM). Fixed RAM goes from 472 to 384 KiB.
+</li><li>
+<strong>The sampler has a 6 s cap for all takes</strong>; the rest of the 100 KiB zone is for sounds.
+</li><li>
+<strong>TWO CORES is on by default</strong> so it can be tested on the device. A hang or safe mode switches it off.
+</li><li>
+<strong>The language pack is managed on the control platform</strong>: the installer no longer loads it.
+</li></ul>
 <h2 id="060-beta---2026-10-14">[0.6.0-beta] - 2026-10-14</h2>
 <p><strong>Beta, not yet tested on the device:</strong> it passes the automated tests and the emulator. If something fails on the FM-1, go back to 0.5.0-beta or to the factory firmware from the installer.</p>
 <p><strong>Six fixed machines instead of engines to pick</strong>, a new face and a sound bank. The pattern format changes (format 7): saved patterns are erased on first boot (takes are kept).</p>
@@ -294,7 +314,7 @@ FM-1 port skeleton (structure, pins and matrix scanning).
 </div>
 <footer>
   <div class="in">
-    <p>Bubba Machine 0.6.0-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
+    <p>Bubba Machine 0.6.1-beta · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.</p>
   </div>
 </footer>
 <script>document.querySelectorAll('[data-lang]').forEach(function (a) { a.addEventListener('click', function () { try { localStorage.setItem('bm-lang', a.getAttribute('data-lang')); } catch (e) {} }); });</script>

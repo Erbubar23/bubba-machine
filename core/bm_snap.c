@@ -82,6 +82,13 @@ int bm_snaps_scan(const bm_flash_ops *f, bm_snap_map_fn map, void *mu)
 
 int bm_snaps_user_n(void) { return nuser; }
 
+const uint8_t *bm_snaps_user_p(int i, int *nsect)
+{
+    if (i < 0 || i >= nuser) return NULL;
+    if (nsect) *nsect = user[i].nsect;
+    return user[i].p;
+}
+
 void bm_snaps_mark(uint8_t *used, int nsect)
 {
     for (int i = 0; i < nuser; i++)

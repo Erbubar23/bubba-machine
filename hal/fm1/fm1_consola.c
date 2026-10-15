@@ -15,6 +15,8 @@
  *   20 sub8 a32 b16 datos   toma del sampler (fm1_toma; tools/fm1/toma.py)
  *   21 sub8 off32 0016 datos  paquete de idioma (fm1_idioma; tools/fm1/idioma.py)
  *   22 sub8 off32 0016 datos  un sonido .bsnap o un banco de BX-7 (fm1_sonido; tools/fm1/sonido.py)
+ *   23 sub8 idx8  memoria y biblioteca (fm1_informe; web/control.html): 0 resumen, 1 toma, 2 sonido,
+ *                 3 borrar la toma idx (respuesta: sub8 ok8 datos…)
  *   10 cmd8 arg8  laboratorio (fm1_lab): 1 barrido, 2 audio en silencio, 3 tono, 4 flash arg
  *                 veces, 5 audio detenido, 6 arrancar Bubba con audio (respuesta: resultado8)
  * Lee y no escribe nada, salvo la prueba de flash del laboratorio (solo en el sector de prueba
@@ -166,6 +168,16 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         cab[0] = (uint8_t)sub; cab[1] = (uint8_t)(r == 0);
         cab[2] = (uint8_t)(a >> 16); cab[3] = (uint8_t)(a >> 8); cab[4] = (uint8_t)a;
         responder(0x22, cab, 5, NULL, 0);
+        break;
+    }
+    case 0x23: {                                    /* informe: sub (1 byte), idx (1 byte) */
+        static uint8_t rep[96];
+        if (n < 5 + 4 + 1)
+            return;
+        int sub = (int)nib_in(m + 5, 2), idx = (int)nib_in(m + 7, 2);
+        int r = fm1_informe(sub, idx, rep, sizeof rep);
+        cab[0] = (uint8_t)sub; cab[1] = (uint8_t)(r >= 0);
+        responder(0x23, cab, 2, rep, r > 0 ? (uint32_t)r : 0);
         break;
     }
     case 0x04:

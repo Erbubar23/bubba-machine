@@ -437,6 +437,27 @@ int fm1_sonido(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
     return r;
 }
 
+/* consola 23: sub 0 = resumen (montón libre y mínimo + bm_app_report), 1 = toma idx, 2 = sonido del
+ * usuario idx, 3 = borrar la toma idx (en STOP, como N11 en TOMAS). Devuelve el largo o -1. */
+int fm1_informe(int sub, int idx, uint8_t *out, int cap)
+{
+    if (sub == 0) {
+        if (cap < 8 + BM_REPORT_LEN) return -1;
+        uint32_t h = fm1_stat[FM1_STAT_HEAP_FREE], m = fm1_stat[FM1_STAT_HEAP_MIN];
+        for (int i = 0; i < 4; i++) { out[i] = (uint8_t)(h >> (8 * i)); out[4 + i] = (uint8_t)(m >> (8 * i)); }
+        int n = bm_app_report(&app, 0, 0, out + 8, cap - 8);
+        return n < 0 ? -1 : 8 + n;
+    }
+    if (sub == 1 || sub == 2) return bm_app_report(&app, sub, idx, out, cap);
+    if (sub == 3) {
+        if (idx < 0 || idx >= BM_TAKES || !app.take[idx].valid) return -1;
+        bm_app_take_delete(&app, idx);
+        log_num("consola: borrar la toma ", (uint32_t)idx + 1u, "");
+        return 0;
+    }
+    return -1;
+}
+
 int fm1_toma(int sub, uint32_t a, uint32_t b, const uint8_t *nib, uint32_t nn)
 {
     bm_cmd c;

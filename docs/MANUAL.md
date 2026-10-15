@@ -6,7 +6,7 @@ Bubba Machine convierte el FM-1 en una groovebox de directo con **seis máquinas
 
 La interfaz se resume en dos frases: **cuatro gestos por botón, y significan lo mismo en todos. HOME en todas partes.**
 
-> **La pantalla viene en inglés.** Este manual usa los nombres del **paquete en español**, que el instalador web carga solo al terminar (o aparte, ver [Idioma de la pantalla](#idioma-de-la-pantalla), con la tabla de los nombres en inglés).
+> **La pantalla viene en inglés.** Este manual usa los nombres del **paquete en español**, que se carga desde la [plataforma de control](../web/control.html) (ver [Idioma de la pantalla](#idioma-de-la-pantalla), con la tabla de los nombres en inglés).
 
 > La 0.6 cambió el formato de los patrones. **No lee lo que guardó una versión anterior**: al arrancar por primera vez borra los patrones y empieza con la demo (las tomas se quedan).
 
@@ -256,7 +256,7 @@ Grabar, guardar y armar el kit son pasos separados.
    - La toma queda **SIN GUARDAR**: las blancas la escuchan en 16 partes. **Se guarda al parar** el transporte, porque escribir la flash detiene el audio, y si el kit estaba vacío, lo arma. HOME = descartar.
 2. **TOMAS** (EDIT 2 s en T2, o la pestaña): la biblioteca, con la onda de la toma marcada. ALGORITHM elige; K1-K3 = BPM, compases y ganancia de la toma; las blancas la escuchan en 16 partes (sostenida: sigue). **N1** = kit en los golpes, **N2** = 16 partes iguales, **N3** = 8, **N4** = la toma entera en el pad elegido, **N11** = borrar (pregunta; sus pads quedan vacíos). Si el kit ya tiene pads, armar uno nuevo pregunta. Un punto amarillo = el kit usa esa toma.
 
-**Cuánto cabe:** las tomas comparten **100 KiB** de flash con tus sonidos del banco: las tomas se guardan desde abajo y los sonidos desde arriba, así que el reparto lo decides tú (8 bits a 16 kHz = 16 KB por segundo, hasta 3 s por toma). TOMAS muestra lo libre y cuántos sonidos tuyos hay arriba.
+**Cuánto cabe:** hasta **6 s de tomas en total** (8 bits a 16 kHz = 16 KB por segundo, hasta 3 s por toma). Viven en la zona de 100 KiB de flash que comparten con tus sonidos del banco: las tomas desde abajo y los sonidos desde arriba. TOMAS muestra lo libre de los 6 s y cuántos sonidos tuyos hay arriba; la [plataforma de control](../web/control.html) muestra toda la memoria y avisa antes de que se llene.
 
 ## Canales de notas (T3-T6)
 
@@ -314,7 +314,7 @@ El **largo maestro** (HOME + K3: 16, 32, 48, 64, 128 o INF) reinicia todos los c
 
 - **MEZCLA de cada canal** (FX): nivel, pan, envío al **delay** y envío a la **reverb**. FX otra vez: **duck** (el sidechain del bombo de T1).
 - **BUNO-6** tiene su propio **chorus** estéreo (I, II o I+II, con ALGORITHM). La macro **SPACE** de BITTAL suma envío a la reverb.
-- **HOME + FX:** el delay (tiempo, realimentación, mezcla) y el release del sidechain. HOME + FX otra vez: la **reverb** (tamaño, amortiguación, mezcla).
+- **HOME + FX:** el delay (tiempo, realimentación, mezcla; hasta 0.80 s, así que 1/4 se acorta por debajo de 75 BPM) y el release del sidechain. HOME + FX otra vez: la **reverb** (tamaño, amortiguación, mezcla).
 - **En HOME:** el **filtro del master** (K3) y el **BEAT FX** (K4).
 - **FX sostenido:** 16 punch-in (stutter, reversa, tape stop, gate, barridos, bitcrush, SR down, delay throw, echo freeze, kill low/high).
 - **DRIVE** (HOME + K4): saturación de la mezcla.
@@ -328,9 +328,9 @@ El **largo maestro** (HOME + K3: 16, 32, 48, 64, 128 o INF) reinicia todos los c
 
 ## Sistema (HOME 2 s)
 
-Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · **PANTALLA RÁPIDA** y **DOS NÚCLEOS** (pruebas, apagadas de fábrica) · tomas, sonidos y memoria libre · **idioma** (LANGUAGE) · versión.
+Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · **PANTALLA RÁPIDA** (prueba, apagada de fábrica) y **DOS NÚCLEOS** (prueba, encendida de fábrica desde la 0.6.1) · tomas, sonidos y memoria libre · **idioma** (LANGUAGE) · versión.
 
-**Las dos pruebas:** **PANTALLA RÁPIDA** sube el SPI de la pantalla a 30 MHz (medido: el cuadro entero pasa de 85 a 39 ms). **DOS NÚCLEOS** calcula T4-T6 en el segundo núcleo del FM-1 (en la computadora da exactamente las mismas muestras). Están a prueba: si el FM-1 se cuelga o arranca en modo seguro, las dos vuelven a apagarse solas.
+**Las dos pruebas:** **PANTALLA RÁPIDA** sube el SPI de la pantalla a 30 MHz (medido: el cuadro entero pasa de 85 a 39 ms). **DOS NÚCLEOS** calcula T4-T6 en el segundo núcleo del FM-1 (en la computadora da exactamente las mismas muestras). Están a prueba: si el FM-1 se cuelga o arranca en modo seguro, las dos se apagan solas. La plataforma de control dice si DOS NÚCLEOS está encendido y en qué núcleo corrió el segundo cálculo.
 
 ## MIDI
 
@@ -338,11 +338,23 @@ Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y lat
 - **Reloj externo:** sigue el MIDI Clock y Start/Stop.
 - **Salida:** MIDI Clock cuando el reloj es interno, y las notas de los canales con **MIDI OUT**.
 
+## Plataforma de control
+
+La [plataforma de control](../web/control.html) administra el FM-1 desde Chrome o Edge, por USB. **Solo funciona con el FM-1 conectado** y con Bubba Machine 0.6.1-beta o más nueva; no tiene modo emulador.
+
+- **Memoria:** la RAM libre del sistema, la carga del audio, los 6 s de tomas, la zona de 100 KiB que comparten tomas y sonidos, y el paquete de idioma. Se actualiza cada 2 s.
+- **Avisos según lo que estás haciendo:** poca RAM (el FM-1 podría colgarse), carga del audio alta o bloques que llegaron tarde (cortes), tomas o zona casi llenas, el máximo de 12 sonidos, si DOS NÚCLEOS está encendido y, antes de mandar algo, si cabe o qué hay que borrar.
+- **Tomas:** suelta un audio (WAV, MP3, FLAC…); la página lo pasa a 16 kHz y 8 bits como lo graba el FM-1, eliges desde dónde y cuánto, lo escuchas tal cual va a sonar y lo mandas con su BPM. También se borran.
+- **Sonidos:** presets de Vital (.vital) para BITTAL, B-MINI o BUNO-6, bancos de la DX7 (.syx) para BX-7 y archivos .bsnap. También se borran los tuyos.
+- **Idioma:** cargar el español, otro paquete .bmlang, o volver al inglés.
+
+Para escribir (mandar o borrar) el transporte tiene que estar parado: escribir la flash corta el audio. La página lo dice y deja los botones apagados mientras suena.
+
 ## Idioma de la pantalla
 
 La pantalla viene en **inglés**, para que se entienda en todo el mundo. Otros idiomas son **paquetes** que no vienen cargados. El paquete vive en su propia zona de 16 KiB de la flash: no toca patrones ni tomas, y una actualización del firmware no lo borra.
 
-- **Cargar el español en el FM-1:** el [instalador web](../web/instalar.html) lo carga solo al terminar (casilla «la pantalla en español»). También: con el transporte parado, `py -3 tools/fm1/idioma.py lang/es.bmlang`. Después, **SISTEMA › IDIOMA** (LANGUAGE) cambia entre inglés y el paquete. `--quitar` lo borra.
+- **Cargar el español en el FM-1:** el paquete de idioma es un agregado aparte, con su propia zona de 16 KiB: se carga o se quita en la [plataforma de control](../web/control.html), con el FM-1 conectado y el transporte parado. También desde la computadora: `py -3 tools/fm1/idioma.py lang/es.bmlang`. Después, **SISTEMA › IDIOMA** (LANGUAGE) cambia entre inglés y el paquete. `--quitar` lo borra.
 - **En el emulador:** el botón de *Sampler y memoria* carga o quita el español. En la página en español, la primera vez ya arranca en español.
 - **Hacer una traducción:** copia `lang/plantilla.txt` (todas las frases de la pantalla) a `lang/<codigo>.txt`, escribe la traducción debajo de cada frase y ármala con `py -3 tools/gen_lang.py`. La fuente del FM-1 es ASCII: sin tildes ni eñe. Lo que no traduzcas se ve en inglés.
 

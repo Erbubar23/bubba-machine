@@ -4,7 +4,7 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.6.0-beta"
+#define BM_VERSION_STR "0.6.1-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
 #define BM_PAT_FMT       7        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           48       /* parámetros de sonido por canal, además de las 4 macros (= BM_SNAP_PRM) */
@@ -47,7 +47,7 @@
 /* ---- Memoria (docs/TRAZA_FM1.md) ----
  * Arena de 128 KiB compartida: normalmente delay (64 KiB) + captura del punch-in (64 KiB);
  * mientras se graba un sample, la arena es el buffer de grabación. */
-#define BM_DELAY_LEN     32768u   /* int16 a BM_FS/2 ≈ 1.49 s (el delay filtra a 11 kHz, como uno de cinta) */
+#define BM_DELAY_LEN     17648u   /* int16 a BM_FS/2 = 0.80 s (el delay filtra a 11 kHz, como uno de cinta) */
 #define BM_FXBUF_LEN     32768u   /* int16 a BM_FS ≈ 0.74 s (stutter/reverse/tape) */
 #define BM_ARENA_LEN     (BM_DELAY_LEN * 2u + BM_FXBUF_LEN * 2u)
 #define BM_SMP_RATE      16000u   /* sampler a 16 kHz, 8 bit */
@@ -94,6 +94,7 @@
 #define BM_LANG_HI       0x0DD000u
 #define BM_TAKE_HDR      128u       /* cabecera al inicio del primer sector de cada toma */
 #define BM_TAKES         8          /* tomas como máximo */
+#define BM_TAKES_MAX_LEN 96000u     /* 6 s de tomas en total (16 kHz, 8 bit); el resto de la zona es de los sonidos */
 #define BM_GLOB_LO       0x0DD000u
 #define BM_GLOB_HI       0x0E0000u
 #define BM_SLOT_SIZE     0x2000u  /* 8 KiB = 2 sectores */

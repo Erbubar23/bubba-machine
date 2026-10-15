@@ -2,6 +2,21 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.6.1-beta] - 2026-10-14
+
+**Do not install 0.6.0-beta:** it left 38 KiB of RAM for the FM-1 system, which needs about 50 KiB at boot, so it most likely did not start properly. 0.6.1-beta leaves 126 KiB and the installer no longer offers 0.6.0. Beta, not yet tested on the device.
+
+### Added
+- **Control platform** (`control.html`): with the FM-1 connected over USB, it shows the memory (free RAM, audio load, takes, the shared zone and the language) with warnings based on what you are doing, uploads and deletes takes (the audio is converted in the browser), loads and deletes sounds (Vital, .syx, .bsnap) and loads or removes the language pack. Without the FM-1 it does nothing.
+- **Console, command 23:** the memory and library report (takes and user sounds) and deleting a take; command 22 deletes a user sound by its number.
+- **RAM check when building the firmware:** `build.py fm1` fails if the system heap drops below 120 KiB. The computer tests could not see it.
+
+### Changed
+- **RAM:** the lab buffers (~59 KiB) are taken from the heap only while a test runs, and the **delay drops to 0.80 s** (was 1.49 s; a 1/4 delay gets shorter below 75 BPM). Fixed RAM goes from 472 to 384 KiB.
+- **The sampler has a 6 s cap for all takes**; the rest of the 100 KiB zone is for sounds.
+- **TWO CORES is on by default** so it can be tested on the device. A hang or safe mode switches it off.
+- **The language pack is managed on the control platform**: the installer no longer loads it.
+
 ## [0.6.0-beta] - 2026-10-14
 
 **Beta, not yet tested on the device:** it passes the automated tests and the emulator. If something fails on the FM-1, go back to 0.5.0-beta or to the factory firmware from the installer.

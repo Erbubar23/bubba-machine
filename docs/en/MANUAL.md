@@ -6,7 +6,7 @@ Bubba Machine turns the FM-1 into a live groovebox with **six fixed machines**, 
 
 The interface fits in two sentences: **four gestures per button, and they mean the same thing on every button. HOME everywhere.**
 
-> **The screen is in English.** Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you can load (see [Screen language](#screen-language)).
+> **The screen is in English.** Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you load from the [control platform](../../web/control.html) (see [Screen language](#screen-language)).
 
 > 0.6 changed the pattern format. **It does not read what an earlier version saved**: on first boot it erases the patterns and starts with the demo (takes are kept).
 
@@ -256,7 +256,7 @@ Recording, keeping and building the kit are separate steps.
    - The take stays **UNSAVED**: the white keys play it in 16 parts. **It is saved when you stop** the transport, because writing flash stops the audio, and if the kit was empty, it builds it. HOME = discard.
 2. **TAKES** (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). **N1** = kit on the hits, **N2** = 16 equal parts, **N3** = 8, **N4** = the whole take on the selected pad, **N11** = delete (asks; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
 
-**How much fits:** takes share **100 KiB** of flash with your bank sounds: takes are stored from the bottom and sounds from the top, so you decide the split (8 bits at 16 kHz = 16 KB per second, up to 3 s per take). TAKES shows what is free and how many of your sounds are on top.
+**How much fits:** up to **6 s of takes in total** (8 bits at 16 kHz = 16 KB per second, up to 3 s per take). They live in the 100 KiB flash zone shared with your bank sounds: takes from the bottom and sounds from the top. TAKES shows what is free of the 6 s and how many of your sounds are on top; the [control platform](../../web/control.html) shows all the memory and warns before it fills up.
 
 ## Note tracks (T3-T6)
 
@@ -314,7 +314,7 @@ The **master length** (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all track
 
 - **Each track's MIX** (FX): level, pan, **delay** send and **reverb** send. FX again: **duck** (sidechain from the T1 kick).
 - **BUNO-6** has its own stereo **chorus** (I, II or I+II, with ALGORITHM). BITTAL's **SPACE** macro adds reverb send.
-- **HOME + FX:** the delay (time, feedback, mix) and the sidechain release. HOME + FX again: the **reverb** (size, damping, mix).
+- **HOME + FX:** the delay (time, feedback, mix; up to 0.80 s, so 1/4 gets shorter below 75 BPM) and the sidechain release. HOME + FX again: the **reverb** (size, damping, mix).
 - **On HOME:** the **master filter** (K3) and **BEAT FX** (K4).
 - **FX held:** 16 punch-ins (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high).
 - **DRIVE** (HOME + K4): saturation of the mix.
@@ -328,9 +328,9 @@ The **master length** (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all track
 
 ## System (HOME 2 s)
 
-Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · **FAST SCREEN** and **TWO CORES** (tests, off by default) · takes, sounds and free memory · **LANGUAGE** · version.
+Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · **FAST SCREEN** (test, off by default) and **TWO CORES** (test, on by default since 0.6.1) · takes, sounds and free memory · **LANGUAGE** · version.
 
-**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off.
+**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on and which core ran the second job.
 
 ## MIDI
 
@@ -338,10 +338,22 @@ Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN
 - **External clock:** follows MIDI Clock and Start/Stop.
 - **Output:** MIDI Clock when the clock is internal, and the notes of tracks with **MIDI OUT**.
 
+## Control platform
+
+The [control platform](../../web/control.html) manages the FM-1 from Chrome or Edge, over USB. **It only works with the FM-1 connected** and Bubba Machine 0.6.1-beta or newer; there is no emulator mode.
+
+- **Memory:** free system RAM, audio load, the 6 s of takes, the 100 KiB zone shared by takes and sounds, and the language pack. It refreshes every 2 s.
+- **Warnings based on what you are doing:** low RAM (the FM-1 could hang), high audio load or late blocks (dropouts), takes or zone nearly full, the 12-sound maximum, whether TWO CORES is on and, before sending anything, whether it fits or what to delete.
+- **Takes:** drop an audio file (WAV, MP3, FLAC…); the page turns it into 16 kHz, 8 bits as the FM-1 records, you pick where it starts and how long, listen to it exactly as it will sound and send it with its BPM. You can delete them too.
+- **Sounds:** Vital presets (.vital) for BITTAL, B-MINI or BUNO-6, DX7 banks (.syx) for BX-7 and .bsnap files. You can delete yours too.
+- **Language:** load Spanish, another .bmlang pack, or go back to English.
+
+To write (send or delete) the transport has to be stopped: writing flash cuts the audio. The page says so and keeps the buttons off while it plays.
+
 ## Screen language
 
 The screen is in **English**. Other languages are **packs** that are not loaded by default: one pack lives in its own 16 KiB of flash (it does not touch patterns or takes, and a firmware update does not erase it).
 
-- **Load Spanish on the FM-1:** the [web installer](../../web/instalar.html) loads it by itself at the end (the "screen in Spanish" box). Or, with the transport stopped, `py -3 tools/fm1/idioma.py lang/es.bmlang`. **SYSTEM › LANGUAGE** then switches between English and the pack. `--quitar` removes it.
+- **Load Spanish on the FM-1:** the language pack is a separate add-on with its own 16 KiB zone: load or remove it on the [control platform](../../web/control.html), with the FM-1 connected and the transport stopped. Or from the computer, with the transport stopped, `py -3 tools/fm1/idioma.py lang/es.bmlang`. **SYSTEM › LANGUAGE** then switches between English and the pack. `--quitar` removes it.
 - **In the emulator:** the button under *Sampler and memory* loads or removes the Spanish pack.
 - **Making a translation:** copy `lang/plantilla.txt` (every phrase on screen) to `lang/<code>.txt`, write the translation under each phrase and build it with `py -3 tools/gen_lang.py`. The FM-1 font is ASCII: no accents. What you don't translate shows in English.

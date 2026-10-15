@@ -60,6 +60,7 @@ typedef const uint8_t *(*bm_snap_map_fn)(void *user, uint32_t addr);
 /* lee los snapshots del usuario de la zona compartida */
 int  bm_snaps_scan(const bm_flash_ops *f, bm_snap_map_fn map, void *mu);
 int  bm_snaps_user_n(void);
+const uint8_t *bm_snaps_user_p(int i, int *nsect);    /* el sonido del usuario i y sus sectores, o NULL */
 /* sectores de la zona que ocupan los snapshots del usuario (para la biblioteca de tomas) */
 void bm_snaps_mark(uint8_t *used, int nsect);
 /* guarda uno nuevo (arriba de todo lo libre). Devuelve su índice de usuario o -1 si no cabe. */

@@ -10,6 +10,7 @@
  *    flotante contra enteros, uno contra dos núcleos y la pantalla a distintas velocidades del
  *    SPI. Los resultados van al registro de texto (consola: log). */
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -93,8 +94,25 @@ static uint32_t ns(uint32_t ticks, uint32_t n)           /* ticks del timer -> n
 
 /* ------------------------------------------------------------------ núcleos de cálculo */
 #define KN 256
-static float kx[KN], ky[KN];
-static int32_t ix[KN], iy[KN];
+/* Los búferes de las pruebas no viven en la RAM fija del firmware (eran ~59 KiB que el montón del
+ * SDK necesita): se piden al montón al empezar una prueba y se devuelven al terminar. */
+typedef struct {
+    float kx[KN], ky[KN];
+    int32_t ix[KN], iy[KN];
+    uint8_t rbuf[32768];
+    float dkx[2][KN], dky[2][KN];
+    uint16_t fila[240 * 8];
+    bm_pattern pat;
+} lab_mem;
+static lab_mem *L;
+#define kx (L->kx)
+#define ky (L->ky)
+#define ix (L->ix)
+#define iy (L->iy)
+#define rbuf (L->rbuf)
+#define dkx (L->dkx)
+#define dky (L->dky)
+#define fila (L->fila)
 static volatile float kc[5] = {0.2f, 0.4f, 0.2f, -0.6f, 0.3f};
 static volatile int32_t icf[5] = {6554, 13107, 6554, -19661, 9830};
 
@@ -159,7 +177,6 @@ static void bench_codigo(void)
 
 /* 22: lectura de datos: flash por la caché contra RAM. Desde 0.4 no hay samples de kits en la
  * flash: se leen 170 KiB seguidos del programa (también está en la flash, por la misma caché). */
-static uint8_t rbuf[32768];
 #define FLASH_SPAN (170u * 1024u)
 static const uint8_t *flash_base(void) { return (const uint8_t *)(uintptr_t)&bm_app_init; }
 
@@ -244,7 +261,6 @@ static void bench_cache(void)
 /* 24: uno contra dos núcleos: dos tareas con el mismo cálculo a la vez */
 static OS_SEM sem_go, sem_fin;
 static volatile uint32_t dc_ticks[2], dc_cpu[2];
-static float dkx[2][KN], dky[2][KN];
 
 static void dc_task(void *p)
 {
@@ -293,7 +309,6 @@ static void bench_nucleos(void)
 /* 25: la pantalla entera a distintas velocidades del SPI (divisor del reloj del bus) */
 static void bench_pantalla(int solo)
 {
-    static uint16_t fila[240 * 8];
     static const uint16_t COL[4] = {0xF800u, 0x07E0u, 0x001Fu, 0xFFE0u};
     static const uint8_t BAUD[4] = {4, 3, 2, 1};
     for (int k = 0; k < 4; k++) {
@@ -321,14 +336,14 @@ static void bench_pantalla(int solo)
 static void bench_an(int preset)
 {
     enum { REPS = 1000 };
-    static bm_pattern p;
-    bm_pattern_init(&p);
-    p.trk[2].engine = ENG_MINI;
-    bm_preset_apply(&p, 2, preset);
-    bm_preset_apply(&p, 4, preset);
-    bm_preset_apply(&p, 5, preset);
+    bm_pattern *p = &L->pat;
+    bm_pattern_init(p);
+    p->trk[2].engine = ENG_MINI;
+    bm_preset_apply(p, 2, preset);
+    bm_preset_apply(p, 4, preset);
+    bm_preset_apply(p, 5, preset);
     uint32_t t[3];
-    bm_wv_bench(p.prm[2], p.prm[4], p.prm[5], p.trk[4].macro, fm1_scan_now_ticks, t, REPS);
+    bm_wv_bench(p->prm[2], p->prm[4], p->prm[5], p->trk[4].macro, fm1_scan_now_ticks, t, REPS);
     static const char *const NOM[3] = {"B-MINI voz entera      ", "BITTAL voz entera      ", "BUNO-6 voz entera      "};
     for (int i = 0; i < 3; i++) log_mil(NOM[i], ns(t[i], 64u * REPS), "ns/muestra");
 }
@@ -343,7 +358,27 @@ static void bench_fm(int patch)
     for (int i = 0; i < 5; i++) log_mil(NOM[i], ns(t[i], REPS * 64u), "ns/muestra");
 }
 
+extern unsigned int get_malloc_remain_heap_size(void);
+
+static int lab_bench(int cmd, int arg);
+
 int fm1_bench(int cmd, int arg)
+{
+    if (cmd == 20) return lab_bench(cmd, arg);
+    /* malloc del SDK no avisa cuando no alcanza: se mira antes lo que queda (con 16 KiB de margen) */
+    if (get_malloc_remain_heap_size() < sizeof(lab_mem) + 16384u) {
+        fm1_log("prueba: no hay montón libre para los búferes");
+        return -1;
+    }
+    L = (lab_mem *)malloc(sizeof(lab_mem));
+    if (!L) return -1;
+    int r = lab_bench(cmd, arg);
+    free(L);
+    L = NULL;
+    return r;
+}
+
+static int lab_bench(int cmd, int arg)
 {
     switch (cmd) {
     case 20: fm1_prof_reset(); fm1_log("perfil: contadores a cero"); return 0;

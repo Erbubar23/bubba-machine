@@ -102,6 +102,7 @@ typedef struct bm_app {
     uint8_t wave_cut[2][232];     /* PADS / TAKES: la ventana que se ve (pico y RMS) */
     uint8_t wave_ov[232];         /* la toma entera, para el mapa de arriba (picos) */
     uint8_t take_dirty, takes_row, cut_snap, cut_zoom;
+    volatile uint8_t ext_take_del;  /* toma a borrar pedida desde afuera (id + 1), se borra en STOP */
     int8_t pad_key;               /* tecla que sostiene un pad (o una escucha) */
     const int8_t *cut_wd;         /* lo que ya está dibujado en wave_cut / wave_ov */
     uint32_t cut_wlen, cut_v0, cut_v1, cut_pk;
@@ -216,9 +217,15 @@ int  bm_app_lang_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32
 const uint8_t *bm_app_lang_pack(const bm_app *a);   /* el paquete de la flash si está sano, o NULL */
 /* Un sonido (.bsnap, o un banco de BX-7) desde afuera, solo en STOP: sub 0 = empezar, 1 = n bytes en
  * off, 2 = guardarlo en la zona compartida (lo revisa), 3 = borrar uno del usuario: off = máquina << 8 |
- * su número en PRESETS (en BX-7, el número de banco del usuario).
+ * su número en PRESETS (en BX-7, el número de banco del usuario); 4 = borrar el del usuario número off.
  * 0 = salió bien. */
 int  bm_app_sound_load(bm_app *a, int sub, uint32_t off, const uint8_t *d, uint32_t n);
+/* Informe para la consola y la plataforma de control (web/control.html), little-endian:
+ *   what 0 = resumen (BM_REPORT_LEN bytes), 1 = la toma idx, 2 = el sonido del usuario idx.
+ * Devuelve el largo, o -1 si idx no existe o no cabe en cap. */
+#define BM_REPORT_LEN 72
+int  bm_app_report(const bm_app *a, int what, int idx, uint8_t *out, int cap);
+void bm_app_take_delete(bm_app *a, int id);     /* desde afuera: se borra en STOP, como N11 en TOMAS */
 
 /* Fuentes del sampler: 0..7 = toma, BM_SRC_ROM|i = loop de fábrica. */
 int  bm_app_sources(const bm_app *a, uint8_t out[BM_TAKES + 8]);   /* lista de fuentes que existen */

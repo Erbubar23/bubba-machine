@@ -2,6 +2,24 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.6.3-beta] - unreleased
+
+**Two cores that really work in parallel.** Measured on the FM-1 with a six-machine pattern.
+
+### Changed
+- **TWO CORES:** each core has its own software interrupt (IRQ_SOFT2 on core 0, IRQ_SOFT3 on core 1, raised through the shared latch the SDK uses for task switches). A job always goes to the core that is not running the audio task, which the SDK scheduler moves between cores; before, half the jobs ran in series on the audio core itself.
+- **Automatic split:** every few blocks each machine's cost and core 0's fixed work (sequencer, mix) are measured, and the split of the six machines that leaves both cores most even is chosen (only if it improves by 20 %). Any machine can run on either core; on the computer the output is identical sample by sample.
+- **Voice brake** acts only when a block is about to overrun (95 %) or the sustained average passes 85 %; in 0.6.2 it switched off about one voice per second and ate the BUNO-6 pad.
+
+### Added
+- **External clock warnings:** changing CLOCK shows a message, PLAY with an external clock and no pulses says "EXT CLOCK: WAITING FOR MIDI", and the header's "EXT?" turns red. Twice on the device CLOCK had been switched to EXTERNAL by accident and PLAY seemed frozen.
+- **Lab test 36:** pick the core split by hand (or automatic) to compare.
+- **Console:** the split, the estimated load of each core and the jobs that ran in series.
+
+### Fixed
+- **Lab tests in safe mode reset the chip:** they left the watchdog on, and nothing feeds it in safe mode.
+- **The second core's longest wait** showed 71 s (a clock read from the other core wrapped around), and the same wrap could fire the timeout and switch TWO CORES off.
+
 ## [0.6.2-beta] - 2026-10-15
 
 **First version with data from the device.** With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta: in the first test on the device, the same kind of pattern stayed around 50 %.

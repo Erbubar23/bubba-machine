@@ -284,13 +284,23 @@ typedef struct bm_ctx {
     uint32_t gen_blk;            /* bloque de 16 pasos que ya se decidió (+1; 0 = ninguno) */
     uint8_t pchain[8], pchain_n, pchain_pos;
 
-    /* audio en dos núcleos (a prueba): los canales de par_mask los calcula otra tarea. par_go la
-     * despierta con el tramo [done, done + n) y par_wait espera a que termine. */
+    /* audio en dos núcleos (a prueba): los canales de par_mask los calcula el otro núcleo. par_go
+     * le entrega el tramo [done, done + n) y par_wait espera a que termine. */
     void (*par_go)(void *u, uint32_t done, uint32_t n);
     void (*par_wait)(void *u);
     void *par_user;
     uint8_t par_mask;
     volatile uint8_t par_on, par_tact, par_defer;
+    /* Reparto que se ajusta solo (par_auto, con un reloj en now): cada BM_PAR_MIDE renders se mide
+     * lo que costó cada canal y lo fijo del núcleo 0 (comandos, secuenciador, mezcla), y cada
+     * BM_PAR_ELIGE se elige el reparto de los 64 posibles que deja más parejos los dos núcleos.
+     * Los costos suben de golpe y bajan despacio: los picos (fills, acordes nuevos) cuentan. */
+    uint32_t (*now)(void);
+    uint8_t par_auto;
+    uint16_t par_n;
+    uint32_t cost[BM_TRACKS], cost_over;          /* ticks de now por render */
+    volatile uint32_t cost_acc[BM_TRACKS];        /* los de par_mask los suma el otro núcleo */
+    uint32_t over_acc;
 
     /* callbacks */
     bm_swap_fn swap; void *swap_user;
@@ -302,6 +312,10 @@ void bm_audio_render(bm_ctx *c, int32_t *out_lr, uint32_t out_frames);
 void bm_audio_overload(bm_ctx *c);
 /* la otra tarea del audio en dos núcleos: calcula los canales de par_mask en el tramo pedido */
 void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n);
+/* el reparto que deja más parejos los dos núcleos con esos costos; cur si no mejora un 20 % */
+uint8_t bm_audio_par_pick(const uint32_t cost[BM_TRACKS], uint32_t over, uint8_t cur);
+#define BM_PAR_MIDE  4u
+#define BM_PAR_ELIGE 64u
 
 /* internos */
 bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato);

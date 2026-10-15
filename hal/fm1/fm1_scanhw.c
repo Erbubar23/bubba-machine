@@ -125,7 +125,7 @@ static volatile uint32_t latido, perro_on;
 static uint32_t visto, quieto;
 
 void fm1_latido(void) { latido++; }
-void fm1_perro(int on) { perro_on = (uint32_t)on; quieto = 0; }
+int fm1_perro(int on) { int era = (int)perro_on; perro_on = (uint32_t)on; quieto = 0; return era; }
 
 static void perro(void)
 {

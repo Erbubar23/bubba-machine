@@ -80,7 +80,7 @@ static void draw_status(bm_gfx *g, const bm_app *a)
     snprintf(b, sizeof b, "%d", bpm / 10);
     gfx_text_r(g, 186, 5, b, C_ORANGE, 2);
     if (bpm % 10) { snprintf(b, sizeof b, ".%d", bpm % 10); gfx_small(g, 187, 4, b, C_ORANGE); }
-    gfx_small(g, 187, 14, a->set.clock ? (st->ext_ok ? "EXT" : "EXT?") : "BPM", C_GREY);
+    gfx_small(g, 187, 14, a->set.clock ? (st->ext_ok ? "EXT" : "EXT?") : "BPM", a->set.clock && !st->ext_ok ? C_RED : C_GREY);
     /* REC: el largo de las notas que se graban · si no, la CPU */
     int hid = -1, p = bm_gesture_progress(&a->ges, a->now, &hid);
     if (p >= 0) draw_ring(g, 210, 12, p, C_YELLOW);

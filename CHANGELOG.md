@@ -1,5 +1,7 @@
 # Cambios
 
+> **En pausa:** hasta una versión estable, los cambios y el manual se escriben solo en inglés ([docs/en](docs/en/CHANGELOG.md)). Este archivo queda como estaba en la 0.6.2.
+
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
 ## [0.6.2-beta] - 2026-10-15

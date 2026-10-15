@@ -1306,6 +1306,36 @@ static void test_dual_core(void)
     }
     printf("  1 s de la demo, dos repartos: %d muestras distintas, pico %.2f\n", diff, pk);
     CHECK(diff == 0 && pk > 0.05);
+
+    /* el reparto cambia entre renders (como el que se ajusta solo): los canales pasan de un
+     * núcleo al otro con voces sonando y tiene que dar lo mismo que un núcleo */
+    diff = 0;
+    uint32_t r = 12345u;
+    for (int pass = 0; pass < 2; pass++) {
+        boot(1);
+        app.ctx.par_go = par_go_sim; app.ctx.par_wait = par_wait_sim; app.ctx.par_user = &app.ctx;
+        app.ctx.par_on = (uint8_t)pass;
+        bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
+        int32_t *dst = pass ? a2 : a1;
+        for (uint32_t o = 0; o < 44118; o += 128) {
+            r = r * 1664525u + 1013904223u;
+            app.ctx.par_mask = (uint8_t)((r >> 24) & 0x3Fu);
+            bm_app_audio(&app, dst + o * 2, 44118 - o < 128 ? (44118 - o) & ~1u : 128);
+        }
+        app.ctx.par_on = 0;
+    }
+    for (int i = 0; i < 44118 * 2; i++) if (a1[i] != a2[i]) diff++;
+    printf("  reparto distinto en cada render: %d muestras distintas\n", diff);
+    CHECK(diff == 0);
+
+    /* la elección: el más caro (la batería) se va solo al núcleo 1, y sin mejora no se mueve */
+    static const uint32_t COST[BM_TRACKS] = {230, 80, 55, 50, 40, 20};
+    uint8_t m = bm_audio_par_pick(COST, 180, 0x38);
+    uint32_t l0 = 180, l1 = 0;
+    for (int t = 0; t < BM_TRACKS; t++) { if ((m >> t) & 1) l1 += COST[t]; else l0 += COST[t]; }
+    printf("  elección con los costos del aparato: reparto 0x%02X, núcleos %u y %u\n", m, l0, l1);
+    CHECK((m & 1) && (l0 > l1 ? l0 - l1 : l1 - l0) <= 60);
+    CHECK(bm_audio_par_pick(COST, 180, m) == m);
 }
 
 static void test_sounds(void)

@@ -342,6 +342,12 @@ CLEAR? SAVE AGAIN
 CLOCK
 
 # core/bm_input.c
+CLOCK: EXTERNAL (MIDI)
+
+# core/bm_input.c
+CLOCK: INTERNAL
+
+# core/bm_input.c
 CLOSED
 
 # core/bm_input.c
@@ -553,6 +559,9 @@ EXIT
 
 # core/bm_ui_draw.c
 EXT
+
+# core/bm_input.c
+EXT CLOCK: WAITING FOR MIDI
 
 # core/bm_ui_draw.c
 EXT?

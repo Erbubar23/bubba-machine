@@ -341,18 +341,67 @@ void bm_audio_overload(bm_ctx *c)
     if (worst) bm_voice_fade(worst);
 }
 
+/* ticks entre dos lecturas del reloj; leído desde el otro núcleo puede ir un pelo atrás: cero */
+static inline uint32_t span(uint32_t a, uint32_t b) { uint32_t d = b - a; return d >= 0x80000000u ? 0 : d; }
+
+/* el canal t calcula [done, done + n); midiendo, suma lo que tardó (el otro núcleo también) */
+static bool track_process(bm_ctx *c, int t, uint32_t done, uint32_t n, int mide)
+{
+    uint32_t t0 = mide ? c->now() : 0;
+    bool r = c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)n);
+    if (mide) c->cost_acc[t] += span(t0, c->now());
+    return r;
+}
+
+static int midiendo(const bm_ctx *c) { return c->now && c->par_auto && (c->par_n % BM_PAR_MIDE) == 0; }
+
 void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n)
 {
     uint8_t act = 0;
+    int mide = midiendo(c);
     for (int t = 0; t < BM_TRACKS; t++)
-        if (((c->par_mask >> t) & 1) && c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)n)) act |= (uint8_t)(1u << t);
+        if (((c->par_mask >> t) & 1) && track_process(c, t, done, n, mide)) act |= (uint8_t)(1u << t);
     c->par_tact = act;
+}
+
+uint8_t bm_audio_par_pick(const uint32_t cost[BM_TRACKS], uint32_t over, uint8_t cur)
+{
+    uint32_t best = 0xFFFFFFFFu, now_load = 0xFFFFFFFFu;
+    uint8_t bm = cur;
+    for (unsigned m = 0; m < (1u << BM_TRACKS); m++) {
+        uint32_t l0 = over, l1 = 0;
+        for (int t = 0; t < BM_TRACKS; t++) { if ((m >> t) & 1) l1 += cost[t]; else l0 += cost[t]; }
+        uint32_t mx = l0 > l1 ? l0 : l1;
+        if (m == cur) now_load = mx;
+        if (mx < best) { best = mx; bm = (uint8_t)m; }
+    }
+    /* cambiar solo si mejora de verdad: un canal que va y viene entre núcleos no gana nada */
+    return (uint64_t)best * 10u < (uint64_t)now_load * 8u ? bm : cur;
+}
+
+/* fin de un render medido: costos que suben de golpe y bajan 1/16 por medición; cada
+ * BM_PAR_ELIGE renders, el reparto (antes de calcular nada: los dos núcleos están quietos) */
+static void par_balance(bm_ctx *c)
+{
+    for (int t = 0; t < BM_TRACKS; t++) {
+        uint32_t a = c->cost_acc[t], k = c->cost[t] - (c->cost[t] >> 4);
+        c->cost[t] = a > k ? a : k;
+        c->cost_acc[t] = 0;
+    }
+    uint32_t k = c->cost_over - (c->cost_over >> 4);
+    c->cost_over = c->over_acc > k ? c->over_acc : k;
+    c->over_acc = 0;
 }
 
 void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
 {
     bm_cmd k;
     int guard = 0;
+    c->par_n++;
+    if (c->par_auto && c->par_on && (c->par_n % BM_PAR_ELIGE) == 0)
+        c->par_mask = bm_audio_par_pick(c->cost, c->cost_over, c->par_mask);
+    int mide = midiendo(c);
+    uint32_t o0 = mide ? c->now() : 0;
     BM_PROF_T0();
     while (guard++ < BM_CMDQ_LEN && bm_cmd_pop(c->cmdq, &k)) apply(c, &k);
     BM_PROF_LAP(BM_P_CMD);
@@ -360,6 +409,7 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
     uint32_t n_eng = out_frames / BM_OVERSAMPLE;
     bm_seq_strum_block(c, n_eng);
     BM_PROF_LAP(BM_P_SEQ);
+    if (mide) c->over_acc += span(o0, c->now());
     while (n_eng) {
         uint32_t n = n_eng < BM_BLOCK ? n_eng : BM_BLOCK;
         for (int t = 0; t < BM_TRACKS; t++) if (c->tact & (1u << t)) memset(c->tbuf[t], 0, sizeof c->tbuf[t]);   /* solo los que sonaron */
@@ -373,7 +423,9 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 if (c->ext_clock) c->ext_budget--;
                 c->blk_off = (uint16_t)done;
                 BM_PROF_RESTART();
+                uint32_t s0 = mide ? c->now() : 0;
                 bm_seq_tick(c);
+                if (mide) c->over_acc += span(s0, c->now());
                 BM_PROF_LAP(BM_P_SEQ);
                 continue;
             }
@@ -384,11 +436,11 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 if (until < k2) k2 = until;
             }
             BM_PROF_RESTART();
-            int par = c->par_on && c->par_go && c->par_wait;
-            if (par) c->par_go(c->par_user, done, k2);            /* T4-T6 en el otro núcleo */
+            int par = c->par_on && c->par_mask && c->par_go && c->par_wait;
+            if (par) c->par_go(c->par_user, done, k2);            /* los canales de par_mask, en el otro núcleo */
             for (int t = 0; t < BM_TRACKS; t++) {
                 if (par && ((c->par_mask >> t) & 1)) continue;
-                if (c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)k2)) c->tact |= (uint8_t)(1u << t);
+                if (track_process(c, t, done, k2, mide)) c->tact |= (uint8_t)(1u << t);
                 BM_PROF_LAP(BM_P_T0 + t);
             }
             if (par) {
@@ -411,9 +463,12 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
             done += k2;
         }
         BM_PROF_RESTART();
+        uint32_t m0 = mide ? c->now() : 0;
         bm_dsp_mix(c, out, n);
+        if (mide) c->over_acc += span(m0, c->now());
         BM_PROF_LAP(BM_P_MIX);
         out += n * 2u * BM_OVERSAMPLE;
         n_eng -= n;
     }
+    if (mide) par_balance(c);
 }

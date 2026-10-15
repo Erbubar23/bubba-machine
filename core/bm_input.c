@@ -2015,6 +2015,9 @@ void app_on_gesture(void *u, int id, bm_gkind k)
         if (k != G_PRESS) return;
         if (a->layer == L_TONE) { tap_tempo(a); return; }
         app_push(a, CMD_PLAY, app_playing(a) ? 0 : 1, 0, 0);
+        /* con el reloj externo, PLAY espera los pulsos MIDI: sin ellos no avanza nada y parecía
+         * colgado (dos veces en el aparato, con CLOCK cambiado sin querer en SYSTEM) */
+        if (!app_playing(a) && a->set.clock && !a->ctx.st.ext_ok) app_toast(a, "EXT CLOCK: WAITING FOR MIDI");
         return;
     case BTN_OCT_DN: case BTN_OCT_UP: {
         if (k != G_PRESS) return;
@@ -2632,7 +2635,10 @@ static void system_change(bm_app *a, int d)
 {
     bm_settings *s = &a->set;
     switch (a->menu_row) {
-    case 0: s->clock = !s->clock; app_push(a, CMD_CLOCK, s->clock, 0, 0); break;
+    case 0:                                                     /* ALGORITHM es el BPM en HOME: avisar, por si fue sin querer */
+        s->clock = !s->clock; app_push(a, CMD_CLOCK, s->clock, 0, 0);
+        app_toast(a, s->clock ? "CLOCK: EXTERNAL (MIDI)" : "CLOCK: INTERNAL");
+        break;
     case 1: s->sync_mode = !s->sync_mode; break;
     case 2: s->sync_ppqn = s->sync_ppqn == 1 ? (d > 0 ? 2 : 4) : s->sync_ppqn == 2 ? (d > 0 ? 4 : 1) : (d > 0 ? 1 : 2); break;
     case 3: s->sync_lat = (uint8_t)bm_clampi(s->sync_lat + d, 0, 20); break;

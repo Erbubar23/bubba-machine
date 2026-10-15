@@ -31,13 +31,13 @@
   "detalle_en": "The full groovebox: 6 channels, sequencer, sampler and sound. Beta: an update may erase what you saved."
  },
  {
-  "archivo": "bubba-diag-0.6.1-beta.bin",
-  "sha256": "75d5f0114a1020fbe2296b34f2742b2f7edc449dac401ff683ad805f6b0a5670",
+  "archivo": "bubba-diag-0.6.2-beta.bin",
+  "sha256": "5fe96aedf52bf5343c01f2d29b2d34102e3f8f900e34c641ba8f8ee6c09f96cb",
   "bytes": 124840,
-  "fwsc": "bubba-diag-0.6.1-beta.fwsc",
-  "fwsc_sha256": "42a26844514ed5aef8d7e1d05906f8aa534469f04e58a9ab97f45e37beb8d9b8",
-  "nombre": "Diagnóstico 0.6.1-beta",
-  "nombre_en": "Diagnostic 0.6.1-beta",
+  "fwsc": "bubba-diag-0.6.2-beta.fwsc",
+  "fwsc_sha256": "c2dccef36b6e2cce53fb058615d93aa82f6430d54bfcda3f42a18f183216020f",
+  "nombre": "Diagnóstico 0.6.2-beta",
+  "nombre_en": "Diagnostic 0.6.2-beta",
   "detalle": "Sin sonido: muestra cada botón, tecla y perilla para comprobar el aparato.",
   "detalle_en": "No sound: shows every button, key and knob to check the device."
  }

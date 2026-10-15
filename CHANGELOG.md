@@ -2,9 +2,9 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
-## [0.6.2-beta] - sin publicar
+## [0.6.2-beta] - 2026-10-15
 
-**Primera versión con datos del aparato.** Con la 0.6.1 y un patrón de las seis máquinas, el audio no alcanzaba en el FM-1 (88-115 % de carga, cortes) y con DOS NÚCLEOS iba peor (123 %). Beta, a prueba en el aparato.
+**Primera versión con datos del aparato.** Con la 0.6.1 y un patrón de las seis máquinas, el audio no alcanzaba en el FM-1 (88-115 % de carga, cortes) y con DOS NÚCLEOS iba peor (123 %). Beta: en la primera prueba en el aparato, el mismo tipo de patrón quedó cerca del 50 %.
 
 ### Agregado
 - **Freno de voces:** si un bloque de audio usa más del 85 % de su tiempo, se apaga suavemente (2 ms) la voz que menos suena del pool (T2, T4-T6). Mejor perder una voz que cortar todo. La consola cuenta cuántas apagó.

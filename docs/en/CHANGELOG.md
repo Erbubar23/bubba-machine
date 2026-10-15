@@ -2,9 +2,9 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
-## [0.6.2-beta] - unreleased
+## [0.6.2-beta] - 2026-10-15
 
-**First version with data from the device.** With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta, being tested on the device.
+**First version with data from the device.** With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta: in the first test on the device, the same kind of pattern stayed around 50 %.
 
 ### Added
 - **Voice brake:** if an audio block uses more than 85 % of its time, the quietest voice of the pool (T2, T4-T6) fades out (2 ms). Better to lose one voice than to cut everything. The console counts how many it switched off.

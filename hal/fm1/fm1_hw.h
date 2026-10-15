@@ -127,8 +127,20 @@ enum {
     FM1_STAT_PAST1, FM1_STAT_PAST2, FM1_STAT_PAST3, FM1_STAT_PAST4,
     FM1_STAT_AUDIO_CPU, FM1_STAT_MIDI_IN, FM1_STAT_MIDI_OUT, FM1_STAT_LOOP_MAX,
     FM1_STAT_HEAP_FREE, FM1_STAT_HEAP_MIN,          /* montón del SDK: libre según malloc y según la RAM */
-    FM1_STAT_PAR_CPU, FM1_STAT_N
+    FM1_STAT_PAR_CPU,
+    FM1_STAT_FRENO,                                 /* voces apagadas por el freno (audio pasado del 85 %) */
+    FM1_STAT_PAR_MODO, FM1_STAT_PAR_ESPERA_MAX,     /* núcleo 1: FM1_C1_*, la espera más larga en µs */
+    FM1_STAT_N
 };
+
+/* ---------------------------------------------------------------- núcleo 1 (fm1_cpu1.c) */
+enum { FM1_C1_SIN_PROBAR, FM1_C1_PRUEBA, FM1_C1_LISTO, FM1_C1_NO, FM1_C1_TARDE, FM1_C1_LEYO_MAL };
+int  fm1_cpu1_init(void);                           /* registra la interrupción y prueba que conteste */
+int  fm1_cpu1_run(void (*fn)(uint32_t), uint32_t arg);   /* 1 = entregado; luego fm1_cpu1_wait */
+int  fm1_cpu1_wait(uint32_t us);                    /* 0 = terminó; -1 = desde ahora un núcleo */
+int  fm1_cpu1_idle(void);                           /* el último trabajo terminó */
+int  fm1_cpu1_ok(void);
+int  fm1_cpu1_cpu(void);                            /* núcleo que hizo el último trabajo */
 extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
 void fm1_consola(const uint8_t *sysex, uint32_t n);
 void fm1_log(const char *s);                        /* registro de texto en RAM (consola: log) */

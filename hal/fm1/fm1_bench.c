@@ -95,23 +95,27 @@ static uint32_t ns(uint32_t ticks, uint32_t n)           /* ticks del timer -> n
 /* ------------------------------------------------------------------ núcleos de cálculo */
 #define KN 256
 /* Los búferes de las pruebas no viven en la RAM fija del firmware (eran ~59 KiB que el montón del
- * SDK necesita): se piden al montón al empezar una prueba y se devuelven al terminar. */
-typedef struct {
-    float kx[KN], ky[KN];
-    int32_t ix[KN], iy[KN];
-    uint8_t rbuf[32768];
-    float dkx[2][KN], dky[2][KN];
-    uint16_t fila[240 * 8];
-    bm_pattern pat;
+ * SDK necesita): se piden al montón al empezar una prueba y se devuelven al terminar. Cada prueba
+ * usa solo los suyos, así que comparten el lugar (en 0.6.1 eran ~59 KiB juntos y con 58 KiB libres
+ * ninguna prueba arrancaba). */
+typedef union {
+    struct {
+        float kx[KN], ky[KN];
+        int32_t ix[KN], iy[KN];
+        float dkx[2][KN], dky[2][KN];
+    } k;                                                  /* 21 y 24 */
+    uint8_t rbuf[32768];                                  /* 22 */
+    uint16_t fila[240 * 8];                               /* 25 */
+    bm_pattern pat;                                       /* 34 */
 } lab_mem;
 static lab_mem *L;
-#define kx (L->kx)
-#define ky (L->ky)
-#define ix (L->ix)
-#define iy (L->iy)
+#define kx (L->k.kx)
+#define ky (L->k.ky)
+#define ix (L->k.ix)
+#define iy (L->k.iy)
 #define rbuf (L->rbuf)
-#define dkx (L->dkx)
-#define dky (L->dky)
+#define dkx (L->k.dkx)
+#define dky (L->k.dky)
 #define fila (L->fila)
 static volatile float kc[5] = {0.2f, 0.4f, 0.2f, -0.6f, 0.3f};
 static volatile int32_t icf[5] = {6554, 13107, 6554, -19661, 9830};
@@ -306,6 +310,97 @@ static void bench_nucleos(void)
     log_mil("aceleracion con dos tareas (x)", (uint32_t)((uint64_t)uno * 2000u / (dos ? dos : 1u)), "x");
 }
 
+/* 35: el núcleo 1 por interrupción (fm1_cpu1.c). Primero cuánto tarda un trabajo vacío ida y
+ * vuelta; después, si la interrupción respeta la coma flotante de la tarea que interrumpe: dos
+ * tareas (el planificador pone una en cada núcleo) repiten ~1 s un cálculo en float de resultado
+ * conocido, y una de ellas le da sin parar trabajos en float al núcleo 1. Si la interrupción no
+ * guardara la FPU, la tarea que corre en el núcleo 1 vería resultados distintos. */
+static OS_SEM c1_go, c1_fin;
+static volatile uint32_t c1_t0, c1_lim;
+static volatile uint32_t c1_vueltas[2], c1_mal[2], c1_cpu[2], c1_trab, c1_fallos;
+static float c1_ref;
+
+static __attribute__((noinline)) float c1_serie(void)
+{
+    volatile float k = 1.0001f;                            /* que el compilador no la resuelva antes */
+    float a = 0.5f, b = 0.25f;
+    for (int i = 0; i < 2000; i++) {
+        a = a * k + b * 0.37f;
+        b = b * 0.999f + a * 0.0001f;
+    }
+    return a + b;
+}
+
+static void c1_trabajo(uint32_t arg) { (void)arg; bq_ram(dkx[1], dky[1], KN); }
+
+static void c1_task(void *p)
+{
+    int k = (int)(uintptr_t)p;
+    for (;;) {
+        os_sem_pend(&c1_go, 0);
+        while (fm1_scan_now_ticks() - c1_t0 < c1_lim) {
+            if (c1_serie() != c1_ref) c1_mal[k]++;
+            c1_vueltas[k]++;
+            c1_cpu[k] = current_cpu_id();
+            if (k == 0 && fm1_cpu1_run(c1_trabajo, 0)) {
+                if (fm1_cpu1_wait(4000u) == 0) c1_trab++;
+                else c1_fallos++;
+            }
+        }
+        os_sem_post(&c1_fin);
+    }
+}
+
+static void bench_cpu1(void)
+{
+    static int creadas;
+    if (!fm1_cpu1_ok() && fm1_cpu1_init() != 0) {
+        fm1_log("prueba: el nucleo 1 no contesta (ver el registro de arriba)");
+        return;
+    }
+    uint32_t hz = fm1_scan_ticks_hz(), mx = 0, tot = 0;
+    const uint32_t N = 1000;
+    for (uint32_t i = 0; i < N; i++) {
+        uint32_t t0 = fm1_scan_now_ticks();
+        fm1_cpu1_run(NULL, 0);
+        if (fm1_cpu1_wait(4000u) != 0) { fm1_log("prueba: un trabajo vacio no volvio"); return; }
+        uint32_t d = fm1_scan_now_ticks() - t0;
+        tot += d;
+        if (d > mx) mx = d;
+    }
+    log_mil("trabajo vacio, ida y vuelta (prom)", ns(tot, N), "ns");
+    log_mil("trabajo vacio, ida y vuelta (max) ", ns(mx, 1), "ns");
+    for (int i = 0; i < KN; i++) dkx[1][i] = (float)((i * 37) % 200 - 100) / 100.0f;
+    if (!creadas) {
+        os_sem_create(&c1_go, 0);
+        os_sem_create(&c1_fin, 0);
+        os_task_create(c1_task, (void *)0, 24, 1024, 0, "c1prueba0");   /* debajo del audio (25) */
+        os_task_create(c1_task, (void *)1, 24, 1024, 0, "c1prueba1");
+        creadas = 1;
+    }
+    c1_ref = c1_serie();
+    c1_vueltas[0] = c1_vueltas[1] = c1_mal[0] = c1_mal[1] = c1_trab = c1_fallos = 0;
+    c1_lim = hz;                                           /* ~1 s */
+    c1_t0 = fm1_scan_now_ticks();
+    os_sem_post(&c1_go);
+    os_sem_post(&c1_go);
+    os_sem_pend(&c1_fin, 0);
+    os_sem_pend(&c1_fin, 0);
+    char l[96], *p = txt(l, "FPU: tarea A nucleo ");
+    p = num(p, c1_cpu[0]); p = txt(p, ", vueltas "); p = num(p, c1_vueltas[0]); p = txt(p, ", mal "); p = num(p, c1_mal[0]);
+    *p = 0;
+    fm1_log(l);
+    p = txt(l, "FPU: tarea B nucleo ");
+    p = num(p, c1_cpu[1]); p = txt(p, ", vueltas "); p = num(p, c1_vueltas[1]); p = txt(p, ", mal "); p = num(p, c1_mal[1]);
+    *p = 0;
+    fm1_log(l);
+    p = txt(l, "FPU: trabajos al nucleo 1 ");
+    p = num(p, c1_trab); p = txt(p, ", fallidos "); p = num(p, c1_fallos);
+    *p = 0;
+    fm1_log(l);
+    fm1_log(c1_mal[0] || c1_mal[1] ? "FPU: MAL, la interrupcion no guarda la coma flotante" : "FPU: bien");
+}
+
 /* 25: la pantalla entera a distintas velocidades del SPI (divisor del reloj del bus) */
 static void bench_pantalla(int solo)
 {
@@ -389,6 +484,7 @@ static int lab_bench(int cmd, int arg)
     case 25: fm1_log("prueba: pantalla"); bench_pantalla(arg ? arg - 1 : -1); return 0;
     case 28: fm1_log("prueba: motor FM"); bench_fm(arg); return 0;
     case 34: fm1_log("prueba: motor ANALOG"); bench_an(arg); return 0;
+    case 35: fm1_log("prueba: nucleo 1 por interrupcion"); bench_cpu1(); return 0;
     }
     return -1;
 }

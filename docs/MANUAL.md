@@ -328,9 +328,9 @@ El **largo maestro** (HOME + K3: 16, 32, 48, 64, 128 o INF) reinicia todos los c
 
 ## Sistema (HOME 2 s)
 
-Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · **PANTALLA RÁPIDA** (prueba, apagada de fábrica) y **DOS NÚCLEOS** (prueba, encendida de fábrica desde la 0.6.1) · tomas, sonidos y memoria libre · **idioma** (LANGUAGE) · versión.
+Reloj interno o externo · Split Sync (L = pulso, R = mezcla mono) · PPQN y latencia del pulso · autoguardado · brillo de los LEDs en reposo · **PANTALLA RÁPIDA** (prueba, apagada de fábrica) y **DOS NÚCLEOS** (prueba, apagada de fábrica) · tomas, sonidos y memoria libre · **idioma** (LANGUAGE) · versión.
 
-**Las dos pruebas:** **PANTALLA RÁPIDA** sube el SPI de la pantalla a 30 MHz (medido: el cuadro entero pasa de 85 a 39 ms). **DOS NÚCLEOS** calcula T4-T6 en el segundo núcleo del FM-1 (en la computadora da exactamente las mismas muestras). Están a prueba: si el FM-1 se cuelga o arranca en modo seguro, las dos se apagan solas. La plataforma de control dice si DOS NÚCLEOS está encendido y en qué núcleo corrió el segundo cálculo.
+**Las dos pruebas:** **PANTALLA RÁPIDA** sube el SPI de la pantalla a 30 MHz (medido: el cuadro entero pasa de 85 a 39 ms). **DOS NÚCLEOS** calcula T4-T6 en el segundo núcleo del FM-1 (en la computadora da exactamente las mismas muestras). Desde la 0.6.2 el segundo núcleo trabaja por interrupción: la primera vez que lo prendes se prueba que conteste, y si no contesta o tarda, sigue con uno. Están a prueba: si el FM-1 se cuelga o arranca en modo seguro, las dos se apagan solas. La plataforma de control dice si DOS NÚCLEOS está encendido y en qué núcleo corrió el segundo cálculo.
 
 ## MIDI
 

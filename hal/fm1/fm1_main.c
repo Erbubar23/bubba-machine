@@ -57,8 +57,23 @@ static bm_screen scr;                        /* pantallas propias: modo seguro y
 static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3, ENC_K4, ENC_PRESETS};
 
 /* ------------------------------------------------------------------ audio */
+/* Freno de voces: si el bloque anterior usó más del 85 % de su tiempo, se apaga (con su fade de
+ * 2 ms) la voz del pool que menos suena, una cada 4 bloques mientras siga pasado. Mejor perder una
+ * voz que cortar todo el audio (0.6.1 en el aparato: 105-123 % con un patrón de seis máquinas).
+ * Va antes del render: el otro núcleo todavía no está tocando las voces. */
+#define FRENO_PCT   85u
+#define FRENO_CADA  4u
+
 static void render(int32_t *lr, uint32_t frames)
 {
+    static uint32_t n, freno_n;
+    uint32_t budget = fm1_stat[FM1_STAT_BUDGET];
+    n++;
+    if (budget && fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * FRENO_PCT && n - freno_n >= FRENO_CADA) {
+        bm_audio_overload(&app.ctx);
+        freno_n = n;
+        fm1_stat[FM1_STAT_FRENO]++;
+    }
     bm_app_audio(&app, lr, frames);
     /* el codec toma los 24 bits de abajo de cada palabra, con signo (dato de Felucca: Q15 * 2^7,
      * audio.c). Antes se corrían 8 bits hacia arriba y en el aparato sonaba como una alarma. */
@@ -69,43 +84,46 @@ static void render(int32_t *lr, uint32_t frames)
 }
 
 /* ------------------------------------------------------------------ audio en dos núcleos (a prueba)
- * SISTEMA > TWO CORES. El planificador del SDK reparte las tareas entre los dos núcleos (no hay forma
- * de fijarlas; docs/ARQUITECTURA_FM1.md §3): con la del audio esperando, esta corre en el otro. El
- * núcleo hace el reparto (bm_audio_par_process) y ya probó en PC que suena igual (test_dual_core). */
-static OS_SEM par_go_sem, par_done_sem;
-static volatile uint32_t par_done_at, par_n;
+ * SISTEMA > TWO CORES. El núcleo 1 calcula T4-T6 dentro de una interrupción (fm1_cpu1.c) mientras
+ * este calcula T1-T3; el núcleo del audio hace el reparto (bm_audio_par_process) y ya probó en PC
+ * que suena igual (test_dual_core). En 0.6.1 era una tarea con semáforos y el planificador del SDK
+ * la turnaba con la del audio: más lento que un núcleo (docs/ARQUITECTURA_FM1.md §3). */
+#define PAR_ESPERA_US 4000u                  /* un medio buffer dura 5.8 ms */
 static int par_ok;
 
-static void par_task(void *p)
+static void par_job(uint32_t arg)            /* en el núcleo 1: el tramo [done, done + n) */
 {
-    (void)p;
-    for (;;) {
-        os_sem_pend(&par_go_sem, 0);
-        bm_audio_par_process(&app.ctx, par_done_at, par_n);
-        fm1_stat[FM1_STAT_PAR_CPU] = current_cpu_id();
-        os_sem_post(&par_done_sem);
-    }
+    bm_audio_par_process(&app.ctx, arg >> 16, arg & 0xFFFFu);
 }
 
 static void par_go(void *u, uint32_t done, uint32_t n)
 {
     (void)u;
-    par_done_at = done; par_n = n;
-    os_sem_post(&par_go_sem);
+    fm1_cpu1_run(par_job, done << 16 | n);
 }
 
 static void par_wait(void *u)
 {
     (void)u;
-    os_sem_pend(&par_done_sem, 0);
+    if (fm1_cpu1_wait(PAR_ESPERA_US) != 0) {
+        /* el núcleo 1 no contestó: un núcleo desde el próximo bloque. Si el trabajo todavía corre
+         * allá, se espera a que suelte las voces (hasta ~50 ms) antes de seguir con ellas aquí. */
+        par_ok = 0;
+        app.ctx.par_on = 0;
+        for (uint32_t t0 = fm1_scan_now_us(); !fm1_cpu1_idle() && fm1_scan_now_us() - t0 < 50000u; )
+            ;
+    }
+    fm1_stat[FM1_STAT_PAR_CPU] = (uint32_t)fm1_cpu1_cpu();
 }
 
+/* La primera vez que TWO CORES está prendido (no en cada arranque: si la prueba fallara mal, con
+ * TWO CORES apagado el aparato arranca igual). Con el barrido andando: mide el tiempo con él. */
 static void par_init(void)
 {
-    if (par_ok) return;
-    os_sem_create(&par_go_sem, 0);
-    os_sem_create(&par_done_sem, 0);
-    if (os_task_create(par_task, NULL, 25, 4096, 0, "audio2") != 0) return;
+    static int probado;
+    if (probado) return;
+    probado = 1;
+    if (fm1_cpu1_init() != 0) return;
     app.ctx.par_go = par_go; app.ctx.par_wait = par_wait; app.ctx.par_user = NULL;
     app.ctx.par_mask = 0x38;                 /* T4 BX-7, T5 BITTAL, T6 BUNO-6 */
     par_ok = 1;
@@ -512,7 +530,13 @@ int fm1_lab(int cmd, int arg)
         fm1_log("lab: arrancar Bubba completo con audio");
         lab_bubba = 1;
         return 0;
-    case 20: case 21: case 22: case 23: case 24: case 25: case 28: case 34:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
+    case 20: case 21: case 22: case 23: case 24: case 25: case 28: case 34: case 35:  /* traza y pruebas de la arquitectura (fm1_bench.c) */
+        if ((cmd == 28 || cmd == 34) && modo != FM1_BOOT_NORMAL) {
+            /* los motores usan sus tablas (msfa, bancos de sonidos), que arma bm_app_init: en el modo
+             * seguro no existen y la prueba del FM reiniciaba el chip (0.6.1, en el aparato) */
+            fm1_log("prueba: los motores necesitan Bubba andando (PLAY o lab 6)");
+            return -1;
+        }
         if (!fm1_scan_ticks()) {             /* el reloj de las mediciones es el barrido */
             fm1_scan_start();
             lab_scan = 1;
@@ -707,7 +731,6 @@ static void bubba_task(void *p)
         if (app.set.fast_lcd || app.set.dual_core) fm1_log("pruebas apagadas despues de un fallo");
         app.set.fast_lcd = 0; app.set.dual_core = 0; app.set_dirty = 1;
     }
-    par_init();
     fm1_miga("A2");
     fm1_boot_stage(E_NUCLEO);
     fm1_miga("A3");
@@ -765,6 +788,8 @@ static void bubba_task(void *p)
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
         }
         if (lcd_fast != app.set.fast_lcd) { lcd_fast = app.set.fast_lcd; fm1_lcd_speed(lcd_fast); }
+        if (app.set.dual_core && !sin_audio)
+            par_init();
         app.ctx.par_on = (uint8_t)(par_ok && app.set.dual_core && !sin_audio);
         if (fm1_stat[FM1_STAT_BUDGET])
             bm_app_cpu(&app, (int)(fm1_stat[FM1_STAT_RENDER_AVG] * 100u / fm1_stat[FM1_STAT_BUDGET]));

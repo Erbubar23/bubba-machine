@@ -328,9 +328,9 @@ The **master length** (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all track
 
 ## System (HOME 2 s)
 
-Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · **FAST SCREEN** (test, off by default) and **TWO CORES** (test, on by default since 0.6.1) · takes, sounds and free memory · **LANGUAGE** · version.
+Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle LED brightness · **FAST SCREEN** (test, off by default) and **TWO CORES** (test, off by default) · takes, sounds and free memory · **LANGUAGE** · version.
 
-**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on and which core ran the second job.
+**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). Since 0.6.2 the second core works through an interrupt: the first time you turn it on it is checked to answer, and if it does not answer or is late, it goes on with one. They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on and which core ran the second job.
 
 ## MIDI
 

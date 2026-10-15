@@ -4,7 +4,7 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.6.1-beta"
+#define BM_VERSION_STR "0.6.2-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
 #define BM_PAT_FMT       7        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           48       /* parámetros de sonido por canal, además de las 4 macros (= BM_SNAP_PRM) */

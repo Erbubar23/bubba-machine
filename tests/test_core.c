@@ -303,7 +303,7 @@ static void test_report(void)
     uint8_t r[BM_REPORT_LEN + 8];
     CHECK(bm_app_report(&app, 0, 0, r, 10) == -1);
     CHECK(bm_app_report(&app, 0, 0, r, sizeof r) == BM_REPORT_LEN);
-    CHECK(r[0] == 1 && r[3] == 1);                                   /* versión 1; dos núcleos de fábrica */
+    CHECK(r[0] == 1 && r[3] == 0);                                   /* versión 1; un núcleo de fábrica (0.6.2) */
     CHECK(le32(r + 12) == BM_TAKES_MAX_LEN && le32(r + 24) == BM_TAKE_HI - BM_TAKE_LO);
     CHECK(le32(r + 8) + le32(r + 16) <= BM_TAKES_MAX_LEN && le32(r + 20) <= BM_SMP_REC_MAX);
     CHECK(strncmp((const char *)r + 58, BM_VERSION_STR, 14) == 0 && r[6] == BM_SNAPS_USER);

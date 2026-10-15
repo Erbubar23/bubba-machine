@@ -46,6 +46,26 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="062-beta---2026-10-15">[0.6.2-beta] - 2026-10-15</h2>
+<p><strong>First version with data from the device.</strong> With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta: in the first test on the device, the same kind of pattern stayed around 50 %.</p>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Voice brake:</strong> if an audio block uses more than 85 % of its time, the quietest voice of the pool (T2, T4-T6) fades out (2 ms). Better to lose one voice than to cut everything. The console counts how many it switched off.
+</li><li>
+<strong>Lab test 35</strong> (<code>py -3 tools/fm1/traza.py una 35</code>): how long the second core takes to answer and whether it respects the floating point of the task it interrupts.
+</li><li>
+<strong>Console:</strong> the voice brake, the second core's state and its longest wait.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>TWO CORES is off by default.</strong> The second core now computes T4-T6 inside a software interrupt registered on it, without going through the system scheduler; before, it was a task that took turns with the audio one. The first time it is turned on it is checked to answer; if it does not answer or takes more than 4 ms, it goes on with one core until the next boot.
+</li></ul>
+<h3 id="fixed">Fixed</h3>
+<ul><li>
+<strong>The lab tests run again:</strong> since 0.6.1 they asked for ~75 KiB of heap and 58 were left. Now each test uses only its own buffers.
+</li><li>
+<strong>The FM engine test from safe mode reset the chip</strong> (the FM tables do not exist until Bubba starts). Now it warns and does not run.
+</li></ul>
 <h2 id="061-beta---2026-10-14">[0.6.1-beta] - 2026-10-14</h2>
 <p><strong>Do not install 0.6.0-beta:</strong> it left 38 KiB of RAM for the FM-1 system, which needs about 50 KiB at boot, so it most likely did not start properly. 0.6.1-beta leaves 126 KiB and the installer no longer offers 0.6.0. Beta, not yet tested on the device.</p>
 <h3 id="added">Added</h3>

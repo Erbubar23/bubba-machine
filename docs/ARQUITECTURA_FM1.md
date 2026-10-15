@@ -64,9 +64,14 @@ El SDK lo prevé: `SEC_USED(.volatile_ram_code)` antes de una función la ubica 
 ## 3. Los dos núcleos
 
 - **El RTOS es SMP**: un FreeRTOS modificado por JieLi con una lista de tareas por núcleo, `lockset`/`lockclr` como candado entre núcleos y `csync` como barrera. El tick es de 10 ms (IRQ3) y cada núcleo tiene su tarea ociosa con la instrucción `idle` (FM-1-RE `io/02-rtos.md`).
-- **No hay una API pública para fijar una tarea a un núcleo** en este SDK (búsqueda en `include_lib/system/os`). El planificador reparte solo. Con **dos tareas de audio de prioridad alta**, cada una con la mitad de las voces, el SMP las corre en paralelo.
-- **X0X y Felucca** usan el segundo núcleo fuera del RTOS, con su propio bucle (`plat_cpu2_set`, `fm1_cpu1.h`). Con el SDK no hace falta: el planificador ya los usa.
+- **No hay una API pública para fijar una tarea a un núcleo** en este SDK (búsqueda en `include_lib/system/os`). El planificador reparte solo.
 - **Comprobado en Bubba**: la tarea de audio corre a veces en el núcleo 0 y a veces en el 1 (campo «núcleo» de la consola).
+- **Dos tareas no alcanzan (medido en el aparato, 0.6.1, 2026-10-15).** La 0.6.1 calculaba T4-T6 en una segunda tarea despertada con semáforos, con un traspaso por cada tramo de 64 muestras. Con un patrón de las seis máquinas: un núcleo 88-115 % de carga, **TWO CORES 123 %**. Las dos tareas se turnaban en vez de correr a la vez. El 1,83× de la prueba 24 (`docs/TRAZA_FM1.md`) es con dos cálculos largos e independientes; el audio se sincroniza varias veces por bloque, y cada despertar pasa por el planificador.
+- **X0X, Felucca y Melodee** no usan el sistema operativo: arrancan el núcleo 1 ellos mismos (la palabra de arranque en `0x01C7FFF8`, `C1_CON`), lo dejan girando en un bucle en RAM y le pasan un trabajo por bloque en un buzón con `csync`, con una palabra de control y un tiempo máximo. Algunos FM-1 leen mal la RAM desde el núcleo 1 (fm1-x0x#10): por eso, si algo falla, siguen con un núcleo. No se puede copiar tal cual: el SDK ya corre su sistema en el núcleo 1.
+- **Lo que sí da el SDK**: `request_irq(..., cpu_id)` registra una interrupción en el núcleo 1, y hay ocho interrupciones por software (`IRQ_SOFT0..7`; el sistema usa la 4 y la 5 para cambiar de tarea, `vSoftwareInterruptISR`). Cada núcleo tiene su banco de registros de interrupción (`q32DSP(n)`, con `ILAT_SET`/`ILAT_CLR`).
+- **0.6.2: el núcleo 1 por interrupción** (`hal/fm1/fm1_cpu1.c`). El núcleo 0 deja el trabajo en un buzón (el de Felucca/X0X), levanta `IRQ_SOFT2` en el banco del núcleo 1 y espera girando, con 4 ms de tiempo máximo. Sin planificador de por medio. Al prender TWO CORES se prueba que conteste (y qué bit de `ILAT_SET` la levanta); si no, un núcleo.
+- **La coma flotante vive en los registros enteros.** El cambio de tarea del SDK solo guarda `r0-r15` y `psr/rets/reti`, y las instrucciones de la FPU (`3f e5 …`, el desensamblador no las conoce) operan sobre ellos. Una interrupción que guarda sus registros respeta las cuentas de la tarea que interrumpe. La prueba 35 del laboratorio lo comprueba en el aparato.
+- **La pila de interrupciones del núcleo 1 es de 4 KiB** (`.cpu1_sstack`). El camino más hondo de T4-T6 (BX-7, `fm_process`) usa ~0.8 KiB más las llamadas indirectas: alcanza.
 
 ## 4. Lo que hace cada proyecto (los más usados y mejor documentados)
 
@@ -95,12 +100,56 @@ Cada paso se mide con la consola en el aparato, antes y después.
 | 4 | **Código caliente en RAM**: interrupciones y bucles de audio con `.volatile_ram_code` | firmware de fábrica y Felucca; documentación del SDK | µs del render y de las interrupciones |
 | 5 | **Compilador**: `-O2` en el audio (hoy todo es `-Oz`) | | µs contra bytes |
 | 6 | **Datos calientes en RAM**: samples y tablas en uso copiados a RAM | lectura por caché/SFC | µs del render |
-| 7 | **Audio en los dos núcleos**: dos tareas, cada una con la mitad de las voces | SMP del RTOS (sección 3) | carga por núcleo |
+| 7 | **Audio en los dos núcleos**: el núcleo 1 por interrupción, un buzón con tiempo máximo (sección 6) | dos tareas se turnaban (sección 3) | carga por núcleo, espera máxima |
 | 8 | **Pantalla sin bloqueo**: reloj SPI más alto y DMA | hoy un cuadro completo tarda ~100 ms | µs de la UI |
 | 9 | **Reloj**: decidir 320 / 360 / 396 MHz | hoja de datos y SDK | carga, temperatura, batería |
 | 10 | **Memoria del programa**: samples y tablas a la zona de datos como banco de recursos | programa casi lleno (564 de 568 KiB) | KiB libres |
 
 Con esa base se monta el bus de audio a 44,1 kHz en coma flotante y los motores nuevos (`docs/INVESTIGACION_SONIDO.md`).
+
+## 6. Arquitectura en paralelo (desde 0.6.2)
+
+El punto de partida, medido en el aparato con la 0.6.1 y un patrón de las seis máquinas (`tools/fm1/traza.py perfil`): el audio no alcanza (88-115 %, picos de 142 %, ~70 bloques perdidos por segundo). Reparto del cálculo: **BUNO-6 32 %**, mezcla y efectos 20 %, BR-8 19 %, BP-1 8 %, B-MINI/BB-303, BX-7 y BITTAL ~6 % cada uno.
+
+Cada núcleo tiene un papel fijo, y todo lo que puede esperar sale del audio. Ningún trabajo en paralelo espera para siempre: tiempo máximo y vuelta a un núcleo.
+
+| Capa | Qué corre | Dónde | Cómo |
+|---|---|---|---|
+| 1. Audio, tiempo real | el render de cada medio buffer (5,8 ms) | núcleo 0 (T1-T3, secuenciador, mezcla) + núcleo 1 (T4-T6) | el núcleo 1 dentro de una interrupción por software; un traspaso por tramo |
+| 2. Control | coeficientes de filtros, `expf`, LFO, envolventes | dentro del audio, pero una vez por bloque, no por muestra | revisar máquina por máquina, empezando por BUNO-6 |
+| 3. Segundo plano | pantalla, guardado, tablas de BITTAL, tomas, sonidos, consola USB | tareas del RTOS en cualquier núcleo | asíncronas: la pantalla por DMA, el guardado en tramos |
+| 4. Seguridad | freno de voces, perro guardián, modo seguro | las tres capas | el freno apaga la voz más débil si un bloque pasa del 85 % |
+
+Lo que bloquea la capa 3 hoy:
+- **La pantalla espera cada envío por SPI** (12-25 ms por cuadro). Con DMA, el próximo cuadro se dibuja mientras sale el anterior.
+- **Guardar apaga el audio** (`fm1_quiet`): el código corre desde la flash y mientras se escribe no se puede leer. Cada guardado es un corte. Con el código del audio en RAM (`.volatile_ram_code`, como Felucca) el audio sigue; lo limita la RAM libre (sección 7).
+
+### Fases
+
+| Versión | Contenido | Se mide con |
+|---|---|---|
+| **0.6.2** | Freno de voces; TWO CORES apagado de fábrica; el núcleo 1 por interrupción (a prueba); el laboratorio cabe en el montón y la prueba 35 (núcleo 1 y coma flotante) | `consola.py estado`, `traza.py perfil`, `traza.py una 35` |
+| 0.6.3 | Reparto que se ajusta solo (por el costo de cada canal en el bloque anterior, que el perfil ya mide); BUNO-6 partido por voces entre los dos núcleos y más barato (voces a media frecuencia, coeficientes por bloque); reverb a media frecuencia | carga con el mismo patrón |
+| 0.7 | Pantalla por DMA; guardado sin cortar el audio, si alcanza la RAM | µs de la UI, cortes al guardar |
+
+## 7. Memoria: qué ocupa la RAM y dónde ayuda un caché por contenido
+
+La RAM fija de la 0.6.2 son 385 KiB (`build.py fm1`, `nm` del ELF); el montón del SDK queda en 126 KiB y en marcha le sobran ~58 KiB.
+
+| Qué | KiB | Idea |
+|---|---|---|
+| Arena del audio: delay (0,8 s) y efectos, o la grabación del sampler | 98 | delay a media frecuencia: −35 KiB y menos cálculo |
+| Tablas de BITTAL (2 × 8 cuadros × 7 niveles) | 64 | una tabla compartida si los dos osciladores usan la misma: −32 KiB en ese caso |
+| Reverb | 32 | a media frecuencia: −16 KiB |
+| Tablas de la FM (`exp2tab`, `sintab`, `tanhtab`, `lut`) | 28 | se calculan al arrancar: como constantes en la flash quedan libres, a cambio de leerlas por la caché (medir) |
+| Voces de la FM (msfa) | 21 | |
+| Patrón, canción, comandos pendientes | 24 | |
+| COPY, UNDO y REDO (tres copias enteras de un canal) | 7,5 | guardar diferencias en vez de copias |
+
+**El caché por contenido (la idea de git) sirve donde los datos se repiten o cambian poco**, no en los búferes del audio, que cambian en cada muestra:
+- **Ya existe en pequeño**: las tablas de BITTAL se arman desde su espectro solo si cambió la firma (`wt_sig`), como un objeto de git que se reconstruye solo si cambió su hash. Extenderlo a un caché de tablas por firma permite compartir una tabla entre osciladores y canales.
+- **UNDO, REDO y COPY como diferencias** (los commits de git guardan lo que cambió): de 7,5 KiB a unos cientos de bytes.
+- **En la flash es donde más rinde**: patrones, sonidos y tomas como objetos por contenido (lo repetido se guarda una vez) y el guardado automático escribiendo solo los sectores que cambiaron. Menos bytes escritos = pausas del audio más cortas y menos desgaste.
 
 ## Fuentes
 

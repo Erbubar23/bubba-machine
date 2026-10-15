@@ -2,6 +2,22 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.6.2-beta] - unreleased
+
+**First version with data from the device.** With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta, being tested on the device.
+
+### Added
+- **Voice brake:** if an audio block uses more than 85 % of its time, the quietest voice of the pool (T2, T4-T6) fades out (2 ms). Better to lose one voice than to cut everything. The console counts how many it switched off.
+- **Lab test 35** (`py -3 tools/fm1/traza.py una 35`): how long the second core takes to answer and whether it respects the floating point of the task it interrupts.
+- **Console:** the voice brake, the second core's state and its longest wait.
+
+### Changed
+- **TWO CORES is off by default.** The second core now computes T4-T6 inside a software interrupt registered on it, without going through the system scheduler; before, it was a task that took turns with the audio one. The first time it is turned on it is checked to answer; if it does not answer or takes more than 4 ms, it goes on with one core until the next boot.
+
+### Fixed
+- **The lab tests run again:** since 0.6.1 they asked for ~75 KiB of heap and 58 were left. Now each test uses only its own buffers.
+- **The FM engine test from safe mode reset the chip** (the FM tables do not exist until Bubba starts). Now it warns and does not run.
+
 ## [0.6.1-beta] - 2026-10-14
 
 **Do not install 0.6.0-beta:** it left 38 KiB of RAM for the FM-1 system, which needs about 50 KiB at boot, so it most likely did not start properly. 0.6.1-beta leaves 126 KiB and the installer no longer offers 0.6.0. Beta, not yet tested on the device.

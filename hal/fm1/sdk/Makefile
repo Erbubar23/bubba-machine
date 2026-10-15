@@ -90,7 +90,7 @@ OWN_C := hal/fm1/sdk/board.c hal/fm1/fm1_boot.c hal/fm1/fm1_lcd.c hal/fm1/fm1_ke
 ifeq ($(APP),diag)
 OWN_C += hal/fm1/fm1_diag.c
 else
-OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_bench.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	$(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
+OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_bench.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	hal/fm1/fm1_cpu1.c $(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
 endif
 
 LIBS := --start-group $(SDK)/include_lib/newlib/pi32v2-lib/libm.a $(SDK)/include_lib/newlib/pi32v2-lib/libc.a \

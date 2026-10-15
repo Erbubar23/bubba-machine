@@ -788,7 +788,8 @@ static void settings_defaults(bm_settings *s)
 {
     memset(s, 0, sizeof *s);
     s->ver = BM_FMT; s->sync_ppqn = 2; s->drive = 25; s->led_dim = 1; s->autosave = 1; s->enter = 2;
-    s->dual_core = 1;       /* 0.6.1: encendido de fábrica para probarlo en el aparato (un cuelgue lo apaga) */
+    /* dual_core apagado: en 0.6.1 venía encendido y en el aparato iba más lento que un núcleo (123 %
+     * contra ~105 %). Desde 0.6.2 usa el núcleo 1 por interrupción (hal/fm1/fm1_cpu1.c), a prueba. */
 }
 
 static void apply_settings(bm_app *a)

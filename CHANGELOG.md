@@ -2,6 +2,23 @@
 
 Todas las versiones de Bubba Machine. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y los números siguen [versionado semántico](https://semver.org/lang/es/): mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.
 
+## [0.6.2-beta] - sin publicar
+
+**Primera versión con datos del aparato.** Con la 0.6.1 y un patrón de las seis máquinas, el audio no alcanzaba en el FM-1 (88-115 % de carga, cortes) y con DOS NÚCLEOS iba peor (123 %). Beta, a prueba en el aparato.
+
+### Agregado
+- **Freno de voces:** si un bloque de audio usa más del 85 % de su tiempo, se apaga suavemente (2 ms) la voz que menos suena del pool (T2, T4-T6). Mejor perder una voz que cortar todo. La consola cuenta cuántas apagó.
+- **Prueba 35 del laboratorio** (`py -3 tools/fm1/traza.py una 35`): cuánto tarda el segundo núcleo en contestar y si respeta la coma flotante de la tarea que interrumpe.
+- **Consola:** el freno de voces, el estado del segundo núcleo y su espera más larga.
+
+### Cambiado
+- **DOS NÚCLEOS viene apagado de fábrica.** Ahora el segundo núcleo calcula T4-T6 dentro de una interrupción por software registrada en él, sin pasar por el planificador del sistema; antes era una tarea que se turnaba con la del audio. La primera vez que se prende se prueba que conteste; si no contesta o tarda más de 4 ms, sigue con uno hasta el próximo arranque.
+- **El plan de la arquitectura en paralelo y de la memoria** está en [ARQUITECTURA_FM1.md](docs/ARQUITECTURA_FM1.md), secciones 6 y 7.
+
+### Arreglado
+- **Las pruebas del laboratorio vuelven a correr:** desde la 0.6.1 pedían ~75 KiB de montón y quedaban 58. Ahora cada prueba usa solo sus búferes.
+- **La prueba del motor FM desde el modo seguro reiniciaba el chip** (las tablas de la FM no existen hasta que arranca Bubba). Ahora avisa y no corre.
+
 ## [0.6.1-beta] - 2026-10-14
 
 **La 0.6.0-beta no debe instalarse:** dejaba 38 KiB de RAM para el sistema del FM-1, que necesita unos 50 KiB al arrancar, así que lo más probable es que no arrancara bien. La 0.6.1-beta deja 126 KiB y el instalador ya no ofrece la 0.6.0. Beta, todavía no probada en el aparato.

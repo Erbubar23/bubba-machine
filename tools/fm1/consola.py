@@ -22,7 +22,10 @@ from fm1_midi import Puerto  # noqa: E402
 
 CAMPOS = ['version', 'uptime_ms', 'sys_hz', 'lsb_hz', 'halves', 'late', 'render_us', 'render_max_us',
           'render_avg_us', 'budget_us', 'scan_ticks', 'scanisr_max_us', 'ui_us', 'ui_max_us', 'usb', 'fails',
-          'past1', 'past2', 'past3', 'past4', 'audio_cpu', 'midi_in', 'midi_out', 'loop_max', 'heap_free', 'heap_min']
+          'past1', 'past2', 'past3', 'past4', 'audio_cpu', 'midi_in', 'midi_out', 'loop_max', 'heap_free', 'heap_min',
+          'par_cpu', 'freno', 'par_modo', 'par_espera_max_us']
+NUCLEO1 = ['sin probar', 'probando', 'listo', 'no contestó al arrancar', 'lo dejó: no contestó a tiempo',
+           'lo dejó: leyó mal un trabajo']
 ETAPA = ['antes de la pantalla', 'pantalla y USB', 'núcleo listo', 'teclas', 'audio iniciado', 'audio sonando',
          '1 s andando', '5 s andando', '5 s andando']
 FIN = {1: 'apagado', 2: 'perro guardián', 3: 'reinicio por falla', 4: 'otro', 0xFF: '-'}
@@ -74,6 +77,10 @@ def mostrar(v):
         v['fails']))
     if 'heap_free' in v:
         print('memoria libre del montón: %d KiB (get_malloc_remain_heap_size), %d KiB (get_ram_free_heap_size)' % (v['heap_free'] // 1024, v['heap_min'] // 1024))
+    if 'freno' in v:
+        print('freno de voces: %d apagadas | núcleo 1: %s (espera máx %d us, último trabajo en el núcleo %d)' % (
+            v['freno'], NUCLEO1[v['par_modo']] if v['par_modo'] < len(NUCLEO1) else v['par_modo'],
+            v['par_espera_max_us'], v['par_cpu']))
     if v['loop_max']:
         c = v['loop_max'].to_bytes(4, 'little').decode('ascii', 'replace')
         print('cuelgue antes de este arranque (perro guardián): paso %s, sub-paso %s' % (c[:2], c[2:]))

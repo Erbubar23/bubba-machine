@@ -46,6 +46,28 @@
   <main class="doc">
 <h1 id="cambios">Cambios</h1>
 <p>Todas las versiones de Bubba Machine. El formato sigue <a href="https://keepachangelog.com/es-ES/1.1.0/">Keep a Changelog</a> y los números siguen <a href="https://semver.org/lang/es/">versionado semántico</a>: mientras la versión empiece con 0, cualquier versión menor puede cambiar la forma de tocar o el formato de los patrones.</p>
+<h2 id="062-beta---sin-publicar">[0.6.2-beta] - sin publicar</h2>
+<p><strong>Primera versión con datos del aparato.</strong> Con la 0.6.1 y un patrón de las seis máquinas, el audio no alcanzaba en el FM-1 (88-115 % de carga, cortes) y con DOS NÚCLEOS iba peor (123 %). Beta, a prueba en el aparato.</p>
+<h3 id="agregado">Agregado</h3>
+<ul><li>
+<strong>Freno de voces:</strong> si un bloque de audio usa más del 85 % de su tiempo, se apaga suavemente (2 ms) la voz que menos suena del pool (T2, T4-T6). Mejor perder una voz que cortar todo. La consola cuenta cuántas apagó.
+</li><li>
+<strong>Prueba 35 del laboratorio</strong> (<code>py -3 tools/fm1/traza.py una 35</code>): cuánto tarda el segundo núcleo en contestar y si respeta la coma flotante de la tarea que interrumpe.
+</li><li>
+<strong>Consola:</strong> el freno de voces, el estado del segundo núcleo y su espera más larga.
+</li></ul>
+<h3 id="cambiado">Cambiado</h3>
+<ul><li>
+<strong>DOS NÚCLEOS viene apagado de fábrica.</strong> Ahora el segundo núcleo calcula T4-T6 dentro de una interrupción por software registrada en él, sin pasar por el planificador del sistema; antes era una tarea que se turnaba con la del audio. La primera vez que se prende se prueba que conteste; si no contesta o tarda más de 4 ms, sigue con uno hasta el próximo arranque.
+</li><li>
+<strong>El plan de la arquitectura en paralelo y de la memoria</strong> está en <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/ARQUITECTURA_FM1.md">ARQUITECTURA_FM1.md</a>, secciones 6 y 7.
+</li></ul>
+<h3 id="arreglado">Arreglado</h3>
+<ul><li>
+<strong>Las pruebas del laboratorio vuelven a correr:</strong> desde la 0.6.1 pedían ~75 KiB de montón y quedaban 58. Ahora cada prueba usa solo sus búferes.
+</li><li>
+<strong>La prueba del motor FM desde el modo seguro reiniciaba el chip</strong> (las tablas de la FM no existen hasta que arranca Bubba). Ahora avisa y no corre.
+</li></ul>
 <h2 id="061-beta---2026-10-14">[0.6.1-beta] - 2026-10-14</h2>
 <p><strong>La 0.6.0-beta no debe instalarse:</strong> dejaba 38 KiB de RAM para el sistema del FM-1, que necesita unos 50 KiB al arrancar, así que lo más probable es que no arrancara bien. La 0.6.1-beta deja 126 KiB y el instalador ya no ofrece la 0.6.0. Beta, todavía no probada en el aparato.</p>
 <h3 id="agregado">Agregado</h3>

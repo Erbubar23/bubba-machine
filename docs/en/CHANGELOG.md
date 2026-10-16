@@ -2,7 +2,7 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
-## [0.7.0-beta] - unreleased
+## [0.7.0-beta] - 2026-10-15
 
 **One machine per screen.** HOME becomes the BX-1 machine with its own pages, and every screen loses the text it did not need. Design: the "Bubba Machine UI 0.7" canvas.
 
@@ -40,7 +40,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **The FM-1 restarted on BP-1's PADS page.** The SDK's snprintf does not understand `%+d` (nor `%f`): it skipped the argument, the next ones shifted, and the pad line's last `%s` read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (`core/bm_printf.c`), checked against the C library's on the computer. The 30 `%+d` on screen also showed wrong text before.
 - **Processor faults leave a trace:** a copy of the SDK's exception handler (`hal/fm1/sdk/wl82_debug.c`) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.
 
-## [0.6.3-beta] - unreleased
+## [0.6.3-beta] - not released on its own (included in 0.7.0-beta)
 
 **Two cores that really work in parallel.** Measured on the FM-1 with a six-machine pattern.
 

@@ -15,8 +15,12 @@
 static const uint16_t TRACK_COLORS[BM_TRACKS] = {C_ORANGE, C_PINK, C_ACID, C_CYAN, C_VIOLET, C_GREEN};
 static const uint16_t KNOB_COLORS[4] = {C_CYAN, C_ORANGE, C_GREEN, C_PINK};
 const uint8_t bm_master_steps_tab[6] = {1, 2, 3, 4, 8, 0};
-const uint8_t bm_roll_ticks[5] = {48, 24, 12, 32, 16};
-const char *const bm_roll_names[5] = {"1/8", "1/16", "1/32", "1/8T", "1/16T"};
+const uint8_t bm_roll_ticks[BM_ROLL_RATES] = {48, 24, 12, 32, 16, 8};
+const char *const bm_roll_names[BM_ROLL_RATES] = {"1/8", "1/16", "1/32", "1/8T", "1/16T", "1/32T"};
+const uint16_t bm_roll_len_ticks[4] = {BM_PPQN, BM_PPQN * 2, BM_BAR_TICKS, BM_BAR_TICKS * 2};
+const char *const bm_roll_len_names[4] = {"1/4", "1/2", "1 BAR", "2 BARS"};
+const uint8_t bm_roll_tail_ticks[4] = {0, BM_TICKS_STEP, BM_TICKS_STEP * 2, BM_PPQN};
+const char *const bm_roll_tail_names[4] = {"OFF", "1/16", "1/8", "1/4"};
 static const int16_t ENTER_MS[5] = {0, 250, 400, 800, -1};
 
 const char *bm_track_name(const bm_app *a, int t)
@@ -118,6 +122,8 @@ void app_overlay(bm_app *a, int enc, const char *title, const char *val, const c
     o->on = 1; o->enc = (uint8_t)enc; o->pct = (uint8_t)bm_clampi(pct, 0, 255);
     o->ghost = (uint8_t)(ghost < 0 ? 255 : bm_clampi(ghost, 0, 254));
     o->color = col;
+    o->beat = 0;
+    o->knob = a->enc_cur;                  /* la perilla que gira (0 si no vino de una perilla) */
     snprintf(o->title, sizeof o->title, "%s", title);
     snprintf(o->val, sizeof o->val, "%s", val);
     snprintf(o->unit, sizeof o->unit, "%s", unit);
@@ -812,7 +818,8 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     bm_gesture_init(&a->ges, app_on_gesture, a);
     a->pend_obj = -1; a->undo_track = -1; a->redo_track = -1; a->held_step = -1; a->held_white = -1;
     a->slice_sens = 64; a->pad_key = -1; a->rec_gate = 100; a->tie_from = -1; a->rec_step = -1;
-    a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->roll_rate = 1; a->solo_key = -1; a->solo_track = -1;
+    a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->solo_key = -1; a->solo_track = -1;
+    a->roll_rate = 1; a->roll_len = 2; a->roll_swing = 50;   /* 1/16, rampa de un compás: lo mismo que arranca el audio */
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
     for (int k = 0; k < BM_KEYS; k++) a->key_rec_step[k] = -1;
@@ -902,13 +909,13 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 const char *bm_page_name(int page)
 {
     static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "MORE", "BREAK", "TAKES", "ENV", "ARP", "LOOP",
-                                            "MIDI", "SCALE", "CHORDS", "LFO", "RECORD", "PADS"};
+                                            "MIDI", "SCALE", "CHORDS", "RECORD", "PADS"};
     return page < PG_COUNT ? N[page] : "";
 }
 
 int app_page_ok(const bm_app *a, int t, int page)
 {
-    if (page == PG_SCL || page == PG_CHORDS || page == PG_LFO) return 1;
+    if (page == PG_SCL || page == PG_CHORDS) return 1;
     if (page == PG_REC) return t == 1;
     uint8_t tabs[8];
     int n = bm_app_tabs(a, t, tabs);
@@ -916,9 +923,17 @@ int app_page_ok(const bm_app *a, int t, int page)
     return 0;
 }
 
+/* A dónde vuelve HOME (prev_view, V_BOOT = a ningún lado: HOME recorre sus páginas). Una pantalla
+ * global abierta desde un canal recuerda el canal y su página; abierta desde otra pantalla (una
+ * página de HOME, por ejemplo), recuerda esa. Entrar a un canal o a HOME lo olvida. Los pasos de
+ * HOME por sus páginas lo borran después (bm_input.c). */
 void app_set_view(bm_app *a, int v)
 {
-    if (v == V_GLO && a->view != V_GLO) { a->prev_view = a->view; a->prev_page = a->page; }
+    if (v != a->view) {
+        if (v == V_CH || v == V_HOME) a->prev_view = V_BOOT;
+        else if (a->view == V_CH) { a->prev_view = V_CH; a->prev_page = a->page; }
+        else if (a->prev_view == V_BOOT && a->view != V_BOOT) a->prev_view = a->view;
+    }
     a->view = (uint8_t)v;
     a->ov.on = 0;
     a->clear_armed = 0;
@@ -1065,7 +1080,8 @@ void bm_app_tick(bm_app *a, uint32_t now)
     bm_gesture_poll(&a->ges, now);
     app_input_tick(a);
     app_tables(a);
-    if (a->pat_sel >= 0 && now - a->pat_sel_t > 500) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }
+    /* PRESETS con HOME sostenido elige el patrón al soltar HOME (no carga ni guarda cada uno por el que pasa) */
+    if (a->pat_sel >= 0 && a->layer != L_HOME && now - a->pat_sel_t > 500) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }
     if (a->ov.on && (int32_t)(now - a->ov.until) > 0) a->ov.on = 0;
     if (a->toast_until && (int32_t)(now - a->toast_until) > 0) a->toast_until = 0;
     for (int t = 0; t < BM_TRACKS; t++)
@@ -1115,7 +1131,7 @@ void bm_app_tick(bm_app *a, uint32_t now)
         app_save_jobs(a, a->dirty);
         if (a->song_dirty) app_job(a, JOB_SAVE_SONG, 0);
         if (a->set_dirty) app_job(a, JOB_SAVE_GLOB, 0);
-        app_toast(a, "AUTOSAVED");
+        a->autosave_until = now + UI_TOAST_MS;
     }
     if (a->ext_take_del && !app_playing(a)) {      /* pedido de la consola: como N11 en TOMAS */
         int id = a->ext_take_del - 1;

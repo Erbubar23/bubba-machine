@@ -176,6 +176,19 @@ static uint32_t fx_len(const bm_ctx *c, uint32_t ticks)
     return n ? n : 1;
 }
 
+/* Filtro DJ de un canal (K2 de HOME): djf 0 o 64 abierto, 1-63 cierra un pasa-bajos (63 = lo más
+ * cerrado), 65-127 abre un pasa-altos. El mismo SVF que el master; el estado vuelve a cero abierto. */
+static void dj_filter(bm_ctx *c, int t, uint8_t djf, int32_t *x, uint32_t n)
+{
+    if (!djf || djf == 64) { c->dj_ic1[t] = c->dj_ic2[t] = 0.0f; return; }
+    int hp = djf > 64;
+    int ci = hp ? 12 + (djf - 64) * 100 / 63 : 127 - djf * 112 / 63;
+    float gq = (float)bm_svf_g[bm_clampi(ci, 0, 127)] * (1.0f / 65536.0f), kq = 1.1f;
+    float a1 = 1.0f / (1.0f + gq * (gq + kq)), a2 = gq * a1, a3 = gq * a2;
+    for (uint32_t i = 0; i < n; i++) x[i] = (int32_t)svf_run(&c->dj_ic1[t], &c->dj_ic2[t], (float)x[i], a1, a2, a3, kq, hp);
+    c->dj_ic1[t] = flush(c->dj_ic1[t]); c->dj_ic2[t] = flush(c->dj_ic2[t]);
+}
+
 void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
 {
     static float L[BM_BLOCK], R[BM_BLOCK], S[BM_BLOCK], SC[BM_BLOCK];
@@ -207,7 +220,8 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     for (int t = 0; t < BM_TRACKS; t++) {
         if (!(c->tact & (1u << t))) continue;
         const bm_track *tr = &c->pat->trk[t];
-        const int32_t *x = c->tbuf[t];
+        int32_t *x = c->tbuf[t];
+        dj_filter(c, t, tr->djf, x, n);
         float g = (float)tr->level * (1.0f / 400.0f) * K15;      /* nivel 100 = -12 dB de headroom en el bus */
         float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
         float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
@@ -260,6 +274,14 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
     }
 
+    /* ---- MOVE a la derecha: la mezcla entera también entra a la reverb (se lava) */
+    float mv = (float)c->move * (1.0f / 63.0f);
+    if (mv > 0.0f) {
+        float k = mv * 0.35f;
+        for (uint32_t i = 0; i < n; i++) RV[i] += (L[i] + R[i]) * k;
+        rv_any = 1;
+    }
+
     /* ---- delay a Fs/2 (escribe la suma de dos muestras, lee con interpolación lineal) y captura del punch */
     int16_t *fxb = c->mem->fx.fx;
     if (!(c->arena_busy || c->smp_rec)) {
@@ -273,6 +295,11 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         if (pc == FX_THROW && fb < 0.75f) fb = 0.75f;
         float in_g = pc == FX_FREEZE ? 0.0f : 1.0f, thr = pc == FX_THROW ? 0.5f : 0.0f;
         float mix = (float)m->dly_mix * (1.0f / 128.0f);
+        if (mv < 0.0f) {                                         /* MOVE a la izquierda: la mezcla al eco, más repeticiones */
+            thr += -mv * 0.5f;
+            fb += -mv * 0.35f; if (fb > 0.9f) fb = 0.9f;
+            if (mix < -mv * 0.6f) mix = -mv * 0.6f;
+        }
         for (uint32_t i = 0; i < n; i++) {
             c->d_acc += in_g * (S[i] + thr * (L[i] + R[i]));
             float dv;
@@ -296,6 +323,7 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         if (!rv_inited) rv_init();
         const bm_meta *mm = &c->pat->meta;
         float mix = (float)mm->rv_mix * (1.0f / 127.0f);
+        if (mv > 0.0f && mix < mv * 0.7f) mix = mv * 0.7f;
         if (rv_any || rv_fb1 != 0.0f || rv_fb2 != 0.0f || rv_curL != 0.0f) {
             float decay = 0.45f + 0.5f * (float)mm->rv_size * (1.0f / 127.0f);
             float damp = 0.05f + 0.85f * (float)mm->rv_damp * (1.0f / 127.0f);
@@ -376,6 +404,8 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     /* ---- filtro del master (K3 de HOME): 64 abierto, a la izquierda pasa-bajos, a la derecha pasa-altos */
     {
         int mf = c->pat->meta.mfilt;
+        if (c->move < 0) mf = bm_clampi(60 + c->move, 4, 59);        /* MOVE: cierra el pasa-bajos */
+        else if (c->move > 0) mf = bm_clampi(68 + c->move * 3 / 4, 69, 127);   /* abre el pasa-altos */
         if (mf < 60 || mf > 68) {
             int hp = mf > 68;
             int ci = hp ? (mf - 68) * 70 / 59 + 20 : 127 - (60 - mf) * 85 / 60;

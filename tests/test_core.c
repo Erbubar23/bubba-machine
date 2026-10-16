@@ -12,6 +12,7 @@
 #include "../core/bm_rom.h"
 #include "../core/bm_drums.h"
 #include "../core/bm_snap.h"
+#include "../core/bm_printf.h"
 #include "../core/bm_wt.h"
 #include "../core/bm_fm.h"
 #include "../core/bm_params.h"
@@ -416,6 +417,202 @@ static void test_tr_features(void)
     CHECK(app.ctx.roll[0].mask == 0 && app.layer == L_NONE);
 }
 
+/* Golpes del instrumento lane de T(t+1) mientras corre el audio ms milisegundos (sin la UI, que
+ * baja lane_trig): cuántos, y la muestra y la velocidad de cada uno. */
+static int roll_hits(int t, int lane, uint32_t ms, uint32_t *at, uint8_t *vel, int cap)
+{
+    int n = 0;
+    uint32_t frames = ms * 44118u / 1000u, start = app.ctx.sample_clock;
+    app.ctx.st.lane_trig[t] = 0;
+    while (app.ctx.sample_clock - start < frames) {
+        bm_app_audio(&app, abuf, 16);
+        if (!(app.ctx.st.lane_trig[t] & (1u << lane))) continue;
+        if (n < cap) { at[n] = app.ctx.sample_clock; vel[n] = app.ctx.st.roll_vel[t]; }
+        n++;
+        app.ctx.st.lane_trig[t] = 0;
+    }
+    return n;
+}
+
+static void test_roll(void)
+{
+    printf("ROLL: ARP en T1/T2 (un toque la deja abierta), velocidades, swing, CRESC, cola y REC\n");
+    boot(1);
+    ch(0);
+    btn(BTN_ARP, 30);                                             /* un toque: abierta */
+    CHECK(app.layer == L_ROLL && app.layer_latch && app.view == V_CH && app.track == 0);
+    CHECK(sim.leds[BTN_ARP] == LED_BREATH && sim.leds[BTN_HOME] == LED_MID);
+    bm_keyfn K[BM_KEYS];
+    bm_app_keys(&app, K);
+    for (int w = 0; w < 16; w++) {                                /* con pasos MID, vacío DIM (igual hace roll) */
+        const bm_tr *tr = &app.pat.tr[0];
+        int len = tr->lane[w].len ? tr->lane[w].len : 16, has = 0;
+        for (int s = 0; s < len; s++) if (tr->st[w][s] & ST_ON) has = 1;
+        CHECK(K[bm_white_key(w)].led == (has ? LED_MID : LED_DIM));
+    }
+    CHECK(K[bm_black_key(1)].led == LED_ON && K[bm_black_key(0)].led == LED_DIM && K[bm_black_key(5)].led == LED_DIM);
+    CHECK(K[bm_black_key(6)].led == LED_DIM && K[bm_black_key(7)].led == LED_DIM && K[bm_black_key(10)].led == LED_DIM);
+    const char *s1, *s2, *s3;
+    bm_app_bigknobs(&app, &s1, &s2, &s3);
+    CHECK(!strcmp(s1, "-") && !strcmp(s2, "-") && !strcmp(s3, "-"));
+    bm_legend L[4];
+    bm_app_legend(&app, L);
+    CHECK(!strcmp(L[0].name, "RATE") && !strcmp(L[0].val, "1/16") && !strcmp(L[2].name, "SWING") && !strcmp(L[3].name, "TAIL"));
+    {
+        char title[24]; uint16_t col; const char *h1, *h2;
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(!strcmp(title, "ROLL") && !strncmp(h2, "EXIT:", 5) && strlen(h1) <= 38 && strlen(h2) <= 38);
+    }
+    btn(BTN_ARP, 30);                                             /* ARP otra vez: cerrada */
+    CHECK(app.layer == L_NONE && !app.layer_latch);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_ROLL);
+    btn(BTN_HOME, 30);                                            /* HOME: cerrada, sigues en el canal */
+    CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH);
+    black(9, 40);                                                 /* MUTE abierta: ARP la cambia por ROLL */
+    CHECK(app.layer == L_LANEMUTE && app.layer_latch);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_ROLL && app.layer_latch);
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE);
+    down(BTN_ARP); run_ms(400);                                   /* sostener: solo mientras lo sostienes */
+    CHECK(app.layer == L_ROLL && !app.layer_latch);
+    up(BTN_ARP); run_ms(60);
+    CHECK(app.layer == L_NONE);
+    btn(BTN_ARP, 30);                                             /* abierta y luego sostener ARP: se cierra al soltar */
+    down(BTN_ARP); run_ms(400);
+    CHECK(app.layer == L_ROLL && !app.layer_latch);
+    up(BTN_ARP); run_ms(60);
+    CHECK(app.layer == L_NONE);
+
+    double fpt = BM_FS * 60.0 / (app.pat.meta.bpm_x10 / 10.0 * BM_PPQN);   /* muestras por tick */
+    uint32_t at[64]; uint8_t vel[64];
+    btn(BTN_ARP, 30);
+    black(4, 40);                                                 /* 1/16T: cada 16 ticks */
+    CHECK(app.roll_rate == 4);
+    kdown(bm_white_key(5));
+    int n = roll_hits(0, 5, 700, at, vel, 64);
+    CHECK(n >= 8);
+    int ok = 1;
+    for (int i = 1; i < n && i < 64; i++) if (fabs((double)(at[i] - at[i - 1]) - 16 * fpt) > 40) ok = 0;
+    CHECK(ok);
+    black(5, 40);                                                 /* 1/32T, con la tecla sostenida */
+    CHECK(app.roll_rate == 5);
+    n = roll_hits(0, 5, 300, at, vel, 64);
+    ok = n >= 8;
+    for (int i = 1; i < n && i < 64; i++) if (fabs((double)(at[i] - at[i - 1]) - 8 * fpt) > 40) ok = 0;
+    CHECK(ok);
+    kup(bm_white_key(5));
+    CHECK(roll_hits(0, 5, 300, at, vel, 64) == 0);                /* sin cola: soltar lo corta */
+
+    black(1, 40);                                                 /* 1/16 con swing 75 %: 36 + 12 ticks */
+    enc(ENC_K3, 25);
+    CHECK(app.roll_swing == 75 && app.ctx.roll_cfg.swing == 75);
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 800, at, vel, 64);
+    kup(bm_white_key(5));
+    ok = n >= 5;
+    for (int i = 2; i < n && i < 64; i++) {
+        double a1 = (double)(at[i - 1] - at[i - 2]), a2 = (double)(at[i] - at[i - 1]);
+        if (fabs(a1 + a2 - 48 * fpt) > 60 || fabs(fabs(a1 - a2) - 24 * fpt) > 60) ok = 0;
+    }
+    CHECK(ok);
+    enc(ENC_K3, -25);
+    CHECK(app.roll_swing == 50);
+    roll_hits(0, 5, 100, at, vel, 64);
+
+    black(6, 40);                                                 /* CRESC en 1/4: la velocidad sube hasta 127 */
+    enc(ENC_K2, -2);
+    CHECK(app.roll_ramp == 1 && app.roll_len == 0 && app.ctx.roll_cfg.ramp == 1 && app.ctx.roll_cfg.ramp_len == BM_PPQN);
+    bm_app_keys(&app, K);
+    CHECK(K[bm_black_key(6)].led == LED_ON && K[bm_black_key(7)].led == LED_DIM);
+    bm_app_legend(&app, L);
+    CHECK(!strcmp(L[1].name, "CRESC") && !strcmp(L[1].val, "1/4"));
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 900, at, vel, 64);
+    ok = n >= 6 && vel[0] < 70 && vel[n - 1] == 127;
+    for (int i = 1; i < n && i < 64; i++) if (vel[i] < vel[i - 1]) ok = 0;
+    CHECK(ok);
+    run_ms(UI_OVERLAY_MS + 100);                                  /* sin el aviso de la perilla */
+    shot("22b-roll-latched");
+    kup(bm_white_key(5));
+    black(7, 40);                                                 /* DECRESC: baja */
+    CHECK(app.roll_ramp == 2);
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 900, at, vel, 64);
+    kup(bm_white_key(5));
+    CHECK(n >= 6 && vel[0] > vel[n - 1] && vel[n - 1] == 24);
+    black(7, 40);
+    CHECK(app.roll_ramp == 0 && app.ctx.roll_cfg.ramp == 0);
+
+    enc(ENC_K4, 3);                                               /* cola de 1/4: 4 golpes de 1/16 más */
+    CHECK(app.roll_tail == 3 && app.ctx.roll_cfg.tail == BM_PPQN);
+    kdown(bm_white_key(5));
+    roll_hits(0, 5, 500, at, vel, 64);
+    kup(bm_white_key(5));
+    n = roll_hits(0, 5, 400, at, vel, 64);
+    CHECK(n >= 3 && n <= 5);
+    CHECK(roll_hits(0, 5, 300, at, vel, 64) == 0 && app.ctx.roll[0].tail_m == 0);
+    enc(ENC_K4, -3);
+
+    kdown(bm_black_key(10));                                      /* negra 11: el fill mientras la sostienes */
+    run_ms(60);
+    CHECK(app.fill && app.ctx.fill);
+    bm_app_keys(&app, K);
+    CHECK(K[bm_black_key(10)].led == LED_ON);
+    kup(bm_black_key(10));
+    run_ms(60);
+    CHECK(!app.fill && !app.ctx.fill && app.layer == L_ROLL);
+
+    /* REC: el roll se graba como pasos con repetición, y CRESC como acentos */
+    int lane = -1;
+    for (int w = 0; w < 16 && lane < 0; w++) {
+        int any = 0;
+        for (int s = 0; s < BM_STEPS; s++) if (app.pat.tr[0].st[w][s]) any = 1;
+        if (!any) lane = w;
+    }
+    CHECK(lane >= 0);
+    if (lane < 0) lane = 15;
+    btn(BTN_PLAY, 20);
+    btn(BTN_REC, 30);                                             /* REC no cierra ROLL */
+    CHECK(app.rec && app.layer == L_ROLL && app.layer_latch);
+    black(2, 40);                                                 /* 1/32 = x2 por paso */
+    black(6, 40);                                                 /* CRESC */
+    kdown(bm_white_key(lane));
+    run_ms(1100);
+    kup(bm_white_key(lane));
+    run_ms(60);
+    btn(BTN_REC, 30);
+    btn(BTN_PLAY, 20);
+    int on = 0, rat = 0, acc = 0, flat = 0;
+    for (int s = 0; s < 16; s++) {
+        uint8_t b = app.pat.tr[0].st[lane][s];
+        if (!(b & ST_ON)) continue;
+        on++;
+        if (((b & ST_RAT_MASK) >> ST_RAT_SH) == 1) rat++;
+        if (b & ST_ACC) acc++; else flat++;
+    }
+    CHECK(on >= 6 && rat >= 6 && acc >= 1 && flat >= 1);
+    black(6, 40);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_NONE && app.roll_mask == 0);
+
+    /* T2 (pads): lo mismo; REC en ROLL graba lo que tocas, no abre la grabadora */
+    ch(1);
+    btn(BTN_ARP, 30);
+    CHECK(app.track == 1 && app.layer == L_ROLL && app.layer_latch);
+    btn(BTN_REC, 30);
+    CHECK(app.rec && app.page != PG_REC && app.layer == L_ROLL && !app.ctx.st.smp_armed);
+    btn(BTN_REC, 30);
+    CHECK(!app.rec);
+    kdown(bm_white_key(3));
+    run_ms(100);
+    CHECK(app.ctx.roll[1].mask == (1u << 3));
+    kup(bm_white_key(3));
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE && app.ctx.roll[1].mask == 0);
+}
+
 static void test_voices(void)
 {
     printf("voces: pool de 7 con robo y fade\n");
@@ -440,20 +637,36 @@ static void test_navigation(void)
     shot("00-home");
     int bpm = app.pat.meta.bpm_x10;
     enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);                       /* HOME: ALGORITHM = BPM */
-    CHECK(app.pat.meta.bpm_x10 == bpm + 20 && app.view == V_HOME);
+    CHECK(app.pat.meta.bpm_x10 == bpm + 20 && app.view == V_HOME && app.ov.beat && app.ov.color == C_TEMPO);
+    shot("05b-home-tempo");
     enc(ENC_ALGO, -2);
     enc(ENC_SELECT, 1); enc(ENC_SELECT, 1);                   /* SELECT: el cursor del mezclador */
     CHECK(app.track == 2 && app.view == V_HOME && !app.box_on);
     int lv = app.pat.trk[2].level;
     enc(ENC_K1, -2);                                          /* K1 = el volumen del canal del cursor */
     CHECK(app.pat.trk[2].level == lv - 2);
-    enc(ENC_K3, -20);                                         /* K3 = el filtro del master */
-    CHECK(app.pat.meta.mfilt < 60);
-    enc(ENC_K3, 20);
-    enc(ENC_K4, 1);                                           /* K4 = BEAT FX */
-    CHECK(app.pat.meta.beatfx == 1);
+    enc(ENC_K2, -2);                                          /* K2 = el filtro DJ del canal: el centro retiene 2 detents */
+    CHECK(app.pat.trk[2].djf == 0);
+    run_ms(1000);
+    enc(ENC_K2, -4);                                          /* a la izquierda pasa-bajos */
+    CHECK(app.pat.trk[2].djf == 2);
+    enc(ENC_K2, 2);                                           /* volviendo, se para en el centro */
+    CHECK(app.pat.trk[2].djf == 0);
+    enc(ENC_K2, 3);                                           /* a la derecha pasa-altos */
+    CHECK(app.pat.trk[2].djf == 64 + 1);
+    enc(ENC_K2, -1);                                          /* al centro: abierto */
+    CHECK(app.pat.trk[2].djf == 0);
+    int sd = app.pat.trk[2].send, rv2 = app.pat.trk[2].rsend;
+    enc(ENC_K3, 2); enc(ENC_K4, 2);                           /* K3 = delay, K4 = reverb */
+    CHECK(app.pat.trk[2].send == sd + 2 && app.pat.trk[2].rsend == rv2 + 2);
+    enc(ENC_PRESETS, -4);                                     /* PRESETS = MOVE (los patrones: las blancas); el centro retiene 2 */
+    run_ms(30);
+    CHECK(app.move == -2 && app.ctx.move == -2 && app.view == V_HOME);
     shot("01-home-mixer");
-    enc(ENC_K4, -1);
+    enc(ENC_PRESETS, 2);
+    run_ms(30);
+    CHECK(app.move == 0 && app.ctx.move == 0);
+    enc(ENC_K3, -2); enc(ENC_K4, -2);
     btn(BTN_SEQ, 30);                                         /* SEQ entra al canal del cursor */
     CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SEQ);
     shot("06-seq-bass");
@@ -477,7 +690,7 @@ static void test_navigation(void)
     btn(BTN_FX, 30);
     CHECK(app.page == PG_MIX && !app.mix_page);
     lv = app.pat.trk[3].level;
-    enc(ENC_K1, -2); enc(ENC_K1, -2);
+    enc(ENC_K1, -2); run_ms(300); enc(ENC_K1, -2);            /* despacio: sin aceleración */
     CHECK(app.pat.trk[3].level == lv - 4);
     int rv = app.pat.trk[3].rsend;
     enc(ENC_K4, 1); enc(ENC_K4, 1); enc(ENC_K4, 1);           /* K4 = el envío a la reverb */
@@ -488,10 +701,20 @@ static void test_navigation(void)
     int dk = app.pat.trk[3].duck;
     enc(ENC_K1, 2);
     CHECK(app.pat.trk[3].duck == dk + 2);
+    run_ms(UI_OVERLAY_MS + 100);
+    shot("14b-mix-duck");
     btn(BTN_HOME, 30);
     CHECK(app.view == V_HOME);
-    btn(BTN_HOME, 30); CHECK(app.view == V_MIX);
-    shot("39-faders");
+    /* HOME otra vez: las páginas de BX-1, MIX > FX > TEMPO > ESCENAS > SONG */
+    btn(BTN_HOME, 30); CHECK(app.view == V_FXG && app.fx_page == 0);
+    btn(BTN_FX, 30); btn(BTN_FX, 30); CHECK(app.view == V_FXG && app.fx_page == 2);   /* FX: DELAY > REVERB > MASTER */
+    enc(ENC_K1, -20);                                          /* MASTER: K1 = el filtro del master */
+    CHECK(app.pat.meta.mfilt < 60);
+    enc(ENC_K2, 1);                                            /* K2 = BEAT FX */
+    CHECK(app.pat.meta.beatfx == 1);
+    shot("39-home-fx-master");
+    enc(ENC_K1, 20); enc(ENC_K2, -1);
+    btn(BTN_HOME, 30); CHECK(app.view == V_GLO);
     btn(BTN_HOME, 30); CHECK(app.view == V_SCENES);
     btn(BTN_HOME, 30); CHECK(app.view == V_SONG);
     btn(BTN_HOME, 30); CHECK(app.view == V_HOME);
@@ -571,6 +794,65 @@ static void test_home(void)
 
 /* Negras 10 y 11 en la batería: un toque deja abierta la pantalla de MUTE o de FILL; mantener = solo
  * mientras la sostienes. En INSTR, ALGORITHM elige instrumento con el recuadro. */
+static int t2_steps(void)
+{
+    int n = 0;
+    for (int l = 0; l < BM_LANES; l++) for (int s = 0; s < BM_STEPS; s++) if (app.pat.tr[1].st[l][s] & ST_ON) n++;
+    return n;
+}
+
+static void test_button_lights(void)
+{
+    printf("luces de los botones: SAVE pendiente, capas, página, REC sostenido en la grabadora\n");
+    boot(1);
+    run_ms(UI_AUTOSAVE_MS + 1500);                               /* el demo ya está guardado */
+    ch(0);
+    page(BTN_SEQ, PG_SEQ);
+    CHECK(sim.leds[BTN_SEQ] == LED_ON && sim.leds[BTN_SAVE] == LED_DIM && sim.leds[BTN_ENV] == LED_DIM);
+    white(15, 40);                                               /* una edición */
+    CHECK(sim.leds[BTN_SAVE] == LED_DIM);                        /* dentro de la máquina: sin avisos globales */
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_HOME && sim.leds[BTN_SAVE] == LED_BREATH);   /* en la consola: algo sin guardar */
+    CHECK(sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_SEQ] == LED_MID && sim.leds[BTN_EDIT] == LED_MID);
+    btn(BTN_HOME, 30);                                           /* HOME otra vez: FX de la consola */
+    CHECK(app.view == V_FXG && sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_FX] == LED_MID);
+    ch(0);
+    /* SISTEMA > LED: solo los botones en reposo */
+    app.set.led_dim = 2; run_ms(60);
+    CHECK(sim.leds[BTN_ENV] == LED_MID && sim.leds[BTN_SEQ] == LED_ON);
+    app.set.led_dim = 0; run_ms(60);
+    CHECK(sim.leds[BTN_ENV] == LED_OFF && sim.leds[BTN_SEQ] == LED_ON);
+    app.set.led_dim = 1; run_ms(60);
+    /* FILL y MUTE no tienen botón: no respira OCT- ni SEQ; HOME las cierra */
+    black(10, 40);
+    CHECK(app.layer == L_FILL);
+    CHECK(sim.leds[BTN_OCT_DN] != LED_BREATH && sim.leds[BTN_SEQ] == LED_OFF && sim.leds[BTN_HOME] == LED_MID);
+    btn(BTN_HOME, 30);
+    black(9, 40);
+    CHECK(app.layer == L_LANEMUTE && sim.leds[BTN_SEQ] != LED_BREATH);
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE);
+    /* ENV en la batería abre INSTR: se enciende ENV, no EDIT */
+    btn(BTN_ENV, 30);
+    CHECK(app.page == PG_INST && sim.leds[BTN_ENV] == LED_ON && sim.leds[BTN_EDIT] == LED_DIM);
+    /* la grabadora: REC sostenido 2.5 s graba la mezcla y no borra la pista */
+    ch(1);
+    if (!t2_steps()) white(0, 40);
+    int before = t2_steps();
+    CHECK(before > 0);
+    btn(BTN_REC, 30);                                            /* a la GRABADORA, armada */
+    CHECK(app.page == PG_REC && app.ctx.st.smp_armed && sim.leds[BTN_REC] == LED_BREATH);
+    btn(BTN_REC, 30);                                            /* desarmar */
+    CHECK(!app.ctx.st.smp_armed);
+    down(BTN_REC); run_ms(1000);
+    CHECK(app.ctx.st.smp_rec && sim.leds[BTN_REC] == LED_BLINK);
+    run_ms(1500);
+    CHECK(app.ctx.st.smp_rec);                                   /* a los 2 s sigue grabando */
+    up(BTN_REC); run_ms(60);
+    CHECK(!app.ctx.st.smp_rec && app.ctx.st.smp_unsaved && app.page == PG_REC && app.ask == ASK_NONE);
+    CHECK(t2_steps() == before);
+}
+
 static void test_key_screens(void)
 {
     printf("negras 10 y 11: pantallas de MUTE y FILL; ALGORITHM en INSTR\n");
@@ -581,6 +863,29 @@ static void test_key_screens(void)
     black(9, 40);                                                /* un toque: queda abierta */
     CHECK(app.layer == L_LANEMUTE && app.layer_latch);
     shot("63-mutes");
+    {   /* luces de MUTE: con pasos y sonando MID (y destella con cada golpe), muteado DIM, vacío OFF */
+        bm_keyfn K[BM_KEYS];
+        int full = -1;
+        memset(app.pat.tr[0].st[15], 0, sizeof app.pat.tr[0].st[15]);          /* el 16 queda vacío */
+        for (int l = 0; l < 15 && full < 0; l++) {
+            if ((app.pat.tr[0].mute >> l) & 1) continue;
+            int len = app.pat.tr[0].lane[l].len ? app.pat.tr[0].lane[l].len : 16;
+            for (int s = 0; s < len; s++) if (app.pat.tr[0].st[l][s] & ST_ON) { full = l; break; }
+        }
+        CHECK(full >= 0);
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].led == LED_MID && K[bm_white_key(15)].led == LED_OFF);
+        CHECK(K[bm_black_key(9)].led == LED_BREATH && strcmp(K[bm_black_key(9)].label, "X") == 0);
+        app.lane_flash[0][full] = app.now + 90;                                 /* acaba de sonar */
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].live);
+        white(full, 40);                                                        /* muteado: tenue y sin destello */
+        app.lane_flash[0][full] = app.now + 90;
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].led == LED_DIM && !K[bm_white_key(full)].live);
+        white(full, 40);
+        app.lane_flash[0][full] = 0;
+    }
     white(2, 40);                                                /* mutea el hat cerrado */
     CHECK((app.pat.tr[0].mute >> 2) & 1);
     white(2, 40);
@@ -618,6 +923,17 @@ static void test_key_screens(void)
     run_ms(500);
     CHECK(!app.box_on && app.sel_lane[0] == l0 + 2 && app.track == 0 && app.page == PG_INST);
     shot("66-home-guia");
+    /* LOCK de escala: soltar un acorde (negras 1-4) no suelta el +7 que sigue sostenido */
+    ch(3);
+    page(BTN_EDIT, PG_SOUND);
+    app.pat.meta.scale_lock = 1;
+    kdown(bm_black_key(7)); run_ms(40);
+    CHECK(app.chord_mod & 1);
+    black(0, 40);
+    CHECK(app.chord_mod & 1);
+    kup(bm_black_key(7)); run_ms(40);
+    CHECK(!(app.chord_mod & 1));
+    app.pat.meta.scale_lock = 0;
 }
 
 static void test_layers(void)
@@ -646,6 +962,27 @@ static void test_layers(void)
     shot("42-layer-rep");
     up(BTN_LFO); run_ms(60);
     CHECK(((app.pat.tr[0].st[0][0] & ST_RAT_MASK) >> ST_RAT_SH) == 2);
+    /* BR-8 no tiene LFO: un toque deja abierta la capa REPETIR (respira), LFO otra vez o HOME la cierran */
+    {
+        bm_keyfn K[BM_KEYS]; char title[24]; uint16_t col; const char *h1, *h2;
+        btn(BTN_LFO, 30);
+        CHECK(app.layer == L_REP && app.layer_latch && app.view == V_CH && sim.leds[BTN_LFO] == LED_BREATH);
+        CHECK(sim.leds[BTN_HOME] == LED_MID);
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(strcmp(title, "REPEAT") == 0 && strncmp(h2, "EXIT: LFO OR HOME", 17) == 0);
+        white(0, 40);                                         /* abierta sin sostener: sigue pintando */
+        CHECK(((app.pat.tr[0].st[0][0] & ST_RAT_MASK) >> ST_RAT_SH) == 3);
+        btn(BTN_OCT_UP, 20);                                  /* OCT pasa páginas sin cerrarla */
+        CHECK(app.layer == L_REP && app.layer_latch);
+        btn(BTN_OCT_DN, 20);
+        btn(BTN_LFO, 30);                                     /* LFO otra vez: sale */
+        CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH && app.page == PG_SEQ);
+        btn(BTN_LFO, 30);
+        CHECK(app.layer == L_REP && app.layer_latch);
+        btn(BTN_HOME, 30);                                    /* HOME: sale, en el canal */
+        CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH);
+        CHECK(sim.leds[BTN_LFO] == LED_DIM);
+    }
     down(BTN_EDIT); run_ms(400);
     shot("21-erase");
     white(0, 40);                                             /* parado: borra la línea del bombo */
@@ -681,15 +1018,47 @@ static void test_layers(void)
     down(BTN_SAVE); run_ms(400); kdown(bm_black_key(2)); white(5, 40); kup(bm_black_key(2)); up(BTN_SAVE); run_ms(60);
     CHECK(app.ask == ASK_COPY_TRK);                           /* A06 ya tiene datos: pregunta */
     shot("46-ask");
+    CHECK(sim.leds[BTN_OCT_UP] == LED_BLINK && sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_OCT_DN] == LED_MID);
+    CHECK(sim.leds[BTN_SEQ] == LED_OFF && sim.leds[BTN_SAVE] == LED_OFF);   /* en la pregunta, solo sí y no */
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(app.ask == ASK_NONE);
-    /* REC 2 s: borra el canal sin preguntar (HOME + OCT- lo deshace) */
+    /* REC 2 s sin grabar nada: borra la pista al instante, sin preguntar (en vivo); HOME + OCT- la devuelve */
     ch(0);
-    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);
-    CHECK(app.ask == ASK_NONE && app.view == V_CH);
+    run_ms(100);
+    int hits0 = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s] & ST_ON) hits0++;
+    CHECK(hits0 > 0);
+    down(BTN_REC); run_ms(1500);
+    {
+        int hid = -1;
+        CHECK(bm_gesture_progress(&app.ges, app.now, &hid) >= 0 && hid == BTN_REC);   /* el anillo: ERASE T1 */
+        CHECK(sim.leds[BTN_REC] == LED_BLINK);
+    }
+    run_ms(1000); up(BTN_REC); run_ms(60);
+    CHECK(app.ask == ASK_NONE && app.view == V_CH && !app.rec);
     any = 0;
     for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
     CHECK(!any);
+    CHECK(strncmp(app.toast, "T1 ERASED", 9) == 0);
+    down(BTN_HOME); run_ms(40); btn(BTN_OCT_DN, 20); up(BTN_HOME); run_ms(60);
+    int hits1 = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s] & ST_ON) hits1++;
+    CHECK(hits1 == hits0);
+    /* EDIT sostenido + CLR también borra la pista */
+    down(BTN_EDIT); run_ms(400);
+    CHECK(app.layer == L_ERASE && sim.leds[BTN_EDIT] == LED_BREATH && sim.leds[BTN_SEQ] == LED_OFF);
+    black(2, 40);                                             /* CLR */
+    CHECK(sim.leds[BTN_OCT_DN] == LED_MID && sim.leds[BTN_OCT_UP] == LED_OFF);   /* deshacer sí, rehacer no */
+    up(BTN_EDIT); run_ms(60);
+    any = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
+    CHECK(!any);
+    /* HOME sostenido: solo los botones con HOME + */
+    down(BTN_HOME); run_ms(400);
+    CHECK(app.layer == L_HOME && sim.leds[BTN_HOME] == LED_ON);
+    CHECK(sim.leds[BTN_SEQ] == LED_MID && sim.leds[BTN_FX] == LED_MID && sim.leds[BTN_OCT_DN] == LED_MID);
+    CHECK(sim.leds[BTN_ENV] == LED_OFF && sim.leds[BTN_LFO] == LED_OFF && sim.leds[BTN_ARP] == LED_OFF && sim.leds[BTN_OCT_UP] == LED_OFF);
+    up(BTN_HOME); run_ms(60);
 }
 
 static void test_free_engines(void)
@@ -861,7 +1230,9 @@ static void test_pads(void)
     CHECK(app.pat.pad[1].pitch == 27);
     btn(BTN_EDIT, 30);
     CHECK(app.ed_page[1] == 2);
-    enc(ENC_K4, 1);
+    enc(ENC_K4, -1);                                             /* a la izquierda OFF, sin dar la vuelta */
+    CHECK(!(app.pat.pad[1].flags & PAD_TEMPO));
+    enc(ENC_K4, -1);
     CHECK(!(app.pat.pad[1].flags & PAD_TEMPO));
     run_ms(UI_TOAST_MS);
     shot("37c-pads-env");
@@ -918,8 +1289,10 @@ static void test_pads(void)
     int rec6 = 0;
     for (int s2 = 0; s2 < 16; s2++) rec6 += (app.pat.tr[1].st[6][s2] & ST_ON) != 0;
     CHECK(rec6 >= 1);
-    /* MAS, BREAK y TAKES con SELECT */
-    enc(ENC_SELECT, 1);
+    /* MAS, BREAK y TAKES con SELECT: primero las sub-páginas de PADS, después la pestaña */
+    int pg_steps = 0;
+    while (app.page == PG_PADS && pg_steps < 6) { enc(ENC_SELECT, 1); pg_steps++; }
+    CHECK(pg_steps >= 2);                                        /* PADS tenía sub-páginas por recorrer */
     CHECK(app.page == PG_BREAK);
     enc(ENC_SELECT, 1);
     CHECK(app.page == PG_TAKES);
@@ -996,10 +1369,17 @@ static void test_recorder(void)
     CHECK(app.ask == ASK_TAKE_DEL);
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(!app.take[0].valid && app_kit_empty(&app));
-    /* HOME descarta una toma sin guardar */
+    /* HOME en una toma sin guardar: pregunta (HOME = no, OCT+ = sí) */
     btn(BTN_REC, 30); btn(BTN_PLAY, 20); run_ms(800); btn(BTN_REC, 30);
     CHECK(app.ctx.st.smp_unsaved);
     btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_DISCARD && app.ctx.st.smp_unsaved);
+    btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_NONE && app.ctx.st.smp_unsaved && app.view == V_HOME);   /* NO: la toma queda y HOME sale */
+    app_enter(&app, 1, PG_REC);
+    btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_DISCARD);
+    btn(BTN_OCT_UP, 20); run_ms(60);
     CHECK(!app.ctx.st.smp_unsaved && app.ctx.smp[0].len == 0);
     btn(BTN_PLAY, 20);
 }
@@ -1009,7 +1389,7 @@ static void test_free_rec(void)
     printf("grabación libre: el largo se cierra en compases y cada nota guarda lo que se sostuvo\n");
     boot(1);
     ch(5);
-    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);       /* vaciar T6 */
+    down(BTN_EDIT); run_ms(400); black(2, 40); up(BTN_EDIT); run_ms(60);   /* vaciar T6 (BORRAR + CLR) */
     btn(BTN_OCT_UP, 20);
     page(BTN_EDIT, PG_SOUND);
     btn(BTN_PLAY, 20); run_ms(200);
@@ -1277,13 +1657,64 @@ static void test_notes(void)
     CHECK(app.rec);
     up(BTN_REC); run_ms(60);
     CHECK(!app.rec);
+    /* REC sostenido 2.5 s mientras graba notas: solo graba, nunca borra la pista */
+    int ev0 = 0, ev1 = 0;
+    for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) ev0 += !bm_event_empty(bm_evc(&app.pat, 2, s, k));
+    CHECK(ev0 > 0);
+    run_ms(100);
+    down(BTN_REC); run_ms(400);
+    CHECK(app.rec && app.rec_hold);
+    key(bm_white_key(4), 150);                                     /* una nota grabada */
+    run_ms(2000);
+    {
+        int hid = -1;
+        CHECK(bm_gesture_progress(&app.ges, app.now, &hid) < 0);   /* sin anillo: tocar canceló los 2 s */
+    }
+    up(BTN_REC); run_ms(60);
+    for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) ev1 += !bm_event_empty(bm_evc(&app.pat, 2, s, k));
+    CHECK(!app.rec);
+    CHECK(strncmp(app.toast, "T3 ERASED", 9) != 0);
+    CHECK(ev1 >= ev0 - 2);                                         /* la nota nueva puede reemplazar un paso, no borra la pista */
     btn(BTN_PLAY, 20);
+    /* BB-303 no tiene LFO: un toque deja abierta la capa LIGAR */
+    CHECK(strcmp(bm_track_name(&app, 2), "BB-303") == 0);
+    btn(BTN_LFO, 30);
+    {
+        bm_keyfn K[BM_KEYS]; char title[24]; uint16_t col; const char *h1, *h2;
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(app.layer == L_REP && app.layer_latch && strcmp(title, "TIE") == 0 && sim.leds[BTN_LFO] == LED_BREATH);
+    }
+    btn(BTN_LFO, 30);
+    CHECK(app.layer == L_NONE && !app.layer_latch);
 }
 
 /* ------------------------------------------------------------ guardado y versiones */
 /* el audio en dos núcleos: repartido (aquí en la misma tarea) suena exactamente igual */
 static void par_go_sim(void *u, uint32_t done, uint32_t n) { bm_audio_par_process((bm_ctx *)u, done, n); }
 static void par_wait_sim(void *u) { (void)u; }
+
+/* el snprintf propio (el del FM-1 no entiende %+d ni %f): igual que el de la biblioteca */
+static void test_printf(void)
+{
+    printf("snprintf propio: igual que el de la biblioteca en los formatos de la pantalla\n");
+    char a[64], b[64];
+    int bad = 0, n = 0;
+#define CMP(...) do { int ra = bm_snprintf(a, sizeof a, __VA_ARGS__), rb = snprintf(b, sizeof b, __VA_ARGS__); n++; \
+        if (ra != rb || strcmp(a, b)) { bad++; printf("  distinto: [%s] [%s]\n", a, b); } } while (0)
+    CMP("%s  %+d ST  %u MS%s%s", "ONESHOT", 3, 162u, "  REV", "");
+    CMP("%+d", 0); CMP("%+d", -7); CMP("%+d ST", 12); CMP("% d", 5); CMP("%d", -2147483647 - 1);
+    CMP("%02d", 7); CMP("%02d", -3); CMP("%03u", 5u); CMP("%2d", 123); CMP("%-4d|", 9); CMP("%04X", 0xABu);
+    CMP("%x %X %#x %o", 255u, 255u, 255u, 8u); CMP("%u", 4294967295u); CMP("%lu %ld %lld", 7ul, -8l, -9ll);
+    CMP("%c%c", 'O', 'K'); CMP("%5c|%-3c|", 'x', 'y'); CMP("%%"); CMP("100%%");
+    CMP("%.9s", "ABCDEFGHIJKLMNOP"); CMP("%.*s", 3, "abcdef"); CMP("%8s|%-8s|", "ab", "cd"); CMP("%.0s|", "zz");
+    CMP("%.1f KHZ", 1.25); CMP("%.2f HZ", 0.333); CMP("%.1f", -2.95); CMP("%f", 3.5); CMP("%6.2f|", 1.5); CMP("%.0f", 2.5);
+    CMP("%d%%", 85); CMP("T%d LEVEL", 3); CMP("A%02d", 16); CMP("%u.%03uS", 1u, 45u);
+    /* corto: trunca igual y devuelve lo que habría escrito */
+    { int ra = bm_snprintf(a, 5, "%s", "ABCDEFGH"), rb = snprintf(b, 5, "%s", "ABCDEFGH"); n++; if (ra != rb || strcmp(a, b)) bad++; }
+#undef CMP
+    printf("  %d formatos, %d distintos\n", n, bad);
+    CHECK(bad == 0);
+}
 
 static void test_dual_core(void)
 {
@@ -1306,6 +1737,36 @@ static void test_dual_core(void)
     }
     printf("  1 s de la demo, dos repartos: %d muestras distintas, pico %.2f\n", diff, pk);
     CHECK(diff == 0 && pk > 0.05);
+
+    /* el reparto cambia entre renders (como el que se ajusta solo): los canales pasan de un
+     * núcleo al otro con voces sonando y tiene que dar lo mismo que un núcleo */
+    diff = 0;
+    uint32_t r = 12345u;
+    for (int pass = 0; pass < 2; pass++) {
+        boot(1);
+        app.ctx.par_go = par_go_sim; app.ctx.par_wait = par_wait_sim; app.ctx.par_user = &app.ctx;
+        app.ctx.par_on = (uint8_t)pass;
+        bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
+        int32_t *dst = pass ? a2 : a1;
+        for (uint32_t o = 0; o < 44118; o += 128) {
+            r = r * 1664525u + 1013904223u;
+            app.ctx.par_mask = (uint8_t)((r >> 24) & 0x3Fu);
+            bm_app_audio(&app, dst + o * 2, 44118 - o < 128 ? (44118 - o) & ~1u : 128);
+        }
+        app.ctx.par_on = 0;
+    }
+    for (int i = 0; i < 44118 * 2; i++) if (a1[i] != a2[i]) diff++;
+    printf("  reparto distinto en cada render: %d muestras distintas\n", diff);
+    CHECK(diff == 0);
+
+    /* la elección: el más caro (la batería) se va solo al núcleo 1, y sin mejora no se mueve */
+    static const uint32_t COST[BM_TRACKS] = {230, 80, 55, 50, 40, 20};
+    uint8_t m = bm_audio_par_pick(COST, 180, 0x38);
+    uint32_t l0 = 180, l1 = 0;
+    for (int t = 0; t < BM_TRACKS; t++) { if ((m >> t) & 1) l1 += COST[t]; else l0 += COST[t]; }
+    printf("  elección con los costos del aparato: reparto 0x%02X, núcleos %u y %u\n", m, l0, l1);
+    CHECK((m & 1) && (l0 > l1 ? l0 - l1 : l1 - l0) <= 60);
+    CHECK(bm_audio_par_pick(COST, 180, m) == m);
 }
 
 static void test_sounds(void)
@@ -1564,7 +2025,7 @@ static void test_ui_flow(void)
     shot("22-roll");
     kup(bm_white_key(2)); up(BTN_ARP); run_ms(100);
     btn(BTN_HOME, 30); btn(BTN_HOME, 30);
-    btn(BTN_HOME, 30);
+    btn(BTN_HOME, 30); btn(BTN_HOME, 30);
     CHECK(app.view == V_SCENES);
     white(5, 40);
     white(0, 40);
@@ -1627,10 +2088,12 @@ static void test_lang(void)
     for (int i = 0; i < 9; i++) enc(ENC_SELECT, 1);
     CHECK(app.menu_row == 9);
     shot("25-system-es");
-    enc(ENC_ALGO, 1);
+    enc(ENC_ALGO, -1);                                           /* a la izquierda: inglés */
     CHECK(app.set.lang == 0 && strcmp(T("TAKES"), "TAKES") == 0);
-    enc(ENC_ALGO, 1);
+    enc(ENC_ALGO, 1);                                            /* a la derecha: el paquete */
     CHECK(app.set.lang == 1 && strcmp(T("TAKES"), "TOMAS") == 0);
+    enc(ENC_ALGO, 1);                                            /* otra vez a la derecha: sigue igual */
+    CHECK(app.set.lang == 1);
     /* queda guardado */
     run_ms(UI_AUTOSAVE_MS + 500);
     boot(0);
@@ -1647,6 +2110,109 @@ static void test_lang(void)
     CHECK(strcmp(T("TAKES"), "TAKES") == 0);
 }
 
+/* Perillas y navegación: paso sostenido + PRESETS, aceleración, interruptores, HOME que vuelve */
+static void test_knobs_nav(void)
+{
+    printf("perillas: paso + PRESETS, aceleración, interruptores, HOME vuelve\n");
+    boot(1);
+    const char *s, *al, *pr;
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "TRACK") == 0 && strcmp(al, "BPM") == 0 && strcmp(pr, "MOVE") == 0);
+    /* aceleración: dos detents rápidos en una lista = dos pasos cada vez (ni uno, ni ocho) */
+    CHECK(app.track == 0);
+    bm_app_encoder(&app, ENC_SELECT, 2, now_ms); run_ms(8);
+    bm_app_encoder(&app, ENC_SELECT, 2, now_ms); run_ms(40);
+    CHECK(app.track == 4);
+    for (int i = 0; i < 6 && app.track; i++) enc(ENC_SELECT, -1);
+    run_ms(1000);
+    int lv = app.pat.trk[0].level;                               /* en un valor continuo, rápido = más */
+    bm_app_encoder(&app, ENC_K1, -2, now_ms); run_ms(8);
+    bm_app_encoder(&app, ENC_K1, -2, now_ms); run_ms(40);
+    CHECK(app.pat.trk[0].level < lv - 4);
+    /* paso sostenido + PRESETS en la batería: la condición, nunca el kit */
+    ch(0);
+    page(BTN_SEQ, PG_SEQ);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "PAGE") == 0 && strcmp(al, "INSTR") == 0 && strcmp(pr, "KIT") == 0);
+    app.sel_lane[0] = 0; app.step_page = 0;
+    CHECK(app.pat.tr[0].st[0][0] & ST_ON);
+    static bm_lane lanes[BM_LANES];
+    memcpy(lanes, app.pat.tr[0].lane, sizeof lanes);
+    uint8_t src = app.pat.trk[0].source;
+    kdown(bm_white_key(0)); run_ms(400);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(pr, "COND") == 0);
+    enc(ENC_PRESETS, 1);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) == 0 && app.pat.trk[0].source == src);
+    CHECK(((app.pat.tr[0].st[0][0] & ST_COND_MASK) >> ST_COND_SH) == 1);
+    kup(bm_white_key(0)); run_ms(60);
+    CHECK(app.pat.tr[0].st[0][0] & ST_ON);
+    enc(ENC_PRESETS, -1);                                        /* sin paso: el kit, y HOME + OCT- lo deshace */
+    run_ms(1000);
+    memcpy(lanes, app.pat.tr[0].lane, sizeof lanes);
+    enc(ENC_PRESETS, 1); enc(ENC_PRESETS, 1);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) != 0);
+    down(BTN_HOME); run_ms(50); btn(BTN_OCT_DN, 20); up(BTN_HOME); run_ms(60);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) == 0);
+    /* MUTE y FILL: las perillas siguen con lo de SEQ; HOME sostenido cierra el FILL y lo apaga */
+    page(BTN_SEQ, PG_SEQ);
+    black(9, 40);
+    CHECK(app.layer == L_LANEMUTE);
+    int m0 = app.pat.trk[0].macro[0];
+    enc(ENC_K1, 1);
+    CHECK(app.pat.trk[0].macro[0] == m0 + 1);
+    black(9, 40);
+    black(10, 40);
+    CHECK(app.layer == L_FILL && app.fill);
+    down(BTN_HOME); run_ms(400);
+    CHECK(app.layer == L_HOME && !app.fill);
+    up(BTN_HOME); run_ms(60);
+    CHECK(!app.fill && !app.ctx.fill && app.view == V_CH);
+    /* HOME vuelve a la máquina desde una pantalla global abierta en ella */
+    ch(2);
+    btn(BTN_EDIT, 30);
+    CHECK(app.view == V_CH && app.page == PG_SOUND);
+    btn(BTN_GLO, 30);
+    CHECK(app.view == V_GLO);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "ROW") == 0 && strcmp(pr, "MOVE") == 0);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SOUND);
+    down(BTN_HOME); run_ms(50); btn(BTN_FX, 30); up(BTN_HOME); run_ms(60);
+    CHECK(app.view == V_FXG);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SOUND);
+    down(BTN_SEQ); run_ms(2200); up(BTN_SEQ); run_ms(60);
+    CHECK(app.view == V_TIME);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2);
+    btn(BTN_HOME, 30);                                           /* desde la máquina: a la consola */
+    CHECK(app.view == V_HOME);
+    btn(BTN_HOME, 30);                                           /* y en la consola HOME recorre sus páginas */
+    CHECK(app.view == V_FXG);
+    enc(ENC_SELECT, 1);                                          /* SELECT: DELAY > REVERB */
+    CHECK(app.fx_page == 1);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_GLO);
+    /* interruptores: a la derecha dos veces sigue encendido */
+    for (int i = 0; i < 6 && app.view != V_HOME; i++) btn(BTN_HOME, 30);
+    down(BTN_HOME); run_ms(2200); up(BTN_HOME); run_ms(60);
+    CHECK(app.view == V_SYSTEM && app.menu_row == 0);
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);
+    CHECK(app.set.clock == 1);
+    enc(ENC_ALGO, -1); enc(ENC_ALGO, -1);
+    CHECK(app.set.clock == 0);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_HOME);
+    /* PRESETS con HOME sostenido: el patrón se elige al soltar, no uno por uno */
+    int p0 = app.ctx.st.pattern;
+    down(BTN_HOME); run_ms(400);
+    enc(ENC_PRESETS, 1); run_ms(600); enc(ENC_PRESETS, 1); run_ms(600);
+    CHECK(app.ctx.st.pattern == p0 && app.pat_sel == p0 + 2 && app.njob == 0);
+    up(BTN_HOME); run_ms(60);
+    CHECK(app.pat_sel == -1);
+}
+
 int main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1659,6 +2225,7 @@ int main(int argc, char **argv)
     test_gesture();
     test_timing();
     test_tr_features();
+    test_roll();
     test_voices();
     test_navigation();
     test_home();
@@ -1671,9 +2238,12 @@ int main(int argc, char **argv)
     test_free_rec();
     test_rec_expressive();
     test_sounds();
+    test_printf();
     test_dual_core();
     test_engines();
     test_key_screens();
+    test_button_lights();
+    test_knobs_nav();
     test_migrate();
     test_fm();
     test_demo_and_persist();

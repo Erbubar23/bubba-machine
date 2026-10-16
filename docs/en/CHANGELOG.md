@@ -2,6 +2,62 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.7.0-beta] - 2026-10-15
+
+**One machine per screen.** HOME becomes the BX-1 machine with its own pages, and every screen loses the text it did not need. Design: the "Bubba Machine UI 0.7" canvas.
+
+### Added
+- **MOVE** (PRESETS on HOME): one knob that moves the whole mix. Left: the master low-pass closes and the mix goes into the echo. Right: the master high-pass opens and the mix washes into the reverb. Live, not saved.
+- **A DJ filter on every track** (K2 on HOME): left low-pass, right high-pass, open in the middle. It uses a reserved byte of the track, so saved patterns keep working.
+- **HOME's pages:** MIX › FX › TEMPO › SCENES › SONG, shown as a strip at the top. The FX page has a third sub-page, MASTER: master filter, BEAT FX and drive.
+
+### Changed
+- **HOME's K1-K4:** level, filter, delay and reverb of the cursor track (before: volume, reverb send, master filter, BEAT FX).
+- **Tempo** has its own color (yellow) in the header and in its box, which shows four beat blocks. Turning ALGORITHM no longer lights K1's dial.
+- **Inside a machine:** "<" before its name (HOME goes back), and the page name with one dot per page instead of the row of tabs.
+- **Less text:** the hint lines show for the first 4 seconds of a page and then go away; the bottom hint line, the CPU readout ("CPU!" only when the audio does not keep up), HOME's column headers and its master bar are gone.
+- FADERS left HOME's cycle: the MIX page already has every level.
+
+### Changed (UX review: every machine is its own instrument)
+- **The lights speak one language** on every screen and on keys and buttons alike: off = does nothing, dim = available or silenced, medium = has something and will play, on = selected or a hit, blink = playhead or needs you, breath = armed. See "The lights" in the manual.
+- **Drum MUTES screen:** only instruments with steps are lit; playing ones flash on every hit, muted ones are dim, empty ones are off. The same live flash on HOME's track keys, the pads and the notes a track plays.
+- **Buttons that do nothing are off.** With HOME held, only the buttons with a HOME + function light up; inside a layer, only the ones that work in it. SAVE breathes with unsaved changes (on the console), HOME blinks with a pattern or scene in the queue, PLAY marks the first beat of the bar, REC tells armed, capturing and overdub apart.
+- **HOME inside a machine always goes back to the console**; a global screen opened from a machine (GLO, HOME + FX, SAVE, TIME, SCALE, SONG, SYSTEM) goes back to that machine.
+- **ROLL on BR-8 and BP-1** (ARP): a tap keeps the roll screen open. Rates 1/8 to 1/32 with triplets, CRESC / DECRESC, swing, a tail after release and FILL + ROLL on black 11; with REC the roll is written as repeats and accents.
+- **The big knobs are labelled** (SEL · ALG · PRE under the dials, "-" when they do nothing) and have jobs where they were dead (FX page, SAVE).
+- **Knob feel:** acceleration comes from how fast you turn, lists move one item per click, on/off settings are right = on and left = off, and MOVE, the DJ filter and PAN stop at the center. SELECT goes through sub-pages (PADS, ENV, MIX › DUCK) before the next tab.
+- **Same setting, same knob:** GLO held = BPM, SWING, transpose, octave; BX-7 and BB-303 SOUND keep SEQ's K1-K3 with ACCENT on K4.
+- **Screen:** the line that says how to exit stays; the header shows the six tracks' mutes and hits, the queued pattern as A01>A05 with a beat countdown, SONG and a green autosave dot (no more AUTOSAVED box); the 2 s ring names what it opens; short drum names (BD, SD, CH, OH…) that don't collide; K1-K4 values on the top line instead of a box over the grid; the small font gained > < , ! ? ' and a readable #.
+
+### Fixed
+- **Holding REC to record could erase the track** (for example while recording the mix on the sampler). REC held 2 s is now a deliberate live erase: instant, no question, undoable with HOME + OCT−, the ring says ERASE T#, and it never fires while anything is recording or on the RECORD and TAKES pages.
+- **LFO no longer opens an empty page** on BR-8, BP-1, BB-303 and BX-7: a tap keeps its layer open (repeat on the grids, tie on the notes).
+- **Holding a step and turning PRESETS replaced the whole kit or patch** with no undo; it now sets the step's condition (drums) or length/TIE (notes). Changing a kit with PRESETS can be undone.
+- **HOME on the recorder threw away an unsaved take**; it now asks.
+- The FILL screen made OCT− breathe and the MUTES screen made SEQ breathe; the page light could land on the wrong button (ENV on drums lit EDIT).
+- Releasing a chord key on a scale-lock page cancelled a +7 / +9 that was still held. PRESETS in the CHORDS and ARP layers changed the sound; PRESETS on the project SCALE page read past a table.
+- The SYSTEM LED setting turned dim keys off too (it now only affects buttons) and MEDIUM did nothing.
+- **The FM-1 restarted on BP-1's PADS page.** The SDK's snprintf does not understand `%+d` (nor `%f`): it skipped the argument, the next ones shifted, and the pad line's last `%s` read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (`core/bm_printf.c`), checked against the C library's on the computer. The 30 `%+d` on screen also showed wrong text before.
+- **Processor faults leave a trace:** a copy of the SDK's exception handler (`hal/fm1/sdk/wl82_debug.c`) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.
+
+## [0.6.3-beta] - not released on its own (included in 0.7.0-beta)
+
+**Two cores that really work in parallel.** Measured on the FM-1 with a six-machine pattern.
+
+### Changed
+- **TWO CORES:** each core has its own software interrupt (IRQ_SOFT2 on core 0, IRQ_SOFT3 on core 1, raised through the shared latch the SDK uses for task switches). A job always goes to the core that is not running the audio task, which the SDK scheduler moves between cores; before, half the jobs ran in series on the audio core itself.
+- **Automatic split:** every few blocks each machine's cost and core 0's fixed work (sequencer, mix) are measured, and the split of the six machines that leaves both cores most even is chosen (only if it improves by 20 %). Any machine can run on either core; on the computer the output is identical sample by sample.
+- **Voice brake** acts only when a block is about to overrun (95 %) or the sustained average passes 85 %; in 0.6.2 it switched off about one voice per second and ate the BUNO-6 pad.
+
+### Added
+- **External clock warnings:** changing CLOCK shows a message, PLAY with an external clock and no pulses says "EXT CLOCK: WAITING FOR MIDI", and the header's "EXT?" turns red. Twice on the device CLOCK had been switched to EXTERNAL by accident and PLAY seemed frozen.
+- **Lab test 36:** pick the core split by hand (or automatic) to compare.
+- **Console:** the split, the estimated load of each core and the jobs that ran in series.
+
+### Fixed
+- **Lab tests in safe mode reset the chip:** they left the watchdog on, and nothing feeds it in safe mode.
+- **The second core's longest wait** showed 71 s (a clock read from the other core wrapped around), and the same wrap could fire the timeout and switch TWO CORES off.
+
 ## [0.6.2-beta] - 2026-10-15
 
 **First version with data from the device.** With 0.6.1 and a pattern using all six machines, audio did not keep up on the FM-1 (88-115 % load, dropouts), and TWO CORES made it worse (123 %). Beta: in the first test on the device, the same kind of pattern stayed around 50 %.

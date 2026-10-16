@@ -27,6 +27,8 @@ static int abierta;
  * Bubba sonando se colgaba a veces justo ahí (registro de arranques: cada cuelgue en la escritura
  * siguiente). Por eso se pausan antes y se reanudan después, como hacen Felucca y X0X. */
 __attribute__((weak)) void fm1_quiet(int on) { (void)on; }
+__attribute__((weak)) volatile uint8_t fm1_c1_trabajo[2];   /* el diagnóstico no reparte el audio */
+__attribute__((weak)) volatile uint8_t bm_ui_paso;          /* ni dibuja las pantallas de Bubba */
 __attribute__((weak)) void fm1_miga(const char *c) { (void)c; }
 __attribute__((weak)) void fm1_paso(const char *c) { (void)c; }
 

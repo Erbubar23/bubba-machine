@@ -65,7 +65,8 @@ void fm1_quiet(int on);
 void fm1_miga(const char *c);                             /* paso actual, en una esquina de la pantalla */
 void fm1_paso(const char *c);                             /* sub-paso (sin dibujar): dentro de la pantalla, la flash… */
 void fm1_latido(void);                                    /* el bucle principal sigue vivo */
-void fm1_perro(int on);                                   /* perro guardián del bucle (apagado en actualizaciones) */
+int  fm1_perro(int on);                                   /* perro guardián del bucle (apagado en actualizaciones); devuelve cómo estaba */
+int  fm1_excepcion_previa(uint32_t *pc, uint8_t *cpu_emu, uint8_t *dbg);   /* una falla del procesador antes de arrancar */
 int  fm1_cuelgue_previo(char out[5]);                     /* lo que anotó el perro antes de reiniciar, 0 si nada */
 void fm1_boot_note(const char c[4]);                      /* anota 4 caracteres en el registro de este arranque */                                   /* pausa barrido y audio mientras se escribe la flash */                        /* la zona de datos se lee sin descifrar por XIP */
 int  fm1_flash_read(uint32_t a, void *d, uint32_t n);
@@ -130,6 +131,8 @@ enum {
     FM1_STAT_PAR_CPU,
     FM1_STAT_FRENO,                                 /* voces apagadas por el freno (audio pasado del 85 %) */
     FM1_STAT_PAR_MODO, FM1_STAT_PAR_ESPERA_MAX,     /* núcleo 1: FM1_C1_*, la espera más larga en µs */
+    FM1_STAT_PAR_MASK, FM1_STAT_CARGA0, FM1_STAT_CARGA1,   /* el reparto y lo que estima para cada núcleo, en µs */
+    FM1_STAT_PAR_MISMO,                             /* trabajos que corrieron en el núcleo del audio */
     FM1_STAT_N
 };
 
@@ -141,6 +144,8 @@ int  fm1_cpu1_wait(uint32_t us);                    /* 0 = terminó; -1 = desde 
 int  fm1_cpu1_idle(void);                           /* el último trabajo terminó */
 int  fm1_cpu1_ok(void);
 int  fm1_cpu1_cpu(void);                            /* núcleo que hizo el último trabajo */
+void fm1_cpu1_sesion(uint32_t id);
+uint32_t fm1_cpu1_mismo(void);                      /* trabajos que corrieron en serie (debería ser 0) */                  /* render en curso: el núcleo 1 gira esperando trabajos */
 extern volatile uint32_t fm1_stat[FM1_STAT_N];      /* tiempos en microsegundos */
 void fm1_consola(const uint8_t *sysex, uint32_t n);
 void fm1_log(const char *s);                        /* registro de texto en RAM (consola: log) */

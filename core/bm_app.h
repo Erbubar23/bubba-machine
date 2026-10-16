@@ -35,7 +35,7 @@ typedef enum {
 /* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
 typedef enum {
     PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
-    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_PADS, PG_COUNT
+    PG_SCL, PG_CHORDS, PG_REC, PG_PADS, PG_COUNT
 } bm_page;
 
 /* Capas en vivo (mantener un botón). */
@@ -45,11 +45,11 @@ typedef enum {
 } bm_layer;
 
 /* Preguntas: OCT+ = sí, HOME = no. */
-enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT };
+enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT, ASK_DISCARD };
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
-    uint8_t enter;          /* sin uso desde 0.6 (el recuadro de ALGORITHM se fue) */
+    uint8_t enter;          /* espera del recuadro de canal (HOME + SELECT, ALGORITHM en INSTR): 2 = 400 ms; no se cambia desde la pantalla */
     uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
     uint8_t fast_lcd;       /* 1 = SPI a 30 MHz con DMA (a prueba; el modo seguro lo apaga) */
     uint8_t dual_core;      /* 1 = el audio en los dos núcleos (a prueba; el modo seguro lo apaga) */
@@ -58,6 +58,8 @@ typedef struct {
 
 typedef struct {
     uint8_t on, enc, pct, ghost;
+    uint8_t beat;                 /* el tempo: cuatro bloques con el beat en vez de la barra */
+    uint8_t knob;                 /* la perilla física que lo mostró + 1 (0 = ninguna: TAP, avisos) */
     uint16_t color;
     char title[22], val[12], unit[6];
     uint32_t until;
@@ -65,8 +67,9 @@ typedef struct {
 
 typedef struct { char name[10], val[10]; uint8_t pct, locked; } bm_legend;
 
-/* Mapa del teclado de una capa: lo que hace cada tecla, para dibujarlo y para los LEDs. */
-typedef struct { char label[6]; uint8_t led; uint16_t color; } bm_keyfn;
+/* Mapa del teclado de una capa: lo que hace cada tecla, para dibujarlo y para los LEDs.
+ * live: un golpe que suena ahora; la luz destella al 100 % encima de led. */
+typedef struct { char label[6]; uint8_t led, live; uint16_t color; } bm_keyfn;
 
 #define BM_JOBS 10
 enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD,
@@ -133,6 +136,7 @@ typedef struct bm_app {
     uint8_t box_on, box_track, box_hold;
     uint8_t box_mode, box_lane;   /* recuadro de ALGORITHM: BOX_HOME, BOX_CH (dentro de un canal) o BOX_LANE (instrumento) */
     uint8_t layer_latch;          /* la capa quedó abierta con un toque (negras 10 y 11): se cierra con la misma tecla o HOME */
+    uint8_t nav_btn, nav_track, nav_page, nav_sub;   /* botón + 1 que abrió la página del canal (0 = ninguno), para su luz */
     uint32_t box_until;
     int8_t held_step, held_white;
     uint8_t held_edit, held_had_event, held_long, held_notes;
@@ -161,8 +165,13 @@ typedef struct bm_app {
     uint8_t solo_on, solo_saved;
     uint16_t erase_mask;          /* capa BORRAR sonando: instrumentos que se borran al pasar */
     uint8_t erase_syn;
-    uint8_t roll_rate;            /* índice 0..4 */
-    uint16_t roll_mask;
+    /* ROLL (ARP en T1 y T2): en vivo, no se guarda */
+    uint8_t roll_rate;            /* índice en bm_roll_ticks (0..BM_ROLL_RATES-1) */
+    uint16_t roll_mask;           /* blancas sostenidas que hacen roll */
+    uint8_t roll_ramp;            /* 0 plano, 1 CRESC, 2 DECRESC */
+    uint8_t roll_len;             /* largo de la rampa: índice en bm_roll_len_ticks */
+    uint8_t roll_swing;           /* 50..75 % */
+    uint8_t roll_tail;            /* la cola al soltar: índice en bm_roll_tail_ticks */
     uint8_t brk_live;
     uint8_t len_page;             /* capa LARGO: OCT +/- = largos 17-64 */
     uint8_t launch_held, chain[8], chain_n;
@@ -179,6 +188,7 @@ typedef struct bm_app {
     bm_overlay ov;
     char toast[30];
     uint32_t toast_until;
+    uint32_t autosave_until;          /* marca de autoguardado en el encabezado (sin aviso) */
     uint8_t battery;
     uint16_t master_adc, master_sent;
     uint32_t now, boot_t;
@@ -191,11 +201,19 @@ typedef struct bm_app {
     uint8_t cpu;                  /* carga del audio en % (la cabecera) */
     uint8_t rec_gate;             /* REC de notas: el largo con que se graban (10..100 %, 100 = TIE) */
     int8_t rec_micro;             /* REC de notas: corrimiento en ticks (-12..12) */
-    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · HOME + FX otra vez: REVERB */
+    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · en la página FX de HOME: DELAY > REVERB > MASTER */
+    int8_t move;                  /* MOVE de HOME (PRESETS): -63..63, en vivo, no se guarda */
     int8_t tie_from;              /* paso sostenido para una nota larga (blanca + otra blanca) */
     int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
     uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
     uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
+    /* perillas: aceleración por el tiempo entre giros, detents crudos y la perilla que gira */
+    uint32_t enc_t[ENC_COUNT];    /* cuándo giró cada perilla por última vez */
+    int8_t enc_raw;               /* detents de este giro, sin acelerar (0 fuera de un giro) */
+    uint8_t enc_cur;              /* la perilla que está girando + 1 (0 = ninguna) */
+    uint8_t enc_new;              /* este giro empieza un gesto nuevo (la perilla estaba quieta) */
+    int8_t stick;                 /* el centro de un control bipolar: detents que lleva retenidos */
+    uint8_t stick_id;
     uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
     uint16_t snap_len;
 } bm_app;
@@ -238,6 +256,9 @@ int  bm_app_layer(const bm_app *a);
 int  bm_app_tabs(const bm_app *a, int t, uint8_t out[8]);   /* pestañas de un canal */
 const char *bm_page_name(int page);
 void bm_app_legend(const bm_app *a, bm_legend out[4]);
+/* Qué hacen ahora las tres perillas grandes (SELECT, ALGORITHM, PRESETS): un nombre corto, o "-"
+ * si no hacen nada aquí. Sale del mismo reparto que bm_app_encoder. */
+void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const char **pre);
 void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
 /* qué hace cada tecla ahora (nombre corto) y su luz: lo mismo que se ve en la tira de teclas */
 void bm_app_keys(const bm_app *a, bm_keyfn out[BM_KEYS]);
@@ -264,6 +285,9 @@ uint32_t bm_app_rec_room(const bm_app *a);                   /* muestras que cab
 uint8_t bm_app_takes_sel(const bm_app *a);                    /* fuente marcada en TOMAS */
 int  bm_app_more_count(const bm_app *a);
 void bm_app_more_row(const bm_app *a, int i, const char **name, char *val, int cap);
-extern const char *const bm_roll_names[5];
+#define BM_ROLL_RATES 6           /* 1/8 1/16 1/32 1/8T 1/16T 1/32T */
+extern const char *const bm_roll_names[BM_ROLL_RATES];
+extern const char *const bm_roll_len_names[4];
+extern const char *const bm_roll_tail_names[4];
 
 #endif

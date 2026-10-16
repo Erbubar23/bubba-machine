@@ -1,5 +1,7 @@
 # Bubba Machine 0.6 — Manual
 
+> **En pausa:** hasta una versión estable, el manual se escribe solo en inglés ([docs/en/MANUAL.md](en/MANUAL.md)). Este archivo queda como estaba en la 0.6.2.
+
 Bubba Machine convierte el FM-1 en una groovebox de directo con **seis máquinas fijas**, cada una con un nombre que recuerda a la máquina que la inspiró: **BR-8** (batería), **BP-1** (sampler de pads), **BB-303** o **B-MINI** (bajo), **BX-7** (FM de 6 operadores), **BITTAL** (wavetable que carga presets de Vital) y **BUNO-6** (polifónico con chorus). En HOME está el mezclador **BX-1**. Cada canal tiene su propio largo y su propia velocidad.
 
 > Los nombres recuerdan a máquinas famosas (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6), pero Bubba Machine no tiene relación con sus marcas ni con sus fabricantes.

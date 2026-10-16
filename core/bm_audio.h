@@ -49,11 +49,12 @@ typedef enum {
     CMD_MIDI_SEND,      /* a,b,c = bytes MIDI de salida (b o c = 0xFF: no se mandan) */
     CMD_MASTER,         /* i=0..1023 */
     CMD_DRIVE,          /* a=0..127 */
+    CMD_MOVE,           /* a = MOVE de HOME, con signo (-63..63; 0 = la mezcla tal cual) */
     CMD_SYNC,           /* a=modo b=ppqn c=latencia ms */
     CMD_CLOCK,          /* a=0 interno, 1 externo */
     CMD_MIDI,           /* a=byte MIDI entrante */
     CMD_ARP,            /* a=pista b=0/1 (capa ARP) */
-    CMD_ROLL,           /* a=canal de rejilla b=línea c=0/1 i=ticks entre golpes */
+    CMD_ROLL,           /* a=canal de rejilla b=línea c=0/1 (0: sigue la cola) i=ticks entre golpes (0 = los mismos) */
     CMD_REC,            /* a=0/1: grabación en vivo (para el roll) */
     CMD_LOOP,           /* a=pista synth b=acción (1 REC, 2 borrar, 3 on/off, 4 compases=c) */
     CMD_STRUM,          /* a=pista b=n c=vel i=notas empaquetadas (4 x 8 bit) */
@@ -62,7 +63,8 @@ typedef enum {
     CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
     CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
     CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
-    CMD_PAD_KEY         /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
+    CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
+    CMD_ROLL_CFG        /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
 } bm_cmd_type;
 
 typedef struct {
@@ -136,6 +138,7 @@ typedef struct {
     volatile uint8_t loop_mode[BM_SYN_TRACKS];
     volatile uint16_t loop_pos[BM_SYN_TRACKS];
     volatile uint16_t edits;            /* el audio editó el patrón (roll/loopera grabando) */
+    volatile uint8_t roll_vel[BM_TR_TRACKS];   /* velocidad del último golpe del roll */
 } bm_status;
 
 /* ------------------------------------------------------------ voces y motores */
@@ -239,7 +242,10 @@ typedef struct bm_ctx {
     uint32_t ext_last, ext_budget, ext_seen;
     struct { uint8_t note, tie; uint16_t ticks; } gate[BM_SYN_TRACKS][BM_EVENTS];
     bm_retrig rq[BM_TRACKS][16];
-    struct { uint16_t mask; uint8_t rate; } roll[BM_TRACKS];
+    /* ROLL de las rejillas (T1, T2): mask = instrumentos sostenidos, tail_m = sonando la cola tras
+     * soltarlos; age = ticks desde que empezó cada uno (la rampa de CRESC / DECRESC) */
+    struct { uint16_t mask, tail_m; uint8_t rate; uint8_t tail[BM_LANES]; uint16_t age[BM_LANES]; } roll[BM_TR_TRACKS];
+    struct { uint8_t ramp, swing, tail; uint16_t ramp_len; } roll_cfg;
     bm_looper lp[BM_SYN_TRACKS];
     bm_arp arp[BM_TRACKS];
     bm_strum strum[8];
@@ -261,6 +267,8 @@ typedef struct bm_ctx {
     uint32_t punch_t, punch_w0, punch_rp;
     float pf_ic1[2], pf_ic2[2];
     float mf_ic1[2], mf_ic2[2];  /* filtro del master */
+    float dj_ic1[BM_TRACKS], dj_ic2[BM_TRACKS];   /* el filtro DJ de cada canal (K2 de HOME) */
+    int8_t move;                 /* MOVE (PRESETS en HOME): < 0 oscuro y con eco, > 0 brillante y con reverb */
     float sh_l, sh_r, gate_g;
     uint16_t master_target, master_gain;
     uint8_t drive, clip_hold;
@@ -284,13 +292,23 @@ typedef struct bm_ctx {
     uint32_t gen_blk;            /* bloque de 16 pasos que ya se decidió (+1; 0 = ninguno) */
     uint8_t pchain[8], pchain_n, pchain_pos;
 
-    /* audio en dos núcleos (a prueba): los canales de par_mask los calcula otra tarea. par_go la
-     * despierta con el tramo [done, done + n) y par_wait espera a que termine. */
+    /* audio en dos núcleos (a prueba): los canales de par_mask los calcula el otro núcleo. par_go
+     * le entrega el tramo [done, done + n) y par_wait espera a que termine. */
     void (*par_go)(void *u, uint32_t done, uint32_t n);
     void (*par_wait)(void *u);
     void *par_user;
     uint8_t par_mask;
     volatile uint8_t par_on, par_tact, par_defer;
+    /* Reparto que se ajusta solo (par_auto, con un reloj en now): cada BM_PAR_MIDE renders se mide
+     * lo que costó cada canal y lo fijo del núcleo 0 (comandos, secuenciador, mezcla), y cada
+     * BM_PAR_ELIGE se elige el reparto de los 64 posibles que deja más parejos los dos núcleos.
+     * Los costos suben de golpe y bajan despacio: los picos (fills, acordes nuevos) cuentan. */
+    uint32_t (*now)(void);
+    uint8_t par_auto;
+    uint16_t par_n;
+    uint32_t cost[BM_TRACKS], cost_over;          /* ticks de now por render */
+    volatile uint32_t cost_acc[BM_TRACKS];        /* los de par_mask los suma el otro núcleo */
+    uint32_t over_acc;
 
     /* callbacks */
     bm_swap_fn swap; void *swap_user;
@@ -302,6 +320,10 @@ void bm_audio_render(bm_ctx *c, int32_t *out_lr, uint32_t out_frames);
 void bm_audio_overload(bm_ctx *c);
 /* la otra tarea del audio en dos núcleos: calcula los canales de par_mask en el tramo pedido */
 void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n);
+/* el reparto que deja más parejos los dos núcleos con esos costos; cur si no mejora un 20 % */
+uint8_t bm_audio_par_pick(const uint32_t cost[BM_TRACKS], uint32_t over, uint8_t cur);
+#define BM_PAR_MIDE  4u
+#define BM_PAR_ELIGE 64u
 
 /* internos */
 bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato);

@@ -123,14 +123,22 @@ int gfx_text_c(bm_gfx *g, int xc, int y, const char *s, uint16_t c, int scale)
 
 int gfx_small_w(const char *s)
 {
-    int n = (int)strlen(bm_txt(s));
-    return n ? n * 4 - 1 : 0;
+    int n = 0;
+    for (s = bm_txt(s); *s; s++) n += *s == '#' ? 5 : 4;   /* el sostenido es más ancho */
+    return n ? n - 1 : 0;
 }
 
 int gfx_small(bm_gfx *g, int x, int y, const char *s, uint16_t c)
 {
     int x0 = x;
     for (s = bm_txt(s); *s; s++) {
+        if (*s == '#') {
+            for (int r = 0; r < 5; r++)
+                for (int col = 0; col < 4; col++)
+                    if (bm_sharp4x5[r] & (0x8 >> col)) px(g, x + col, y + r, c);
+            x += 5;
+            continue;
+        }
         const uint8_t *gl = bm_font3x5[glyph((unsigned char)*s)];
         for (int r = 0; r < 5; r++)
             for (int col = 0; col < 3; col++)

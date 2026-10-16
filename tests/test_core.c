@@ -449,16 +449,21 @@ static void test_navigation(void)
     int lv = app.pat.trk[2].level;
     enc(ENC_K1, -2);                                          /* K1 = el volumen del canal del cursor */
     CHECK(app.pat.trk[2].level == lv - 2);
-    enc(ENC_K2, -2);                                          /* K2 = el filtro DJ del canal: a la izquierda pasa-bajos */
+    enc(ENC_K2, -2);                                          /* K2 = el filtro DJ del canal: el centro retiene 2 detents */
+    CHECK(app.pat.trk[2].djf == 0);
+    run_ms(1000);
+    enc(ENC_K2, -4);                                          /* a la izquierda pasa-bajos */
     CHECK(app.pat.trk[2].djf == 2);
-    enc(ENC_K2, 2); enc(ENC_K2, 1);                           /* a la derecha pasa-altos */
+    enc(ENC_K2, 2);                                           /* volviendo, se para en el centro */
+    CHECK(app.pat.trk[2].djf == 0);
+    enc(ENC_K2, 3);                                           /* a la derecha pasa-altos */
     CHECK(app.pat.trk[2].djf == 64 + 1);
     enc(ENC_K2, -1);                                          /* al centro: abierto */
     CHECK(app.pat.trk[2].djf == 0);
     int sd = app.pat.trk[2].send, rv2 = app.pat.trk[2].rsend;
     enc(ENC_K3, 2); enc(ENC_K4, 2);                           /* K3 = delay, K4 = reverb */
     CHECK(app.pat.trk[2].send == sd + 2 && app.pat.trk[2].rsend == rv2 + 2);
-    enc(ENC_PRESETS, -2);                                     /* PRESETS = MOVE (los patrones: las blancas) */
+    enc(ENC_PRESETS, -4);                                     /* PRESETS = MOVE (los patrones: las blancas); el centro retiene 2 */
     run_ms(30);
     CHECK(app.move == -2 && app.ctx.move == -2 && app.view == V_HOME);
     shot("01-home-mixer");
@@ -489,7 +494,7 @@ static void test_navigation(void)
     btn(BTN_FX, 30);
     CHECK(app.page == PG_MIX && !app.mix_page);
     lv = app.pat.trk[3].level;
-    enc(ENC_K1, -2); enc(ENC_K1, -2);
+    enc(ENC_K1, -2); run_ms(300); enc(ENC_K1, -2);            /* despacio: sin aceleración */
     CHECK(app.pat.trk[3].level == lv - 4);
     int rv = app.pat.trk[3].rsend;
     enc(ENC_K4, 1); enc(ENC_K4, 1); enc(ENC_K4, 1);           /* K4 = el envío a la reverb */
@@ -500,6 +505,8 @@ static void test_navigation(void)
     int dk = app.pat.trk[3].duck;
     enc(ENC_K1, 2);
     CHECK(app.pat.trk[3].duck == dk + 2);
+    run_ms(UI_OVERLAY_MS + 100);
+    shot("14b-mix-duck");
     btn(BTN_HOME, 30);
     CHECK(app.view == V_HOME);
     /* HOME otra vez: las páginas de BX-1, MIX > FX > TEMPO > ESCENAS > SONG */
@@ -990,7 +997,9 @@ static void test_pads(void)
     CHECK(app.pat.pad[1].pitch == 27);
     btn(BTN_EDIT, 30);
     CHECK(app.ed_page[1] == 2);
-    enc(ENC_K4, 1);
+    enc(ENC_K4, -1);                                             /* a la izquierda OFF, sin dar la vuelta */
+    CHECK(!(app.pat.pad[1].flags & PAD_TEMPO));
+    enc(ENC_K4, -1);
     CHECK(!(app.pat.pad[1].flags & PAD_TEMPO));
     run_ms(UI_TOAST_MS);
     shot("37c-pads-env");
@@ -1047,8 +1056,10 @@ static void test_pads(void)
     int rec6 = 0;
     for (int s2 = 0; s2 < 16; s2++) rec6 += (app.pat.tr[1].st[6][s2] & ST_ON) != 0;
     CHECK(rec6 >= 1);
-    /* MAS, BREAK y TAKES con SELECT */
-    enc(ENC_SELECT, 1);
+    /* MAS, BREAK y TAKES con SELECT: primero las sub-páginas de PADS, después la pestaña */
+    int pg_steps = 0;
+    while (app.page == PG_PADS && pg_steps < 6) { enc(ENC_SELECT, 1); pg_steps++; }
+    CHECK(pg_steps >= 2);                                        /* PADS tenía sub-páginas por recorrer */
     CHECK(app.page == PG_BREAK);
     enc(ENC_SELECT, 1);
     CHECK(app.page == PG_TAKES);
@@ -1125,10 +1136,17 @@ static void test_recorder(void)
     CHECK(app.ask == ASK_TAKE_DEL);
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(!app.take[0].valid && app_kit_empty(&app));
-    /* HOME descarta una toma sin guardar */
+    /* HOME en una toma sin guardar: pregunta (HOME = no, OCT+ = sí) */
     btn(BTN_REC, 30); btn(BTN_PLAY, 20); run_ms(800); btn(BTN_REC, 30);
     CHECK(app.ctx.st.smp_unsaved);
     btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_DISCARD && app.ctx.st.smp_unsaved);
+    btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_NONE && app.ctx.st.smp_unsaved && app.view == V_HOME);   /* NO: la toma queda y HOME sale */
+    app_enter(&app, 1, PG_REC);
+    btn(BTN_HOME, 30); run_ms(60);
+    CHECK(app.ask == ASK_DISCARD);
+    btn(BTN_OCT_UP, 20); run_ms(60);
     CHECK(!app.ctx.st.smp_unsaved && app.ctx.smp[0].len == 0);
     btn(BTN_PLAY, 20);
 }
@@ -1809,10 +1827,12 @@ static void test_lang(void)
     for (int i = 0; i < 9; i++) enc(ENC_SELECT, 1);
     CHECK(app.menu_row == 9);
     shot("25-system-es");
-    enc(ENC_ALGO, 1);
+    enc(ENC_ALGO, -1);                                           /* a la izquierda: inglés */
     CHECK(app.set.lang == 0 && strcmp(T("TAKES"), "TAKES") == 0);
-    enc(ENC_ALGO, 1);
+    enc(ENC_ALGO, 1);                                            /* a la derecha: el paquete */
     CHECK(app.set.lang == 1 && strcmp(T("TAKES"), "TOMAS") == 0);
+    enc(ENC_ALGO, 1);                                            /* otra vez a la derecha: sigue igual */
+    CHECK(app.set.lang == 1);
     /* queda guardado */
     run_ms(UI_AUTOSAVE_MS + 500);
     boot(0);
@@ -1827,6 +1847,109 @@ static void test_lang(void)
     CHECK(strcmp(T("TAKES"), "TOMAS") == 0);
     CHECK(bm_app_lang_load(&app, 3, 0, NULL, 0) == 0 && app.set.lang == 0 && !bm_app_lang_pack(&app));
     CHECK(strcmp(T("TAKES"), "TAKES") == 0);
+}
+
+/* Perillas y navegación: paso sostenido + PRESETS, aceleración, interruptores, HOME que vuelve */
+static void test_knobs_nav(void)
+{
+    printf("perillas: paso + PRESETS, aceleración, interruptores, HOME vuelve\n");
+    boot(1);
+    const char *s, *al, *pr;
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "TRACK") == 0 && strcmp(al, "BPM") == 0 && strcmp(pr, "MOVE") == 0);
+    /* aceleración: dos detents rápidos en una lista = dos pasos cada vez (ni uno, ni ocho) */
+    CHECK(app.track == 0);
+    bm_app_encoder(&app, ENC_SELECT, 2, now_ms); run_ms(8);
+    bm_app_encoder(&app, ENC_SELECT, 2, now_ms); run_ms(40);
+    CHECK(app.track == 4);
+    for (int i = 0; i < 6 && app.track; i++) enc(ENC_SELECT, -1);
+    run_ms(1000);
+    int lv = app.pat.trk[0].level;                               /* en un valor continuo, rápido = más */
+    bm_app_encoder(&app, ENC_K1, -2, now_ms); run_ms(8);
+    bm_app_encoder(&app, ENC_K1, -2, now_ms); run_ms(40);
+    CHECK(app.pat.trk[0].level < lv - 4);
+    /* paso sostenido + PRESETS en la batería: la condición, nunca el kit */
+    ch(0);
+    page(BTN_SEQ, PG_SEQ);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "PAGE") == 0 && strcmp(al, "INSTR") == 0 && strcmp(pr, "KIT") == 0);
+    app.sel_lane[0] = 0; app.step_page = 0;
+    CHECK(app.pat.tr[0].st[0][0] & ST_ON);
+    static bm_lane lanes[BM_LANES];
+    memcpy(lanes, app.pat.tr[0].lane, sizeof lanes);
+    uint8_t src = app.pat.trk[0].source;
+    kdown(bm_white_key(0)); run_ms(400);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(pr, "COND") == 0);
+    enc(ENC_PRESETS, 1);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) == 0 && app.pat.trk[0].source == src);
+    CHECK(((app.pat.tr[0].st[0][0] & ST_COND_MASK) >> ST_COND_SH) == 1);
+    kup(bm_white_key(0)); run_ms(60);
+    CHECK(app.pat.tr[0].st[0][0] & ST_ON);
+    enc(ENC_PRESETS, -1);                                        /* sin paso: el kit, y HOME + OCT- lo deshace */
+    run_ms(1000);
+    memcpy(lanes, app.pat.tr[0].lane, sizeof lanes);
+    enc(ENC_PRESETS, 1); enc(ENC_PRESETS, 1);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) != 0);
+    down(BTN_HOME); run_ms(50); btn(BTN_OCT_DN, 20); up(BTN_HOME); run_ms(60);
+    CHECK(memcmp(lanes, app.pat.tr[0].lane, sizeof lanes) == 0);
+    /* MUTE y FILL: las perillas siguen con lo de SEQ; HOME sostenido cierra el FILL y lo apaga */
+    page(BTN_SEQ, PG_SEQ);
+    black(9, 40);
+    CHECK(app.layer == L_LANEMUTE);
+    int m0 = app.pat.trk[0].macro[0];
+    enc(ENC_K1, 1);
+    CHECK(app.pat.trk[0].macro[0] == m0 + 1);
+    black(9, 40);
+    black(10, 40);
+    CHECK(app.layer == L_FILL && app.fill);
+    down(BTN_HOME); run_ms(400);
+    CHECK(app.layer == L_HOME && !app.fill);
+    up(BTN_HOME); run_ms(60);
+    CHECK(!app.fill && !app.ctx.fill && app.view == V_CH);
+    /* HOME vuelve a la máquina desde una pantalla global abierta en ella */
+    ch(2);
+    btn(BTN_EDIT, 30);
+    CHECK(app.view == V_CH && app.page == PG_SOUND);
+    btn(BTN_GLO, 30);
+    CHECK(app.view == V_GLO);
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(s, "ROW") == 0 && strcmp(pr, "MOVE") == 0);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SOUND);
+    down(BTN_HOME); run_ms(50); btn(BTN_FX, 30); up(BTN_HOME); run_ms(60);
+    CHECK(app.view == V_FXG);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2 && app.page == PG_SOUND);
+    down(BTN_SEQ); run_ms(2200); up(BTN_SEQ); run_ms(60);
+    CHECK(app.view == V_TIME);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_CH && app.track == 2);
+    btn(BTN_HOME, 30);                                           /* desde la máquina: a la consola */
+    CHECK(app.view == V_HOME);
+    btn(BTN_HOME, 30);                                           /* y en la consola HOME recorre sus páginas */
+    CHECK(app.view == V_FXG);
+    enc(ENC_SELECT, 1);                                          /* SELECT: DELAY > REVERB */
+    CHECK(app.fx_page == 1);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_GLO);
+    /* interruptores: a la derecha dos veces sigue encendido */
+    for (int i = 0; i < 6 && app.view != V_HOME; i++) btn(BTN_HOME, 30);
+    down(BTN_HOME); run_ms(2200); up(BTN_HOME); run_ms(60);
+    CHECK(app.view == V_SYSTEM && app.menu_row == 0);
+    enc(ENC_ALGO, 1); enc(ENC_ALGO, 1);
+    CHECK(app.set.clock == 1);
+    enc(ENC_ALGO, -1); enc(ENC_ALGO, -1);
+    CHECK(app.set.clock == 0);
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_HOME);
+    /* PRESETS con HOME sostenido: el patrón se elige al soltar, no uno por uno */
+    int p0 = app.ctx.st.pattern;
+    down(BTN_HOME); run_ms(400);
+    enc(ENC_PRESETS, 1); run_ms(600); enc(ENC_PRESETS, 1); run_ms(600);
+    CHECK(app.ctx.st.pattern == p0 && app.pat_sel == p0 + 2 && app.njob == 0);
+    up(BTN_HOME); run_ms(60);
+    CHECK(app.pat_sel == -1);
 }
 
 int main(int argc, char **argv)
@@ -1858,6 +1981,7 @@ int main(int argc, char **argv)
     test_engines();
     test_key_screens();
     test_button_lights();
+    test_knobs_nav();
     test_migrate();
     test_fm();
     test_demo_and_persist();

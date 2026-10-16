@@ -30,7 +30,7 @@ static const char *const COND_NAMES[3] = {"ALWAYS", "FILL ONLY", "NO FILL"};
 static const char *const SNAP_NAMES[3] = {"OFF", "1/16", "1/8"};
 static const char *const PUNCH_NAMES[16] = {"S4", "S8", "S16", "S32", "R8", "R4", "TAPE", "GATE", "LPF", "HPF", "BIT", "SR", "DLY", "ECHO", "K-LO", "K-HI"};
 
-enum { ROLE_NONE, ROLE_MUTE, ROLE_FILL, ROLE_PAT, ROLE_SCENE, ROLE_BRKFX, ROLE_LMUTE, ROLE_NOTE, ROLE_FILLK, ROLE_PAD, ROLE_PREVIEW };
+enum { ROLE_NONE, ROLE_MUTE, ROLE_FILL, ROLE_PAT, ROLE_SCENE, ROLE_BRKFX, ROLE_LMUTE, ROLE_NOTE, ROLE_FILLK, ROLE_PAD, ROLE_PREVIEW, ROLE_CMOD };
 
 const char *bm_macro_name(const bm_app *a, int t, int i)
 {
@@ -601,17 +601,107 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     }
 }
 
-/* ------------------------------------------------------------ mapa del teclado (capas, HOME) */
-static void KW(bm_keyfn *K, int w, const char *l, uint8_t led, uint16_t c)
+/* ------------------------------------------------------------ mapa del teclado (capas, HOME)
+ * Las luces son blancas y solo dicen el estado; la tira de teclas de la pantalla nombra cada tecla
+ * con la misma intensidad. Una sola gramática en todas las pantallas:
+ *   OFF    no hay nada: sin función, hueco vacío que no hace nada, fuera del largo
+ *   DIM    disponible pero quieto o vacío, o con contenido pero callado (muteado, NO-FILL)
+ *   MID    tiene contenido y va a sonar; una referencia (carril con pasos, patrón guardado, tónica)
+ *   ON     elegido, sostenido, activo ahora, o el destello de un golpe (live)
+ *   BLINK  solo el cabezal o lo que está en cola
+ *   BREATH armado, fijo o especial (paso con p-lock, la salida de una capa fija) */
+static bm_keyfn *KW(bm_keyfn *K, int w, const char *l, uint8_t led, uint16_t c)
 {
     bm_keyfn *k = &K[bm_white_key(w)];
     snprintf(k->label, sizeof k->label, "%s", l); k->led = led; k->color = c;
+    return k;
 }
 
-static void KB(bm_keyfn *K, int b, const char *l, uint8_t led, uint16_t c)
+static bm_keyfn *KB(bm_keyfn *K, int b, const char *l, uint8_t led, uint16_t c)
 {
     bm_keyfn *k = &K[bm_black_key(b)];
     snprintf(k->label, sizeof k->label, "%s", l); k->led = led; k->color = c;
+    return k;
+}
+
+/* La tira muestra 3 letras: cada instrumento de los kits tiene su nombre corto fijo (KICK y KICK2,
+ * o los tres TOM, no pueden leerse iguales). Si se le cambió el modelo, el del modelo. */
+static const char KIT_SHORT[BM_KITS_N][BM_LANES][4] = {
+    {"BD", "BD2", "CH", "OH", "SD", "CP", "RS", "LT", "MT", "HT", "CB", "CY", "SH", "CL", "CG", "ZAP"},
+    {"BD", "BD2", "CH", "OH", "SD", "CP", "RS", "LT", "MT", "HT", "RD", "CR", "SH", "CL", "CG", "ZAP"},
+    {"BD", "SUB", "CH", "OH", "SD", "CP", "BLP", "ZAP", "MTL", "BLK", "CB", "NZ", "SH", "TOM", "PRC", "BD3"},
+};
+static const char DRM_SHORT[DRM_COUNT][4] = {"BD", "BD", "SD", "SD", "HH", "MTL", "CP", "TOM", "CB", "RES", "NZ", "FM"};
+
+static const char *lane_short(const bm_app *a, int t, int ln)
+{
+    ln &= 15;
+    if (!bm_is_tr(&a->pat, t)) return bm_lane_name(a, t, ln);          /* pads P1..P16 */
+    int kit = (a->pat.trk[t].source % BM_KITS_N + BM_KITS_N) % BM_KITS_N;
+    int m = bm_trk_trc(&a->pat, t)->lane[ln].model;
+    const char *s = (m == bm_kits[kit].lane[ln].model || m >= DRM_COUNT) ? KIT_SHORT[kit][ln] : DRM_SHORT[m];
+    return s[0] ? s : bm_lane_name(a, t, ln);
+}
+
+/* el carril tiene algún golpe dentro de su largo */
+static bool lane_has(const bm_tr *tr, int ln)
+{
+    int len = tr->lane[ln].len ? tr->lane[ln].len : 16;
+    for (int s = 0; s < len && s < BM_STEPS; s++)
+        if (tr->st[ln][s] & ST_ON) return true;
+    return false;
+}
+
+/* un instrumento en un selector: el elegido ON, con pasos MID (muteado DIM), vacío OFF */
+static uint8_t lane_led(const bm_tr *tr, int ln, int sel)
+{
+    if (ln == sel) return LED_ON;
+    if (ln < 0 || ln >= BM_LANES || !lane_has(tr, ln)) return LED_OFF;
+    return ((tr->mute >> ln) & 1) ? LED_DIM : LED_MID;
+}
+
+/* el instrumento acaba de sonar (los muteados no suenan, así que no destellan) */
+static uint8_t lane_live(const bm_app *a, int t, int ln)
+{
+    ln &= 15;
+    return (uint8_t)(a->now < a->lane_flash[t][ln] && !((bm_trk_trc(&a->pat, t)->mute >> ln) & 1));
+}
+
+/* Las negras de un canal de batería (SEQ y las demás páginas): 1-8 eligen y tocan un instrumento
+ * del banco, 9 cambia de banco (HI/LO), 10 MUTE, 11 FILL. Las pantallas MUTE y FILL usan 1-9. */
+static void tr_blacks(const bm_app *a, bm_keyfn *K, int t, bool all)
+{
+    const bm_tr *tr = bm_trk_trc(&a->pat, t);
+    int lane = tr_lane(a), bank = (lane / 8) * 8;
+    bool other = false;
+    for (int i = 0; i < 8; i++) {
+        int ln = bank + i;
+        bm_keyfn *k = KB(K, i, lane_short(a, t, ln), lane_led(tr, ln, lane), bm_track_color(t));
+        k->live = (uint8_t)(lane_has(tr, ln) && lane_live(a, t, ln));
+        if (!other) other = lane_has(tr, (ln + 8) & 15);
+    }
+    KB(K, 8, lane < 8 ? "HI" : "LO", lane >= 8 ? LED_ON : (other ? LED_MID : LED_DIM), C_WHITE);
+    if (!all) return;
+    KB(K, 9, "MUTE", LED_DIM, C_RED);
+    KB(K, 10, "FIL", a->fill ? LED_ON : LED_DIM, C_ORANGE);
+}
+
+/* Las negras de HOME (y de ESCENAS): 1-6 los canales (sonando MID y destellan con cada golpe,
+ * muteados DIM), 7-10 las escenas A-D, 11 FILL. */
+static void home_blacks(const bm_app *a, bm_keyfn *K)
+{
+    const bm_status *st = &a->ctx.st;
+    char b[6];
+    for (int t = 0; t < BM_TRACKS; t++) {
+        bool mute = a->pat.trk[t].mute != 0;
+        snprintf(b, sizeof b, "T%d", t + 1);
+        KB(K, t, b, mute ? LED_DIM : LED_MID, bm_track_color(t))->live = (uint8_t)(!mute && a->now < a->trig_until[t]);
+    }
+    for (int s = 0; s < 4; s++) {
+        snprintf(b, sizeof b, "%c", 'A' + s);
+        KB(K, 6 + s, b, st->scene == s ? LED_ON : (st->scene_q == s ? LED_BLINK : (a->song.scene[s].valid ? LED_MID : LED_OFF)), C_CYAN);
+    }
+    KB(K, 10, "FIL", a->fill ? LED_ON : LED_DIM, C_ORANGE);
 }
 
 static void map_home(const bm_app *a, bm_keyfn *K)
@@ -620,35 +710,32 @@ static void map_home(const bm_app *a, bm_keyfn *K)
     char b[6];
     for (int w = 0; w < 16; w++) {
         bool has = bm_store_has(&a->store, (uint8_t)w) || w == st->pattern || a->pend_obj == w;
-        uint8_t led = w == st->pattern ? LED_ON : (w == st->queued ? LED_BLINK : (has ? LED_MID : LED_OFF));
+        uint8_t led = w == st->pattern ? LED_ON : (w == st->queued ? LED_BLINK : (has ? LED_MID : LED_DIM));
         snprintf(b, sizeof b, "%02d", w + 1);
         KW(K, w, b, led, w == st->pattern ? C_WHITE : w == st->queued ? C_CYAN : 0);
     }
-    for (int t = 0; t < BM_TRACKS; t++) {
-        snprintf(b, sizeof b, "T%d", t + 1);
-        KB(K, t, b, a->pat.trk[t].mute ? LED_OFF : LED_ON, bm_track_color(t));
-    }
-    for (int s = 0; s < 4; s++) {
-        snprintf(b, sizeof b, "%c", 'A' + s);
-        KB(K, 6 + s, b, st->scene == s ? LED_ON : (st->scene_q == s ? LED_BLINK : (a->song.scene[s].valid ? LED_MID : LED_OFF)), C_CYAN);
-    }
-    KB(K, 10, "F", a->fill ? LED_ON : LED_DIM, C_ORANGE);
+    home_blacks(a, K);
 }
 
 static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
 {
-    /* mode 0: acento · 1: repetir/ligar · 2: borrar · 3: solo en el fill */
+    /* mode 0: acento · 1: repetir/ligar · 2: borrar · 3: solo en el fill
+     * Un paso vacío está disponible (DIM) donde la capa lo crea: acento, y en batería repetir y fill. */
     int t = a->track, kind = app_kind(a, t);
+    uint8_t empty = (mode == 0 || (kind != KIND_NOTE && (mode == 1 || mode == 3))) ? LED_DIM : LED_OFF;
     for (int w = 0; w < 16; w++) {
         int s = a->step_page * 16 + w;
         const char *l = "";
-        uint8_t led = LED_OFF;
+        uint8_t led = empty;
         if (kind == KIND_NOTE) {
             if (s >= a->pat.trk[t].length) { KW(K, w, "", LED_OFF, 0); continue; }
             int idx[4], n = syn_step_events(a, t, s, idx);
             if (n) {
                 const bm_event *e = bm_evc(&a->pat, t, s, idx[0]);
-                if (mode == 3) { l = e->prob == BM_PROB_FILL ? "F" : ""; led = e->prob == BM_PROB_FILL ? LED_ON : LED_DIM; }
+                if (mode == 3) {
+                    l = e->prob == BM_PROB_FILL ? "F" : e->prob == BM_PROB_NOFILL ? "-" : "";
+                    led = e->prob == BM_PROB_FILL ? LED_ON : e->prob == BM_PROB_NOFILL ? LED_DIM : LED_MID;
+                }
                 else if (mode == 0) { l = e->vel >= BM_VEL_ACC ? "A" : e->vel <= BM_VEL_GHOST ? "G" : ""; led = e->vel >= BM_VEL_ACC ? LED_ON : LED_MID; }
                 else if (mode == 1) { l = (e->len & BM_LEN_TIE) ? "TIE" : ""; led = (e->len & BM_LEN_TIE) ? LED_ON : LED_MID; }
                 else { l = "X"; led = LED_MID; }
@@ -662,7 +749,7 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
             if (on) {
                 int rat = (v & ST_FLAM) ? 4 : (v & ST_RAT_MASK) >> ST_RAT_SH;
                 int cond = (v & ST_COND_MASK) >> ST_COND_SH;
-                if (mode == 3) { l = cond == 1 ? "F" : cond == 2 ? "-" : ""; led = cond == 1 ? LED_ON : LED_DIM; }
+                if (mode == 3) { l = cond == 1 ? "F" : cond == 2 ? "-" : ""; led = cond == 1 ? LED_ON : cond == 2 ? LED_DIM : LED_MID; }
                 else if (mode == 0) { l = (v & ST_ACC) ? "A" : ""; led = (v & ST_ACC) ? LED_ON : LED_MID; }
                 else if (mode == 1) { l = RAT_NAMES[rat]; if (!rat) l = ""; led = rat ? LED_ON : LED_MID; }
                 else { l = "X"; led = LED_MID; }
@@ -673,14 +760,23 @@ static void map_steps(const bm_app *a, bm_keyfn *K, int mode)
     }
 }
 
-static void map_lanes(const bm_app *a, bm_keyfn *K, int t, uint16_t act)
+/* Las blancas como los 16 instrumentos. act: los sostenidos (ON).
+ * MUTE: con pasos y sonando MID y destella con cada golpe, muteado DIM, vacío OFF.
+ * ERASE: con pasos MID (muteado o no), vacío OFF (no hay nada que borrar).
+ * ROLL: todos suenan: vacío DIM, con pasos MID, y destellan. */
+enum { LM_MUTE, LM_ERASE, LM_ROLL };
+
+static void map_lanes(const bm_app *a, bm_keyfn *K, int t, uint16_t act, int mode)
 {
     const bm_tr *tr = bm_trk_trc(&a->pat, t);
     for (int w = 0; w < 16; w++) {
-        char b[6];
-        snprintf(b, sizeof b, "%.4s", bm_lane_name(a, t, w));
-        uint8_t led = (act >> w) & 1 ? LED_ON : ((tr->mute >> w) & 1 ? LED_OFF : LED_MID);
-        KW(K, w, b, led, bm_track_color(t));
+        bool has = lane_has(tr, w), mute = (tr->mute >> w) & 1;
+        uint8_t led, live = 0;
+        if (mode == LM_MUTE) { led = has ? (mute ? LED_DIM : LED_MID) : LED_OFF; live = (uint8_t)(has && lane_live(a, t, w)); }
+        else if (mode == LM_ERASE) led = has ? LED_MID : LED_OFF;
+        else { led = has ? LED_MID : LED_DIM; live = lane_live(a, t, w); }
+        if ((act >> w) & 1) led = LED_ON;
+        KW(K, w, lane_short(a, t, w), led, bm_track_color(t))->live = live;
     }
 }
 
@@ -700,6 +796,9 @@ static void map_chords(const bm_app *a, bm_keyfn *K)
     for (int b = 0; b < 4; b++) KB(K, b, MODS[b], (a->chord_mod >> b) & 1 ? LED_ON : LED_DIM, C_YELLOW);
 }
 
+/* Las pistas del visor de cada capa: la línea 1 dice qué hacen teclas y perillas, la 2 empieza
+ * siempre por cómo se sale. CONTROL = VERBO OBJETO, dos espacios entre pares, hasta 38 letras, los
+ * controles con el nombre impreso en el equipo. */
 void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2)
 {
     memset(K, 0, sizeof(bm_keyfn) * BM_KEYS);
@@ -714,107 +813,112 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
     switch (L) {
     case L_HOME:
         snprintf(title, (size_t)cap, "HOME");
-        *h1 = "WHITE = QUEUE PATTERN - TWO = CHAIN";
-        *h2 = "BLACK = MUTE, HOLD = SOLO - F = FILL";
+        *h1 = "WHITE = CUE PATTERN  BLACK 1-6 = MUTE";
+        *h2 = "EXIT: RELEASE HOME  HOLD BLACK = SOLO";
         map_home(a, K);
         return;
     case L_LEN: {
         snprintf(title, (size_t)cap, "LENGTH AND SPEED");
         *color = bm_track_color(t);
-        *h1 = "WHITE = LENGTH - BLACKS 1-6 = SPEED";
-        *h2 = "BLACKS 7-10 = 1-4 BARS - OCT-/+ = 17-64";
+        *h1 = "WHITE = SET LENGTH  OCT-/OCT+ = PAGE";
+        *h2 = "EXIT: RELEASE SEQ  BLACK 1-6 = SPEED";
         int len = bm_trk_len(&a->pat, t, kind == KIND_NOTE ? -1 : tr_lane(a));
         for (int w = 0; w < 16; w++) {
             int v = a->len_page * 16 + w + 1;
             snprintf(b, sizeof b, "%d", v);
-            KW(K, w, b, v == len ? LED_BLINK : (v <= len ? LED_ON : LED_DIM), bm_track_color(t));
+            KW(K, w, b, v == len ? LED_ON : (v < len ? LED_MID : LED_DIM), bm_track_color(t));
         }
         static const char *const SP[SPD_COUNT] = {"X2", "3/2", "X1", "3/4", "1/2", "1/4"};
         for (int s = 0; s < SPD_COUNT; s++) KB(K, s, SP[s], a->pat.trk[t].speed == s ? LED_ON : LED_DIM, C_WHITE);
         int spb = BM_BAR_TICKS / bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
-        for (int c = 1; c <= 4; c++) { snprintf(b, sizeof b, "%dC", c); KB(K, 5 + c, b, len == c * spb ? LED_ON : LED_DIM, C_YELLOW); }
+        for (int c = 1; c <= 4; c++) { snprintf(b, sizeof b, "%dBR", c); KB(K, 5 + c, b, len == c * spb ? LED_ON : LED_DIM, C_YELLOW); }
         return;
     }
     case L_ERASE:
         snprintf(title, (size_t)cap, "ERASE");
         *color = C_RED;
-        *h1 = app_playing(a) ? "PLAYING: HELD WHITE ERASES AS IT PASSES" : "STOPPED: WHITE ERASES THE LINE OR STEP";
-        *h2 = "OCT- UNDO - OCT+ REDO";
-        if (kind == KIND_TR) map_lanes(a, K, t, a->erase_mask);
+        *h1 = app_playing(a) ? "HOLD WHITE = ERASE LIVE  OCT+ = REDO"
+            : kind == KIND_TR ? "WHITE = ERASE INSTRUMENT  OCT+ = REDO" : "WHITE = ERASE STEP  OCT+ = REDO";
+        *h2 = "EXIT: RELEASE EDIT  OCT- = UNDO";
+        if (kind == KIND_TR) map_lanes(a, K, t, a->erase_mask, LM_ERASE);
         else map_steps(a, K, 2);
         KB(K, 0, "CPY", LED_DIM, C_WHITE); KB(K, 1, "PST", LED_DIM, C_WHITE); KB(K, 2, "CLR", LED_DIM, C_RED);
-        if (t == 1) KB(K, 3, "CAPT", LED_ON, C_YELLOW);
+        if (t == 1) KB(K, 3, "CAPT", LED_DIM, C_YELLOW);
         return;
     case L_ACC:
         snprintf(title, (size_t)cap, "ACCENT");
-        *h1 = "WHITE = ACCENT ON / OFF - EMPTY STEP = NEW";
-        *h2 = kind == KIND_NOTE ? "ON NOTES: NORMAL > ACCENT > GHOST" : "WORKS WITH REPEAT, FLAM AND CONDITION";
+        *h1 = kind == KIND_NOTE ? "WHITE = CYCLE ACCENT AND GHOST" : "WHITE = TOGGLE ACCENT";
+        *h2 = "EXIT: RELEASE ENV  OCT+ = NEXT PAGE";
         map_steps(a, K, 0);
         return;
     case L_REP:
         snprintf(title, (size_t)cap, kind == KIND_NOTE ? "TIE" : "REPEAT");
         *color = C_YELLOW;
-        *h1 = kind == KIND_NOTE ? "WHITE = TIE THE NOTE TO THE NEXT ONE" : "WHITE = X1 > X2 > X3 > X4 > FLAM";
-        *h2 = kind == KIND_NOTE ? "K1 SETS THE GLIDE" : "LIKE STEP + ALGORITHM, BY PAINTING";
+        *h1 = kind == KIND_NOTE ? "WHITE = TIE TO NEXT NOTE  K1 = GLIDE" : "WHITE = CYCLE X1-X4 AND FLAM";
+        *h2 = "EXIT: RELEASE LFO  OCT+ = NEXT PAGE";
         map_steps(a, K, 1);
         return;
     case L_PUNCH:
         snprintf(title, (size_t)cap, "PUNCH-IN");
         *color = C_RED;
-        *h1 = "WHITES = 16 EFFECTS, QUANTIZED TO 1/16";
-        *h2 = "BLACKS 1-6 STILL MUTE";
+        *h1 = "WHITE = PLAY EFFECT  BLACK 1-6 = MUTE";
+        *h2 = "EXIT: RELEASE FX";
         for (int w = 0; w < 16; w++) KW(K, w, PUNCH_NAMES[w], a->ctx.st.punch == w ? LED_ON : (a->ctx.arena_busy && w <= 6 ? LED_OFF : LED_DIM), C_YELLOW);
-        for (int i = 0; i < BM_TRACKS; i++) { snprintf(b, sizeof b, "T%d", i + 1); KB(K, i, b, a->pat.trk[i].mute ? LED_OFF : LED_ON, bm_track_color(i)); }
+        for (int i = 0; i < BM_TRACKS; i++) {
+            bool mute = a->pat.trk[i].mute != 0;
+            snprintf(b, sizeof b, "T%d", i + 1);
+            KB(K, i, b, mute ? LED_DIM : LED_MID, bm_track_color(i))->live = (uint8_t)(!mute && a->now < a->trig_until[i]);
+        }
         return;
     case L_CHORDS:
         snprintf(title, (size_t)cap, "CHORDS");
         *color = C_GREEN;
-        *h1 = "WHITES = 16 CHORDS - BLACKS 1-4 MODIFY";
-        *h2 = "BLUE REST - GREEN BUILD - ORANGE TENSION";
+        *h1 = "WHITE = PLAY CHORD  BLACK 1-4 = EXTEND";
+        *h2 = "EXIT: RELEASE SCL";
         map_chords(a, K);
         return;
     case L_ARP: case L_ROLL:
         if (L == L_ROLL) {
             snprintf(title, (size_t)cap, "ROLL %s", bm_roll_names[a->roll_rate % 5]);
             *color = bm_track_color(t);
-            *h1 = "WHITE = REPEATS WHILE HELD";
-            *h2 = a->rec ? "REC: RECORDED AS REPEATS" : "K1 = ROLL SPEED";
-            map_lanes(a, K, t, a->roll_mask);
+            *h1 = "HOLD WHITE = ROLL  K1 = ROLL SPEED";
+            *h2 = a->rec ? "EXIT: RELEASE ARP  REC IS RECORDING" : "EXIT: RELEASE ARP";
+            map_lanes(a, K, t, a->roll_mask, LM_ROLL);
         } else {
             snprintf(title, (size_t)cap, "ARPEGGIO");
             *color = bm_track_color(t);
-            *h1 = "HOLD A CHORD: ARPEGGIATED IN TEMPO";
-            *h2 = "RELEASE ARP AND IT STOPS";
+            *h1 = "HOLD KEYS = ARPEGGIATE IN TEMPO";
+            *h2 = "EXIT: RELEASE ARP";
             for (int k = 0; k < BM_KEYS; k++) {
                 int note = BM_KEY_BASE_NOTE + k + 12 * a->oct;
                 snprintf(K[k].label, sizeof K[k].label, "%s", bm_note_names[note % 12]);
-                K[k].led = a->keys_down[k] ? LED_ON : LED_OFF; K[k].color = bm_track_color(t);
+                K[k].led = LED_DIM; K[k].color = bm_track_color(t);
             }
         }
         return;
     case L_COPY:
         snprintf(title, (size_t)cap, "COPY PATTERN");
         *color = C_YELLOW;
-        *h1 = "WHITE = PASTE THERE - BLACK + WHITE = ONE TRACK";
-        *h2 = "IF THE TARGET HAS NOTES: OCT+ YES, HOME NO";
+        *h1 = "WHITE = PASTE  BLACK+WHITE = ONE TRACK";
+        *h2 = "EXIT: RELEASE SAVE";
         for (int w = 0; w < 16; w++) {
             snprintf(b, sizeof b, "%02d", w + 1);
-            KW(K, w, b, w == a->ctx.st.pattern ? LED_ON : (bm_store_has(&a->store, (uint8_t)w) ? LED_MID : LED_OFF), C_YELLOW);
+            KW(K, w, b, w == a->ctx.st.pattern ? LED_ON : (bm_store_has(&a->store, (uint8_t)w) ? LED_MID : LED_DIM), C_YELLOW);
         }
         for (int i = 0; i < BM_TRACKS; i++) {
             snprintf(b, sizeof b, "T%d", i + 1);
-            KB(K, i, b, a->keys_down[bm_black_key(i)] ? LED_ON : LED_DIM, bm_track_color(i));
+            KB(K, i, b, LED_DIM, bm_track_color(i));                    /* sostenida: ON (app_leds) */
         }
         return;
     case L_TONE:
         snprintf(title, (size_t)cap, "TRANSPOSE");
         *color = C_CYAN;
-        *h1 = "THE KEYS TRANSPOSE THE PROJECT - C4 = 0";
-        *h2 = "PLAY = TAP TEMPO, WITHOUT STOPPING";
+        *h1 = "KEYS = TRANSPOSE PROJECT  K2 = OCTAVE";
+        *h2 = "EXIT: RELEASE GLO  PLAY = TAP TEMPO";
         for (int k = 0; k < BM_KEYS; k++) {
             int off = k - 7;
-            if (off == 0) snprintf(K[k].label, sizeof K[k].label, "0"); else snprintf(K[k].label, sizeof K[k].label, "%+d", off);
-            K[k].led = (24 + off == m->transpose) ? LED_ON : (off == 0 ? LED_DIM : LED_OFF);
+            snprintf(K[k].label, sizeof K[k].label, off > 0 ? "+%d" : "%d", off);   /* el snprintf del SDK no tiene %+d */
+            K[k].led = (24 + off == m->transpose) ? LED_ON : (off == 0 ? LED_MID : LED_DIM);
             K[k].color = C_CYAN;
         }
         return;
@@ -823,23 +927,16 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         snprintf(title, (size_t)cap, fill ? "FILL" : "MUTE INSTRUMENTS");
         *color = fill ? C_ORANGE : bm_track_color(t);
         if (fill) {
-            *h1 = kind == KIND_TR ? "FILL PLAYS - WHITE = HIT ONLY IN THE FILL" : "FILL PLAYS - WHITE = NOTE ONLY IN THE FILL";
-            *h2 = a->layer_latch ? "BLACK 11 OR HOME = EXIT - K1 = AUTO FILL" : "RELEASE BLACK 11 TO GO BACK";
+            *h1 = kind == KIND_TR ? "WHITE = MAKE HIT FILL-ONLY" : "WHITE = MAKE NOTE FILL-ONLY";
+            *h2 = a->layer_latch ? "EXIT: BLACK 11 OR HOME  K1 = AUTO FILL" : "EXIT: RELEASE BLACK 11";
             map_steps(a, K, 3);
         } else {
-            *h1 = "WHITE = MUTE / UNMUTE THAT INSTRUMENT";
-            *h2 = a->layer_latch ? "BLACK 10 OR HOME = EXIT" : "RELEASE BLACK 10 TO GO BACK";
-            map_lanes(a, K, t, 0);
+            *h1 = "WHITE = TOGGLE MUTE  BLACK 1-8 = PLAY";
+            *h2 = a->layer_latch ? "EXIT: BLACK 10 OR HOME" : "EXIT: RELEASE BLACK 10";
+            map_lanes(a, K, t, 0, LM_MUTE);
         }
-        if (kind == KIND_TR) {                                       /* las negras siguen eligiendo instrumento */
-            for (int i = 0; i < 8; i++) {
-                int ln = (tr_lane(a) / 8) * 8 + i;
-                snprintf(b, sizeof b, "%.3s", bm_lane_name(a, t, ln));
-                KB(K, i, b, ln == tr_lane(a) ? LED_ON : LED_DIM, bm_track_color(t));
-            }
-            KB(K, 8, tr_lane(a) < 8 ? "9-16" : "1-8", LED_DIM, C_WHITE);
-        }
-        KB(K, fill ? 10 : 9, "EXIT", LED_BLINK, fill ? C_ORANGE : C_RED);
+        if (kind == KIND_TR) tr_blacks(a, K, t, false);              /* las negras siguen eligiendo instrumento */
+        KB(K, fill ? 10 : 9, "X", LED_BREATH, fill ? C_ORANGE : C_RED);   /* sostenida: ON (app_leds) */
         return;
     }
     default: break;
@@ -973,7 +1070,7 @@ static void play_key_down(bm_app *a, int k, int w, int b)
             bm_chord_name(root, sc, b, ext, a->chord_name, sizeof a->chord_name);
             bm_roman(root, sc, b, ext, a->chord_roman, sizeof a->chord_roman);
             play_notes(a, k, t, notes, n, 95, 1);
-        } else a->chord_mod |= (uint8_t)(1u << (b - 7));
+        } else { a->chord_mod |= (uint8_t)(1u << (b - 7)); a->key_role[k] = ROLE_CMOD; }
         return;
     }
     int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0);
@@ -1561,6 +1658,10 @@ static void key_release(bm_app *a, int k, int w, int b)
     case ROLE_PREVIEW:
         if (a->pad_key == k) { app_push(a, CMD_SMP_PREVIEW, 0, 0, 0); a->pad_key = -1; }
         break;
+    case ROLE_CMOD:                                         /* solo el modificador suelta su +7/+9/SUS: un acorde no */
+        if (b >= 0 && b < 4) a->chord_mod &= (uint8_t)~(1u << b);
+        else if (b >= 7 && b <= 10) a->chord_mod &= (uint8_t)~(1u << (b - 7));
+        break;
     case ROLE_LMUTE: case ROLE_FILLK:                       /* mantenida: era solo mientras la sostenías */
         if (a->layer_latch && a->now - a->key_t0[k] >= UI_HOLD_MS) key_screen_close(a);
         break;
@@ -1568,8 +1669,6 @@ static void key_release(bm_app *a, int k, int w, int b)
     }
     a->key_role[k] = ROLE_NONE;
     a->key_t0[k] = 0;
-    if (b >= 0 && b < 4) a->chord_mod &= (uint8_t)~(1u << b);
-    if (b >= 7 && b <= 10) a->chord_mod &= (uint8_t)~(1u << (b - 7));
     if (w >= 0) {
         if (a->roll_mask & (1u << w)) { a->roll_mask &= (uint16_t)~(1u << w); app_push_i(a, CMD_ROLL, a->track, (uint8_t)w, 0, 0); }
         a->erase_mask &= (uint16_t)~(1u << w);
@@ -1653,7 +1752,7 @@ static void layer_key(bm_app *a, int k, int w, int b)
         return;
     case L_CHORDS:
         if (w >= 0) play_pad(a, k, w);
-        else if (b < 4) a->chord_mod |= (uint8_t)(1u << b);
+        else if (b < 4) { a->chord_mod |= (uint8_t)(1u << b); a->key_role[k] = ROLE_CMOD; }
         return;
     case L_ARP: {
         int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0);
@@ -1726,7 +1825,7 @@ static void page_keys(bm_app *a, int k, int w, int b)
     case PG_SEQ: seq_keys(a, k, w, b); return;
     case PG_CHORDS:
         if (w >= 0) play_pad(a, k, w);
-        else if (b < 4) a->chord_mod |= (uint8_t)(1u << b);
+        else if (b < 4) { a->chord_mod |= (uint8_t)(1u << b); a->key_role[k] = ROLE_CMOD; }
         return;
     case PG_TAKES: {
         uint8_t src = bm_app_takes_sel(a);
@@ -3122,105 +3221,182 @@ static int page_button(int page)
     }
 }
 
-/* un carril de batería: el elegido al 100 %, con pasos al 50 %, con pasos pero muteado tenue,
- * sin pasos apagado */
-static uint8_t lane_led(const bm_tr *tr, int ln, int sel)
-{
-    if (ln == sel)
-        return LED_ON;
-    if (ln < 0 || ln >= BM_LANES)
-        return LED_OFF;
-    for (int s = 0; s < tr->lane[ln].len && s < BM_STEPS; s++)
-        if (tr->st[ln][s] & ST_ON)
-            return ((tr->mute >> ln) & 1) ? LED_DIM : LED_MID;
-    return LED_OFF;
-}
-
-/* Qué hace cada tecla ahora y cómo está su luz. Las luces del FM-1 son blancas: solo dicen si la
- * tecla está activa o disponible, así que la pantalla muestra estos mismos nombres (tira de teclas)
- * y la luz y el dibujo salen siempre de aquí. */
+/* Qué hace cada tecla ahora y cómo está su luz. Las luces del FM-1 son blancas: solo dicen el estado
+ * (la gramática está arriba, en el mapa del teclado), así que la pantalla muestra estos mismos nombres
+ * (tira de teclas) y la luz y el dibujo salen siempre de aquí. Dentro de un canal las teclas son la
+ * superficie de esa máquina; en HOME, la de la consola. */
 static void KL(bm_keyfn *K, int k, const char *l) { snprintf(K[k].label, sizeof K[k].label, "%s", l); }
 
-void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
+/* las notas que el canal t acaba de tocar desde sus pasos (para que destellen sus teclas) */
+static int live_notes(const bm_app *a, int t, uint8_t out[4])
+{
+    if (!(a->now < a->trig_until[t])) return 0;
+    int s = bm_app_track_step(a, t, -1), idx[4];
+    if (s < 0) return 0;
+    int n = syn_step_events(a, t, s, idx);
+    for (int i = 0; i < n; i++) out[i] = bm_evc(&a->pat, t, s, idx[i])->note;
+    return n;
+}
+
+static uint8_t note_in(int note, const uint8_t *nn, int n)
+{
+    for (int i = 0; i < n; i++) if (nn[i] == note) return 1;
+    return 0;
+}
+
+/* El teclado de un canal de notas fuera de SEQ: cromático (la escala DIM, la tónica MID, fuera de la
+ * escala OFF) o, con LOCK o en SCALE, la escala en las blancas y los acordes en las negras. */
+static void note_keys(const bm_app *a, bm_keyfn *K, int t)
+{
+    int root, sc = app_scale(a, t, &root), sl = bm_scale_len(sc);
+    uint8_t nn[4];
+    int nl = live_notes(a, t, nn);
+    uint16_t col = bm_track_color(t);
+    if (a->pat.meta.scale_lock || (a->view == V_CH && a->page == PG_SCL)) {
+        static const char *const R[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+        static const char *const X[4] = {"+7", "+9", "S2", "S4"};
+        for (int w = 0; w < 16; w++) {
+            int note = bm_scale_note(root, sc, w, base_oct(a, t));
+            KW(K, w, bm_note_names[note % 12], (w % sl) == 0 ? LED_MID : LED_DIM, col)->live = note_in(note, nn, nl);
+        }
+        for (int b = 0; b < 7; b++) KB(K, b, R[b], LED_DIM, col);
+        for (int b = 7; b < 11; b++) KB(K, b, X[b - 7], (a->chord_mod >> (b - 7)) & 1 ? LED_ON : LED_DIM, C_YELLOW);
+        return;
+    }
+    uint16_t pcs = 0;
+    for (int d = 0; d < sl; d++) pcs |= (uint16_t)(1u << (bm_scale_note(root, sc, d, 0) % 12));
+    for (int k = 0; k < BM_KEYS; k++) {
+        int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0), pc = (note + 120) % 12;
+        KL(K, k, bm_note_names[pc]);
+        K[k].led = pc == root ? LED_MID : ((pcs >> pc) & 1) ? LED_DIM : LED_OFF;
+        K[k].color = col;
+        K[k].live = note_in(note, nn, nl);
+    }
+}
+
+/* Las blancas de un canal de batería fuera de SEQ: los 16 instrumentos, como un selector */
+static void lane_whites(const bm_app *a, bm_keyfn *K, int t)
+{
+    const bm_tr *tr = bm_trk_trc(&a->pat, t);
+    for (int w = 0; w < 16; w++)
+        KW(K, w, lane_short(a, t, w), lane_led(tr, w, tr_lane(a)), bm_track_color(t))->live = (uint8_t)(lane_has(tr, w) && lane_live(a, t, w));
+}
+
+static void keys_fill(const bm_app *a, bm_keyfn K[BM_KEYS])
 {
     const bm_status *st = &a->ctx.st;
     int t = a->track, kind = app_kind(a, t);
-    char title[24]; uint16_t col; const char *h1, *h2;
+    char title[24], b8[8]; uint16_t col; const char *h1, *h2;
     bool mapped = a->layer || a->view == V_HOME || a->view == V_MIX || (a->view == V_CH && a->page == PG_CHORDS);
     if (mapped) { bm_app_keymap(a, K, title, sizeof title, &col, &h1, &h2); return; }
     memset(K, 0, sizeof(bm_keyfn) * BM_KEYS);
-    char b8[8];
-    for (int k = 0; k < BM_KEYS; k++) {
-        int w = bm_key_white_index(k), b = bm_key_black_index(k);
-        uint8_t l = LED_OFF;
-        if (a->view == V_CH && a->page == PG_SEQ) {
-            if (w >= 0) { snprintf(b8, sizeof b8, "%d", a->step_page * 16 + w + 1); KL(K, k, b8); }
+    if (a->view == V_SCENES) {                                          /* consola: escenas y canales */
+        static const char *const SL[8] = {"A", "B", "C", "D", "ST A", "ST B", "ST C", "ST D"};
+        for (int w = 0; w < 4; w++)
+            KW(K, w, SL[w], w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_MID : LED_OFF)), C_CYAN);
+        for (int w = 4; w < 8; w++) KW(K, w, SL[w], a->song.scene[w - 4].valid ? LED_MID : LED_DIM, C_CYAN);
+        home_blacks(a, K);
+        return;
+    }
+    if (a->view == V_SONG) {                                            /* blancas = agregar ese patrón */
+        int cur = a->song.n && a->song_cur < a->song.n && a->song.pat[a->song_cur] < 0x80 ? a->song.pat[a->song_cur] : -1;
+        for (int w = 0; w < 16; w++) {
+            bool has = bm_store_has(&a->store, (uint8_t)w) || w == st->pattern;
+            snprintf(b8, sizeof b8, "%02d", w + 1);
+            KW(K, w, b8, w == cur ? LED_ON : (has ? LED_MID : LED_DIM), C_WHITE);
+        }
+        KB(K, 8, "DEL", a->song.n ? LED_DIM : LED_OFF, C_RED);
+        return;
+    }
+    if (a->view != V_CH) {                                             /* las demás pantallas tocan el canal */
+        if (kind == KIND_NOTE) note_keys(a, K, t); else lane_whites(a, K, t);
+        return;
+    }
+    switch (a->page) {
+    case PG_SEQ:
+        for (int w = 0; w < 16; w++) {
+            int s = a->step_page * 16 + w;
+            uint8_t l = LED_OFF;
+            snprintf(b8, sizeof b8, "%d", s + 1);
             if (kind == KIND_NOTE) {
-                if (w >= 0) {
-                    int s = a->step_page * 16 + w, idx[4];
-                    if (s < a->pat.trk[t].length) {
-                        l = syn_step_events(a, t, s, idx) ? LED_ON : note_covers(a, t, s) ? LED_MID : LED_OFF;
-                        if (s == bm_app_track_step(a, t, -1)) l = LED_BLINK;
-                    }
-                } else if (b < 8) {
-                    int root, sc = app_scale(a, t, &root);
-                    KL(K, k, bm_note_names[bm_scale_note(root, sc, b, base_oct(a, t) + a->note_oct) % 12]);
-                    l = LED_DIM;
-                } else { KL(K, k, b == 8 ? "OCT-" : b == 9 ? "OCT+" : "FILL"); l = LED_OFF; }
+                int idx[4];
+                if (s < a->pat.trk[t].length) {
+                    l = syn_step_events(a, t, s, idx) ? LED_ON : note_covers(a, t, s) ? LED_MID : LED_OFF;
+                    if (s == bm_app_track_step(a, t, -1)) l = LED_BLINK;
+                }
             } else {
                 const bm_tr *tr = bm_trk_trc(&a->pat, t);
                 int lane = tr_lane(a);
-                if (w >= 0) {
-                    int s = a->step_page * 16 + w, len = tr->lane[lane].len;
-                    if (s < len) {
-                        uint8_t bb = tr->st[lane][s];
-                        l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_OFF;
-                        if (s == bm_app_track_step(a, t, lane)) l = LED_BLINK;
-                    }
-                } else if (b < 8) {
-                    int ln = (lane / 8) * 8 + b;
-                    snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, ln)); KL(K, k, b8);
-                    l = lane_led(tr, ln, lane);
-                } else {
-                    KL(K, k, b == 8 ? (lane < 8 ? "9-16" : "1-8") : b == 9 ? "MUTE" : "FILL");
-                    l = (b == 8 && lane >= 8) ? LED_ON : LED_DIM;
+                if (s < tr->lane[lane].len) {
+                    uint8_t bb = tr->st[lane][s];
+                    l = (bb & ST_ON) ? ((bb & ST_LOCK) ? LED_BREATH : LED_ON) : LED_OFF;
+                    if (s == bm_app_track_step(a, t, lane)) l = LED_BLINK;
                 }
             }
-        } else if (a->view == V_SCENES) {
-            static const char *const SL[8] = {"A", "B", "C", "D", "ST A", "ST B", "ST C", "ST D"};
-            if (w >= 0 && w < 8) KL(K, k, SL[w]);
-            if (w >= 0 && w < 4) l = w == st->scene ? LED_ON : (w == st->scene_q ? LED_BLINK : (a->song.scene[w].valid ? LED_MID : LED_OFF));
-            else if (w >= 4 && w < 8) l = LED_DIM;
-            else if (b >= 0 && b < 6) { snprintf(b8, sizeof b8, "T%d", b + 1); KL(K, k, b8); l = a->pat.trk[b].mute ? LED_OFF : LED_ON; }
-            else if (b >= 6 && b < 10) { snprintf(b8, sizeof b8, "%c", 'A' + b - 6); KL(K, k, b8); l = LED_DIM; }
-            else if (b == 10) { KL(K, k, "FILL"); l = LED_DIM; }
-        } else if (a->view == V_CH && a->page == PG_PADS) {
-            if (w >= 0) {
-                bool ok = bm_pad_ok(&a->pat.pad[w]);
-                snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8);
-                l = a->now < a->lane_flash[1][w] ? LED_ON : (w == (a->sel_lane[1] & 15) ? LED_MID : (ok ? LED_DIM : LED_OFF));
-            } else if (b >= 0 && b <= 3) {
-                static const char *const CB[4] = {"CPY", "PST", "CLR", "HIT"};
-                KL(K, k, CB[b]); l = LED_DIM;
-            } else if (b >= 8) { KL(K, k, b == 8 ? "REV" : b == 9 ? "HALF" : "STUT"); l = (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM; }
-        } else if (a->view == V_CH && a->page == PG_TAKES) {
-            if (w >= 0) { snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8); l = LED_DIM; }
-            else if (b >= 0 && b <= 3) { static const char *const TB[4] = {"HITS", "16", "8", "PAD"}; KL(K, k, TB[b]); l = b == 3 ? LED_MID : LED_DIM; }
-            else if (b == 10) { KL(K, k, "DEL"); l = LED_DIM; }
-        } else if (a->view == V_CH && a->page == PG_REC) {
-            if (w >= 0 && a->ctx.st.smp_unsaved && !a->ctx.st.smp_rec) { snprintf(b8, sizeof b8, "%d", w + 1); KL(K, k, b8); l = LED_DIM; }
-        } else if (a->view == V_CH && kind == KIND_TR) {
-            if (w >= 0) { snprintf(b8, sizeof b8, "%.4s", bm_lane_name(a, t, w)); KL(K, k, b8); l = lane_led(bm_trk_trc(&a->pat, t), w, tr_lane(a)); }
-        } else if (a->view == V_CH && kind == KIND_NOTE) {
-            int root, sc = app_scale(a, t, &root);
-            if (a->pat.meta.scale_lock || a->page == PG_SCL) {
-                if (w >= 0) { KL(K, k, bm_note_names[bm_scale_note(root, sc, w, base_oct(a, t)) % 12]); l = (w % bm_scale_len(sc)) == 0 ? LED_ON : LED_DIM; }
-                else if (b < 7) { static const char *const R[7] = {"I", "II", "III", "IV", "V", "VI", "VII"}; KL(K, k, R[b]); l = LED_DIM; }
-                else { static const char *const X[4] = {"+7", "+9", "SUS2", "SUS4"}; KL(K, k, X[b - 7]); }
-            } else KL(K, k, bm_note_names[(BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0) + 120) % 12]);
+            KW(K, w, b8, l, 0);
         }
-        K[k].led = l;
+        if (kind != KIND_NOTE) { tr_blacks(a, K, t, true); return; }
+        {
+            int root, sc = app_scale(a, t, &root), idx[4], n = 0;
+            if (a->held_step >= 0) n = syn_step_events(a, t, a->held_step, idx);
+            for (int b = 0; b < 8; b++) {                               /* grados: ON los que tiene el paso sostenido */
+                int note = bm_scale_note(root, sc, b, base_oct(a, t) + a->note_oct);
+                uint8_t l = LED_DIM;
+                for (int i = 0; i < n; i++) if (bm_evc(&a->pat, t, a->held_step, idx[i])->note == note) l = LED_ON;
+                KB(K, b, bm_note_names[note % 12], l, bm_track_color(t));
+            }
+            KB(K, 8, "O-", a->note_oct < 0 ? LED_ON : LED_DIM, C_WHITE);
+            KB(K, 9, "O+", a->note_oct > 0 ? LED_ON : LED_DIM, C_WHITE);
+            KB(K, 10, "FIL", a->fill ? LED_ON : LED_DIM, C_ORANGE);
+        }
+        return;
+    case PG_PADS:
+        for (int w = 0; w < 16; w++) {
+            snprintf(b8, sizeof b8, "%d", w + 1);
+            KW(K, w, b8, w == (a->sel_lane[1] & 15) ? LED_ON : (bm_pad_ok(&a->pat.pad[w]) ? LED_MID : LED_OFF), bm_track_color(1))->live =
+                (uint8_t)(a->now < a->lane_flash[1][w]);
+        }
+        {
+            static const char *const CB[4] = {"CPY", "PST", "CLR", "HIT"};
+            static const char *const FX[3] = {"REV", "HLF", "STU"};
+            for (int b = 0; b < 4; b++) KB(K, b, CB[b], LED_DIM, C_WHITE);
+            for (int b = 8; b < 11; b++) KB(K, b, FX[b - 8], (a->brk_live >> (b - 8)) & 1 ? LED_ON : LED_DIM, C_YELLOW);
+        }
+        return;
+    case PG_TAKES: {                                                    /* sin toma marcada no hacen nada */
+        uint8_t src = bm_app_takes_sel(a);
+        uint8_t l = src < BM_TAKES && a->take[src].valid ? LED_DIM : LED_OFF;
+        static const char *const TB[4] = {"HIT", "16", "8", "PAD"};
+        for (int w = 0; w < 16; w++) { snprintf(b8, sizeof b8, "%d", w + 1); KW(K, w, b8, l, C_WHITE); }
+        for (int b = 0; b < 4; b++) KB(K, b, TB[b], l, C_WHITE);
+        KB(K, 10, "DEL", l, C_RED);
+        return;
     }
+    case PG_REC:                                                        /* después de grabar: escuchar la toma */
+        if (st->smp_unsaved && !st->smp_rec)
+            for (int w = 0; w < 16; w++) { snprintf(b8, sizeof b8, "%d", w + 1); KW(K, w, b8, LED_DIM, C_RED); }
+        return;
+    default:
+        if (kind == KIND_NOTE) note_keys(a, K, t);
+        else { lane_whites(a, K, t); tr_blacks(a, K, t, true); }
+        return;
+    }
+}
+
+void bm_app_keys(const bm_app *a, bm_keyfn K[BM_KEYS])
+{
+    keys_fill(a, K);
+    if (!a->box_on) return;
+    /* el recuadro de SELECT/ALGORITHM abierto: parpadea la tecla del canal o instrumento al que vas */
+    int k = -1, t = a->track;
+    bool home = a->layer == L_HOME || (!a->layer && (a->view == V_HOME || a->view == V_MIX || a->view == V_SCENES));
+    if (a->box_mode == BOX_HOME && home) k = bm_black_key(a->box_track % BM_TRACKS);
+    else if (a->box_mode == BOX_LANE && !a->layer && a->view == V_CH && app_kind(a, t) == KIND_TR) {
+        int ln = a->box_lane & 15;
+        if (a->page == PG_SEQ) { if (ln / 8 == tr_lane(a) / 8) k = bm_black_key(ln % 8); }
+        else if (a->page != PG_PADS && a->page != PG_TAKES && a->page != PG_REC) k = bm_white_key(ln);
+    }
+    if (k >= 0 && K[k].label[0]) { K[k].led = LED_BLINK; K[k].live = 0; }
 }
 
 void app_leds(bm_app *a)
@@ -3257,5 +3433,6 @@ void app_leds(bm_app *a)
     }
     bm_keyfn K[BM_KEYS];
     bm_app_keys(a, K);
-    for (int k = 0; k < BM_KEYS; k++) led(a, BM_LED_KEY0 + k, a->keys_down[k] ? LED_ON : K[k].led);
+    for (int k = 0; k < BM_KEYS; k++)                         /* sostenida (si hace algo) o un golpe que suena: ON */
+        led(a, BM_LED_KEY0 + k, (a->keys_down[k] && K[k].label[0]) || K[k].live ? LED_ON : K[k].led);
 }

@@ -66,8 +66,9 @@ typedef struct {
 
 typedef struct { char name[10], val[10]; uint8_t pct, locked; } bm_legend;
 
-/* Mapa del teclado de una capa: lo que hace cada tecla, para dibujarlo y para los LEDs. */
-typedef struct { char label[6]; uint8_t led; uint16_t color; } bm_keyfn;
+/* Mapa del teclado de una capa: lo que hace cada tecla, para dibujarlo y para los LEDs.
+ * live: un golpe que suena ahora; la luz destella al 100 % encima de led. */
+typedef struct { char label[6]; uint8_t led, live; uint16_t color; } bm_keyfn;
 
 #define BM_JOBS 10
 enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD,

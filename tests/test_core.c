@@ -601,6 +601,29 @@ static void test_key_screens(void)
     black(9, 40);                                                /* un toque: queda abierta */
     CHECK(app.layer == L_LANEMUTE && app.layer_latch);
     shot("63-mutes");
+    {   /* luces de MUTE: con pasos y sonando MID (y destella con cada golpe), muteado DIM, vacío OFF */
+        bm_keyfn K[BM_KEYS];
+        int full = -1;
+        memset(app.pat.tr[0].st[15], 0, sizeof app.pat.tr[0].st[15]);          /* el 16 queda vacío */
+        for (int l = 0; l < 15 && full < 0; l++) {
+            if ((app.pat.tr[0].mute >> l) & 1) continue;
+            int len = app.pat.tr[0].lane[l].len ? app.pat.tr[0].lane[l].len : 16;
+            for (int s = 0; s < len; s++) if (app.pat.tr[0].st[l][s] & ST_ON) { full = l; break; }
+        }
+        CHECK(full >= 0);
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].led == LED_MID && K[bm_white_key(15)].led == LED_OFF);
+        CHECK(K[bm_black_key(9)].led == LED_BREATH && strcmp(K[bm_black_key(9)].label, "X") == 0);
+        app.lane_flash[0][full] = app.now + 90;                                 /* acaba de sonar */
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].live);
+        white(full, 40);                                                        /* muteado: tenue y sin destello */
+        app.lane_flash[0][full] = app.now + 90;
+        bm_app_keys(&app, K);
+        CHECK(K[bm_white_key(full)].led == LED_DIM && !K[bm_white_key(full)].live);
+        white(full, 40);
+        app.lane_flash[0][full] = 0;
+    }
     white(2, 40);                                                /* mutea el hat cerrado */
     CHECK((app.pat.tr[0].mute >> 2) & 1);
     white(2, 40);
@@ -638,6 +661,17 @@ static void test_key_screens(void)
     run_ms(500);
     CHECK(!app.box_on && app.sel_lane[0] == l0 + 2 && app.track == 0 && app.page == PG_INST);
     shot("66-home-guia");
+    /* LOCK de escala: soltar un acorde (negras 1-4) no suelta el +7 que sigue sostenido */
+    ch(3);
+    page(BTN_EDIT, PG_SOUND);
+    app.pat.meta.scale_lock = 1;
+    kdown(bm_black_key(7)); run_ms(40);
+    CHECK(app.chord_mod & 1);
+    black(0, 40);
+    CHECK(app.chord_mod & 1);
+    kup(bm_black_key(7)); run_ms(40);
+    CHECK(!(app.chord_mod & 1));
+    app.pat.meta.scale_lock = 0;
 }
 
 static void test_layers(void)

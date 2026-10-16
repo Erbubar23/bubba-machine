@@ -99,7 +99,7 @@ The palette: blue-black background, **cyan** for what is active, **amber** for v
 | **LFO** | The machine's LFO (B-MINI, BITTAL, BUNO-6). On machines without an LFO it **latches its layer**: repeat (BR-8, BP-1) or tie (BB-303, BX-7); LFO again or HOME closes it | — | **Repeat** (grids) · **tie** (notes) | — | — |
 | **FX** | The track's MIX | DUCK (sidechain) | **Punch-in** | — | Master FX: delay; again: reverb |
 | **SCL** | The track's SCALE | CHORDS | Live **chords** | — | Project scale |
-| **ARP** | The track's ARP | — | **Arpeggio** (notes) · **roll** (grids) | — | — |
+| **ARP** | Notes: the track's ARP. BR-8 and BP-1: the **ROLL** screen, kept open (ARP again or HOME closes it) | — | **Arpeggio** (notes) · **ROLL** while held (grids) | — | — |
 | **SAVE** | Save menu | Run it | **Copy pattern** | Quick save | Save as |
 | **GLO** | Global list | Close | **Pitch** and TAP tempo | — | — |
 | **REC** | Record (on the sampler: the recorder) | Looper: overdub › play | Record only while held | **Erase the track at once, no question** (for live use; HOME + OCT− undoes it). Not while anything is recording, nor on RECORD or TAKES. LOOP page: erase the loop | SONG REC |
@@ -204,6 +204,20 @@ The SEQ screen is a matrix: 16 instruments × the 16 steps of the page. Each lin
 
 **SOUND:** the kit's 16 pads; K1-K3 = tone, tuning and decay, K4 = COLOR (shifts each instrument's color). Changing the kit with PRESETS can be undone (HOME + OCT−).
 
+### ROLL (ARP)
+
+Like a drum machine's roll button. A tap on **ARP** keeps the screen open (ARP again or HOME closes it); holding ARP shows it only while held.
+
+| Control | Does |
+|---|---|
+| **White keys** | The 16 instruments: hold one and it rolls, locked to the bar. Lit medium if it has steps, dim if empty; every hit flashes |
+| **Black 1-6** | Rate: 1/8, 1/16, 1/32 and their triplets (8T, 16T, 32T) |
+| **Black 7 · 8** | **CRESC** (the roll gets louder) · **DECRESC** (it fades) |
+| **Black 11** | The fill plays while held: FILL + ROLL for the build-up |
+| **K1-K4** | **RATE** · ramp length of the crescendo (1/4 to 2 bars) · **SWING** (50-75 %) · **TAIL** (the roll keeps going after you let go: OFF, 1/16, 1/8, 1/4) |
+
+With **REC** on, the roll is written into the steps as repeats; with a crescendo, the loud hits become accents. The settings are live: they are not saved.
+
 ## Pad sampler (BP-1)
 
 T2 is a **16-pad sampler**, like a KO II or the drum sampler of an OP-1 field: each pad is a piece of one of your takes, and a grid just like the drums plays them.
@@ -230,7 +244,7 @@ Just like the drums: one line per pad, 8 on screen. Each pad has its own length.
 | **K1-K4** | **FILTER** (low-pass) · **PITCH** (±12 semitones) · **DECAY** · **START** (shifts the start of every pad) |
 | **Held step + K1-K4** | P-Lock on that step: a pad higher, shorter or from further in, only there |
 
-The layers work as on the drums: accent, repeat, erase, roll (ARP held) and per-line lengths in TIME.
+The layers work as on the drums: accent, repeat, erase, **ROLL** (ARP; the white keys are the pads) and per-line lengths in TIME. Inside ROLL, REC records what you play into the pattern, not a sample.
 
 ### PADS (EDIT): each pad's editor
 
@@ -325,7 +339,7 @@ While you hold, the screen draws the keyboard with what each key does and its LE
 | **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide). On machines without an LFO page a tap on LFO keeps this layer open |
 | **FX** | Punch-in | White = 16 effects quantized to 1/16 · black 1-6 still mute |
 | **SCL** | Chords | White = 16 chords · black 1-4 = +7, +9, SUS2, SUS4 |
-| **ARP** | Arpeggio · roll | Notes: what you play is arpeggiated · grids: white = roll that instrument or pad (K1 = rate; with REC it is recorded as repeats) |
+| **ARP** | Arpeggio · ROLL | Notes: what you play is arpeggiated · grids: the ROLL screen (see Drums): white = roll, black 1-6 = rate, 7-8 = CRESC / DECRESC, 11 = FILL; with REC it is recorded as repeats |
 | **SAVE** | Copy pattern | White = paste the pattern there · black (1-6) + white = only that track. If the target has notes, it asks |
 | **GLO** | Pitch | The whole keyboard transposes the project (C4 = 0) · **PLAY = TAP tempo** without stopping · K1 = BPM, K2 = SWING, K3 = transpose, K4 = octave |
 

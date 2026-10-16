@@ -44,8 +44,14 @@
 # core/bm_printf.c
 0123456789ABCDEF
 
+# core/bm_app.c
+1 BAR
+
 # core/bm_ui_draw.c
 1 BAR = %u.%u S
+
+# core/bm_app.c
+2 BARS
 
 # core/bm_input.c
 4 NOTES PER STEP
@@ -160,9 +166,6 @@ AVAILABLE
 
 # core/bm_pattern.c
 B-MINI
-
-# core/bm_ui_draw.c
-B-MINI, BITTAL AND BUNO-6 HAVE IT IN SOUND
 
 # core/bm_input.c
 BAR
@@ -422,6 +425,12 @@ CR
 # core/bm_params.c
 CRASH
 
+# core/bm_input.c
+CRE
+
+# core/bm_input.c core/bm_ui_draw.c
+CRESC
+
 # core/bm_input.c core/bm_params.c
 CUTOFF
 
@@ -443,8 +452,14 @@ DCO
 # core/bm_params.c
 DCO +
 
+# core/bm_input.c
+DEC
+
 # core/bm_input.c core/bm_params.c
 DECAY
+
+# core/bm_input.c core/bm_ui_draw.c
+DECRESC
 
 # core/bm_input.c
 DEL
@@ -597,13 +612,25 @@ EVERY 4
 EVERY 8
 
 # core/bm_input.c
+EXIT: ARP OR HOME  BLACK 11 = FILL
+
+# core/bm_input.c
+EXIT: ARP OR HOME  REC IS RECORDING
+
+# core/bm_input.c
 EXIT: BLACK 10 OR HOME
 
 # core/bm_input.c
 EXIT: BLACK 11 OR HOME  K1 = AUTO FILL
 
 # core/bm_input.c
+EXIT: LFO OR HOME  OCT+ = NEXT PAGE
+
+# core/bm_input.c
 EXIT: RELEASE ARP
+
+# core/bm_input.c
+EXIT: RELEASE ARP  BLACK 11 = FILL
 
 # core/bm_input.c
 EXIT: RELEASE ARP  REC IS RECORDING
@@ -807,9 +834,6 @@ HIT
 HLF
 
 # core/bm_ui_draw.c
-HOLD ARP + WHITE
-
-# core/bm_ui_draw.c
 HOLD ARP = LIVE ARPEGGIO
 
 # core/bm_ui_draw.c
@@ -828,9 +852,6 @@ HOLD GLO = TRANSPOSE, PLAY = TAP
 HOLD KEYS = ARPEGGIATE IN TEMPO
 
 # core/bm_ui_draw.c
-HOLD LFO = PAINT REPEATS (ON NOTES: TIES)
-
-# core/bm_ui_draw.c
 HOLD ONE + OTHERS = CHAIN
 
 # core/bm_ui_draw.c
@@ -840,7 +861,7 @@ HOLD REC = RECORD WHILE HELD
 HOLD WHITE = ERASE LIVE  OCT+ = REDO
 
 # core/bm_input.c
-HOLD WHITE = ROLL  K1 = ROLL SPEED
+HOLD WHITE = ROLL  BLACK 1-6 = RATE
 
 # core/bm_input.c
 HOME
@@ -1034,7 +1055,7 @@ LEVEL
 # core/bm_params.c
 LEVEL 2
 
-# core/bm_app.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_params.c
 LFO
 
 # core/bm_params.c
@@ -1045,9 +1066,6 @@ LFO RATE
 
 # core/bm_params.c
 LFO VCA
-
-# core/bm_input.c
-LFO: IN A FUTURE VERSION
 
 # core/bm_params.c
 LFO>DCO
@@ -1367,7 +1385,7 @@ OCTAVE %+d
 # core/bm_input.c
 OCTAVES
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_app.c core/bm_input.c core/bm_params.c core/bm_ui_draw.c
 OFF
 
 # core/bm_input.c
@@ -1611,6 +1629,9 @@ PWM BY
 QUICK SAVE
 
 # core/bm_input.c
+RAMP
+
+# core/bm_input.c
 RAND
 
 # core/bm_params.c core/bm_ui_draw.c
@@ -1733,8 +1754,17 @@ RIDE
 # core/bm_params.c
 RIM
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c
 ROLL
+
+# core/bm_input.c
+ROLL RATE
+
+# core/bm_input.c
+ROLL SWING
+
+# core/bm_input.c
+ROLL TAIL
 
 # core/bm_input.c
 ROOT
@@ -1915,9 +1945,6 @@ SPACE
 
 # core/bm_input.c
 SPEED
-
-# core/bm_ui_draw.c
-SPEED %s (K1)
 
 # core/bm_ui_draw.c
 SPLIT L/R
@@ -2125,6 +2152,9 @@ T3 IS NOW %s
 
 # core/bm_input.c core/bm_params.c
 TABLE
+
+# core/bm_input.c
+TAIL
 
 # core/bm_input.c
 TAKE

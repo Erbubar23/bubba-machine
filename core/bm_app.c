@@ -904,13 +904,13 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 const char *bm_page_name(int page)
 {
     static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "MORE", "BREAK", "TAKES", "ENV", "ARP", "LOOP",
-                                            "MIDI", "SCALE", "CHORDS", "LFO", "RECORD", "PADS"};
+                                            "MIDI", "SCALE", "CHORDS", "RECORD", "PADS"};
     return page < PG_COUNT ? N[page] : "";
 }
 
 int app_page_ok(const bm_app *a, int t, int page)
 {
-    if (page == PG_SCL || page == PG_CHORDS || page == PG_LFO) return 1;
+    if (page == PG_SCL || page == PG_CHORDS) return 1;
     if (page == PG_REC) return t == 1;
     uint8_t tabs[8];
     int n = bm_app_tabs(a, t, tabs);

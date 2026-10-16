@@ -766,6 +766,27 @@ static void test_layers(void)
     shot("42-layer-rep");
     up(BTN_LFO); run_ms(60);
     CHECK(((app.pat.tr[0].st[0][0] & ST_RAT_MASK) >> ST_RAT_SH) == 2);
+    /* BR-8 no tiene LFO: un toque deja abierta la capa REPETIR (respira), LFO otra vez o HOME la cierran */
+    {
+        bm_keyfn K[BM_KEYS]; char title[24]; uint16_t col; const char *h1, *h2;
+        btn(BTN_LFO, 30);
+        CHECK(app.layer == L_REP && app.layer_latch && app.view == V_CH && sim.leds[BTN_LFO] == LED_BREATH);
+        CHECK(sim.leds[BTN_HOME] == LED_MID);
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(strcmp(title, "REPEAT") == 0 && strncmp(h2, "EXIT: LFO OR HOME", 17) == 0);
+        white(0, 40);                                         /* abierta sin sostener: sigue pintando */
+        CHECK(((app.pat.tr[0].st[0][0] & ST_RAT_MASK) >> ST_RAT_SH) == 3);
+        btn(BTN_OCT_UP, 20);                                  /* OCT pasa páginas sin cerrarla */
+        CHECK(app.layer == L_REP && app.layer_latch);
+        btn(BTN_OCT_DN, 20);
+        btn(BTN_LFO, 30);                                     /* LFO otra vez: sale */
+        CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH && app.page == PG_SEQ);
+        btn(BTN_LFO, 30);
+        CHECK(app.layer == L_REP && app.layer_latch);
+        btn(BTN_HOME, 30);                                    /* HOME: sale, en el canal */
+        CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH);
+        CHECK(sim.leds[BTN_LFO] == LED_DIM);
+    }
     down(BTN_EDIT); run_ms(400);
     shot("21-erase");
     white(0, 40);                                             /* parado: borra la línea del bombo */
@@ -805,13 +826,29 @@ static void test_layers(void)
     CHECK(sim.leds[BTN_SEQ] == LED_OFF && sim.leds[BTN_SAVE] == LED_OFF);   /* en la pregunta, solo sí y no */
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(app.ask == ASK_NONE);
-    /* REC 2 s ya no borra el canal: borrar es EDIT sostenido + CLR (HOME + OCT- lo deshace) */
+    /* REC 2 s sin grabar nada: borra la pista al instante, sin preguntar (en vivo); HOME + OCT- la devuelve */
     ch(0);
-    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);
+    run_ms(100);
+    int hits0 = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s] & ST_ON) hits0++;
+    CHECK(hits0 > 0);
+    down(BTN_REC); run_ms(1500);
+    {
+        int hid = -1;
+        CHECK(bm_gesture_progress(&app.ges, app.now, &hid) >= 0 && hid == BTN_REC);   /* el anillo: ERASE T1 */
+        CHECK(sim.leds[BTN_REC] == LED_BLINK);
+    }
+    run_ms(1000); up(BTN_REC); run_ms(60);
     CHECK(app.ask == ASK_NONE && app.view == V_CH && !app.rec);
     any = 0;
     for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
-    CHECK(any);
+    CHECK(!any);
+    CHECK(strncmp(app.toast, "T1 ERASED", 9) == 0);
+    down(BTN_HOME); run_ms(40); btn(BTN_OCT_DN, 20); up(BTN_HOME); run_ms(60);
+    int hits1 = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s] & ST_ON) hits1++;
+    CHECK(hits1 == hits0);
+    /* EDIT sostenido + CLR también borra la pista */
     down(BTN_EDIT); run_ms(400);
     CHECK(app.layer == L_ERASE && sim.leds[BTN_EDIT] == LED_BREATH && sim.leds[BTN_SEQ] == LED_OFF);
     black(2, 40);                                             /* CLR */
@@ -1424,7 +1461,35 @@ static void test_notes(void)
     CHECK(app.rec);
     up(BTN_REC); run_ms(60);
     CHECK(!app.rec);
+    /* REC sostenido 2.5 s mientras graba notas: solo graba, nunca borra la pista */
+    int ev0 = 0, ev1 = 0;
+    for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) ev0 += !bm_event_empty(bm_evc(&app.pat, 2, s, k));
+    CHECK(ev0 > 0);
+    run_ms(100);
+    down(BTN_REC); run_ms(400);
+    CHECK(app.rec && app.rec_hold);
+    key(bm_white_key(4), 150);                                     /* una nota grabada */
+    run_ms(2000);
+    {
+        int hid = -1;
+        CHECK(bm_gesture_progress(&app.ges, app.now, &hid) < 0);   /* sin anillo: tocar canceló los 2 s */
+    }
+    up(BTN_REC); run_ms(60);
+    for (int s = 0; s < BM_STEPS; s++) for (int k = 0; k < BM_EVENTS; k++) ev1 += !bm_event_empty(bm_evc(&app.pat, 2, s, k));
+    CHECK(!app.rec);
+    CHECK(strncmp(app.toast, "T3 ERASED", 9) != 0);
+    CHECK(ev1 >= ev0 - 2);                                         /* la nota nueva puede reemplazar un paso, no borra la pista */
     btn(BTN_PLAY, 20);
+    /* BB-303 no tiene LFO: un toque deja abierta la capa LIGAR */
+    CHECK(strcmp(bm_track_name(&app, 2), "BB-303") == 0);
+    btn(BTN_LFO, 30);
+    {
+        bm_keyfn K[BM_KEYS]; char title[24]; uint16_t col; const char *h1, *h2;
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(app.layer == L_REP && app.layer_latch && strcmp(title, "TIE") == 0 && sim.leds[BTN_LFO] == LED_BREATH);
+    }
+    btn(BTN_LFO, 30);
+    CHECK(app.layer == L_NONE && !app.layer_latch);
 }
 
 /* ------------------------------------------------------------ guardado y versiones */

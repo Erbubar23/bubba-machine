@@ -23,8 +23,8 @@ void bm_gesture_init(bm_gesture *g, bm_gesture_cb cb, void *user)
     cfg(g, BTN_SEQ, 1, 1, 0, 1, UI_LONG_MS);          /* capa LARGO Y VELOCIDAD · 2 s: TIEMPO */
     cfg(g, BTN_EDIT, 1, 1, 0, 1, UI_LONG_MS);         /* capa BORRAR · 2 s: TOMAS / SONIDO INICIAL */
     cfg(g, BTN_SAVE, 1, 1, 0, 1, UI_LONG_MS);         /* capa COPIAR PATRON · 2 s: guardado rápido */
-    /* REC: mantener = grabar mientras. Sin 2 s fijos (sostener REC para grabar nunca borra la pista):
-     * solo la página LOOP los pide, con bm_gesture_set_long al bajar (2 s: borrar el loop). */
+    /* REC: mantener = grabar mientras. Sin 2 s fijos: bm_app_button los pide al bajar con
+     * bm_gesture_set_long (LOOP: borrar el loop; en un canal sin grabar nada: borrar la pista). */
 }
 
 void bm_gesture_set_long(bm_gesture *g, int id, uint16_t long_ms)

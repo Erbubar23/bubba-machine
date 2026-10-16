@@ -1493,14 +1493,6 @@ static void draw_env(bm_gfx *g, const bm_app *a)
     } else hint_s(g, PY + 86, "HOLD ENV = PAINT ACCENTS");
 }
 
-static void draw_lfo(bm_gfx *g, const bm_app *a)
-{
-    (void)a;
-    gfx_text_c(g, 120, 56, "LFO", C_WHITE, 3);
-    gfx_text_c(g, 120, 84, "B-MINI, BITTAL AND BUNO-6 HAVE IT IN SOUND", C_GREY, 1);
-    hint_s(g, 104, "HOLD LFO = PAINT REPEATS (ON NOTES: TIES)");
-}
-
 static void draw_fx(bm_gfx *g, const bm_app *a)
 {
     const bm_meta *m = &a->pat.meta;
@@ -2032,7 +2024,6 @@ static void draw_channel(bm_gfx *g, const bm_app *a)
     case PG_LOOP: draw_loop(g, a); break;
     case PG_SCL: draw_scl(g, a, 0); break;
     case PG_CHORDS: draw_chords(g, a, PY); break;
-    case PG_LFO: draw_lfo(g, a); break;
     case PG_REC: draw_rec(g, a); break;
     case PG_PADS: draw_pads(g, a); break;
     default: break;

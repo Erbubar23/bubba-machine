@@ -914,7 +914,7 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         snprintf(title, (size_t)cap, kind == KIND_NOTE ? "TIE" : "REPEAT");
         *color = C_YELLOW;
         *h1 = kind == KIND_NOTE ? "WHITE = TIE TO NEXT NOTE  K1 = GLIDE" : "WHITE = CYCLE X1-X4 AND FLAM";
-        *h2 = "EXIT: RELEASE LFO  OCT+ = NEXT PAGE";
+        *h2 = a->layer_latch ? "EXIT: LFO OR HOME  OCT+ = NEXT PAGE" : "EXIT: RELEASE LFO  OCT+ = NEXT PAGE";
         map_steps(a, K, 1);
         return;
     case L_PUNCH:
@@ -1238,8 +1238,24 @@ static void key_screen_open(bm_app *a, int k, int L)
 static void key_screen_close(bm_app *a)
 {
     if (a->layer == L_FILL) { app_push(a, CMD_FILL, 0, 0, 0); a->fill = 0; }
-    if (a->layer == L_FILL || a->layer == L_LANEMUTE) a->layer = L_NONE;
+    if (a->layer == L_FILL || a->layer == L_LANEMUTE || (a->layer_latch && a->layer == L_REP)) a->layer = L_NONE;
     a->layer_latch = 0;
+}
+
+/* LFO en una máquina sin página de LFO (BR-8, BP-1, BB-303, BX-7, MIDI): un toque deja abierta su
+ * capa de mantener (REPETIR en las de pasos, LIGAR en las de notas) hasta LFO otra vez o HOME. */
+static bool lfo_has_page(const bm_app *a, int t)
+{
+    return app_kind(a, t) == KIND_NOTE && !app_midi(a, t) && bm_engine_paged(app_engine(a, t));
+}
+
+static void lfo_latch(bm_app *a)
+{
+    if (a->layer) return;                                    /* nunca dos capas a la vez */
+    if (a->view != V_CH) app_enter(a, a->track, a->ch_page[a->track]);   /* la capa es de la máquina */
+    a->layer = L_REP;
+    a->layer_latch = 1;
+    a->ov.on = 0;
 }
 
 /* FILL: la blanca deja ese golpe (o esa nota) solo para el fill, u otra vez como siempre */
@@ -2052,8 +2068,9 @@ static void button_page(bm_app *a, int id)
         } else { if (cur == PG_ENV) a->env_page ^= 1; else a->env_page = 0; pg = PG_ENV; }
         break;
     case BTN_LFO:
-        if (kind == KIND_NOTE && !midi && bm_engine_paged(app_engine(a, t))) { a->ed_page[t] = (uint8_t)bm_engine_page_of(app_engine(a, t), EPG_LFO); pg = PG_SOUND; }
-        else pg = PG_LFO;
+        if (!lfo_has_page(a, t)) { lfo_latch(a); return; }     /* sin LFO: su capa queda abierta */
+        a->ed_page[t] = (uint8_t)bm_engine_page_of(app_engine(a, t), EPG_LFO);
+        pg = PG_SOUND;
         break;
     case BTN_FX:
         if (cur == PG_MIX) a->mix_page ^= 1; else a->mix_page = 0;
@@ -2158,6 +2175,30 @@ static int view_back(bm_app *a)
     return 1;
 }
 
+/* REC 2 s = borrar la pista del canal, en vivo y sin preguntar (HOME + OCT- lo deshace). Solo una
+ * pulsación que no graba nada: nunca en la GRABADORA (ahí sostener REC graba la mezcla), ni con la
+ * grabadora o una loopera grabando o armadas. Se mira al bajar REC y otra vez a los 2 s. */
+static bool rec_erase_ok(const bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    if (a->view != V_CH || a->layer || a->ask) return false;
+    if (a->page == PG_REC || a->page == PG_TAKES || a->page == PG_LOOP) return false;
+    if (st->smp_rec || st->smp_armed) return false;
+    for (int i = 0; i < BM_SYN_TRACKS; i++) {
+        int lm = st->loop_mode[i];
+        if (lm == LOOP_ARMED || lm == LOOP_REC || lm == LOOP_DUB) return false;
+    }
+    for (int k = 0; k < BM_KEYS; k++) if (a->keys_down[k]) return false;   /* una nota sostenida graba */
+    return true;
+}
+
+/* Mientras REC estuvo abajo, ¿se grabó algo? Cualquier cambio en el patrón (tecla, MIDI, perilla,
+ * roll, loopera: todo pasa por app_edited). Tocar una tecla o una perilla además cancela los 2 s. */
+static bool rec_hold_wrote(const bm_app *a)
+{
+    return (int32_t)(a->t_edit - a->ges.b[BTN_REC].t0) >= 0;
+}
+
 static void tap_tempo(bm_app *a)
 {
     if (a->tap_n && a->now - a->tap_t[(a->tap_n - 1) & 3] > 2000) a->tap_n = 0;
@@ -2196,14 +2237,18 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             if (id == BTN_HOME || id == BTN_OCT_DN) { app_toast(a, "CANCELED"); return; }
         }
     }
-    /* pantalla abierta con un toque (MUTE, FILL): HOME la cierra; otro botón la cierra y hace lo suyo.
-     * PLAY y OCT -/+ (páginas de pasos) no la cierran. */
+    /* pantalla abierta con un toque (MUTE, FILL, la capa de LFO): HOME la cierra; otro botón la cierra
+     * y hace lo suyo (LFO otra vez: solo la cierra). PLAY y OCT -/+ (páginas de pasos) no la cierran. */
     if (a->layer_latch && id != BTN_PLAY && id != BTN_OCT_DN && id != BTN_OCT_UP) {
         if (id == BTN_HOME) {
             if (k == G_TAP) { key_screen_close(a); return; }
             if (k == G_HOLD) key_screen_close(a);            /* y se abre la capa de HOME */
         }
-        else if (k == G_PRESS || k == G_TAP || k == G_HOLD) key_screen_close(a);
+        else if (k == G_PRESS || k == G_TAP || k == G_HOLD) {
+            bool same = id == BTN_LFO && k == G_TAP && a->layer == L_REP;
+            key_screen_close(a);
+            if (same) return;
+        }
     }
     char b[30];
     switch (id) {
@@ -2269,12 +2314,16 @@ void app_on_gesture(void *u, int id, bm_gkind k)
                 app_undo_snapshot(a, a->track);
             }
         } else if (k == G_RELEASE || k == G_LONG) {
+            bool wrote = k == G_LONG && rec_hold_wrote(a);   /* antes de soltar la grabación */
             if (a->rec_hold == 2) app_push(a, CMD_SMP_REC, 0, 0, 0);
             else if (a->rec_hold == 1) { a->rec = a->rec_before; app_push(a, CMD_REC, a->rec, 0, 0); }
             a->rec_hold = 0;
-            /* 2 s solo existen en LOOP (bm_app_button): borran el loop. La pista no se borra con
-             * REC: eso es EDIT sostenido + CLR. */
-            if (k == G_LONG && a->view == V_CH && a->page == PG_LOOP) { app_push(a, CMD_LOOP, a->track, 2, 0); app_toast(a, "LOOP ERASED"); }
+            if (k != G_LONG) return;
+            /* 2 s (bm_app_button decide al bajar si los hay): en LOOP borran el loop; en un canal,
+             * la pista, sin preguntar (en vivo) y con HOME + OCT- para deshacer. Si mientras lo
+             * sostenías se grabó algo, no se borra nada: sostener REC para grabar nunca borra. */
+            if (a->view == V_CH && a->page == PG_LOOP) { app_push(a, CMD_LOOP, a->track, 2, 0); app_toast(a, "LOOP ERASED"); }
+            else if (!wrote && rec_erase_ok(a)) app_clear_track(a, a->track);   /* toma la foto para deshacer */
         }
         return;
     case BTN_GLO:
@@ -2363,8 +2412,11 @@ void bm_app_button(bm_app *a, int id, int down, uint32_t now)
     if (id < 0 || id >= BTN_COUNT) return;
     uint16_t bit = (uint16_t)(1u << id);
     if (down && id != BTN_HOME && bm_gesture_is_down(&a->ges, BTN_HOME)) { a->home_mod |= bit; a->home_done &= (uint16_t)~bit; a->home_used = 1; }
-    if (down && id == BTN_REC)                       /* REC 2 s: solo en LOOP (borra el loop) */
-        bm_gesture_set_long(&a->ges, BTN_REC, (uint16_t)(a->view == V_CH && a->page == PG_LOOP && !a->layer ? UI_LONG_MS : 0));
+    if (down && id == BTN_REC) {                     /* REC 2 s: en LOOP borra el loop; en un canal, la pista */
+        bool lp = a->view == V_CH && a->page == PG_LOOP && !a->layer;
+        bool ers = !bm_gesture_is_down(&a->ges, BTN_HOME) && rec_erase_ok(a);
+        bm_gesture_set_long(&a->ges, BTN_REC, (uint16_t)(lp || ers ? UI_LONG_MS : 0));
+    }
     if (down) bm_gesture_down(&a->ges, id, now);
     else bm_gesture_up(&a->ges, id, now);
     if (!down) { a->home_mod &= (uint16_t)~bit; a->home_done &= (uint16_t)~bit; }
@@ -3078,7 +3130,6 @@ static void enc_channel(bm_app *a, int id, int d)
             else a->cut_snap = (uint8_t)bm_clampi(a->cut_snap + lst(a, d), 0, 2);
         } else pad_sound(a, k, d);
         return;
-    case PG_LFO: app_toast(a, "LFO: IN A FUTURE VERSION"); return;
     default: return;
     }
 mix:
@@ -3418,7 +3469,6 @@ static int page_button(const bm_app *a)
     case PG_MIX: return BTN_FX;
     case PG_SCL: case PG_CHORDS: return BTN_SCL;
     case PG_ARP: return BTN_ARP;
-    case PG_LFO: return BTN_LFO;
     default: return -1;
     }
 }

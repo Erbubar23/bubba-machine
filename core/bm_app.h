@@ -35,7 +35,7 @@ typedef enum {
 /* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
 typedef enum {
     PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
-    PG_SCL, PG_CHORDS, PG_LFO, PG_REC, PG_PADS, PG_COUNT
+    PG_SCL, PG_CHORDS, PG_REC, PG_PADS, PG_COUNT
 } bm_page;
 
 /* Capas en vivo (mantener un botón). */

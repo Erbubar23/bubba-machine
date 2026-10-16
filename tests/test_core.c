@@ -417,6 +417,202 @@ static void test_tr_features(void)
     CHECK(app.ctx.roll[0].mask == 0 && app.layer == L_NONE);
 }
 
+/* Golpes del instrumento lane de T(t+1) mientras corre el audio ms milisegundos (sin la UI, que
+ * baja lane_trig): cuántos, y la muestra y la velocidad de cada uno. */
+static int roll_hits(int t, int lane, uint32_t ms, uint32_t *at, uint8_t *vel, int cap)
+{
+    int n = 0;
+    uint32_t frames = ms * 44118u / 1000u, start = app.ctx.sample_clock;
+    app.ctx.st.lane_trig[t] = 0;
+    while (app.ctx.sample_clock - start < frames) {
+        bm_app_audio(&app, abuf, 16);
+        if (!(app.ctx.st.lane_trig[t] & (1u << lane))) continue;
+        if (n < cap) { at[n] = app.ctx.sample_clock; vel[n] = app.ctx.st.roll_vel[t]; }
+        n++;
+        app.ctx.st.lane_trig[t] = 0;
+    }
+    return n;
+}
+
+static void test_roll(void)
+{
+    printf("ROLL: ARP en T1/T2 (un toque la deja abierta), velocidades, swing, CRESC, cola y REC\n");
+    boot(1);
+    ch(0);
+    btn(BTN_ARP, 30);                                             /* un toque: abierta */
+    CHECK(app.layer == L_ROLL && app.layer_latch && app.view == V_CH && app.track == 0);
+    CHECK(sim.leds[BTN_ARP] == LED_BREATH && sim.leds[BTN_HOME] == LED_MID);
+    bm_keyfn K[BM_KEYS];
+    bm_app_keys(&app, K);
+    for (int w = 0; w < 16; w++) {                                /* con pasos MID, vacío DIM (igual hace roll) */
+        const bm_tr *tr = &app.pat.tr[0];
+        int len = tr->lane[w].len ? tr->lane[w].len : 16, has = 0;
+        for (int s = 0; s < len; s++) if (tr->st[w][s] & ST_ON) has = 1;
+        CHECK(K[bm_white_key(w)].led == (has ? LED_MID : LED_DIM));
+    }
+    CHECK(K[bm_black_key(1)].led == LED_ON && K[bm_black_key(0)].led == LED_DIM && K[bm_black_key(5)].led == LED_DIM);
+    CHECK(K[bm_black_key(6)].led == LED_DIM && K[bm_black_key(7)].led == LED_DIM && K[bm_black_key(10)].led == LED_DIM);
+    const char *s1, *s2, *s3;
+    bm_app_bigknobs(&app, &s1, &s2, &s3);
+    CHECK(!strcmp(s1, "-") && !strcmp(s2, "-") && !strcmp(s3, "-"));
+    bm_legend L[4];
+    bm_app_legend(&app, L);
+    CHECK(!strcmp(L[0].name, "RATE") && !strcmp(L[0].val, "1/16") && !strcmp(L[2].name, "SWING") && !strcmp(L[3].name, "TAIL"));
+    {
+        char title[24]; uint16_t col; const char *h1, *h2;
+        bm_app_keymap(&app, K, title, sizeof title, &col, &h1, &h2);
+        CHECK(!strcmp(title, "ROLL") && !strncmp(h2, "EXIT:", 5) && strlen(h1) <= 38 && strlen(h2) <= 38);
+    }
+    btn(BTN_ARP, 30);                                             /* ARP otra vez: cerrada */
+    CHECK(app.layer == L_NONE && !app.layer_latch);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_ROLL);
+    btn(BTN_HOME, 30);                                            /* HOME: cerrada, sigues en el canal */
+    CHECK(app.layer == L_NONE && !app.layer_latch && app.view == V_CH);
+    black(9, 40);                                                 /* MUTE abierta: ARP la cambia por ROLL */
+    CHECK(app.layer == L_LANEMUTE && app.layer_latch);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_ROLL && app.layer_latch);
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE);
+    down(BTN_ARP); run_ms(400);                                   /* sostener: solo mientras lo sostienes */
+    CHECK(app.layer == L_ROLL && !app.layer_latch);
+    up(BTN_ARP); run_ms(60);
+    CHECK(app.layer == L_NONE);
+    btn(BTN_ARP, 30);                                             /* abierta y luego sostener ARP: se cierra al soltar */
+    down(BTN_ARP); run_ms(400);
+    CHECK(app.layer == L_ROLL && !app.layer_latch);
+    up(BTN_ARP); run_ms(60);
+    CHECK(app.layer == L_NONE);
+
+    double fpt = BM_FS * 60.0 / (app.pat.meta.bpm_x10 / 10.0 * BM_PPQN);   /* muestras por tick */
+    uint32_t at[64]; uint8_t vel[64];
+    btn(BTN_ARP, 30);
+    black(4, 40);                                                 /* 1/16T: cada 16 ticks */
+    CHECK(app.roll_rate == 4);
+    kdown(bm_white_key(5));
+    int n = roll_hits(0, 5, 700, at, vel, 64);
+    CHECK(n >= 8);
+    int ok = 1;
+    for (int i = 1; i < n && i < 64; i++) if (fabs((double)(at[i] - at[i - 1]) - 16 * fpt) > 40) ok = 0;
+    CHECK(ok);
+    black(5, 40);                                                 /* 1/32T, con la tecla sostenida */
+    CHECK(app.roll_rate == 5);
+    n = roll_hits(0, 5, 300, at, vel, 64);
+    ok = n >= 8;
+    for (int i = 1; i < n && i < 64; i++) if (fabs((double)(at[i] - at[i - 1]) - 8 * fpt) > 40) ok = 0;
+    CHECK(ok);
+    kup(bm_white_key(5));
+    CHECK(roll_hits(0, 5, 300, at, vel, 64) == 0);                /* sin cola: soltar lo corta */
+
+    black(1, 40);                                                 /* 1/16 con swing 75 %: 36 + 12 ticks */
+    enc(ENC_K3, 25);
+    CHECK(app.roll_swing == 75 && app.ctx.roll_cfg.swing == 75);
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 800, at, vel, 64);
+    kup(bm_white_key(5));
+    ok = n >= 5;
+    for (int i = 2; i < n && i < 64; i++) {
+        double a1 = (double)(at[i - 1] - at[i - 2]), a2 = (double)(at[i] - at[i - 1]);
+        if (fabs(a1 + a2 - 48 * fpt) > 60 || fabs(fabs(a1 - a2) - 24 * fpt) > 60) ok = 0;
+    }
+    CHECK(ok);
+    enc(ENC_K3, -25);
+    CHECK(app.roll_swing == 50);
+    roll_hits(0, 5, 100, at, vel, 64);
+
+    black(6, 40);                                                 /* CRESC en 1/4: la velocidad sube hasta 127 */
+    enc(ENC_K2, -2);
+    CHECK(app.roll_ramp == 1 && app.roll_len == 0 && app.ctx.roll_cfg.ramp == 1 && app.ctx.roll_cfg.ramp_len == BM_PPQN);
+    bm_app_keys(&app, K);
+    CHECK(K[bm_black_key(6)].led == LED_ON && K[bm_black_key(7)].led == LED_DIM);
+    bm_app_legend(&app, L);
+    CHECK(!strcmp(L[1].name, "CRESC") && !strcmp(L[1].val, "1/4"));
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 900, at, vel, 64);
+    ok = n >= 6 && vel[0] < 70 && vel[n - 1] == 127;
+    for (int i = 1; i < n && i < 64; i++) if (vel[i] < vel[i - 1]) ok = 0;
+    CHECK(ok);
+    run_ms(UI_OVERLAY_MS + 100);                                  /* sin el aviso de la perilla */
+    shot("22b-roll-latched");
+    kup(bm_white_key(5));
+    black(7, 40);                                                 /* DECRESC: baja */
+    CHECK(app.roll_ramp == 2);
+    kdown(bm_white_key(5));
+    n = roll_hits(0, 5, 900, at, vel, 64);
+    kup(bm_white_key(5));
+    CHECK(n >= 6 && vel[0] > vel[n - 1] && vel[n - 1] == 24);
+    black(7, 40);
+    CHECK(app.roll_ramp == 0 && app.ctx.roll_cfg.ramp == 0);
+
+    enc(ENC_K4, 3);                                               /* cola de 1/4: 4 golpes de 1/16 más */
+    CHECK(app.roll_tail == 3 && app.ctx.roll_cfg.tail == BM_PPQN);
+    kdown(bm_white_key(5));
+    roll_hits(0, 5, 500, at, vel, 64);
+    kup(bm_white_key(5));
+    n = roll_hits(0, 5, 400, at, vel, 64);
+    CHECK(n >= 3 && n <= 5);
+    CHECK(roll_hits(0, 5, 300, at, vel, 64) == 0 && app.ctx.roll[0].tail_m == 0);
+    enc(ENC_K4, -3);
+
+    kdown(bm_black_key(10));                                      /* negra 11: el fill mientras la sostienes */
+    run_ms(60);
+    CHECK(app.fill && app.ctx.fill);
+    bm_app_keys(&app, K);
+    CHECK(K[bm_black_key(10)].led == LED_ON);
+    kup(bm_black_key(10));
+    run_ms(60);
+    CHECK(!app.fill && !app.ctx.fill && app.layer == L_ROLL);
+
+    /* REC: el roll se graba como pasos con repetición, y CRESC como acentos */
+    int lane = -1;
+    for (int w = 0; w < 16 && lane < 0; w++) {
+        int any = 0;
+        for (int s = 0; s < BM_STEPS; s++) if (app.pat.tr[0].st[w][s]) any = 1;
+        if (!any) lane = w;
+    }
+    CHECK(lane >= 0);
+    if (lane < 0) lane = 15;
+    btn(BTN_PLAY, 20);
+    btn(BTN_REC, 30);                                             /* REC no cierra ROLL */
+    CHECK(app.rec && app.layer == L_ROLL && app.layer_latch);
+    black(2, 40);                                                 /* 1/32 = x2 por paso */
+    black(6, 40);                                                 /* CRESC */
+    kdown(bm_white_key(lane));
+    run_ms(1100);
+    kup(bm_white_key(lane));
+    run_ms(60);
+    btn(BTN_REC, 30);
+    btn(BTN_PLAY, 20);
+    int on = 0, rat = 0, acc = 0, flat = 0;
+    for (int s = 0; s < 16; s++) {
+        uint8_t b = app.pat.tr[0].st[lane][s];
+        if (!(b & ST_ON)) continue;
+        on++;
+        if (((b & ST_RAT_MASK) >> ST_RAT_SH) == 1) rat++;
+        if (b & ST_ACC) acc++; else flat++;
+    }
+    CHECK(on >= 6 && rat >= 6 && acc >= 1 && flat >= 1);
+    black(6, 40);
+    btn(BTN_ARP, 30);
+    CHECK(app.layer == L_NONE && app.roll_mask == 0);
+
+    /* T2 (pads): lo mismo; REC en ROLL graba lo que tocas, no abre la grabadora */
+    ch(1);
+    btn(BTN_ARP, 30);
+    CHECK(app.track == 1 && app.layer == L_ROLL && app.layer_latch);
+    btn(BTN_REC, 30);
+    CHECK(app.rec && app.page != PG_REC && app.layer == L_ROLL && !app.ctx.st.smp_armed);
+    btn(BTN_REC, 30);
+    CHECK(!app.rec);
+    kdown(bm_white_key(3));
+    run_ms(100);
+    CHECK(app.ctx.roll[1].mask == (1u << 3));
+    kup(bm_white_key(3));
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE && app.ctx.roll[1].mask == 0);
+}
+
 static void test_voices(void)
 {
     printf("voces: pool de 7 con robo y fade\n");
@@ -1964,6 +2160,7 @@ int main(int argc, char **argv)
     test_gesture();
     test_timing();
     test_tr_features();
+    test_roll();
     test_voices();
     test_navigation();
     test_home();

@@ -54,7 +54,7 @@ typedef enum {
     CMD_CLOCK,          /* a=0 interno, 1 externo */
     CMD_MIDI,           /* a=byte MIDI entrante */
     CMD_ARP,            /* a=pista b=0/1 (capa ARP) */
-    CMD_ROLL,           /* a=canal de rejilla b=línea c=0/1 i=ticks entre golpes */
+    CMD_ROLL,           /* a=canal de rejilla b=línea c=0/1 (0: sigue la cola) i=ticks entre golpes (0 = los mismos) */
     CMD_REC,            /* a=0/1: grabación en vivo (para el roll) */
     CMD_LOOP,           /* a=pista synth b=acción (1 REC, 2 borrar, 3 on/off, 4 compases=c) */
     CMD_STRUM,          /* a=pista b=n c=vel i=notas empaquetadas (4 x 8 bit) */
@@ -63,7 +63,8 @@ typedef enum {
     CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
     CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
     CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
-    CMD_PAD_KEY         /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
+    CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
+    CMD_ROLL_CFG        /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
 } bm_cmd_type;
 
 typedef struct {
@@ -137,6 +138,7 @@ typedef struct {
     volatile uint8_t loop_mode[BM_SYN_TRACKS];
     volatile uint16_t loop_pos[BM_SYN_TRACKS];
     volatile uint16_t edits;            /* el audio editó el patrón (roll/loopera grabando) */
+    volatile uint8_t roll_vel[BM_TR_TRACKS];   /* velocidad del último golpe del roll */
 } bm_status;
 
 /* ------------------------------------------------------------ voces y motores */
@@ -240,7 +242,10 @@ typedef struct bm_ctx {
     uint32_t ext_last, ext_budget, ext_seen;
     struct { uint8_t note, tie; uint16_t ticks; } gate[BM_SYN_TRACKS][BM_EVENTS];
     bm_retrig rq[BM_TRACKS][16];
-    struct { uint16_t mask; uint8_t rate; } roll[BM_TRACKS];
+    /* ROLL de las rejillas (T1, T2): mask = instrumentos sostenidos, tail_m = sonando la cola tras
+     * soltarlos; age = ticks desde que empezó cada uno (la rampa de CRESC / DECRESC) */
+    struct { uint16_t mask, tail_m; uint8_t rate; uint8_t tail[BM_LANES]; uint16_t age[BM_LANES]; } roll[BM_TR_TRACKS];
+    struct { uint8_t ramp, swing, tail; uint16_t ramp_len; } roll_cfg;
     bm_looper lp[BM_SYN_TRACKS];
     bm_arp arp[BM_TRACKS];
     bm_strum strum[8];

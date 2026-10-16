@@ -547,30 +547,56 @@ static void arp_tick(bm_ctx *c)
     }
 }
 
+/* ROLL (capa de ARP en T1 y T2): cada instrumento sostenido se repite a su velocidad, en fase con el
+ * compás (con PLAY) y con su propio swing; CRESC / DECRESC llevan la velocidad del golpe de ROLL_LO
+ * a 127 (o al revés) en ramp_len ticks, y al soltar sigue sonando la cola. */
+#define ROLL_LO  24
+#define ROLL_ACC 112                                  /* con rampa, desde aquí se graba como acento */
+
+static int roll_vel(const bm_ctx *c, int t, uint16_t age)
+{
+    int len = c->roll_cfg.ramp_len, r = c->roll_cfg.ramp;
+    if (!r || !len) return bm_vel(c, t, 0);
+    int p = age >= len ? 256 : age * 256 / len;
+    if (r == 2) p = 256 - p;
+    return ROLL_LO + (127 - ROLL_LO) * p / 256;
+}
+
 static void roll_tick(bm_ctx *c)
 {
-    for (int t = 0; t < BM_TRACKS; t++) {
-        uint16_t m = c->roll[t].mask;
+    for (int t = 0; t < BM_TR_TRACKS; t++) {
+        uint16_t m = c->roll[t].mask | c->roll[t].tail_m;
         uint8_t rate = c->roll[t].rate;
-        if (!m || !rate || c->st.free_ticks % rate || !bm_is_grid(c->pat, t)) continue;
+        if (!m || !rate || !bm_is_grid(c->pat, t)) continue;
+        uint32_t ph = c->playing ? c->btick : c->st.free_ticks;
+        uint32_t n = ph / rate, r = ph - n * rate;
+        int swg = bm_clampi(c->roll_cfg.swing, 50, 75);
+        uint32_t sw = (uint32_t)((2 * rate * swg) / 100 - rate);
+        bool hit = r == ((n & 1) ? sw : 0);
         int tps = bm_track_tps(c, t);
         for (int l = 0; l < BM_LANES; l++) {
-            if (!(m & (1u << l))) continue;
-            c->eng[t].vt->note_on(&c->eng[t], (uint8_t)l, 100);
-            if (t != 1) c->st.lane_trig[t] |= (uint16_t)(1u << l);
-            if (c->rec && c->playing) {               /* se graba como pasos con repetición */
+            uint16_t bit = (uint16_t)(1u << l);
+            if (!(m & bit)) continue;
+            uint16_t age = c->roll[t].age[l];
+            if (age < 0xFFFF) c->roll[t].age[l] = (uint16_t)(age + 1);
+            if ((c->roll[t].tail_m & bit) && (!c->roll[t].tail[l] || --c->roll[t].tail[l] == 0)) c->roll[t].tail_m &= (uint16_t)~bit;
+            if (!hit) continue;
+            int vel = roll_vel(c, t, age);
+            c->eng[t].vt->note_on(&c->eng[t], (uint8_t)l, (uint8_t)vel);
+            if (t != 1) c->st.lane_trig[t] |= bit;    /* los pads lo marcan solos (si el pad suena) */
+            c->st.roll_vel[t] = (uint8_t)vel;
+            if (c->rec && c->playing) {               /* se graba como pasos con repetición (y acentos) */
                 bm_tr *tr = bm_trk_tr(c->pat, t);
-                int ln = t == 1 ? l + 1 : l;          /* sampler: el slice l se fija en la línea l+1 */
-                if (ln >= BM_LANES) continue;
-                int len = tr->lane[ln].len ? tr->lane[ln].len : 16;
+                int len = tr->lane[l].len ? tr->lane[l].len : 16;
                 int s = (int)(((c->rtick + (uint32_t)tps / 2) / (uint32_t)tps) % (uint32_t)len);
-                uint8_t b = (uint8_t)(tr->st[ln][s] | ST_ON);
+                uint8_t b = (uint8_t)(tr->st[l][s] | ST_ON);
                 if (rate < tps) {
                     int rat = tps / rate; if (rat > 4) rat = 4;
                     int cur = ((b & ST_RAT_MASK) >> ST_RAT_SH) + 1;
                     if (rat > cur) b = (uint8_t)((b & ~ST_RAT_MASK) | ((rat - 1) << ST_RAT_SH));
                 }
-                tr->st[ln][s] = b;
+                if (c->roll_cfg.ramp) b = (uint8_t)(vel >= ROLL_ACC ? (b | ST_ACC) : (b & ~ST_ACC));
+                tr->st[l][s] = b;
                 c->st.edits++;
             }
         }

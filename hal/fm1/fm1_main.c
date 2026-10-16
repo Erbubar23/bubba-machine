@@ -57,24 +57,46 @@ static bm_screen scr;                        /* pantallas propias: modo seguro y
 static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3, ENC_K4, ENC_PRESETS};
 
 /* ------------------------------------------------------------------ audio */
-/* Freno de voces: si el bloque anterior usó más del 85 % de su tiempo, se apaga (con su fade de
- * 2 ms) la voz del pool que menos suena, una cada 4 bloques mientras siga pasado. Mejor perder una
- * voz que cortar todo el audio (0.6.1 en el aparato: 105-123 % con un patrón de seis máquinas).
+/* Freno de voces: si el bloque anterior estuvo a punto de pasarse (95 %) o el promedio sostenido
+ * pasa del 85 %, se apaga (con su fade de 2 ms) la voz del pool que menos suena, una cada 4 bloques
+ * mientras siga así. Mejor perder una voz que cortar todo el audio (0.6.1 en el aparato: 105-123 %
+ * con un patrón de seis máquinas). En 0.6.2 bastaba un bloque al 85 %: con el promedio en ~57 % los
+ * picos de los pasos con muchas notas apagaban ~1 voz por segundo y se comían el pad de BUNO-6.
  * Va antes del render: el otro núcleo todavía no está tocando las voces. */
-#define FRENO_PCT   85u
+#define FRENO_PICO  95u
+#define FRENO_PROM  85u
 #define FRENO_CADA  4u
+
+static volatile uint8_t par_sesion = 1;     /* el núcleo 1 gira durante cada render (lab 36 lo apaga) */
+static volatile uint16_t lab_par;           /* lab 36: 0x100 | arg, se aplica al empezar un render */
 
 static void render(int32_t *lr, uint32_t frames)
 {
-    static uint32_t n, freno_n;
+    static uint32_t n, freno_n, ses;
     uint32_t budget = fm1_stat[FM1_STAT_BUDGET];
     n++;
-    if (budget && fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * FRENO_PCT && n - freno_n >= FRENO_CADA) {
+    if (budget && n - freno_n >= FRENO_CADA &&
+        (fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * FRENO_PICO ||
+         fm1_stat[FM1_STAT_RENDER_AVG] * 100u > budget * FRENO_PROM)) {
         bm_audio_overload(&app.ctx);
         freno_n = n;
         fm1_stat[FM1_STAT_FRENO]++;
     }
+    if (lab_par) {                           /* entre renders: ningún núcleo está calculando */
+        uint8_t a = (uint8_t)lab_par;
+        lab_par = 0;
+        par_sesion = !(a & 0x80u);
+        app.ctx.par_auto = (uint8_t)((a >> 6) & 1u);
+        if (!app.ctx.par_auto) app.ctx.par_mask = a & 0x3Fu;
+    }
+    int sesion = app.ctx.par_on && par_sesion;
+    if (sesion) {
+        if (++ses == 0) ses = 1;
+        fm1_cpu1_sesion(ses);
+    }
     bm_app_audio(&app, lr, frames);
+    if (sesion)
+        fm1_cpu1_sesion(0);
     /* el codec toma los 24 bits de abajo de cada palabra, con signo (dato de Felucca: Q15 * 2^7,
      * audio.c). Antes se corrían 8 bits hacia arriba y en el aparato sonaba como una alarma. */
     for (uint32_t i = 0; i < frames * 2u; i++) {
@@ -125,7 +147,9 @@ static void par_init(void)
     probado = 1;
     if (fm1_cpu1_init() != 0) return;
     app.ctx.par_go = par_go; app.ctx.par_wait = par_wait; app.ctx.par_user = NULL;
-    app.ctx.par_mask = 0x38;                 /* T4 BX-7, T5 BITTAL, T6 BUNO-6 */
+    app.ctx.par_mask = 0x38;                 /* para empezar T4-T6; después se ajusta solo (bm_audio_par_pick) */
+    app.ctx.now = fm1_scan_now_ticks;
+    app.ctx.par_auto = 1;
     par_ok = 1;
 }
 
@@ -543,9 +567,11 @@ int fm1_lab(int cmd, int arg)
             os_time_dly(2);
         }
         {
-            fm1_perro(0);                    /* una prueba larga no es un cuelgue */
+            /* una prueba larga no es un cuelgue; al terminar, el perro vuelve a como estaba: en el modo
+             * seguro está apagado (nadie late) y prenderlo reiniciaba el chip a los 3 s (0.6.2) */
+            int era = fm1_perro(0);
             int r = fm1_bench(cmd, arg);
-            fm1_perro(1);
+            fm1_perro(era);
             return r;
         }
     case 7:                                  /* pulsar un botón (0..13) como si fuera la mano */
@@ -589,6 +615,12 @@ int fm1_lab(int cmd, int arg)
         lab_trk_t = -1;
         return 0;
     }
+    case 36:                                 /* reparto a mano: bits 0-5 canales al núcleo 1, bit 6 automático, */
+        if (modo != FM1_BOOT_NORMAL)         /* bit 7 sin sesión (el núcleo 1 sale después de cada trabajo) */
+            return -1;
+        log_num("lab: reparto ", (uint32_t)arg, "");
+        lab_par = (uint16_t)(0x100u | (arg & 0xFFu));
+        return 0;
     case 29: lab_set = arg; return 0;        /* 29 canal*64 + byte de bm_track, luego 31 valor */
     case 31: {
         int t = lab_set >> 6, off = lab_set & 63;
@@ -700,6 +732,30 @@ static void bubba_task(void *p)
     adc_add_sample_ch(FM1_ADC_BATT);
     fm1_boot_stage(E_PANTALLA);
     {
+        uint32_t pc; uint8_t ce, db;
+        if (fm1_excepcion_previa(&pc, &ce, &db)) {   /* antes que el perro: comparten los 8 bytes */
+            cuelgue = 1;
+            char l[96], *p = l;
+            static const char H[] = "0123456789ABCDEF";
+            static const char *const TK[8] = {"?", "bubba", "audio", "app_core", "sys_event", "timer", "-", "otra"};
+            uint32_t eb = (ce >> 2) & 31u, dbb = db & 31u;
+            const char *s = "falla: nucleo ";
+            while (*s) *p++ = *s++;
+            *p++ = (char)('0' + (ce & 1u));
+            s = (ce & 0x80u) ? " RETI 0x" : " PC 0x"; while (*s) *p++ = *s++;
+            for (int i = 28; i >= 0; i -= 4) *p++ = H[(pc >> i) & 15u];
+            s = " MIGA "; while (*s) *p++ = *s++;
+            *p++ = (char)('0' + eb / 10u); *p++ = (char)('0' + eb % 10u);
+            s = " DBG "; while (*s) *p++ = *s++;
+            *p++ = (char)('0' + dbb / 10u); *p++ = (char)('0' + dbb % 10u);
+            s = " tarea "; while (*s) *p++ = *s++;
+            s = TK[db >> 5]; while (*s) *p++ = *s++;
+            if (ce & 2u) { s = " (reparto)"; while (*s) *p++ = *s++; }
+            *p = 0;
+            fm1_log(l);
+        }
+    }
+    {
         char c[5];
         if (fm1_cuelgue_previo(c)) {
             cuelgue = 1;
@@ -791,6 +847,14 @@ static void bubba_task(void *p)
         if (app.set.dual_core && !sin_audio)
             par_init();
         app.ctx.par_on = (uint8_t)(par_ok && app.set.dual_core && !sin_audio);
+        if (par_ok) {                        /* para la consola: el reparto y la carga estimada de cada núcleo */
+            uint32_t mhz = fm1_scan_ticks_hz() / 1000000u, l0 = app.ctx.cost_over, l1 = 0, m = app.ctx.par_on ? app.ctx.par_mask : 0;
+            for (int t = 0; t < BM_TRACKS; t++) { if ((m >> t) & 1u) l1 += app.ctx.cost[t]; else l0 += app.ctx.cost[t]; }
+            fm1_stat[FM1_STAT_PAR_MASK] = m;
+            fm1_stat[FM1_STAT_PAR_MISMO] = fm1_cpu1_mismo();
+            fm1_stat[FM1_STAT_CARGA0] = mhz ? l0 / mhz : 0;
+            fm1_stat[FM1_STAT_CARGA1] = mhz ? l1 / mhz : 0;
+        }
         if (fm1_stat[FM1_STAT_BUDGET])
             bm_app_cpu(&app, (int)(fm1_stat[FM1_STAT_RENDER_AVG] * 100u / fm1_stat[FM1_STAT_BUDGET]));
         uint32_t u0 = fm1_scan_now_us();

@@ -19,6 +19,12 @@
 #include <math.h>
 
 #define PY   36    /* primera fila útil de una página de canal (debajo de las pestañas) */
+
+/* La miga del dibujo (0.7, temporal): qué parte de la pantalla se estaba dibujando. Si el
+ * procesador falla, hal/fm1/sdk/wl82_debug.c la guarda en la huella y la consola la muestra.
+ * 0 = fuera del dibujo. */
+volatile uint8_t bm_ui_paso;
+#define PASO(n) (bm_ui_paso = (uint8_t)(n))
 #define VB   135   /* última fila del visor */
 
 static uint16_t dim(uint16_t c) { return (uint16_t)((c >> 1) & 0x7BEF); }
@@ -39,17 +45,41 @@ static const char *machine_title(const bm_app *a, uint16_t *col)
     bool ch = a->view == V_CH || (a->layer && a->layer != L_HOME);
     *col = ch ? bm_track_color(a->track) : C_CYAN;
     if (ch) return bm_track_name(a, a->track);
-    switch (a->view) {
-    case V_GLO: return "GLOBAL";
+    switch (a->view) {                              /* MIX, FX, TEMPO, ESCENAS y SONG son páginas de BX-1 */
     case V_SYSTEM: return "SYSTEM";
     case V_TIME: return "TIME";
     case V_SAVE: return "SAVE";
-    case V_FXG: return "FX";
-    case V_SONG: return "SONG";
-    case V_SCENES: return "SCENES";
     default: return "BX-1";
     }
 }
+
+/* "<": HOME vuelve a la consola (BX-1) desde aquí. En MIX > FX > TEMPO > ESCENAS, HOME pasa de página. */
+static bool home_goes_back(const bm_app *a)
+{
+    switch (a->view) {
+    case V_CH: case V_SAVE: case V_SYSTEM: case V_TIME: case V_COPYCH: case V_SCLG: case V_SONG: case V_MIX: return true;
+    default: return false;
+    }
+}
+
+/* adónde lleva mantener un botón 2 s (lo mismo que decide app_on_gesture) */
+static const char *hold_target(const bm_app *a, int id, char *b, int cap)
+{
+    switch (id) {
+    case BTN_HOME: return "SYSTEM";
+    case BTN_SEQ: return "TIME";
+    case BTN_EDIT: return a->track == 1 ? "TAKES" : "INIT SOUND";
+    case BTN_SAVE: return "QUICK SAVE";
+    case BTN_REC:
+        if (a->view == V_CH && a->page == PG_LOOP) return "ERASE LOOP";
+        snprintf(b, (size_t)cap, TF("ERASE T%d"), a->track + 1);
+        return b;
+    default: return NULL;
+    }
+}
+
+/* el autoguardado no tapa la pantalla con un aviso: es una marca en la cabecera */
+static bool toast_autosave(const bm_app *a) { return a->now < a->autosave_until; }
 
 static void draw_status(bm_gfx *g, const bm_app *a)
 {
@@ -63,37 +93,66 @@ static void draw_status(bm_gfx *g, const bm_app *a)
     if (recording && (!(st->smp_rec || a->song_rec || st->smp_armed) || ((a->now / 250) & 1))) gfx_disc(g, 18, 12, 3, st->smp_armed ? C_YELLOW : C_RED);
     uint16_t mc;
     const char *mt = machine_title(a, &mc);
-    gfx_text(g, 25, 5, mt, mc, 2);
-    /* patrón, compás y lo que está en cola */
-    int x = 25 + gfx_text_w(mt, 2) + 6;
+    int tx = 25;
+    if (home_goes_back(a)) { gfx_text(g, 25, 9, "<", C_GREY, 1); tx = 32; }   /* HOME vuelve */
+    gfx_text(g, tx, 5, mt, mc, 2);
+    /* patrón, compás y lo que está en cola: "A01>A05" y cuatro pulsos que cuentan hasta el cambio */
+    int x = tx + gfx_text_w(mt, 2) + 6;
     if (x < 102) x = 102;
     snprintf(b, sizeof b, "A%02d", st->pattern + 1);
-    gfx_text(g, x, 3, b, C_WHITE, 1);
+    int qx = x + gfx_text(g, x, 3, b, C_WHITE, 1) + 1;
+    bool queued = st->queued != 0xFF && st->queued != st->pattern;
+    if (queued) {
+        uint16_t qc = st->pchain_n > 1 ? C_CYAN : C_YELLOW;
+        snprintf(b, sizeof b, ">A%02d", st->queued + 1);
+        gfx_text(g, qx, 3, b, qc, 1);
+        if (st->playing) {                                       /* pulsos que faltan para el cambio */
+            uint32_t m = (uint32_t)bm_master_steps(&a->pat.meta) * BM_TICKS_STEP;
+            uint32_t left = m ? (m > st->rtick ? m - st->rtick : 0) : BM_BAR_TICKS - st->btick % BM_BAR_TICKS;
+            int beats = (int)((left + BM_PPQN - 1) / BM_PPQN);
+            for (int i = 0; i < 4; i++) gfx_fill(g, x + 20 + i * 5, 14, 4, 5, beats > 4 ? dim(qc) : (i < beats ? qc : C_DDGREY));
+        }
+    }
     uint32_t bt = st->playing ? st->btick : 0;
     snprintf(b, sizeof b, "%u.%u", (unsigned)(bt / BM_BAR_TICKS % 99 + 1), (unsigned)((bt / BM_PPQN) % 4 + 1));
     gfx_small(g, x, 14, b, C_GREY);
-    if (st->queued != 0xFF && st->queued != st->pattern) { snprintf(b, sizeof b, ">%02d", st->queued + 1); gfx_small(g, x + 20, 14, b, st->pchain_n > 1 ? C_CYAN : C_YELLOW); }
-    else if (st->scene_q != 0xFF) { snprintf(b, sizeof b, ">%c", 'A' + st->scene_q); gfx_small(g, x + 20, 14, b, C_CYAN); }
-    else if (st->scene != 0xFF) { snprintf(b, sizeof b, "%c", 'A' + st->scene); gfx_small(g, x + 20, 14, b, C_CYAN); }
+    if (!queued && st->scene_q != 0xFF) { snprintf(b, sizeof b, ">%c", 'A' + st->scene_q); gfx_small(g, x + 20, 14, b, C_CYAN); }
+    else if (!queued && st->scene != 0xFF) { snprintf(b, sizeof b, "%c", 'A' + st->scene); gfx_small(g, x + 20, 14, b, C_CYAN); }
+    /* los 6 canales: su color = suena, rojo = mute, blanco = golpe, borde = solo */
+    for (int t = 0; t < BM_TRACKS; t++) {
+        int cx = x + t * 7;
+        bool mu = a->pat.trk[t].mute;
+        gfx_fill(g, cx, 20, 5, 2, mu ? C_RED : (a->now < a->trig_until[t] ? C_WHITE : bm_track_color(t)));
+        if (a->solo_on && a->solo_track == t) gfx_rect(g, cx - 1, 19, 7, 4, C_WHITE);
+    }
     /* BPM */
     int bpm = a->pat.meta.bpm_x10;
     snprintf(b, sizeof b, "%d", bpm / 10);
-    gfx_text_r(g, 186, 5, b, C_ORANGE, 2);
-    if (bpm % 10) { snprintf(b, sizeof b, ".%d", bpm % 10); gfx_small(g, 187, 4, b, C_ORANGE); }
-    gfx_small(g, 187, 14, a->set.clock ? (st->ext_ok ? "EXT" : "EXT?") : "BPM", C_GREY);
+    gfx_text_r(g, 186, 5, b, C_TEMPO, 2);
+    if (bpm % 10) { snprintf(b, sizeof b, ".%d", bpm % 10); gfx_small(g, 187, 4, b, C_TEMPO); }
+    gfx_small(g, 187, 14, a->set.clock ? (st->ext_ok ? "EXT" : "EXT?") : "BPM", a->set.clock && !st->ext_ok ? C_RED : C_GREY);
     /* REC: el largo de las notas que se graban · si no, la CPU */
     int hid = -1, p = bm_gesture_progress(&a->ges, a->now, &hid);
-    if (p >= 0) draw_ring(g, 210, 12, p, C_YELLOW);
-    else if (a->rec && app_kind(a, a->track) == KIND_NOTE) {
+    bool slot = false;                                           /* la esquina de arriba quedó ocupada */
+    if (p >= 0) {                                                /* la pulsación de 2 s: el anillo y adónde lleva */
+        draw_ring(g, 210, 12, p, C_YELLOW);
+        const char *to = hold_target(a, hid, b, sizeof b);
+        if (to) {                                                /* tapa el BPM mientras dura */
+            int w = gfx_text_w(to, 1), x0 = 186 - gfx_text_w("888", 2);
+            if (198 - w - 3 < x0) x0 = 198 - w - 3;
+            gfx_fill(g, x0, 2, 201 - x0, 20, C_BLACK);
+            gfx_text(g, 198 - w - 1, 9, to, C_YELLOW, 1);
+        }
+        slot = true;
+    } else if (a->rec && app_kind(a, a->track) == KIND_NOTE) {
         if (a->rec_gate >= 100) snprintf(b, sizeof b, "TIE"); else snprintf(b, sizeof b, "G%d%%", a->rec_gate);
         gfx_small(g, 202, 4, b, C_GREEN);
         gfx_small(g, 202, 14, "REC", C_RED);
-    } else {
-        if (a->cpu) snprintf(b, sizeof b, "%d%%", a->cpu); else snprintf(b, sizeof b, "--");   /* el emulador no mide */
-        gfx_small(g, 202, 4, "CPU", C_DGREY);
-        gfx_small(g, 202, 14, b, a->cpu > 85 ? C_RED : a->cpu > 65 ? C_YELLOW : C_GREY);
-    }
-    if (st->fill && st->playing) gfx_small(g, 202, 4, "FILL", C_ORANGE);
+        slot = true;
+    } else if (a->cpu > 95) gfx_small(g, 202, 14, "CPU!", C_RED);   /* solo si el audio no alcanza */
+    if (st->fill && st->playing) { gfx_small(g, 202, 4, "FILL", C_ORANGE); slot = true; }
+    if (!slot && st->song_on) gfx_small(g, 202, 4, "SONG", C_CYAN);
+    if (toast_autosave(a)) gfx_disc(g, 223, 19, 2, C_GREEN);    /* autoguardado: una marca, sin tapar nada */
     /* batería, vertical */
     int bp = a->battery;
     uint16_t bc = bp > 30 ? C_GREEN : (bp > 15 ? C_YELLOW : C_RED);
@@ -122,11 +181,17 @@ static void draw_dial(bm_gfx *g, int cx, int cy, int pct, int ghost, uint16_t co
     gfx_fill(g, cx - 1, cy - 1, 3, 3, hi ? C_WHITE : C_GREY);
 }
 
+static void sys_val(const bm_app *a, int i, char *v, int cap);
+
 static void draw_legend(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_LEGEND_Y, BM_LEGEND_H)) return;
     bm_legend L[4];
+    PASO(30);
     bm_app_legend(a, L);
+    PASO(29);
+    /* SYSTEM: K1 muestra el valor de la fila, no el nombre de otra perilla */
+    if (a->view == V_SYSTEM && !a->layer && L[0].name[0]) sys_val(a, a->menu_row, L[0].val, sizeof L[0].val);
     gfx_fill(g, 0, BM_LEGEND_Y, BM_LCD_W, BM_LEGEND_H, C_BLACK);
     gfx_hline(g, 0, BM_LEGEND_Y, BM_LCD_W, C_DDGREY);
     for (int i = 0; i < 4; i++) {
@@ -142,11 +207,22 @@ static void draw_legend(bm_gfx *g, const bm_app *a)
         char nm[11]; snprintf(nm, sizeof nm, "%.9s", T(L[i].name));
         gfx_text_c(g, cx, BM_LEGEND_Y + 49, nm, kc, 1);
     }
-    /* qué hacen las perillas grandes aquí (sin menús escondidos) */
-    if (gfx_strip_hit(g, 232, 6)) {
-        const char *h = a->view == V_HOME || a->view == V_MIX ? "SELECT TRACK - ALGORITHM BPM - PRESETS PATTERN"
-                      : a->view == V_CH ? "SELECT PAGE - ALGORITHM MODE - PRESETS SOUND" : "SELECT ROW - ALGORITHM CHANGES";
-        gfx_small(g, 120 - gfx_small_w(T(h)) / 2, 232, T(h), C_DGREY);
+}
+
+/* Las tres perillas grandes, en su orden del panel (SELECT, ALGORITHM, PRESETS): qué hacen aquí,
+ * o "-" si aquí no hacen nada. Una fila chica debajo de los diales. */
+static void draw_bigknobs(bm_gfx *g, const bm_app *a)
+{
+    if (!gfx_strip_hit(g, 232, 6)) return;
+    const char *v[3];
+    static const char *const N[3] = {"SEL", "ALG", "PRE"};
+    bm_app_bigknobs(a, &v[0], &v[1], &v[2]);
+    for (int i = 0; i < 3; i++) {
+        int x = 4 + i * 80;
+        bool dead = !v[i][0] || (v[i][0] == '-' && !v[i][1]);
+        bool hi = a->ov.on && a->ov.knob == (i == 0 ? ENC_SELECT : i == 1 ? ENC_ALGO : ENC_PRESETS) + 1;
+        gfx_small(g, x, 232, N[i], dead ? C_DGREY : C_GREY);
+        gfx_small(g, x + gfx_small_w(N[i]) + 4, 232, dead ? "-" : v[i], hi ? a->ov.color : dead ? C_DGREY : C_WHITE);
     }
 }
 
@@ -158,8 +234,47 @@ static void header(bm_gfx *g, const char *title, const char *sub, uint16_t col)
     gfx_hline(g, 4, 44, 232, C_DDGREY);
 }
 
-static void hint(bm_gfx *g, int y, const char *s) { if (gfx_strip_hit(g, y, 8)) gfx_text(g, 6, y, s, C_GREY, 1); }
-static void hint_s(bm_gfx *g, int y, const char *s) { if (gfx_strip_hit(g, y, 6)) gfx_small(g, 4, y, s, C_GREY); }
+/* Las ayudas (0.7): se ven los primeros HINT_MS de cada página y después se van; la franja de teclas
+ * y las perillas siguen diciendo qué hace cada cosa. Antes eran ~40 líneas fijas en pantalla. */
+#define HINT_MS 4000u
+static bool hints_on;
+/* Una línea de ayuda: en la 5x7 si cabe (hasta 38 letras), si no en la 3x5. Texto fijo: solo cuesta
+ * el primer cuadro (el render manda lo que cambió). */
+static void note_s(bm_gfx *g, int y, const char *s)
+{
+    if (!s || !s[0]) return;
+    if (gfx_text_w(s, 1) <= 228) {
+        if (y > VB - 6) y = VB - 6;
+        if (gfx_strip_hit(g, y, 8)) gfx_text(g, 6, y, s, C_GREY, 1);
+    } else if (gfx_strip_hit(g, y, 6)) gfx_small(g, 4, y, s, C_GREY);
+}
+static void hint(bm_gfx *g, int y, const char *s) { if (hints_on && gfx_strip_hit(g, y, 8)) gfx_text(g, 6, y, s, C_GREY, 1); }
+static void hint_s(bm_gfx *g, int y, const char *s) { if (hints_on) note_s(g, y, s); }
+
+static void hints_update(const bm_app *a)
+{
+    static uint32_t key = 0xFFFFFFFFu, t0;
+    uint32_t k = (uint32_t)a->view | (uint32_t)a->page << 8 | (uint32_t)a->layer << 16 | (uint32_t)a->track << 24
+               | (uint32_t)a->ed_page[a->track] << 28 | (uint32_t)a->fx_page << 30;
+    if (k != key) { key = k; t0 = a->now; }
+    hints_on = a->now - t0 < HINT_MS;
+}
+
+/* las páginas de BX-1 (HOME las recorre): la actual en cian, las otras en gris */
+static void home_pages(bm_gfx *g, const bm_app *a, const char *sub, uint16_t subc)
+{
+    if (!gfx_strip_hit(g, 25, 10)) return;
+    static const uint8_t V[5] = {V_HOME, V_FXG, V_GLO, V_SCENES, V_SONG};
+    static const char *const N[5] = {"MIX", "FX", "TEMPO", "SCENES", "SONG"};
+    int x = 4;
+    for (int i = 0; i < 5; i++) {
+        int w = gfx_small_w(N[i]);
+        if (a->view == V[i]) { gfx_fill(g, x - 2, 25, w + 4, 9, C_CYAN); gfx_small(g, x, 27, N[i], C_BLACK); }
+        else gfx_small(g, x, 27, N[i], C_GREY);
+        x += w + 9;
+    }
+    if (sub) gfx_small(g, 236 - gfx_small_w(sub), 27, sub, subc);
+}
 
 static void row(bm_gfx *g, int y, bool sel, const char *l, const char *r)
 {
@@ -214,13 +329,14 @@ static int track_has(const bm_app *a, int t, int s)
 
 /* ------------------------------------------------------------ teclado (las 11 negras y las 16 blancas)
  * Las luces de las teclas son blancas: dicen si una tecla está activa, no qué hace. La franja dibuja
- * cada tecla con su nombre corto y el mismo estado que su luz: relleno = encendida, borde claro =
- * media, borde oscuro = tenue, sin borde = apagada. Las blancas son los 16 pasos. */
+ * cada tecla con su nombre corto y el mismo estado que su luz: relleno = encendida, borde claro y
+ * nombre blanco = media, borde oscuro y nombre gris = tenue, nombre gris oscuro = apagada. El color
+ * de la función va como un subrayado. Las blancas son los 16 pasos. */
 static void key_cell(bm_gfx *g, const bm_app *a, int x, int y, int w, int h, const bm_keyfn *f, int down, int big)
 {
     uint8_t st = down ? LED_ON : f->led;
     if (st == LED_BLINK) st = ((a->now / 250u) & 1u) ? LED_ON : LED_MID;
-    uint16_t bg = 0, fg = C_GREY, edge = 0;
+    uint16_t bg = 0, fg = C_DGREY, edge = 0;               /* apagada: el nombre en gris oscuro */
     switch (st) {
     case LED_ON: bg = C_WHITE; fg = C_BLACK; break;
     case LED_BREATH: bg = C_GREY; fg = C_BLACK; break;
@@ -231,6 +347,8 @@ static void key_cell(bm_gfx *g, const bm_app *a, int x, int y, int w, int h, con
     if (bg) gfx_fill(g, x, y, w, h, bg);
     else if (edge) gfx_rect(g, x, y, w, h, edge);
     if (!f->label[0]) return;
+    /* el color de la función (no el de la luz: las luces son blancas), como un subrayado */
+    if (f->color && f->color != C_WHITE) gfx_fill(g, x + 2, y + h - 3, w - 4, 2, st == LED_OFF ? dim(f->color) : f->color);
     char l[6];
     int maxc = big ? (w - 2) / 6 : (w - 1) / 4;
     snprintf(l, sizeof l, "%.*s", maxc < 1 ? 1 : maxc > 5 ? 5 : maxc, T(f->label));   /* traducida y después recortada */
@@ -242,7 +360,9 @@ static void draw_keys(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_KEYS_Y, BM_KEYS_H)) return;
     bm_keyfn K[BM_KEYS];
+    PASO(31);
     bm_app_keys(a, K);
+    PASO(28);
     gfx_fill(g, 0, BM_KEYS_Y, BM_LCD_W, BM_KEYS_H, C_BLACK);
     gfx_hline(g, 0, BM_KEYS_Y, BM_LCD_W, C_DDGREY);
     int wy = BM_KEYS_Y + 15;
@@ -284,14 +404,48 @@ static void lane_pads(bm_gfx *g, const bm_app *a, int t, int y0, int rowh)
         uint16_t bg = fl ? bm_track_color(t) : (sel ? dim(bm_track_color(t)) : C_DDGREY);
         gfx_fill(g, x, y, 56, rowh - 2, bg);
         uint16_t fg = fl ? C_BLACK : (muted ? C_GREY : C_WHITE);
-        gfx_text(g, x + 3, y + 3, bm_lane_name(a, t, i), fg, 1);
-        char b[12]; snprintf(b, sizeof b, "%d %s", i + 1, T(bm_drm_short[bm_trk_trc(&a->pat, t)->lane[i].model % DRM_COUNT]));
-        gfx_small(g, x + 3, y + rowh - 9, b, fg);
-        if (muted) gfx_text(g, x + 46, y + 3, "M", C_RED, 1);
+        char b[12];
+        if (rowh < 20) {                                         /* compacta (capas): número y nombre en una línea */
+            snprintf(b, sizeof b, "%d", i + 1);
+            gfx_small(g, x + 3, y + (rowh - 7) / 2 + 1, b, fl ? C_BLACK : C_GREY);
+            snprintf(b, sizeof b, "%.5s", T(bm_lane_name(a, t, i)));
+            gfx_text(g, x + 12, y + (rowh - 9) / 2, b, fg, 1);
+        } else {
+            gfx_text(g, x + 3, y + 3, bm_lane_name(a, t, i), fg, 1);
+            snprintf(b, sizeof b, "%d %s", i + 1, T(bm_drm_short[bm_trk_trc(&a->pat, t)->lane[i].model % DRM_COUNT]));
+            gfx_small(g, x + 3, y + rowh - 9, b, fg);
+        }
+        if (muted) gfx_text(g, x + 48, y + (rowh < 20 ? (rowh - 9) / 2 : 3), "M", C_RED, 1);
     }
 }
 
 /* ------------------------------------------------------------ pestañas del canal */
+/* qué hace tocar otra vez el botón de esta página (como decide button_page) */
+static bool again_name(const bm_app *a, char *b, int cap)
+{
+    int t = a->track, kind = app_kind(a, t), eng = app_engine(a, t);
+    bool midi = app_midi(a, t);
+    const char *s = NULL;
+    switch (a->page) {
+    case PG_SEQ: s = bm_is_pads(t) ? "BREAK" : (kind == KIND_NOTE && !midi) ? "LOOP" : NULL; break;
+    case PG_BREAK: case PG_LOOP: s = "SEQ"; break;
+    case PG_SOUND:
+        if (kind == KIND_TR) s = bm_lane_pages[0].name;
+        else if (bm_engine_paged(eng)) { int np; const bm_ppage *pp = bm_engine_pages(eng, &np); if (np > 1) s = pp[(a->ed_page[t] + 1) % np].name; }
+        break;
+    case PG_INST: s = a->ed_page[t] + 1 < BM_LANE_PAGES ? bm_lane_pages[a->ed_page[t] + 1].name : "SOUND"; break;
+    case PG_MIX: s = a->mix_page ? "MIX" : (t ? "DUCK" : NULL); break;
+    case PG_SCL: s = "CHORDS"; break;
+    case PG_CHORDS: s = "SCALE"; break;
+    case PG_ENV: s = a->env_page ? "PAGE 1" : "PAGE 2"; break;
+    case PG_PADS: { static const char *const PN[4] = {"TRIM", "SOUND", "ENV", "LOOP"}; s = PN[(a->ed_page[1] + 1) % 4]; break; }
+    default: break;
+    }
+    if (!s) return false;
+    snprintf(b, (size_t)cap, "%s %s", T("AGAIN:"), T(s));
+    return true;
+}
+
 static void draw_tabs(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, 24, 12)) return;
@@ -299,20 +453,17 @@ static void draw_tabs(bm_gfx *g, const bm_app *a)
     uint8_t tabs[8];
     int n = bm_app_tabs(a, t, tabs), in = 0;
     for (int i = 0; i < n; i++) if (tabs[i] == a->page) in = 1;
-    int x = 4;
+    /* 0.7: el nombre de la página actual y un punto por página (la actual, más larga). SELECT las recorre. */
+    uint16_t tc = bm_track_color(t);
+    int xo = 4 + gfx_text(g, 4, 25, bm_page_name(a->page), in ? tc : C_WHITE, 1) + 6;
+    char b[24];
+    if (a->oct) { snprintf(b, sizeof b, "O%c%d", a->oct < 0 ? '-' : '+', a->oct < 0 ? -a->oct : a->oct); gfx_small(g, xo, 27, b, C_YELLOW); }
+    int x = 236 - (n - 1) * 6 - 12;
+    if (again_name(a, b, sizeof b)) gfx_small(g, x - 6 - gfx_small_w(b), 27, b, C_GREY);
     for (int i = 0; i < n; i++) {
-        const char *nm = bm_page_name(tabs[i]);
         bool cur = tabs[i] == a->page;
-        int w = gfx_small_w(nm);
-        gfx_small(g, x, 26, nm, cur ? C_WHITE : C_GREY);
-        if (cur) gfx_fill(g, x, 32, w, 2, bm_track_color(t));
-        x += w + 7;
-    }
-    if (!in) {                                     /* página fuera de las pestañas: ESCALA, GRABAR... */
-        const char *nm = bm_page_name(a->page);
-        int w = gfx_small_w(nm);
-        gfx_fill(g, 236 - w - 4, 24, w + 4, 10, bm_track_color(t));
-        gfx_small(g, 236 - w - 2, 26, nm, C_BLACK);
+        gfx_fill(g, x, 28, cur ? 10 : 3, 3, cur ? tc : C_DGREY);
+        x += cur ? 14 : 6;
     }
     gfx_hline(g, 0, 34, BM_LCD_W, C_DDGREY);
 }
@@ -324,12 +475,7 @@ static void draw_home(bm_gfx *g, const bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
     char b[16];
-    if (gfx_strip_hit(g, 26, 6)) {
-        gfx_small(g, 4, 26, "TRK  MACHINE", C_DGREY);
-        gfx_small(g, 92, 26, "SEQ / GATE STREAM", C_DGREY);
-        gfx_small(g, 180, 26, "FX", C_DGREY);
-        gfx_small(g, 210, 26, "VOL", C_DGREY);
-    }
+    home_pages(g, a, a->move ? (a->move < 0 ? "MOVE DARK" : "MOVE BRIGHT") : NULL, C_PINK);
     for (int t = 0; t < BM_TRACKS; t++) {
         int y = 33 + t * 16;
         if (!gfx_strip_hit(g, y, 16)) continue;
@@ -351,29 +497,12 @@ static void draw_home(bm_gfx *g, const bm_app *a)
             else gfx_fill(g, x + 1, y + 7, 1, 1, C_DGREY);
             if (s == cur) gfx_fill(g, x, y + 11, 4, 1, C_WHITE);
         }
-        const char *fx = tr->rsend >= tr->send ? (tr->rsend ? "REV" : "---") : "DLY";
-        if (tr->duck && t && tr->duck > tr->send && tr->duck > tr->rsend) fx = "DCK";
-        gfx_small(g, 178, y + 5, fx, tr->mute ? C_DGREY : C_GREY);
+        if (tr->djf && tr->djf != 64) gfx_small(g, 180, y + 5, tr->djf < 64 ? "LP" : "HP", tr->mute ? C_DGREY : C_ORANGE);
         int vh = tr->level * 26 / 127, pk = st->peak[t] * 26 / 255;
         gfx_fill(g, 200, y + 4, 26, 3, C_DDGREY); gfx_fill(g, 200, y + 4, vh, 3, col);
         gfx_fill(g, 200, y + 9, 26, 2, C_DDGREY); gfx_fill(g, 200, y + 9, pk, 2, C_GREEN);
         if (tr->mute) gfx_text(g, 230, y + 4, "M", C_RED, 1);
         else if (a->now < a->trig_until[t]) gfx_disc(g, 233, y + 7, 3, col);
-    }
-    if (gfx_strip_hit(g, 130, 6)) {                              /* la barra de efectos del master */
-        const bm_meta *m = &a->pat.meta;
-        static const char *const BF[17] = {"OFF", "STUT4", "STUT8", "STUT16", "STUT32", "REV8", "REV4", "TAPE", "GATE",
-                                           "LPF", "HPF", "BIT", "SR", "THROW", "FREEZE", "KILL LO", "KILL HI"};
-        snprintf(b, sizeof b, "%s", BF[m->beatfx % 17]);
-        gfx_small(g, 4, 130, "BEAT FX", C_DGREY);
-        gfx_small(g, 34, 130, b, m->beatfx ? C_PINK : C_GREY);
-        char f[16];
-        if (m->mfilt >= 60 && m->mfilt <= 68) snprintf(f, sizeof f, "OPEN");
-        else if (m->mfilt < 60) snprintf(f, sizeof f, "LP %d", m->mfilt);
-        else snprintf(f, sizeof f, "HP %d", m->mfilt - 64);
-        gfx_small(g, 90, 130, "MASTER FILT", C_DGREY);
-        gfx_small(g, 136, 130, f, C_GREEN);
-        gfx_small(g, 176, 130, "SYNC 1/16", C_DGREY);
     }
 }
 
@@ -428,7 +557,7 @@ static void draw_seq_tr(bm_gfx *g, const bm_app *a)
                 snprintf(b, sizeof b, TF("PAD %d"), sel + 1);
                 int x = gfx_text(g, 4, PY, b, C_WHITE, 1) + 8;
                 if (bm_pad_ok(pd)) { bm_app_src_name(a, pd->src, nm, sizeof nm); gfx_small(g, x, PY + 1, nm, C_GREY); }
-                else gfx_small(g, x, PY + 1, "EMPTY", C_DGREY);
+                else gfx_small(g, x, PY + 1, "EMPTY", C_GREY);
             } else gfx_text(g, 4, PY, bm_lane_name(a, t, sel), C_WHITE, 1);
             int len = tr->lane[sel].len;
             snprintf(b, sizeof b, "%s  P%d/%d L%d", base ? "9-16" : "1-8", a->step_page + 1, (len + 15) / 16, len);
@@ -743,6 +872,7 @@ static void take_map(bm_gfx *g, const bm_app *a, int src, uint32_t len, int y, i
  * el medio la onda grande con el pad entre corchetes cian y su loop (sustain) en verde menta. */
 static void draw_pads(bm_gfx *g, const bm_app *a)
 {
+    PASO(12);
     int sel = a->sel_lane[1] & 15, page = a->ed_page[1] % 4;
     const bm_pad *p = &a->pat.pad[sel];
     const bm_status *st = &a->ctx.st;
@@ -758,15 +888,15 @@ static void draw_pads(bm_gfx *g, const bm_app *a)
         int xr = 236;
         for (int i = 3; i >= 0; i--) {
             xr -= gfx_small_w(PG[i]);
-            gfx_small(g, xr, PY + 1, PG[i], i == page ? C_ORANGE : C_DGREY);
+            gfx_small(g, xr, PY + 1, PG[i], i == page ? C_ORANGE : C_GREY);
             xr -= 6;
         }
     }
     if (!ok) {
         if (gfx_strip_hit(g, PY + 24, 40)) {
             gfx_text_c(g, 120, PY + 28, "EMPTY PAD", C_WHITE, 1);
-            gfx_small(g, 120 - gfx_small_w("TAKES: N1 = KIT FROM A TAKE") / 2, PY + 44, "TAKES: N1 = KIT FROM A TAKE", C_GREY);
-            gfx_small(g, 120 - gfx_small_w("N4 = THE TAKE ON THIS PAD") / 2, PY + 52, "N4 = THE TAKE ON THIS PAD", C_GREY);
+            gfx_small(g, 120 - gfx_small_w("TAKES (HOLD EDIT): BLACK 1 = KIT FROM A TAKE") / 2, PY + 44, "TAKES (HOLD EDIT): BLACK 1 = KIT FROM A TAKE", C_GREY);
+            gfx_small(g, 120 - gfx_small_w("BLACK 4 = THE TAKE ON THIS PAD") / 2, PY + 52, "BLACK 4 = THE TAKE ON THIS PAD", C_GREY);
         }
         hint_s(g, VB - 6, "WHITE = PLAY AND PICK A PAD - PRESETS = ITS TAKE");
         return;
@@ -816,6 +946,7 @@ static void draw_pads(bm_gfx *g, const bm_app *a)
         if (st->smp_pos_src == p->src && st->smp_pos >= v0 && st->smp_pos < v1) gfx_vline(g, VX(st->smp_pos), wy, wh, C_ORANGE);
     }
 #undef VX
+    PASO(14);
     if (gfx_strip_hit(g, wy + wh + 2, 6)) {
         unsigned ms = (unsigned)((uint32_t)p->len * 1000u / BM_SMP_RATE);
         snprintf(b, sizeof b, "%s  %+d ST  %u MS%s%s", T(bm_pad_mode_name(p->mode)), p->pitch - 24, ms,
@@ -824,6 +955,7 @@ static void draw_pads(bm_gfx *g, const bm_app *a)
         snprintf(b, sizeof b, "X%d", 1 << (a->cut_zoom & 3));
         gfx_small(g, 236 - gfx_small_w(b), wy + wh + 2, b, C_GREY);
     }
+    PASO(15);
     bool holding = a->pad_key >= 0 && a->keys_down[a->pad_key];
     static const char *const HL[4] = {N_("K1 START - K2 END - EDIT = SOUND, ENV, LOOP"), N_("K3 PLAY: ONESHOT, KEY, THRU OR LOOP"), N_("ATTACK, RELEASE, CHOKE GROUP, TEMPO SYNC"),
                                       N_("HELD: THE LOOP REPEATS - RELEASED: TO THE END")};
@@ -1001,7 +1133,7 @@ static void ed_filter(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, 
     for (int k = 0; k < 3; k++) {
         int x = x0 + (int)(log2f(F[k] / 20.0f) / 10.0f * (float)w);
         gfx_vline(g, x, y0 + h - 8, 3, C_DGREY);
-        gfx_small(g, x - 4, y0 + h - 12, N[k], C_DGREY);
+        gfx_small(g, x - 4, y0 + h - 12, N[k], C_GREY);
     }
     if (eng == ENG_BUNO && q[BN_HPF]) {                          /* el pasa-altos de BUNO-6 */
         static const float HZ[4] = {0.0f, 120.0f, 250.0f, 520.0f};
@@ -1060,7 +1192,7 @@ static void ed_macros(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, 
         int dst = q[BT_M1D + 2 * i] % BTM_TARGETS, amt = (int)q[BT_M1A + 2 * i] - 64, v = a->pat.trk[t].macro[i];
         snprintf(b, sizeof b, "M%d", i + 1);
         gfx_text(g, x0 + 4, y + 3, b, bm_knob_color(i), 1);
-        gfx_text(g, x0 + 24, y + 3, bm_btm_names[dst], dst ? C_WHITE : C_DGREY, 1);
+        gfx_text(g, x0 + 24, y + 3, bm_btm_names[dst], dst ? C_WHITE : C_GREY, 1);
         snprintf(b, sizeof b, "%+d", amt * 100 / 63);
         gfx_small(g, x0 + 100, y + 4, b, C_GREY);
         gfx_fill(g, x0 + 130, y + 4, 90, 5, C_DDGREY);
@@ -1143,7 +1275,7 @@ static void draw_editor(bm_gfx *g, const bm_app *a)
             int ch = q[BN_CHORUS] % BN_CHORUSES;
             snprintf(b, sizeof b, "CHORUS %s", bm_bn_chorus_names[ch]);
             gfx_text(g, x0 + 6, y0 + h / 2 + 6, b, ch ? C_PINK : C_GREY, 2);
-            gfx_small(g, x0 + 6, y0 + h - 8, "ALGORITHM = CHORUS - VCA ENV OR GATE", C_GREY);
+            if (hints_on) gfx_small(g, x0 + 6, y0 + h - 8, "ALGORITHM = CHORUS - VCA ENV OR GATE", C_GREY);
         }
     }
 }
@@ -1157,7 +1289,7 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
         if (gfx_strip_hit(g, PY, 9)) {
             gfx_text(g, 4, PY, "KIT", C_GREY, 1); gfx_text(g, 28, PY, bm_sound_name(a, t), C_WHITE, 1);
             gfx_small(g, 80, PY + 1, "MODELED", C_ORANGE);
-            gfx_small(g, 150, PY + 1, "PRESETS = ANOTHER KIT", C_GREY);
+            if (hints_on) gfx_small(g, 150, PY + 1, "PRESETS = ANOTHER KIT", C_GREY);
         }
         lane_pads(g, a, t, PY + 10, 22);
         return;
@@ -1165,7 +1297,7 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
     if (tr->engine == ENG_FM) {
         if (gfx_strip_hit(g, PY, 9)) {
             gfx_text(g, 4, PY, bm_sound_name(a, t), C_WHITE, 1);
-            gfx_small(g, 120, PY + 1, "ALGORITHM = ALG - PRESETS = PATCH", C_GREY);
+            if (hints_on) gfx_small(g, 120, PY + 1, "ALGORITHM = ALG - PRESETS = PATCH", C_GREY);
         }
         draw_fm(g, a, t, 4, PY + 10, 232, VB - PY - 10);
         return;
@@ -1173,7 +1305,7 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
     if (bm_engine_paged(tr->engine)) { draw_editor(g, a); return; }
     if (gfx_strip_hit(g, PY, 9)) {                                /* BB-303 */
         gfx_text(g, 4, PY, bm_sound_name(a, t), C_WHITE, 1);
-        gfx_small(g, 110, PY + 1, "ALGORITHM = B-MINI - PRESETS = WAVE", C_GREY);
+        if (hints_on) gfx_small(g, 110, PY + 1, "ALGORITHM = B-MINI - PRESETS = WAVE", C_GREY);
     }
     draw_synth(g, a, t, 4, PY + 10, 232, 70);
     char c0[12];
@@ -1191,6 +1323,18 @@ static void draw_ch_mix(bm_gfx *g, const bm_app *a)
     const bm_track *tr = &a->pat.trk[t];
     static const char *const NM[4] = {"LEVEL", "PAN", "DELAY", "REVERB"};
     const int val[4] = {tr->level, tr->pan, tr->send, tr->rsend};
+    if (a->mix_page) {                                            /* la sub-página DUCK: solo K1 */
+        char d[30];
+        if (gfx_strip_hit(g, PY + 2, 76)) {
+            gfx_text(g, 6, PY + 2, "DUCK (SIDECHAIN FROM T1)", bm_knob_color(0), 1);
+            gfx_fill(g, 6, PY + 20, 228, 12, C_DDGREY);
+            if (t) gfx_fill(g, 6, PY + 20, tr->duck * 228 / 127, 12, bm_knob_color(0));
+            if (t) snprintf(d, sizeof d, "%d%%", tr->duck * 100 / 127); else snprintf(d, sizeof d, "T1 IS THE SOURCE");
+            gfx_text(g, 6, PY + 40, d, C_WHITE, 2);
+        }
+        hint_s(g, PY + 86, "K1 = DUCK - SELECT LEFT = LEVEL, PAN, SENDS");
+        return;
+    }
     for (int i = 0; i < 4; i++) {
         int x = 6 + i * 58;
         if (!gfx_strip_hit(g, PY + 2, 76)) break;
@@ -1272,8 +1416,8 @@ static void draw_takes(bm_gfx *g, const bm_app *a)
         gfx_fill(g, 4, PY + 75, 232, 3, C_DDGREY);
         gfx_fill(g, 4, PY + 75, (int)(used * 232u / total), 3, C_GREY);
     }
-    snprintf(b, sizeof b, TF("N4 = THE TAKE ON PAD %d"), (a->sel_lane[1] & 15) + 1);
-    hint_s(g, PY + 81, "N1 HITS - N2 16 - N3 8: A KIT FROM THIS TAKE");
+    snprintf(b, sizeof b, TF("BLACK 4 = THE TAKE ON PAD %d"), (a->sel_lane[1] & 15) + 1);
+    hint_s(g, PY + 81, "KIT FROM THIS TAKE: BLACK 1 HITS, 2 = 16, 3 = 8");
     hint_s(g, PY + 89, b);
 }
 
@@ -1287,7 +1431,7 @@ static void draw_rec(bm_gfx *g, const bm_app *a)
     if (st->smp_rec) { lbl = "REC"; lc = C_RED; big = C_RED; }
     else if (st->smp_armed) { lbl = "ARMED"; lc = C_YELLOW; big = C_WHITE; }
     else if (st->smp_unsaved) { lbl = "UNSAVED"; lc = C_GREEN; big = C_GREEN; }
-    else { lbl = "READY"; lc = C_DGREY; big = C_WHITE; }
+    else { lbl = "READY"; lc = C_GREY; big = C_WHITE; }
     if (gfx_strip_hit(g, PY, 12)) {
         int w = gfx_text_w(lbl, 1) + 8;
         gfx_fill(g, 4, PY, w, 11, lc);
@@ -1323,10 +1467,11 @@ static void draw_rec(bm_gfx *g, const bm_app *a)
         gfx_small(g, 4, y + 13, b, C_GREY);
         gfx_small(g, 236 - gfx_small_w(room < cap ? "LIMIT: MEMORY" : "LIMIT: RECORDING RAM"), y + 13, room < cap ? "LIMIT: MEMORY" : "LIMIT: RECORDING RAM", C_YELLOW);
     }
-    if (st->smp_rec) { hint_s(g, PY + 78, "REC = STOP - STOPS BY ITSELF AT THE LIMIT"); hint_s(g, PY + 86, "DELAY AND PUNCH-IN PAUSED WHILE RECORDING"); }
-    else if (st->smp_armed) { hint_s(g, PY + 78, "STARTS ON THE BAR - REC AGAIN = CANCEL"); hint_s(g, PY + 86, "KEYS ARE SILENT IN THE RECORDER"); }
-    else if (st->smp_unsaved) { hint_s(g, PY + 78, "IT SAVES WHEN YOU STOP - WHITES = LISTEN"); hint_s(g, PY + 86, "HOME = DISCARD - REC = ANOTHER TAKE"); }
-    else { hint_s(g, PY + 78, "REC = ARM (K1: BAR OR NOW)"); hint_s(g, PY + 86, "HOLD REC = RECORD WHILE HELD"); }
+    /* la grabadora cambia de estado sola: lo que hace REC (y HOME) se ve siempre */
+    if (st->smp_rec) { note_s(g, PY + 78, "REC = STOP - STOPS BY ITSELF AT THE LIMIT"); hint_s(g, PY + 86, "DELAY AND PUNCH-IN PAUSED WHILE RECORDING"); }
+    else if (st->smp_armed) { note_s(g, PY + 78, "STARTS ON THE BAR - REC AGAIN = CANCEL"); hint_s(g, PY + 86, "KEYS ARE SILENT IN THE RECORDER"); }
+    else if (st->smp_unsaved) { hint_s(g, PY + 78, "IT SAVES WHEN YOU STOP - WHITES = LISTEN"); note_s(g, PY + 86, "HOME = DISCARD - REC = ANOTHER TAKE"); }
+    else { note_s(g, PY + 78, "REC = ARM (K1: BAR OR NOW)"); hint_s(g, PY + 86, "HOLD REC = RECORD WHILE HELD"); }
 }
 
 /* ------------------------------------------------------------ ENV, LFO, FX */
@@ -1342,18 +1487,10 @@ static void draw_env(bm_gfx *g, const bm_app *a)
     }
     if (a->env_page == 1) {
         snprintf(b, sizeof b, TF("ENV > FILTER %d%%"), tr->env_amt * 100 / 127);
-        hint_s(g, PY + 84, b);
+        note_s(g, PY + 84, b);
         snprintf(b, sizeof b, TF("GLIDE %dMS (WITH TIE)"), tr->glide * 500 / 127);
-        hint_s(g, PY + 92, b);
+        note_s(g, PY + 92, b);
     } else hint_s(g, PY + 86, "HOLD ENV = PAINT ACCENTS");
-}
-
-static void draw_lfo(bm_gfx *g, const bm_app *a)
-{
-    (void)a;
-    gfx_text_c(g, 120, 56, "LFO", C_WHITE, 3);
-    gfx_text_c(g, 120, 84, "B-MINI, BITTAL AND BUNO-6 HAVE IT IN SOUND", C_GREY, 1);
-    hint_s(g, 104, "HOLD LFO = PAINT REPEATS (ON NOTES: TIES)");
 }
 
 static void draw_fx(bm_gfx *g, const bm_app *a)
@@ -1361,7 +1498,26 @@ static void draw_fx(bm_gfx *g, const bm_app *a)
     const bm_meta *m = &a->pat.meta;
     static const char *const DT[4] = {"1/16", "1/8", "3/16", "1/4"};
     char b[24];
-    header(g, "MASTER FX", a->fx_page ? "REVERB" : "DELAY", C_WHITE);
+    static const char *const FP[3] = {"DELAY", "REVERB", "MASTER"};
+    home_pages(g, a, FP[a->fx_page % 3], C_WHITE);
+    if (a->fx_page == 2) {                                       /* MASTER: filtro, BEAT FX y drive */
+        static const char *const BF[17] = {"OFF", "STUT4", "STUT8", "STUT16", "STUT32", "REV8", "REV4", "TAPE", "GATE",
+                                           "LPF", "HPF", "BIT", "SR", "THROW", "FREEZE", "KILL LO", "KILL HI"};
+        char f[16];
+        if (m->mfilt >= 60 && m->mfilt <= 68) snprintf(f, sizeof f, "OPEN");
+        else if (m->mfilt < 60) snprintf(f, sizeof f, "LP %d", m->mfilt);
+        else snprintf(f, sizeof f, "HP %d", m->mfilt - 64);
+        gfx_rect(g, 4, 48, 112, 56, C_CYAN);
+        gfx_text(g, 8, 52, "FILTER", C_CYAN, 1);
+        gfx_text(g, 8, 66, f, C_WHITE, 2);
+        gfx_rect(g, 122, 48, 114, 56, C_ORANGE);
+        gfx_text(g, 126, 52, "BEAT FX", C_ORANGE, 1);
+        gfx_text(g, 126, 66, BF[m->beatfx % 17], m->beatfx ? C_PINK : C_GREY, 2);
+        snprintf(b, sizeof b, "DRIVE %d%%", a->set.drive * 100 / 127);
+        gfx_small(g, 6, 110, b, C_GREEN);
+        hint_s(g, 120, "FX AGAIN = DELAY > REVERB > MASTER");
+        return;
+    }
     gfx_rect(g, 4, 48, 74, 56, a->fx_page ? C_DGREY : C_CYAN);
     gfx_text(g, 8, 52, "DELAY", C_CYAN, 1);
     gfx_text(g, 8, 64, DT[m->dly_time & 3], C_WHITE, 2);
@@ -1381,10 +1537,8 @@ static void draw_fx(bm_gfx *g, const bm_app *a)
         gfx_fill(g, x, 96 - h, 10, h, bm_track_color(t));
     }
     if (a->ctx.arena_busy) { gfx_fill(g, 4, 48, 74, 56, C_DDGREY); gfx_small(g, 8, 70, "PAUSED: TAKE", C_ORANGE); gfx_small(g, 8, 78, "NOT SAVED YET", C_ORANGE); }
-    snprintf(b, sizeof b, "DRIVE %d%%  (HOME + K4)", a->set.drive * 100 / 127);
-    gfx_small(g, 6, 110, b, C_WHITE);
-    hint_s(g, 120, "FX AGAIN = DELAY / REVERB - HOLD FX = PUNCH-IN");
-    hint_s(g, 128, "EACH TRACK: FX > DELAY AND REVERB SENDS");
+    hint_s(g, 112, "FX AGAIN = DELAY > REVERB > MASTER");
+    hint_s(g, 120, "HOLD FX = PUNCH-IN");
 }
 
 /* ------------------------------------------------------------ escala y acordes */
@@ -1479,16 +1633,10 @@ static void draw_arp(bm_gfx *g, const bm_app *a)
     int t = a->track;
     const bm_track *tr = &a->pat.trk[t];
     char b[24];
-    if (bm_is_grid(&a->pat, t)) {
-        gfx_text_c(g, 120, 56, "ROLL", bm_track_color(t), 3);
-        gfx_text_c(g, 120, 86, "HOLD ARP + WHITE", C_WHITE, 1);
-        snprintf(b, sizeof b, TF("SPEED %s (K1)"), bm_roll_names[a->roll_rate % 5]);
-        gfx_text_c(g, 120, 98, b, C_GREY, 1);
-        return;
-    }
+    if (bm_is_grid(&a->pat, t)) return;                          /* las rejillas: ARP es la capa ROLL (draw_layer) */
     gfx_text(g, 6, PY + 4, M[tr->arp_mode % 5], C_WHITE, 3);
     snprintf(b, sizeof b, "%s  %d OCT  GATE %d%%", R[tr->arp_rate % 3], tr->arp_oct, tr->arp_gate);
-    hint_s(g, PY + 30, b);
+    note_s(g, PY + 30, b);
     const bm_arp *ar = &a->ctx.arp[t];
     for (int i = 0; i < 8; i++) {
         int x = 10 + i * 28, h = 8 + i * 5;
@@ -1507,7 +1655,7 @@ static void draw_loop(bm_gfx *g, const bm_app *a)
     char b[30];
     gfx_text(g, 6, PY + 2, MN[mode % 5], MC[mode % 5], 2);
     snprintf(b, sizeof b, TF("%d BARS  %d/%d NOTES  %s"), lp->bars, lp->n, BM_LOOP_EVENTS, lp->on ? "ON" : "OFF");
-    hint_s(g, PY + 22, b);
+    note_s(g, PY + 22, b);
     int bx = 6, bw = 228, by = PY + 32, bh = 34;
     if (gfx_strip_hit(g, by, bh)) {
         gfx_rect(g, bx, by, bw, bh, C_DGREY);
@@ -1526,29 +1674,41 @@ static void draw_loop(bm_gfx *g, const bm_app *a)
 }
 
 /* ------------------------------------------------------------ globales */
-static void draw_system(bm_gfx *g, const bm_app *a)
+enum { SYS_ROWS = 11 };
+static void sys_val(const bm_app *a, int i, char *v, int cap)
 {
     const bm_settings *s = &a->set;
-    enum { NR = 11 };
+    size_t n = (size_t)cap;
+    switch (i) {
+    case 0: snprintf(v, n, "%s", s->clock ? "EXTERNAL" : "INTERNAL"); break;
+    case 1: snprintf(v, n, "%s", s->sync_mode ? "SPLIT L/R" : "STEREO"); break;
+    case 2: snprintf(v, n, "%d PPQN", s->sync_ppqn); break;
+    case 3: snprintf(v, n, "%d MS", s->sync_lat); break;
+    case 4: snprintf(v, n, "%s", s->autosave ? "ON" : "OFF"); break;
+    case 5: snprintf(v, n, "%s", s->led_dim == 0 ? "OFF" : (s->led_dim == 1 ? "DIM" : "MEDIUM")); break;
+    case 6: snprintf(v, n, "%s", s->fast_lcd ? "ON (TEST)" : "OFF"); break;
+    case 7: snprintf(v, n, "%s", s->dual_core ? "ON (TEST)" : "OFF"); break;
+    case 8: {
+        int nt = 0; for (int k = 0; k < BM_TAKES; k++) nt += a->take[k].valid;
+        unsigned fs = (unsigned)(bm_takes_free(a->take) * 10u / BM_SMP_RATE);
+        snprintf(v, n, TF("%d+%d, FREE %u.%uS"), nt, bm_snaps_user_n(), fs / 10, fs % 10);
+        break;
+    }
+    case 9: snprintf(v, n, "%s", bm_lang_name()); break;
+    default: snprintf(v, n, "%s", BM_VERSION_STR); break;
+    }
+}
+
+static void draw_system(bm_gfx *g, const bm_app *a)
+{
+    enum { NR = SYS_ROWS };
     char v[NR][20];
-    snprintf(v[0], 20, "%s", s->clock ? "EXTERNAL" : "INTERNAL");
-    snprintf(v[1], 20, "%s", s->sync_mode ? "SPLIT L/R" : "STEREO");
-    snprintf(v[2], 20, "%d PPQN", s->sync_ppqn);
-    snprintf(v[3], 20, "%d MS", s->sync_lat);
-    snprintf(v[4], 20, "%s", s->autosave ? "ON" : "OFF");
-    snprintf(v[5], 20, "%s", s->led_dim == 0 ? "OFF" : (s->led_dim == 1 ? "DIM" : "MEDIUM"));
-    snprintf(v[6], 20, "%s", s->fast_lcd ? "ON (TEST)" : "OFF");
-    snprintf(v[7], 20, "%s", s->dual_core ? "ON (TEST)" : "OFF");
-    int nt = 0; for (int i = 0; i < BM_TAKES; i++) nt += a->take[i].valid;
-    unsigned fs = (unsigned)(bm_takes_free(a->take) * 10u / BM_SMP_RATE);
-    snprintf(v[8], 20, TF("%d+%d, FREE %u.%uS"), nt, bm_snaps_user_n(), fs / 10, fs % 10);
-    snprintf(v[9], 20, "%s", bm_lang_name());
-    snprintf(v[10], 20, "%s", BM_VERSION_STR);
+    for (int i = 0; i < NR; i++) sys_val(a, i, v[i], 20);
     static const char *const L[NR] = {"CLOCK", "SYNC OUT", "SYNC PPQN", "SYNC LATENCY", "AUTOSAVE", "IDLE LEDS", "FAST SCREEN", "TWO CORES",
                                       "TAKES+SOUNDS", N_("LANGUAGE"), "VERSION"};
     int first = a->menu_row > 7 ? a->menu_row - 7 : 0;
     for (int i = 0; i < 8 && first + i < NR; i++) row(g, 26 + i * 12, first + i == a->menu_row, T(L[first + i]), v[first + i]);
-    if (a->menu_row == 6 || a->menu_row == 7) hint_s(g, 124, "TESTING: SAFE MODE TURNS IT OFF AFTER A CRASH");
+    if (a->menu_row == 6 || a->menu_row == 7) note_s(g, 124, "TESTING: SAFE MODE TURNS IT OFF AFTER A CRASH");
 }
 
 static void draw_glo(bm_gfx *g, const bm_app *a)
@@ -1562,7 +1722,7 @@ static void draw_glo(bm_gfx *g, const bm_app *a)
     if (m->fill_every) snprintf(v[4], 16, TF("EVERY %d"), m->fill_every); else snprintf(v[4], 16, "OFF");
     snprintf(v[5], 16, "%+d ST", (int)m->transpose - 24);
     static const char *const L[6] = {"BPM", "SWING", "MASTER LENGTH", "DRIVE", "AUTO FILL", "TRANSPOSE"};
-    header(g, "GLOBAL", "GLO AGAIN = CLOSE", C_WHITE);
+    home_pages(g, a, NULL, C_WHITE);
     for (int i = 0; i < 6; i++) row(g, 48 + i * 12, i == a->glo_row, L[i], v[i]);
     hint_s(g, 124, "HOLD GLO = TRANSPOSE, PLAY = TAP");
 }
@@ -1579,14 +1739,14 @@ static void draw_save(bm_gfx *g, const bm_app *a)
     row(g, 72, a->save_row == 2, "SAVE SONG AND SCENES", NULL);
     row(g, 84, a->save_row == 3, a->clear_armed ? "CLEAR? SAVE AGAIN" : "CLEAR PATTERN", NULL);
     row(g, 96, a->save_row == 4, "EVENTS", r4);
-    hint_s(g, 112, "SELECT PICKS, SAVE RUNS - HOLD SAVE = COPY PATTERN");
+    note_s(g, 112, "SELECT PICKS, SAVE RUNS - HOLD SAVE = COPY PATTERN");
     gfx_small(g, 4, 122, a->ctx.st.playing ? "ONLY WHEN STOPPED (CUTS AUDIO)" : "ONLY WHEN STOPPED - SAVE 2 S: QUICK SAVE", a->ctx.st.playing ? C_ORANGE : C_GREY);
 }
 
 static void draw_song(bm_gfx *g, const bm_app *a)
 {
     char b[24];
-    header(g, "SONG", a->ctx.st.song_on ? "ON" : "OFF", a->ctx.st.song_on ? C_ORANGE : C_WHITE);
+    home_pages(g, a, a->ctx.st.song_on ? "ON" : "OFF", a->ctx.st.song_on ? C_ORANGE : C_GREY);
     if (!a->song.n) {
         gfx_text_c(g, 120, 66, "EMPTY", C_GREY, 2);
         gfx_text_c(g, 120, 92, "WHITE = ADD PATTERN", C_GREY, 1);
@@ -1642,7 +1802,7 @@ static void draw_scenes(bm_gfx *g, const bm_app *a)
 {
     const bm_status *st = &a->ctx.st;
     char b[24];
-    header(g, "SCENES", a->song_rec ? "SONG REC" : "1-4 LAUNCH 5-8 STORE", a->song_rec ? C_RED : C_CYAN);
+    home_pages(g, a, a->song_rec ? "SONG REC" : NULL, C_RED);
     for (int s = 0; s < BM_SCENES; s++) {
         int x = (s % 2) * 118 + 2, y = 48 + (s / 2) * 40;
         if (!gfx_strip_hit(g, y, 38)) continue;
@@ -1688,7 +1848,7 @@ static void draw_copych(bm_gfx *g, const bm_app *a)
         gfx_text_c(g, 185, 60, b, C_BLACK, 3);
         gfx_text_c(g, 185, 88, bm_track_name(a, d), C_BLACK, 1);
     }
-    hint_s(g, 110, "ALGORITHM PICKS THE TARGET - OCT+ PASTES - HOME CANCELS");
+    note_s(g, 110, "ALGORITHM PICKS THE TARGET - OCT+ PASTES - HOME CANCELS");
     hint_s(g, 120, "NOTES TO NOTES, HITS TO HITS: THE MACHINES DO NOT CHANGE");
 }
 
@@ -1704,29 +1864,44 @@ static void draw_layer(bm_gfx *g, const bm_app *a)
     if (gfx_strip_hit(g, 26, 20)) {
         gfx_fill(g, 0, 26, BM_LCD_W, 18, col);
         gfx_text(g, 6, 28, title, C_BLACK, 2);
-        char b[16];
+        char b[24];
+        if (a->layer == L_ROLL) {                                /* la velocidad y la rampa, siempre a la vista */
+            const char *rp = a->roll_ramp == 1 ? T("CRESC") : a->roll_ramp == 2 ? T("DECRESC") : "";
+            snprintf(b, sizeof b, "%s  %s", bm_roll_names[a->roll_rate % BM_ROLL_RATES], rp);
+            gfx_text(g, 8 + gfx_text_w(title, 2), 32, b, C_BLACK, 1);
+        }
         if (a->layer == L_HOME || a->view == V_HOME) snprintf(b, sizeof b, "A%02d", a->ctx.st.pattern + 1);
         else snprintf(b, sizeof b, "T%d", a->track + 1);
-        gfx_text_r(g, 234, 32, b, C_BLACK, 1);
+        if (a->layer_latch) {                                    /* abierta con un toque: queda hasta cerrarla */
+            gfx_small(g, 236 - gfx_small_w("LATCHED"), 28, "LATCHED", C_BLACK);
+            gfx_small(g, 236 - gfx_small_w(b), 36, b, C_BLACK);
+        } else gfx_text_r(g, 234, 32, b, C_BLACK, 1);
     }
-    /* las teclas activas, grandes, para leerlas de lejos */
-    int n = 0;
-    for (int k = 0; k < BM_KEYS && n < 6; k++) {
-        if (!K[k].label[0] || (K[k].led != LED_ON && K[k].led != LED_BLINK && !a->keys_down[k])) continue;
-        int x = 4 + (n % 3) * 78, y = 52 + (n / 3) * 22;
-        if (gfx_strip_hit(g, y, 20)) {
-            bool dn = a->keys_down[k];
-            gfx_fill(g, x, y, 74, 19, dn ? col : C_DDGREY);
-            char l[8]; snprintf(l, sizeof l, "%.5s", T(K[k].label));
-            gfx_text(g, x + 4, y + 6, l, dn ? C_BLACK : C_WHITE, 1);
-            gfx_small(g, x + 60, y + 7, bm_key_is_black(k) ? "B" : "W", C_GREY);
+    /* Lo que la capa toca, no una copia de la franja de teclas: los instrumentos de la batería
+     * (mute en rojo, destello al sonar) o los seis canales. Si no, solo cómo se usa. */
+    int t = a->track, hy = 52;
+    bool lanes = app_kind(a, t) == KIND_TR && (a->layer == L_LANEMUTE || a->layer == L_FILL || a->layer == L_ERASE || a->layer == L_ROLL);
+    if (lanes) { lane_pads(g, a, t, 47, 14); hy = 106; }
+    else if (a->layer == L_HOME || a->layer == L_PUNCH || a->layer == L_COPY) {
+        for (int i = 0; i < BM_TRACKS; i++) {
+            int x = 2 + (i % 3) * 79, y = 48 + (i / 3) * 18;
+            if (!gfx_strip_hit(g, y, 16)) continue;
+            bool mu = a->pat.trk[i].mute, fl = !mu && a->now < a->trig_until[i], dn = a->keys_down[bm_black_key(i)];
+            uint16_t tc = bm_track_color(i);
+            gfx_fill(g, x, y, 76, 16, fl || dn ? tc : C_DDGREY);
+            if (a->solo_on && a->solo_track == i) gfx_rect(g, x, y, 76, 16, C_WHITE);
+            char b[8]; snprintf(b, sizeof b, "%d", i + 1);
+            uint16_t fg = fl || dn ? C_BLACK : (mu ? C_GREY : tc);
+            gfx_small(g, x + 3, y + 6, b, fl || dn ? C_BLACK : C_GREY);
+            gfx_text(g, x + 11, y + 5, bm_track_name(a, i), fg, 1);
+            if (mu) gfx_text(g, x + 66, y + 5, "M", C_RED, 1);
         }
-        n++;
+        hy = 88;
     }
-    if (!n && gfx_strip_hit(g, 60, 10)) gfx_text_c(g, 120, 62, "THE KEYS BELOW SAY WHAT THEY DO", C_GREY, 1);
-    hint_s(g, 104, h1);
-    hint_s(g, 113, h2);
-    if (a->layer == L_HOME) hint_s(g, 124, "SELECT = GO TO A TRACK - ALGORITHM = BPM .1");
+    /* cómo se usa (se va a los 4 s) y cómo se sale (queda) */
+    hint_s(g, hy, h1);
+    note_s(g, hy + 10, h2);
+    if (a->layer == L_HOME) hint_s(g, hy + 20, "SELECT = GO TO A TRACK - ALGORITHM = BPM .1");
 }
 
 /* ------------------------------------------------------------ recuadro, pregunta, overlay, toast */
@@ -1772,17 +1947,46 @@ static void draw_ask(bm_gfx *g, const bm_app *a)
     gfx_text_c(g, 170, 99, "HOME NO", C_WHITE, 1);
 }
 
+/* K1-K4: una línea con el nombre y el valor en la fila de arriba (pestañas o título), sin tapar la
+ * rejilla ni el paso sostenido; el dial de abajo ya marca cuál giró. */
+static void draw_overlay_line(bm_gfx *g, const bm_app *a)
+{
+    const bm_overlay *o = &a->ov;
+    bool tall = (a->layer && a->layer != L_CHORDS) || a->view == V_SAVE || a->view == V_TIME || a->view == V_COPYCH || a->view == V_MIX;
+    int h = tall ? 21 : 11;                                      /* también tapa el título grande de esas pantallas */
+    if (!gfx_strip_hit(g, 24, h)) return;
+    gfx_fill(g, 0, 24, BM_LCD_W, h, C_BLACK);
+    int y = 24 + (h - 7) / 2;
+    gfx_text(g, 4, y, o->title, o->color, 1);
+    int x = 236;
+    if (o->unit[0]) x -= gfx_text_r(g, x, y, o->unit, C_GREY, 1) + 4;
+    gfx_text_r(g, x, y, o->val, C_WHITE, 1);
+    gfx_fill(g, 0, 24 + h - 1, BM_LCD_W, 1, C_DDGREY);
+    gfx_fill(g, 0, 24 + h - 1, o->pct * BM_LCD_W / 255, 1, o->color);
+}
+
 static void draw_overlay(bm_gfx *g, const bm_app *a)
 {
     const bm_overlay *o = &a->ov;
+    if (o->knob >= ENC_K1 + 1 && o->knob <= ENC_K4 + 1 && !o->beat) { draw_overlay_line(g, a); return; }
     if (!gfx_strip_hit(g, 46, 84)) return;
     gfx_fill(g, 12, 46, 216, 84, C_BLACK);
     gfx_rect(g, 12, 46, 216, 84, o->color);
     gfx_rect(g, 13, 47, 214, 82, o->color);
     grid(g, 16, 50, 208, 76, 6);
     gfx_text(g, 20, 52, o->title, C_GREY, 1);
+    if (o->knob) {                                               /* la perilla grande que se giró, en la esquina */
+        static const char *const KN[ENC_COUNT] = {"SELECT", "ALGORITHM", "K1", "K2", "K3", "K4", "PRESETS"};
+        gfx_small(g, 222 - gfx_small_w(KN[(o->knob - 1) % ENC_COUNT]), 53, KN[(o->knob - 1) % ENC_COUNT], o->color);
+    }
     int w = gfx_text(g, 20, 68, o->val, C_WHITE, gfx_text_w(o->val, 3) > 196 ? 2 : 3);
     if (o->unit[0]) gfx_text(g, 26 + w, 78, o->unit, C_GREY, 2);
+    if (o->beat) {                                               /* el beat, en el color del tempo */
+        const bm_status *st = &a->ctx.st;
+        int cur = st->playing ? (int)((st->btick / BM_PPQN) % 4) : -1;
+        for (int i = 0; i < 4; i++) gfx_fill(g, 20 + i * 51, 108, 47, 12, i == cur ? o->color : dim(dim(o->color)));
+        return;
+    }
     gfx_fill(g, 20, 110, 200, 8, C_DGREY);
     gfx_fill(g, 20, 110, o->pct * 200 / 255, 8, o->color);
     if (o->ghost != 255) gfx_fill(g, 19 + o->ghost * 200 / 255, 106, 2, 16, C_WHITE);
@@ -1799,25 +2003,26 @@ static void draw_toast(bm_gfx *g, const bm_app *a)
 /* ------------------------------------------------------------ entrada */
 static void draw_channel(bm_gfx *g, const bm_app *a)
 {
+    PASO(8);
     draw_tabs(g, a);
     int t = a->track, kind = app_kind(a, t);
+    PASO(9);
     switch (a->page) {
     case PG_SEQ:
         if (kind == KIND_TR) draw_seq_tr(g, a);
         else draw_seq_syn(g, a);
         break;
-    case PG_SOUND: draw_sound(g, a); break;
+    case PG_SOUND: PASO(11); draw_sound(g, a); break;
     case PG_INST: draw_inst(g, a); break;
-    case PG_MIX: draw_ch_mix(g, a); break;
-    case PG_MORE: draw_more(g, a); break;
-    case PG_BREAK: draw_break(g, a); break;
-    case PG_TAKES: draw_takes(g, a); break;
+    case PG_MIX: PASO(18); draw_ch_mix(g, a); break;
+    case PG_MORE: PASO(19); draw_more(g, a); break;
+    case PG_BREAK: PASO(16); draw_break(g, a); break;
+    case PG_TAKES: PASO(17); draw_takes(g, a); break;
     case PG_ENV: draw_env(g, a); break;
     case PG_ARP: draw_arp(g, a); break;
     case PG_LOOP: draw_loop(g, a); break;
     case PG_SCL: draw_scl(g, a, 0); break;
     case PG_CHORDS: draw_chords(g, a, PY); break;
-    case PG_LFO: draw_lfo(g, a); break;
     case PG_REC: draw_rec(g, a); break;
     case PG_PADS: draw_pads(g, a); break;
     default: break;
@@ -1832,12 +2037,15 @@ void bm_app_draw(bm_gfx *g, void *user)
         gfx_text(g, 4, 231, "V" BM_VERSION_STR, C_DGREY, 1);
         return;
     }
+    PASO(1);
+    hints_update(a);
     draw_status(g, a);
     gfx_clip(g, 0, BM_CTX_Y, BM_LCD_W, BM_CTX_H);
+    PASO(2);
     if (a->layer && a->layer != L_CHORDS) draw_layer(g, a);
     else if (a->layer == L_CHORDS) { gfx_text(g, 4, 26, "LIVE CHORDS", C_GREEN, 1); draw_chords(g, a, 36); }
     else switch (a->view) {
-    case V_HOME: draw_home(g, a); break;
+    case V_HOME: PASO(3); draw_home(g, a); break;
     case V_MIX: draw_mix(g, a); break;
     case V_SCENES: draw_scenes(g, a); break;
     case V_SONG: draw_song(g, a); break;
@@ -1851,13 +2059,21 @@ void bm_app_draw(bm_gfx *g, void *user)
     case V_COPYCH: draw_copych(g, a); break;
     default: break;
     }
+    PASO(24);
     if (a->box_on) draw_box(g, a);
+    PASO(25);
     if (a->ov.on) draw_overlay(g, a);
+    PASO(26);
     if (a->ask) draw_ask(g, a);
+    PASO(27);
     if (a->toast_until && !a->ask) draw_toast(g, a);
     gfx_noclip(g);
+    PASO(28);
     draw_keys(g, a);
+    PASO(29);
     draw_legend(g, a);
+    draw_bigknobs(g, a);
+    PASO(0);
     if (a->now < a->clip_until) {
         gfx_fill(g, 0, 0, BM_LCD_W, 2, C_RED); gfx_fill(g, 0, BM_LCD_H - 2, BM_LCD_W, 2, C_RED);
         gfx_fill(g, 0, 0, 2, BM_LCD_H, C_RED); gfx_fill(g, BM_LCD_W - 2, 0, 2, BM_LCD_H, C_RED);

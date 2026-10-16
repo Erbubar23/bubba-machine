@@ -121,7 +121,13 @@ F35.update({
 'V': "#.#|#.#|#.#|#.#|.#.", 'W': "#.#|#.#|###|###|#.#", 'X': "#.#|#.#|.#.|#.#|#.#",
 'Y': "#.#|#.#|.#.|.#.|.#.", 'Z': "###|..#|.#.|#..|###", '/': "..#|..#|.#.|#..|#..",
 '.': "...|...|...|...|.#.", ':': "...|.#.|...|.#.|...",
+'>': "#..|.#.|..#|.#.|#..", '<': "..#|.#.|#..|.#.|..#", '!': ".#.|.#.|.#.|...|.#.",
+'?': "##.|..#|.#.|...|.#.", ',': "...|...|...|.#.|#..", "'": ".#.|.#.|...|...|...",
 })
+
+# '#' en 3 columnas se leía como una N ("F# G# A#" parecían "FN GN AN"): el sostenido de la 3x5
+# va en 4 columnas, inclinado como en una partitura (gfx_small le da un paso de 5 píxeles).
+SHARP4 = ".#.#|####|.#.#|####|#.#."
 
 
 def rows(spec, w):
@@ -155,6 +161,8 @@ def main():
         g = F35.get(ch) or F35.get(ch.upper()) or F35[' ']
         lines.append('  {%s}, /* %r */' % (','.join('0x%02X' % v for v in rows(g, 3)), ch))
     lines.append('};')
+    lines += ['', '/* el sostenido de la 3x5, en 4 columnas (bit 3 = columna izquierda) */',
+              'const uint8_t bm_sharp4x5[5] = {%s};' % ','.join('0x%02X' % v for v in rows(SHARP4, 4))]
     with open(dst, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines) + '\n')
     print('escrito', dst)

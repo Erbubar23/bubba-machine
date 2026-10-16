@@ -23,7 +23,13 @@ void bm_gesture_init(bm_gesture *g, bm_gesture_cb cb, void *user)
     cfg(g, BTN_SEQ, 1, 1, 0, 1, UI_LONG_MS);          /* capa LARGO Y VELOCIDAD · 2 s: TIEMPO */
     cfg(g, BTN_EDIT, 1, 1, 0, 1, UI_LONG_MS);         /* capa BORRAR · 2 s: TOMAS / SONIDO INICIAL */
     cfg(g, BTN_SAVE, 1, 1, 0, 1, UI_LONG_MS);         /* capa COPIAR PATRON · 2 s: guardado rápido */
-    cfg(g, BTN_REC, 1, 1, 0, 1, UI_LONG_MS);          /* mantener = grabar mientras · 2 s: borrar la pista */
+    /* REC: mantener = grabar mientras. Sin 2 s fijos: bm_app_button los pide al bajar con
+     * bm_gesture_set_long (LOOP: borrar el loop; en un canal sin grabar nada: borrar la pista). */
+}
+
+void bm_gesture_set_long(bm_gesture *g, int id, uint16_t long_ms)
+{
+    if (id >= 0 && id < BTN_COUNT && !g->b[id].down) g->b[id].long_ms = long_ms;
 }
 
 bool bm_gesture_is_down(const bm_gesture *g, int id) { return id >= 0 && id < BTN_COUNT && g->b[id].down; }

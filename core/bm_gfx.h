@@ -25,6 +25,7 @@
 #define C_RED     RGB565(255, 0, 85)      /* #FF0055 Laser Red: REC, saturación, mute */
 #define C_GREEN   RGB565(112, 255, 152)   /* #70FF98 Matrix Mint: notas largas, TIE */
 #define C_YELLOW  RGB565(255, 210, 63)
+#define C_TEMPO   C_YELLOW                /* el tempo: su propio color, no el de un canal (0.7) */
 #define C_PINK    RGB565(255, 43, 214)    /* magenta */
 #define C_VIOLET  RGB565(157, 123, 255)
 #define C_BLUE    RGB565(61, 123, 255)
@@ -55,6 +56,7 @@ bool gfx_strip_hit(const bm_gfx *g, int y, int h);   /* ¿el rango toca la franj
 
 extern const uint8_t bm_font5x7[96][7];
 extern const uint8_t bm_font3x5[96][5];
+extern const uint8_t bm_sharp4x5[5];   /* '#' en la 3x5: 4 columnas, paso de 5 */
 extern const uint16_t bm_logo_pal[48];
 extern const uint16_t bm_logo_row[240];
 extern const uint8_t bm_logo_rle[];

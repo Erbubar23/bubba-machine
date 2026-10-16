@@ -40,6 +40,8 @@ void bm_gesture_up(bm_gesture *g, int id, uint32_t now);
 void bm_gesture_poll(bm_gesture *g, uint32_t now);
 void bm_gesture_other(bm_gesture *g, uint32_t now);
 bool bm_gesture_is_down(const bm_gesture *g, int id);
+/* Los 2 s de un botón (0 = sin LONG); solo se cambia con el botón arriba. */
+void bm_gesture_set_long(bm_gesture *g, int id, uint16_t long_ms);
 /* Progreso hacia los 2 s (0..255) del botón que se está sosteniendo, o -1. */
 int  bm_gesture_progress(const bm_gesture *g, uint32_t now, int *id);
 

@@ -125,7 +125,7 @@ static volatile uint32_t latido, perro_on;
 static uint32_t visto, quieto;
 
 void fm1_latido(void) { latido++; }
-void fm1_perro(int on) { perro_on = (uint32_t)on; quieto = 0; }
+int fm1_perro(int on) { int era = (int)perro_on; perro_on = (uint32_t)on; quieto = 0; return era; }
 
 static void perro(void)
 {
@@ -142,6 +142,19 @@ static void perro(void)
         m[2 + i] = (uint8_t)fm1_miga_act[i];
     m[6] = m[7] = 0;
     cpu_reset();
+}
+
+/* una falla del procesador antes de este arranque (hal/fm1/sdk/wl82_debug.c la dejó): 1 y sus datos */
+int fm1_excepcion_previa(uint32_t *pc, uint8_t *cpu_emu, uint8_t *dbg)
+{
+    volatile uint8_t *m = (volatile uint8_t *)PERRO_ADR;
+    if (m[0] != 0xBBu || m[1] != 0xB0u)
+        return 0;
+    *pc = (uint32_t)m[2] | (uint32_t)m[3] << 8 | (uint32_t)m[4] << 16 | (uint32_t)m[5] << 24;
+    *cpu_emu = m[6];
+    *dbg = m[7];
+    m[0] = m[1] = 0;
+    return 1;
 }
 
 int fm1_cuelgue_previo(char out[5])

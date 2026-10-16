@@ -1126,7 +1126,7 @@ void bm_app_tick(bm_app *a, uint32_t now)
         app_save_jobs(a, a->dirty);
         if (a->song_dirty) app_job(a, JOB_SAVE_SONG, 0);
         if (a->set_dirty) app_job(a, JOB_SAVE_GLOB, 0);
-        app_toast(a, "AUTOSAVED");
+        a->autosave_until = now + UI_TOAST_MS;
     }
     if (a->ext_take_del && !app_playing(a)) {      /* pedido de la consola: como N11 en TOMAS */
         int id = a->ext_take_del - 1;

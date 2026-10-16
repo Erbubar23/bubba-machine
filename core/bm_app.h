@@ -183,6 +183,7 @@ typedef struct bm_app {
     bm_overlay ov;
     char toast[30];
     uint32_t toast_until;
+    uint32_t autosave_until;          /* marca de autoguardado en el encabezado (sin aviso) */
     uint8_t battery;
     uint16_t master_adc, master_sent;
     uint32_t now, boot_t;

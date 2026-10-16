@@ -79,7 +79,7 @@ static const char *hold_target(const bm_app *a, int id, char *b, int cap)
 }
 
 /* el autoguardado no tapa la pantalla con un aviso: es una marca en la cabecera */
-static bool toast_autosave(const bm_app *a) { return a->toast_until && !strcmp(a->toast, "AUTOSAVED"); }
+static bool toast_autosave(const bm_app *a) { return a->now < a->autosave_until; }
 
 static void draw_status(bm_gfx *g, const bm_app *a)
 {
@@ -2076,7 +2076,7 @@ void bm_app_draw(bm_gfx *g, void *user)
     PASO(26);
     if (a->ask) draw_ask(g, a);
     PASO(27);
-    if (a->toast_until && !a->ask && !toast_autosave(a)) draw_toast(g, a);
+    if (a->toast_until && !a->ask) draw_toast(g, a);
     gfx_noclip(g);
     PASO(28);
     draw_keys(g, a);

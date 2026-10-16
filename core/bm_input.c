@@ -1905,6 +1905,10 @@ static void button_page(bm_app *a, int id)
     default: return;
     }
     app_enter(a, t, pg);
+    a->nav_btn = 0;                                              /* su luz: este botón, mientras sigas aquí */
+    if (a->view == V_CH && a->page == pg) {
+        a->nav_btn = (uint8_t)(id + 1); a->nav_track = a->track; a->nav_page = a->page; a->nav_sub = a->ed_page[a->track];
+    }
 }
 
 static void home_combo(bm_app *a, int id)
@@ -2086,12 +2090,9 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             if (a->rec_hold == 2) app_push(a, CMD_SMP_REC, 0, 0, 0);
             else if (a->rec_hold == 1) { a->rec = a->rec_before; app_push(a, CMD_REC, a->rec, 0, 0); }
             a->rec_hold = 0;
-            if (k == G_LONG) {
-                if (a->view == V_CH && a->page == PG_LOOP) { app_push(a, CMD_LOOP, a->track, 2, 0); app_toast(a, "LOOP ERASED"); return; }
-                app_clear_track(a, a->track);   /* sin preguntar: HOME + OCT- lo deshace */
-                snprintf(b, sizeof b, TF("T%d ERASED"), a->track + 1);
-                app_toast(a, b);
-            }
+            /* 2 s solo existen en LOOP (bm_app_button): borran el loop. La pista no se borra con
+             * REC: eso es EDIT sostenido + CLR. */
+            if (k == G_LONG && a->view == V_CH && a->page == PG_LOOP) { app_push(a, CMD_LOOP, a->track, 2, 0); app_toast(a, "LOOP ERASED"); }
         }
         return;
     case BTN_GLO:
@@ -2178,6 +2179,8 @@ void bm_app_button(bm_app *a, int id, int down, uint32_t now)
     if (id < 0 || id >= BTN_COUNT) return;
     uint16_t bit = (uint16_t)(1u << id);
     if (down && id != BTN_HOME && bm_gesture_is_down(&a->ges, BTN_HOME)) { a->home_mod |= bit; a->home_done &= (uint16_t)~bit; a->home_used = 1; }
+    if (down && id == BTN_REC)                       /* REC 2 s: solo en LOOP (borra el loop) */
+        bm_gesture_set_long(&a->ges, BTN_REC, (uint16_t)(a->view == V_CH && a->page == PG_LOOP && !a->layer ? UI_LONG_MS : 0));
     if (down) bm_gesture_down(&a->ges, id, now);
     else bm_gesture_up(&a->ges, id, now);
     if (!down) { a->home_mod &= (uint16_t)~bit; a->home_done &= (uint16_t)~bit; }
@@ -3101,25 +3104,238 @@ static uint8_t led_last[BM_LEDS];
 
 static void led(bm_app *a, int id, uint8_t lvl)
 {
-    if (lvl == LED_DIM && a->set.led_dim == 0) lvl = LED_OFF;
+    if (id < BM_LED_KEY0 && lvl == LED_DIM) {                /* SISTEMA > LED: solo los botones en reposo */
+        if (a->set.led_dim == 0) lvl = LED_OFF;
+        else if (a->set.led_dim == 2) lvl = LED_MID;
+    }
     if (led_last[id] == lvl + 1) return;
     led_last[id] = (uint8_t)(lvl + 1);
     if (a->pf.led) a->pf.led(a->pf.user, id, lvl);
 }
 
-static int page_button(int page)
+/* El botón de la página del canal: el que la abrió (button_page) mientras sigas en ella; si no,
+ * el que la abre según la página (y en las de un editor por páginas, la envolvente o el LFO). */
+static int page_button(const bm_app *a)
 {
-    switch (page) {
+    int t = a->track;
+    if (a->nav_btn && a->nav_track == t && a->nav_page == a->page && a->nav_sub == a->ed_page[t]) return a->nav_btn - 1;
+    switch (a->page) {
     case PG_SEQ: case PG_LOOP: case PG_BREAK: return BTN_SEQ;
-    case PG_SOUND: case PG_INST: case PG_TAKES: case PG_PADS: case PG_MIDI: return BTN_EDIT;
+    case PG_SOUND:
+        if (app_kind(a, t) == KIND_NOTE && bm_engine_paged(app_engine(a, t))) {
+            int e = app_engine(a, t), p = a->ed_page[t];
+            if (p == bm_engine_page_of(e, EPG_AMP) || p == bm_engine_page_of(e, EPG_FENV)) return BTN_ENV;
+            if (p == bm_engine_page_of(e, EPG_LFO)) return BTN_LFO;
+        }
+        return BTN_EDIT;
+    case PG_PADS: return a->ed_page[t] == 2 ? BTN_ENV : BTN_EDIT;
+    case PG_INST: case PG_TAKES: case PG_MIDI: return BTN_EDIT;
     case PG_ENV: return BTN_ENV;
     case PG_MIX: return BTN_FX;
     case PG_SCL: case PG_CHORDS: return BTN_SCL;
     case PG_ARP: return BTN_ARP;
     case PG_LFO: return BTN_LFO;
-    case PG_REC: return BTN_REC;
     default: return -1;
     }
+}
+
+/* El botón sostenido de cada capa (respira). MUTE y FILL se abren con una tecla: ninguno. */
+static int layer_button(int L)
+{
+    switch (L) {
+    case L_HOME: return BTN_HOME;
+    case L_LEN: return BTN_SEQ;
+    case L_ERASE: return BTN_EDIT;
+    case L_ACC: return BTN_ENV;
+    case L_REP: return BTN_LFO;
+    case L_PUNCH: return BTN_FX;
+    case L_CHORDS: return BTN_SCL;
+    case L_ARP: case L_ROLL: return BTN_ARP;
+    case L_COPY: return BTN_SAVE;
+    case L_TONE: return BTN_GLO;
+    default: return -1;                                      /* L_NONE, L_LANEMUTE, L_FILL */
+    }
+}
+
+/* Las páginas de la consola (BX-1) que recorre HOME: MIX > FX > TEMPO > ESCENAS > SONG. TEMPO (GLO)
+ * es de la consola si se llegó desde ella; desde un canal es la lista de GLO. */
+static bool console_view(int v) { return v == V_HOME || v == V_MIX || v == V_FXG || v == V_SCENES || v == V_SONG; }
+static bool console_page(const bm_app *a) { return console_view(a->view) || (a->view == V_GLO && console_view(a->prev_view)); }
+
+/* El botón de "dónde estás" en cada pantalla. En la consola es HOME. */
+static int view_button(const bm_app *a)
+{
+    if (console_page(a)) return BTN_HOME;
+    switch (a->view) {
+    case V_SYSTEM: return BTN_HOME;
+    case V_TIME: return BTN_SEQ;
+    case V_GLO: return BTN_GLO;
+    case V_SAVE: return BTN_SAVE;
+    case V_SCLG: return BTN_SCL;
+    case V_CH: return page_button(a);
+    default: return -1;
+    }
+}
+
+/* En la consola, el otro botón que abre la misma página (MID): FX, GLO, SEQ (canción). En HOME y
+ * en los faders, SEQ y EDIT entran al canal del cursor. */
+static int alias_button(const bm_app *a, int i)
+{
+    switch (a->view) {
+    case V_FXG: return i == BTN_FX;
+    case V_GLO: return i == BTN_GLO && console_page(a);
+    case V_SONG: return i == BTN_SEQ;
+    case V_HOME: case V_MIX: return i == BTN_SEQ || i == BTN_EDIT;
+    default: return 0;
+    }
+}
+
+/* Páginas de pasos del canal (OCT -/+ en SEQ y en ACENTO, REPETIR y FILL). */
+static int step_pages(const bm_app *a)
+{
+    int t = a->track, len = bm_trk_len(&a->pat, t, app_kind(a, t) == KIND_NOTE ? -1 : tr_lane(a));
+    int pages = (len + 15) / 16;
+    return pages > 0 ? pages : 1;
+}
+
+static uint8_t page_arrow(int up, int cur, int last) { return (up ? cur < last : cur > 0) ? LED_MID : LED_OFF; }
+
+/* HOME + EDIT: hay otro canal del mismo tipo para copiar (home_combo) */
+static bool copy_target(const bm_app *a)
+{
+    if (bm_is_pads(a->track)) return false;
+    int k = app_kind(a, a->track);
+    for (int i = 1; i < BM_TRACKS; i++) {
+        int d = (a->track + i) % BM_TRACKS;
+        if (d != 1 && app_kind(a, d) == k) return true;
+    }
+    return false;
+}
+
+/* Hay algo sin guardar (el patrón, la canción, una toma o su ganancia). Los ajustes no: SAVE no
+ * los escribe, se guardan solos. */
+static bool unsaved(const bm_app *a)
+{
+    return a->dirty || a->song_dirty || a->pend_obj >= 0 || a->take_dirty || a->ctx.st.smp_unsaved;
+}
+
+static bool writing(const bm_app *a)
+{
+    for (int i = 0; i < a->njob; i++) if (a->job[i] != JOB_LOAD) return true;
+    return a->job_fading;
+}
+
+/* Un patrón o una escena en cola (no las cadenas, que siempre tienen el siguiente en cola). */
+static bool queued(const bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    return (st->queued != 0xFF && st->queued != st->pattern && st->pchain_n <= 1) || (st->scene_q != 0xFF && !st->chain_n);
+}
+
+static uint8_t play_led(const bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    if (st->playing) return (st->btick % BM_BAR_TICKS) < 24 ? LED_ON : (st->btick % BM_PPQN) < 24 ? LED_MID : LED_DIM;
+    return a->set.clock && !st->ext_ok ? LED_BREATH : LED_DIM;      /* reloj externo sin señal: esperando */
+}
+
+static uint8_t rec_led(const bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    int t = a->track, lm = LOOP_OFF;
+    if (t >= BM_TR_TRACKS && t < BM_TRACKS && app_kind(a, t) == KIND_NOTE) lm = st->loop_mode[t - BM_TR_TRACKS];
+    bool smp = a->view != V_CH || t == 1;                   /* la grabadora: no dentro de otra máquina */
+    if ((smp && st->smp_rec) || a->rec_hold || lm == LOOP_REC) return LED_BLINK;   /* grabando */
+    if ((smp && st->smp_armed) || lm == LOOP_ARMED) return LED_BREATH;              /* armado */
+    if (a->rec || lm == LOOP_DUB) return LED_ON;                            /* REC de notas, sobregrabación */
+    return LED_DIM;
+}
+
+/* Las teclas tocan notas con la octava de OCT -/+ (fuera de SEQ, donde OCT pasa páginas). */
+static bool oct_plays(const bm_app *a)
+{
+    switch (a->view) {
+    case V_HOME: case V_MIX: case V_SCENES: case V_SONG: case V_COPYCH: case V_BOOT: return false;
+    case V_CH:
+        if (a->page == PG_CHORDS) return true;
+        if (a->page == PG_SEQ || a->page == PG_TAKES || a->page == PG_REC || a->page == PG_PADS) return false;
+        break;
+    default: break;
+    }
+    return app_kind(a, a->track) == KIND_NOTE;
+}
+
+/* En la pantalla (sin pregunta, sin HOME ni capa): el toque o el sostenido hacen algo. Los botones
+ * de página entran al canal desde cualquier pantalla y todos tienen capa; OCT solo si las teclas
+ * tocan notas. */
+static bool btn_usable(const bm_app *a, int id)
+{
+    if (id == BTN_OCT_DN || id == BTN_OCT_UP) return oct_plays(a);
+    return true;
+}
+
+/* La luz de un botón. Blancas: dicen el estado, nunca la función (eso lo dice la pantalla).
+ * OFF no hace nada aquí · DIM disponible · MID significado especial ahora · ON dónde estás o un
+ * estado que queda · BLINK te necesita ya · BREATH armado o pendiente.
+ * Precedencia: pregunta > HOME sostenido > capa sostenida > pantalla. */
+static uint8_t btn_led(const bm_app *a, int i)
+{
+    if (a->ask || a->view == V_COPYCH)                      /* OCT+ sí · HOME no · OCT- también cancela */
+        return i == BTN_OCT_UP ? LED_BLINK : i == BTN_HOME ? LED_ON : i == BTN_OCT_DN ? LED_MID : LED_OFF;
+    if (a->layer == L_HOME) {                               /* HOME sostenido: los que tienen HOME + */
+        switch (i) {
+        case BTN_HOME: return LED_ON;
+        case BTN_OCT_DN: return a->undo_track >= 0 ? LED_MID : LED_OFF;
+        case BTN_OCT_UP: return a->redo_track >= 0 ? LED_MID : LED_OFF;
+        case BTN_EDIT: return copy_target(a) ? LED_MID : LED_OFF;
+        case BTN_REC: return a->song_rec ? LED_ON : LED_MID;
+        case BTN_SEQ: case BTN_FX: case BTN_SCL: case BTN_SAVE: case BTN_PLAY: return LED_MID;
+        default: return LED_OFF;
+        }
+    }
+    if (a->layer) {                                         /* capa sostenida, o MUTE / FILL abiertas */
+        int L = a->layer;
+        if (i == layer_button(L)) return LED_BREATH;
+        switch (i) {
+        case BTN_OCT_DN: case BTN_OCT_UP: {
+            int up = i == BTN_OCT_UP;
+            if (L == L_ERASE) return (up ? a->redo_track : a->undo_track) >= 0 ? LED_MID : LED_OFF;
+            if (L == L_LEN) return page_arrow(up, a->len_page, 3);
+            if (L == L_ACC || L == L_REP || L == L_FILL) return page_arrow(up, a->step_page, step_pages(a) - 1);
+            if (L == L_ARP || L == L_CHORDS) return (up ? a->oct > 0 : a->oct < 0) ? LED_ON : LED_MID;
+            return LED_OFF;
+        }
+        case BTN_PLAY: return L == L_TONE ? LED_MID : play_led(a);         /* TONE: tap tempo */
+        case BTN_REC: { uint8_t r = rec_led(a); return r == LED_DIM ? LED_OFF : r; }
+        case BTN_HOME: return a->layer_latch ? LED_MID : LED_OFF;           /* MUTE / FILL: salir */
+        default: return LED_OFF;
+        }
+    }
+    switch (i) {
+    case BTN_PLAY: return play_led(a);
+    case BTN_REC: return rec_led(a);
+    case BTN_OCT_DN: case BTN_OCT_UP: {
+        int up = i == BTN_OCT_UP;
+        if (a->view == V_CH && a->page == PG_SEQ) return page_arrow(up, a->step_page, step_pages(a) - 1);
+        if (up ? a->oct > 0 : a->oct < 0) return LED_ON;                    /* octava corrida */
+        break;
+    }
+    case BTN_HOME:                                          /* dentro de un canal: salir a la consola */
+        if (queued(a) && a->view != V_HOME && a->view != V_MIX && a->view != V_SCENES) return LED_BLINK;   /* patrón o escena en cola */
+        break;
+    case BTN_SAVE:
+        if (a->view == V_SAVE && a->clear_armed && a->now - a->clear_t < 3000) return LED_BLINK;   /* SAVE otra vez = borrar */
+        if (writing(a)) return LED_ON;
+        if (a->view != V_SAVE && a->view != V_CH && unsaved(a)) return LED_BREATH;   /* global: no dentro de la máquina */
+        break;
+    case BTN_SEQ:
+        if (a->song_rec && a->view != V_CH) return LED_BLINK;               /* SONG REC (de la consola) */
+        break;
+    default: break;
+    }
+    if (i == view_button(a)) return LED_ON;
+    if (alias_button(a, i)) return LED_MID;
+    return btn_usable(a, i) ? LED_DIM : LED_OFF;
 }
 
 /* un carril de batería: el elegido al 100 %, con pasos al 50 %, con pasos pero muteado tenue,
@@ -3232,29 +3448,8 @@ void app_leds(bm_app *a)
         for (int i = 0; i < BTN_COUNT; i++) led(a, i, LED_DIM);
         return;
     }
-    static const int8_t LB[L_COUNT] = {-1, BTN_HOME, BTN_SEQ, BTN_EDIT, BTN_ENV, BTN_LFO, BTN_FX, BTN_SCL, BTN_ARP, BTN_ARP, BTN_SAVE, BTN_GLO, BTN_SEQ};
-    int vb = -1;
-    switch (a->view) {
-    case V_HOME: case V_MIX: case V_SCENES: case V_SYSTEM: vb = BTN_HOME; break;
-    case V_SONG: case V_TIME: vb = BTN_SEQ; break;
-    case V_GLO: vb = BTN_GLO; break;
-    case V_SAVE: vb = BTN_SAVE; break;
-    case V_FXG: vb = BTN_FX; break;
-    case V_SCLG: vb = BTN_SCL; break;
-    case V_COPYCH: vb = BTN_EDIT; break;
-    case V_CH: vb = page_button(a->page); break;
-    default: break;
-    }
-    for (int i = 0; i < BTN_COUNT; i++) {
-        uint8_t l = LED_DIM;
-        if (i == vb) l = LED_ON;
-        if (a->layer && i == LB[a->layer]) l = LED_BREATH;
-        if (i == BTN_PLAY) l = st->playing ? ((st->btick % BM_PPQN) < 24 ? LED_ON : LED_DIM) : LED_DIM;
-        if (i == BTN_REC) l = (st->smp_rec || a->song_rec) ? LED_BLINK : st->smp_armed ? LED_BREATH : (a->rec ? LED_ON : LED_DIM);
-        if ((i == BTN_OCT_DN && a->oct < 0) || (i == BTN_OCT_UP && a->oct > 0)) l = LED_ON;
-        if (a->ask && i == BTN_OCT_UP) l = LED_BLINK;
-        led(a, i, l);
-    }
+    (void)st;
+    for (int i = 0; i < BTN_COUNT; i++) led(a, i, btn_led(a, i));
     bm_keyfn K[BM_KEYS];
     bm_app_keys(a, K);
     for (int k = 0; k < BM_KEYS; k++) led(a, BM_LED_KEY0 + k, a->keys_down[k] ? LED_ON : K[k].led);

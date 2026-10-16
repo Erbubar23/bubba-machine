@@ -68,8 +68,38 @@
 </li><li>
 FADERS left HOME's cycle: the MIX page already has every level.
 </li></ul>
+<h3 id="changed-ux-review-every-machine-is-its-own-instrument">Changed (UX review: every machine is its own instrument)</h3>
+<ul><li>
+<strong>The lights speak one language</strong> on every screen and on keys and buttons alike: off = does nothing, dim = available or silenced, medium = has something and will play, on = selected or a hit, blink = playhead or needs you, breath = armed. See "The lights" in the manual.
+</li><li>
+<strong>Drum MUTES screen:</strong> only instruments with steps are lit; playing ones flash on every hit, muted ones are dim, empty ones are off. The same live flash on HOME's track keys, the pads and the notes a track plays.
+</li><li>
+<strong>Buttons that do nothing are off.</strong> With HOME held, only the buttons with a HOME + function light up; inside a layer, only the ones that work in it. SAVE breathes with unsaved changes (on the console), HOME blinks with a pattern or scene in the queue, PLAY marks the first beat of the bar, REC tells armed, capturing and overdub apart.
+</li><li>
+<strong>HOME inside a machine always goes back to the console</strong>; a global screen opened from a machine (GLO, HOME + FX, SAVE, TIME, SCALE, SONG, SYSTEM) goes back to that machine.
+</li><li>
+<strong>The big knobs are labelled</strong> (SEL · ALG · PRE under the dials, "-" when they do nothing) and have jobs where they were dead (FX page, SAVE).
+</li><li>
+<strong>Knob feel:</strong> acceleration comes from how fast you turn, lists move one item per click, on/off settings are right = on and left = off, and MOVE, the DJ filter and PAN stop at the center. SELECT goes through sub-pages (PADS, ENV, MIX › DUCK) before the next tab.
+</li><li>
+<strong>Same setting, same knob:</strong> GLO held = BPM, SWING, transpose, octave; BX-7 and BB-303 SOUND keep SEQ's K1-K3 with ACCENT on K4.
+</li><li>
+<strong>Screen:</strong> the line that says how to exit stays; the header shows the six tracks' mutes and hits, the queued pattern as A01&gt;A05 with a beat countdown, SONG and a green autosave dot (no more AUTOSAVED box); the 2 s ring names what it opens; short drum names (BD, SD, CH, OH…) that don't collide; K1-K4 values on the top line instead of a box over the grid; the small font gained &gt; &lt; , ! ? ' and a readable #.
+</li></ul>
 <h3 id="fixed">Fixed</h3>
 <ul><li>
+<strong>Holding REC for 2 s erased the track without asking</strong> (for example while recording the mix on the sampler). REC no longer has a 2 s hold except on the LOOP page; clear a track with EDIT held + CLR.
+</li><li>
+<strong>Holding a step and turning PRESETS replaced the whole kit or patch</strong> with no undo; it now sets the step's condition (drums) or length/TIE (notes). Changing a kit with PRESETS can be undone.
+</li><li>
+<strong>HOME on the recorder threw away an unsaved take</strong>; it now asks.
+</li><li>
+The FILL screen made OCT− breathe and the MUTES screen made SEQ breathe; the page light could land on the wrong button (ENV on drums lit EDIT).
+</li><li>
+Releasing a chord key on a scale-lock page cancelled a +7 / +9 that was still held. PRESETS in the CHORDS and ARP layers changed the sound; PRESETS on the project SCALE page read past a table.
+</li><li>
+The SYSTEM LED setting turned dim keys off too (it now only affects buttons) and MEDIUM did nothing.
+</li><li>
 <strong>The FM-1 restarted on BP-1's PADS page.</strong> The SDK's snprintf does not understand <code>%+d</code> (nor <code>%f</code>): it skipped the argument, the next ones shifted, and the pad line's last <code>%s</code> read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (<code>core/bm_printf.c</code>), checked against the C library's on the computer. The 30 <code>%+d</code> on screen also showed wrong text before.
 </li><li>
 <strong>Processor faults leave a trace:</strong> a copy of the SDK's exception handler (<code>hal/fm1/sdk/wl82_debug.c</code>) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.

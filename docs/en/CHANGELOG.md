@@ -18,7 +18,23 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Less text:** the hint lines show for the first 4 seconds of a page and then go away; the bottom hint line, the CPU readout ("CPU!" only when the audio does not keep up), HOME's column headers and its master bar are gone.
 - FADERS left HOME's cycle: the MIX page already has every level.
 
+### Changed (UX review: every machine is its own instrument)
+- **The lights speak one language** on every screen and on keys and buttons alike: off = does nothing, dim = available or silenced, medium = has something and will play, on = selected or a hit, blink = playhead or needs you, breath = armed. See "The lights" in the manual.
+- **Drum MUTES screen:** only instruments with steps are lit; playing ones flash on every hit, muted ones are dim, empty ones are off. The same live flash on HOME's track keys, the pads and the notes a track plays.
+- **Buttons that do nothing are off.** With HOME held, only the buttons with a HOME + function light up; inside a layer, only the ones that work in it. SAVE breathes with unsaved changes (on the console), HOME blinks with a pattern or scene in the queue, PLAY marks the first beat of the bar, REC tells armed, capturing and overdub apart.
+- **HOME inside a machine always goes back to the console**; a global screen opened from a machine (GLO, HOME + FX, SAVE, TIME, SCALE, SONG, SYSTEM) goes back to that machine.
+- **The big knobs are labelled** (SEL · ALG · PRE under the dials, "-" when they do nothing) and have jobs where they were dead (FX page, SAVE).
+- **Knob feel:** acceleration comes from how fast you turn, lists move one item per click, on/off settings are right = on and left = off, and MOVE, the DJ filter and PAN stop at the center. SELECT goes through sub-pages (PADS, ENV, MIX › DUCK) before the next tab.
+- **Same setting, same knob:** GLO held = BPM, SWING, transpose, octave; BX-7 and BB-303 SOUND keep SEQ's K1-K3 with ACCENT on K4.
+- **Screen:** the line that says how to exit stays; the header shows the six tracks' mutes and hits, the queued pattern as A01>A05 with a beat countdown, SONG and a green autosave dot (no more AUTOSAVED box); the 2 s ring names what it opens; short drum names (BD, SD, CH, OH…) that don't collide; K1-K4 values on the top line instead of a box over the grid; the small font gained > < , ! ? ' and a readable #.
+
 ### Fixed
+- **Holding REC for 2 s erased the track without asking** (for example while recording the mix on the sampler). REC no longer has a 2 s hold except on the LOOP page; clear a track with EDIT held + CLR.
+- **Holding a step and turning PRESETS replaced the whole kit or patch** with no undo; it now sets the step's condition (drums) or length/TIE (notes). Changing a kit with PRESETS can be undone.
+- **HOME on the recorder threw away an unsaved take**; it now asks.
+- The FILL screen made OCT− breathe and the MUTES screen made SEQ breathe; the page light could land on the wrong button (ENV on drums lit EDIT).
+- Releasing a chord key on a scale-lock page cancelled a +7 / +9 that was still held. PRESETS in the CHORDS and ARP layers changed the sound; PRESETS on the project SCALE page read past a table.
+- The SYSTEM LED setting turned dim keys off too (it now only affects buttons) and MEDIUM did nothing.
 - **The FM-1 restarted on BP-1's PADS page.** The SDK's snprintf does not understand `%+d` (nor `%f`): it skipped the argument, the next ones shifted, and the pad line's last `%s` read a number as a pointer (an invalid bus read). All of Bubba's code now uses its own snprintf (`core/bm_printf.c`), checked against the C library's on the computer. The 30 `%+d` on screen also showed wrong text before.
 - **Processor faults leave a trace:** a copy of the SDK's exception handler (`hal/fm1/sdk/wl82_debug.c`) stores where it happened, the task and what was being drawn before restarting, and the console log shows it on the next boot.
 

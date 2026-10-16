@@ -56,6 +56,7 @@ bool gfx_strip_hit(const bm_gfx *g, int y, int h);   /* ¿el rango toca la franj
 
 extern const uint8_t bm_font5x7[96][7];
 extern const uint8_t bm_font3x5[96][5];
+extern const uint8_t bm_sharp4x5[5];   /* '#' en la 3x5: 4 columnas, paso de 5 */
 extern const uint16_t bm_logo_pal[48];
 extern const uint16_t bm_logo_row[240];
 extern const uint8_t bm_logo_rle[];

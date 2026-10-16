@@ -16,7 +16,7 @@
 static const char *const MAC_MINI[4] = {"CUTOFF", "EMPHASIS", "OSC TUNE", "CONTOUR"};
 static const char *const MAC_BUNO[4] = {"FREQ", "RES", "ENV", "PWM"};
 static const char *const MAC_ACID[4] = {"CUTOFF", "RESO", "DECAY", "ENV MOD"};
-static const char *const MAC_FM[4] = {"BRIGHT", "FEEDBACK", "DECAY", "ALGORITHM"};
+static const char *const MAC_FM[4] = {"BRIGHT", "FEEDBACK", "DECAY", "ALG"};   /* "ALG": no es la perilla ALGORITHM */
 static const char *const MAC_TR[4] = {"TONE", "TUNE", "DECAY", "COLOR"};
 static const char *const GEN_NAMES[4] = {"VARY", "ANCHOR", "REPEAT", "BREAK"};
 static const char *const MAC_PAD[4] = {"FILTER", "PITCH", "DECAY", "START"};
@@ -1449,8 +1449,9 @@ static void free_rec_close(bm_app *a)
 
 static void toggle_mute(bm_app *a, int t)
 {
-    app_set_track(a, t, TRK_OFF(mute), a->pat.trk[t].mute ? 0 : 1);
-    char b[24]; snprintf(b, sizeof b, a->pat.trk[t].mute ? TF("T%d PLAYS") : TF("T%d MUTE"), t + 1);
+    bool muted = !a->pat.trk[t].mute;                         /* el patrón cambia cuando el audio lo aplica */
+    app_set_track(a, t, TRK_OFF(mute), muted ? 1 : 0);
+    char b[24]; snprintf(b, sizeof b, "%s %s", bm_track_name(a, t), T(muted ? "MUTED" : "ON"));
     app_toast(a, b);
 }
 

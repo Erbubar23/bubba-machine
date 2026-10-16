@@ -118,6 +118,18 @@ static bool lock_mode(const bm_app *a) { return a->held_step >= 0 && a->held_lon
 static int tr_lane(const bm_app *a) { return a->sel_lane[a->track] & 15; }
 static int seq_page(const bm_app *a) { return a->view == V_CH && a->page == PG_SEQ; }
 
+/* Perillas: `d` llega acelerado (para 0..127 y el BPM); las listas, los largos y los pasos usan los
+ * detents tal cual (lst): uno por detent, ninguno se pierde ni se salta. Fuera de un giro (o si el
+ * signo no coincide) vale ±1. */
+static int lst(const bm_app *a, int d)
+{
+    int r = a->enc_raw;
+    if (!r || (r > 0) != (d > 0)) return d > 0 ? 1 : -1;
+    return r;
+}
+
+static int wrap(int v, int n) { return n > 0 ? ((v % n) + n) % n : 0; }
+
 /* ¿una nota larga que empezó antes sigue sonando en el paso s? */
 static int note_covers(const bm_app *a, int t, int s)
 {
@@ -353,7 +365,7 @@ static void ed_turn(bm_app *a, int t, int k, int d)
     if (k >= P->n) return;
     const bm_pdef *def = &P->p[k];
     int cur = bm_app_ed_value(a, t, def);
-    int step = def->max <= 16 ? (d > 0 ? 1 : -1) : d;                /* listas: de a una */
+    int step = def->max <= 16 ? lst(a, d) : d;                /* listas: de a una */
     int lo = bm_is_tr(&a->pat, t) && def->slot == LN_LEN ? 1 : 0;
     int nv = bm_clampi(cur + step, lo, def->max);
     if (nv == cur) return;
@@ -365,16 +377,6 @@ static void ed_turn(bm_app *a, int t, int k, int d)
     app_overlay(a, k, ti, b, "", nv * 255 / (def->max ? def->max : 1), def->fmt == PF_BIP || def->fmt == PF_SEMI || def->fmt == PF_DSEMI || def->fmt == PF_CENT ? 128 : -1, bm_knob_color(k));
 }
 
-/* SELECT en el editor: página por página; en el borde, la pestaña de al lado. Devuelve 0 si salió. */
-static int ed_select(bm_app *a, int d)
-{
-    int n, t = a->track;
-    if (!bm_app_ed_on(a) || !bm_app_ed_pages(a, t, &n)) return 0;
-    int p = a->ed_page[t] % n + (d > 0 ? 1 : -1);
-    if (p < 0 || p >= n) return 0;
-    a->ed_page[t] = (uint8_t)p;
-    return 1;
-}
 
 static void legend_editor(const bm_app *a, int t, bm_legend *L)
 {
@@ -428,6 +430,8 @@ static void legend_pads(const bm_app *a, bm_legend *L)
     }
 }
 
+static void legend_view(const bm_app *a, bm_legend *L);
+
 void bm_app_legend(const bm_app *a, bm_legend L[4])
 {
     memset(L, 0, sizeof(bm_legend) * 4);
@@ -437,11 +441,11 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     char b[12];
     switch (a->layer) {
     case L_HOME: legend_global(a, L); return;
-    case L_TONE:
-        fmt_semi(m->transpose, b, sizeof b); L4(L, 0, "TRANSP", b, m->transpose * 5);
-        snprintf(b, sizeof b, "%+d", ((int)m->transpose - 24) / 12); L4(L, 1, "OCTAVE", b, m->transpose * 5);
-        snprintf(b, sizeof b, "%d", (m->bpm_x10 + 5) / 10); L4(L, 2, "BPM", b, (m->bpm_x10 - 400) * 255 / 2000);
-        snprintf(b, sizeof b, "%d%%", m->swing); L4(L, 3, "SWING", b, (m->swing - 50) * 255 / 25);
+    case L_TONE:                                               /* K1 BPM y K2 SWING, como en HOME y en TEMPO */
+        snprintf(b, sizeof b, "%d", (m->bpm_x10 + 5) / 10); L4(L, 0, "BPM", b, (m->bpm_x10 - 400) * 255 / 2000);
+        snprintf(b, sizeof b, "%d%%", m->swing); L4(L, 1, "SWING", b, (m->swing - 50) * 255 / 25);
+        fmt_semi(m->transpose, b, sizeof b); L4(L, 2, "TRANSP", b, m->transpose * 5);
+        snprintf(b, sizeof b, "%+d", ((int)m->transpose - 24) / 12); L4(L, 3, "OCTAVE", b, m->transpose * 5);
         return;
     case L_LEN: legend_len(a, L); return;
     case L_ACC: fmt_pct(tr->accent, b, sizeof b); L4(L, 0, "ACCENT", b, tr->accent * 2); return;
@@ -451,15 +455,24 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case L_ARP: legend_arp(a, t, L); return;
     case L_ROLL: L4(L, 0, "RATE", bm_roll_names[a->roll_rate % 5], a->roll_rate * 63); return;
     case L_COPY: snprintf(b, sizeof b, "A%02d", a->ctx.st.pattern + 1); L4(L, 0, "FROM", b, 0); return;
-    case L_ERASE: case L_LANEMUTE: return;
-    case L_FILL: {
+    case L_ERASE: return;
+    default: break;                                            /* MUTE y FILL: las perillas siguen con lo de SEQ */
+    }
+    legend_view(a, L);
+    if (a->layer == L_FILL) {
         static const char *const FE[4] = {"OFF", "EVERY 2", "EVERY 4", "EVERY 8"};
         int fe = a->pat.meta.fill_every == 2 ? 1 : a->pat.meta.fill_every == 4 ? 2 : a->pat.meta.fill_every == 8 ? 3 : 0;
         L4(L, 0, "AUTO FILL", FE[fe], fe * 85);
-        return;
+        L[0].locked = 0;
     }
-    default: break;
-    }
+}
+
+static void legend_view(const bm_app *a, bm_legend *L)
+{
+    int t = a->track;
+    const bm_track *tr = &a->pat.trk[t];
+    const bm_meta *m = &a->pat.meta;
+    char b[12];
     switch (a->view) {
     case V_HOME: legend_home(a, L); return;
     case V_SCENES: case V_GLO: legend_global(a, L); return;
@@ -527,12 +540,8 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case PG_SOUND:
         if (kind == KIND_TR) legend_macros(a, t, L);
         else if (bm_engine_paged(tr->engine)) legend_editor(a, t, L);
-        else {
-            bm_fmt_macro(a, t, 3, tr->macro[3], b, sizeof b);
-            L4(L, 0, bm_macro_name(a, t, 3), b, tr->macro[3] * 2);
-            bm_fmt_macro(a, t, 0, tr->macro[0], b, sizeof b); L4(L, 1, bm_macro_name(a, t, 0), b, tr->macro[0] * 2);
-            if (tr->engine == ENG_FM) bm_fmt_macro(a, t, 1, tr->macro[1], b, sizeof b); else fmt_pct(tr->macro[1], b, sizeof b);
-            L4(L, 2, bm_macro_name(a, t, 1), b, tr->macro[1] * 2);
+        else {                                                 /* BX-7 y BB-303: K1-K3 como en SEQ, K4 = ACCENT */
+            legend_macros(a, t, L);
             fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACCENT", b, tr->accent * 2);
         }
         return;
@@ -541,9 +550,9 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case PG_MORE: {
         bm_legend tmp[4];
         memset(tmp, 0, sizeof tmp);
-        legend_len(a, tmp);
-        fmt_pct(tr->accent, b, sizeof b); L4(L, 0, "ACCENT", b, tr->accent * 2);
-        L[1] = tmp[0]; L[2] = tmp[1];
+        legend_len(a, tmp);                                    /* K1 LENGTH, K2 SPEED como en la capa de SEQ y en TIME */
+        L[0] = tmp[0]; L[1] = tmp[1];
+        fmt_pct(tr->accent, b, sizeof b); L4(L, 2, "ACCENT", b, tr->accent * 2);
         if (kind == KIND_NOTE) { fmt_semi(tr->transpose, b, sizeof b); L4(L, 3, "TRANSP", b, tr->transpose * 5); }
         return;
     }
@@ -599,6 +608,56 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case PG_PADS: legend_pads(a, L); return;
     default: return;
     }
+}
+
+/* ------------------------------------------------------------ las tres perillas grandes
+ * El mismo reparto que enc_dispatch, en palabras cortas para la fila de abajo de la pantalla. */
+void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const char **pre)
+{
+    const char *S = "-", *A = "-", *P = "-";
+    int t = a->track, kind = app_kind(a, t), e = a->pat.trk[t].engine;
+    switch (a->layer) {
+    case L_HOME: S = "TRACK"; A = "BPM .1"; P = "PATTERN"; goto out;
+    case L_NONE: case L_LANEMUTE: case L_FILL: break;          /* MUTE y FILL: siguen con lo de SEQ */
+    default: goto out;                                         /* las otras capas solo usan K1-K4 */
+    }
+    if (a->view == V_CH && a->page == PG_SEQ && a->rec && kind == KIND_NOTE && a->held_step < 0) { S = "STEP"; A = "GATE"; P = "MICRO"; goto out; }
+    if (a->view == V_CH && a->page == PG_SEQ && a->held_step >= 0) {
+        S = "ACCENT";
+        if (bm_is_grid(&a->pat, t)) { A = "REPEAT"; P = "COND"; } else { A = "PROB"; P = "LENGTH"; }
+        goto out;
+    }
+    switch (a->view) {
+    case V_HOME: S = "TRACK"; A = "BPM"; P = "MOVE"; break;
+    case V_SCENES: A = "BPM"; P = "MOVE"; break;
+    case V_MIX: S = "TRACK"; A = "BPM"; P = "PATTERN"; break;
+    case V_FXG: S = "PAGE"; A = "BPM"; P = "MOVE"; break;
+    case V_GLO: S = "ROW"; A = "VALUE"; P = "MOVE"; break;
+    case V_SONG: if (a->song.n) { S = "ROW"; A = "ENTRY"; } P = "MOVE"; break;
+    case V_SYSTEM: S = "ROW"; A = "VALUE"; break;
+    case V_SAVE: S = "ROW"; A = "TARGET"; P = "TARGET"; break;
+    case V_TIME: S = "TRACK"; A = "TRACK"; break;
+    case V_COPYCH: S = "TARGET"; A = "TARGET"; break;
+    case V_CH:
+        S = a->page == PG_MORE ? "ROW" : "PAGE";
+        if (a->page == PG_MORE) A = "VALUE";
+        else if (a->page == PG_TAKES) A = "TAKE";
+        else if (a->page != PG_REC)
+            switch (e) {
+            case ENG_DRUM: A = "INSTR"; break;
+            case ENG_BREAK: A = "PAD"; break;
+            case ENG_ACID: case ENG_MINI: A = "MACHINE"; break;
+            case ENG_FM: A = "ALG"; break;
+            case ENG_BITTAL: A = "TABLE"; break;
+            case ENG_BUNO: A = "CHORUS"; break;
+            default: break;
+            }
+        P = bm_is_pads(t) ? "TAKE" : kind == KIND_TR ? "KIT" : e == ENG_ACID ? "WAVE" : e == ENG_FM ? "PATCH" : "SOUND";
+        break;
+    default: break;
+    }
+out:
+    *sel = S; *alg = A; *pre = P;
 }
 
 /* ------------------------------------------------------------ mapa del teclado (capas, HOME) */
@@ -1328,11 +1387,11 @@ static void pad_trim(bm_app *a, int which, int d)
     int32_t end = (int32_t)p->start + p->len;
     if (which == 0) {
         int32_t s = (int32_t)p->start;
-        s = step ? (int32_t)snap_to(a, tk, (uint32_t)s) + (d > 0 ? (int32_t)step : -(int32_t)step) : s + d * px;
+        s = step ? (int32_t)snap_to(a, tk, (uint32_t)s) + lst(a, d) * (int32_t)step : s + d * px;
         s = bm_clampi(s, 0, end - 64);
         p->start = (uint16_t)s; p->len = (uint16_t)(end - s);
     } else {
-        int32_t e = step ? (int32_t)snap_to(a, tk, (uint32_t)end) + (d > 0 ? (int32_t)step : -(int32_t)step) : end + d * px;
+        int32_t e = step ? (int32_t)snap_to(a, tk, (uint32_t)end) + lst(a, d) * (int32_t)step : end + d * px;
         e = bm_clampi(e, (int32_t)p->start + 64, (int32_t)tk->len);
         p->len = (uint16_t)(e - (int32_t)p->start);
     }
@@ -1347,20 +1406,20 @@ static void pad_sound(bm_app *a, int k, int d)
     char b[16];
     if (!bm_pad_ok(p)) { app_toast(a, "EMPTY PAD: TAKES > PAD"); return; }
     if (a->ed_page[1] == 1) {                                    /* SOUND: PITCH LEVEL PLAY DIR */
-        if (k == 0) { p->pitch = (uint8_t)bm_clampi(p->pitch + (d > 0 ? 1 : -1), 0, 48); snprintf(b, sizeof b, "%+d", p->pitch - 24); app_overlay(a, 0, "PITCH", b, "ST", p->pitch * 255 / 48, 128, bm_knob_color(0)); }
+        if (k == 0) { p->pitch = (uint8_t)bm_clampi(p->pitch + lst(a, d), 0, 48); snprintf(b, sizeof b, "%+d", p->pitch - 24); app_overlay(a, 0, "PITCH", b, "ST", p->pitch * 255 / 48, 128, bm_knob_color(0)); }
         else if (k == 1) { int v = bm_clampi(ln->level + d, 0, 127); app_push_i(a, CMD_SET_LANE, 1, (uint8_t)l, 1, v); snprintf(b, sizeof b, "%d", v); app_overlay(a, 1, "LEVEL", b, "", v * 2, -1, bm_knob_color(1)); }
-        else if (k == 2) { p->mode = (uint8_t)((p->mode + (d > 0 ? 1 : PAD_MODES - 1)) % PAD_MODES); app_overlay(a, 2, "PLAY", PAD_MODE_N[p->mode], "", p->mode * 85, -1, bm_knob_color(2)); }
-        else { p->flags ^= PAD_REV; app_overlay(a, 3, "DIR", (p->flags & PAD_REV) ? "REV" : "FWD", "", (p->flags & PAD_REV) ? 255 : 0, -1, bm_knob_color(3)); }
+        else if (k == 2) { p->mode = (uint8_t)wrap(p->mode + lst(a, d), PAD_MODES); app_overlay(a, 2, "PLAY", PAD_MODE_N[p->mode], "", p->mode * 85, -1, bm_knob_color(2)); }
+        else { p->flags = (uint8_t)(d > 0 ? p->flags | PAD_REV : p->flags & ~PAD_REV); app_overlay(a, 3, "DIR", (p->flags & PAD_REV) ? "REV" : "FWD", "", (p->flags & PAD_REV) ? 255 : 0, -1, bm_knob_color(3)); }
     } else if (a->ed_page[1] == 3) {                             /* LOOP: dónde empieza y termina el sustain */
         if (k == 0) { p->loop_s = (uint8_t)bm_clampi(p->loop_s + d, 0, 254); if (p->loop_e && p->loop_e <= p->loop_s) p->loop_e = (uint8_t)(p->loop_s + 1); snprintf(b, sizeof b, "%d", p->loop_s * 100 / 255); app_overlay(a, 0, "LOOP IN", b, "%", p->loop_s, -1, bm_knob_color(0)); }
         else if (k == 1) { int v = bm_clampi(p->loop_e + d, 0, 255); if (v && v <= p->loop_s) v = p->loop_s + 1; p->loop_e = (uint8_t)v; if (v) snprintf(b, sizeof b, "%d", v * 100 / 255); else snprintf(b, sizeof b, "WHOLE"); app_overlay(a, 1, "LOOP OUT", b, v ? "%" : "", v, -1, bm_knob_color(1)); }
-        else if (k == 2) { p->mode = (uint8_t)((p->mode + (d > 0 ? 1 : PAD_MODES - 1)) % PAD_MODES); app_overlay(a, 2, "PLAY", PAD_MODE_N[p->mode], "", p->mode * 85, -1, bm_knob_color(2)); }
+        else if (k == 2) { p->mode = (uint8_t)wrap(p->mode + lst(a, d), PAD_MODES); app_overlay(a, 2, "PLAY", PAD_MODE_N[p->mode], "", p->mode * 85, -1, bm_knob_color(2)); }
         if (k <= 1 && p->mode != PAD_LOOP) { p->mode = PAD_LOOP; app_toast(a, "PLAY = LOOP: HELD REPEATS THE LOOP"); }
     } else {                                                     /* ENV: ATTACK RELEASE CHOKE TEMPO */
         if (k == 0) { p->attack = (uint8_t)bm_clampi(p->attack + d, 0, 127); }
         else if (k == 1) { p->release = (uint8_t)bm_clampi(p->release + d, 0, 127); }
-        else if (k == 2) { int v = bm_clampi(ln->choke + (d > 0 ? 1 : -1), 0, 3); app_push_i(a, CMD_SET_LANE, 1, (uint8_t)l, 7, v); }
-        else p->flags ^= PAD_TEMPO;
+        else if (k == 2) { int v = bm_clampi(ln->choke + lst(a, d), 0, 3); app_push_i(a, CMD_SET_LANE, 1, (uint8_t)l, 7, v); }
+        else p->flags = (uint8_t)(d > 0 ? p->flags | PAD_TEMPO : p->flags & ~PAD_TEMPO);   /* derecha SYNC */
     }
     app_edited(a);
 }
@@ -1977,8 +2036,22 @@ static void ask_yes(bm_app *a)
         break;
     case ASK_KIT: { int n = app_kit_from_take(a, x, y); snprintf(b, sizeof b, TF("KIT: %d PADS"), n); app_toast(a, b); break; }
     case ASK_INIT: app_init_sound(a, x); break;
+    case ASK_DISCARD:
+        if (a->ctx.st.smp_unsaved && !a->ctx.st.smp_rec) { app_push_ptr(a, CMD_SMP_DISCARD, 0, &a->smp_send[0]); app_toast(a, "TAKE DISCARDED"); }
+        break;
     default: break;
     }
+}
+
+/* HOME (o GLO otra vez) en una pantalla abierta desde otra: vuelve a ella (al canal, con su página).
+ * Devuelve 0 si se llegó con HOME (entonces HOME recorre sus páginas). */
+static int view_back(bm_app *a)
+{
+    int pv = a->prev_view;
+    if (pv == V_BOOT || pv == a->view) { a->prev_view = V_BOOT; return 0; }
+    if (pv == V_CH) app_enter(a, a->track, a->prev_page);
+    else { app_set_view(a, pv); a->prev_view = V_BOOT; }
+    return 1;
 }
 
 static void tap_tempo(bm_app *a)
@@ -2009,14 +2082,23 @@ void app_on_gesture(void *u, int id, bm_gkind k)
     if (a->ask) {                                            /* pregunta: OCT+ sí, HOME no, otro botón la cierra */
         if (id == BTN_OCT_UP && k == G_PRESS) { ask_yes(a); return; }
         if (k == G_PRESS || k == G_TAP || k == G_HOLD) {
+            int was = a->ask;
             a->ask = ASK_NONE;
+            if (was == ASK_DISCARD && id == BTN_HOME && k == G_TAP) {   /* la toma queda y HOME sale, como siempre */
+                app_set_view(a, V_HOME);
+                app_toast(a, "TAKE KEPT (NOT SAVED)");
+                return;
+            }
             if (id == BTN_HOME || id == BTN_OCT_DN) { app_toast(a, "CANCELED"); return; }
         }
     }
     /* pantalla abierta con un toque (MUTE, FILL): HOME la cierra; otro botón la cierra y hace lo suyo.
      * PLAY y OCT -/+ (páginas de pasos) no la cierran. */
     if (a->layer_latch && id != BTN_PLAY && id != BTN_OCT_DN && id != BTN_OCT_UP) {
-        if (id == BTN_HOME) { if (k == G_TAP) { key_screen_close(a); return; } }
+        if (id == BTN_HOME) {
+            if (k == G_TAP) { key_screen_close(a); return; }
+            if (k == G_HOLD) key_screen_close(a);            /* y se abre la capa de HOME */
+        }
         else if (k == G_PRESS || k == G_TAP || k == G_HOLD) key_screen_close(a);
     }
     char b[30];
@@ -2096,7 +2178,7 @@ void app_on_gesture(void *u, int id, bm_gkind k)
         return;
     case BTN_GLO:
         if (k == G_TAP) {
-            if (a->view == V_GLO) { a->view = a->prev_view == V_GLO || a->prev_view == V_BOOT ? V_HOME : a->prev_view; a->page = a->prev_page; }
+            if (a->view == V_GLO) { if (!view_back(a)) app_set_view(a, V_HOME); }
             else app_set_view(a, V_GLO);
         } else if (k == G_HOLD) open_layer(a, id);
         else if (k == G_RELEASE) close_layer(a, id);
@@ -2139,21 +2221,23 @@ void app_on_gesture(void *u, int id, bm_gkind k)
         return;
     case BTN_HOME:
         if (k == G_TAP) {
-            if (a->view == V_CH && a->page == PG_REC && a->ctx.st.smp_unsaved && !a->ctx.st.smp_rec) {
-                app_push_ptr(a, CMD_SMP_DISCARD, 0, &a->smp_send[0]);
-                app_toast(a, "TAKE DISCARDED");
+            if (a->view == V_CH && a->page == PG_REC && a->ctx.st.smp_unsaved && !a->ctx.st.smp_rec) {   /* la toma sin guardar: preguntar */
+                app_ask(a, ASK_DISCARD, 0, 0, "DISCARD THE NEW TAKE?", "IT IS NOT SAVED YET");
                 return;
             }
             if (a->view == V_COPYCH) { app_set_view(a, V_CH); app_toast(a, "CANCELED"); return; }
+            if (view_back(a)) return;                        /* una pantalla abierta desde otra: vuelve */
             int nv = V_HOME;                                 /* las páginas de BX-1: MIX > FX > TEMPO > ESCENAS > SONG */
             if (a->view == V_HOME) { nv = V_FXG; a->fx_page = 0; }
             else if (a->view == V_FXG) nv = V_GLO;
             else if (a->view == V_GLO) nv = V_SCENES;
             else if (a->view == V_SCENES) nv = V_SONG;
             app_set_view(a, nv);
+            a->prev_view = V_BOOT;                           /* llegaste con HOME: HOME sigue recorriendo */
         } else if (k == G_HOLD) { a->home_used = 0; open_layer(a, id); }
         else if (k == G_RELEASE) {
             close_layer(a, id);
+            if (a->pat_sel >= 0) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }   /* el patrón que quedó en PRESETS */
             if (a->box_on && a->box_hold == 1) { a->box_on = 0; app_enter(a, a->box_track, a->ch_page[a->box_track]); }
         } else if (k == G_LONG) { close_layer(a, id); app_set_view(a, V_SYSTEM); }
         return;
@@ -2242,14 +2326,14 @@ static void enc_step_grid(bm_app *a, int id, int d)
         snprintf(ti, sizeof ti, TF("STEP %02d HIT"), s + 1);
     } else if (id == ENC_ALGO) {
         int r = (bb & ST_FLAM) ? 4 : ((bb & ST_RAT_MASK) >> ST_RAT_SH);
-        r = bm_clampi(r + (d > 0 ? 1 : -1), 0, 4);
+        r = bm_clampi(r + lst(a, d), 0, 4);
         bb = (uint8_t)(bb & ~(ST_RAT_MASK | ST_FLAM));
         if (r == 4) bb |= ST_FLAM; else bb |= (uint8_t)(r << ST_RAT_SH);
         snprintf(b, sizeof b, "%s", RAT_NAMES[r]);
         snprintf(ti, sizeof ti, TF("STEP %02d REPEAT"), s + 1);
     } else {
         int c = (bb & ST_COND_MASK) >> ST_COND_SH;
-        c = bm_clampi(c + (d > 0 ? 1 : -1), 0, 2);
+        c = bm_clampi(c + lst(a, d), 0, 2);
         bb = (uint8_t)((bb & ~ST_COND_MASK) | (c << ST_COND_SH));
         snprintf(b, sizeof b, "%s", COND_NAMES[c]);
         snprintf(ti, sizeof ti, TF("STEP %02d CONDITION"), s + 1);
@@ -2284,13 +2368,13 @@ static void enc_step_syn(bm_app *a, int id, int d)
         bm_event e = *bm_evc(&a->pat, t, s, idx[j]);
         if (id == ENC_SELECT) {                                        /* acento: normal > acento > fantasma */
             int lv = e.vel >= BM_VEL_ACC ? 2 : e.vel <= BM_VEL_GHOST ? 0 : 1;
-            lv = bm_clampi(lv + (d > 0 ? 1 : -1), 0, 2);
+            lv = bm_clampi(lv + lst(a, d), 0, 2);
             e.vel = lv == 2 ? BM_VEL_ACC : lv == 0 ? BM_VEL_GHOST : BM_VEL_NORMAL;
             if (j == 0) snprintf(b, sizeof b, "%s", lv == 2 ? "ACCENT" : lv == 0 ? "GHOST" : "NORMAL");
             nm = "HIT";
         } else if (id == ENC_ALGO) {
             int p = e.prob == BM_PROB_FILL ? 101 : e.prob == BM_PROB_NOFILL ? 102 : e.prob;
-            if (p <= 100) p = bm_clampi(p + d * 5, 0, 102); else p = bm_clampi(p + (d > 0 ? 1 : -1), 95, 102);
+            if (p <= 100) p = bm_clampi(p + d * 5, 0, 102); else p = bm_clampi(p + lst(a, d), 95, 102);
             e.prob = p == 101 ? BM_PROB_FILL : p == 102 ? BM_PROB_NOFILL : (uint8_t)bm_clampi(p, 0, 100);
             if (j == 0) { if (p == 101) snprintf(b, sizeof b, "FILL ONLY"); else if (p == 102) snprintf(b, sizeof b, "NO FILL"); else snprintf(b, sizeof b, "%d%%", e.prob); }
             nm = "PROB/FILL";
@@ -2322,7 +2406,7 @@ static bool enc_global(bm_app *a, int k, int d)
         return true;
     }
     case 1: {
-        int sw = bm_clampi(m->swing + (d > 0 ? 1 : -1), 50, 75);
+        int sw = bm_clampi(m->swing + lst(a, d), 50, 75);
         app_set_meta(a, META_OFF(swing), sw);
         snprintf(b, sizeof b, "%d", sw);
         app_overlay(a, 1, "SWING  50=STRAIGHT", b, "%", (sw - 50) * 255 / 25, -1, bm_knob_color(1));
@@ -2331,7 +2415,7 @@ static bool enc_global(bm_app *a, int k, int d)
     case 2: {
         int i = 0;
         while (i < 6 && bm_master_steps_tab[i] != m->master) i++;
-        i = bm_clampi((i >= 6 ? 3 : i) + (d > 0 ? 1 : -1), 0, 5);
+        i = bm_clampi((i >= 6 ? 3 : i) + lst(a, d), 0, 5);
         app_set_meta(a, META_OFF(master), bm_master_steps_tab[i]);
         fmt_master(bm_master_steps_tab[i], b, sizeof b);
         app_overlay(a, 2, "MASTER LENGTH", b, bm_master_steps_tab[i] ? "STEPS" : "", i * 51, -1, bm_knob_color(2));
@@ -2355,7 +2439,7 @@ static void enc_fill_every(bm_app *a, int d)
     char b[16];
     int i = 0;
     while (i < 4 && FE[i] != m->fill_every) i++;
-    i = bm_clampi((i >= 4 ? 0 : i) + (d > 0 ? 1 : -1), 0, 3);
+    i = bm_clampi((i >= 4 ? 0 : i) + lst(a, d), 0, 3);
     app_set_meta(a, META_OFF(fill_every), FE[i]);
     if (FE[i]) snprintf(b, sizeof b, TF("EVERY %d"), FE[i]); else snprintf(b, sizeof b, "OFF");
     app_overlay(a, -1, "AUTOMATIC FILL", b, FE[i] ? "BARS" : "", i * 85, -1, C_WHITE);
@@ -2379,7 +2463,7 @@ static void enc_rec(bm_app *a, int id, int d)
     char b[16];
     if (a->rec_step < 0 || a->rec_step >= len) a->rec_step = (int8_t)bm_clampi(a->step_page * 16, 0, len - 1);
     if (id == ENC_SELECT) {
-        a->rec_step = (int8_t)bm_clampi(a->rec_step + (d > 0 ? 1 : -1), 0, len - 1);
+        a->rec_step = (int8_t)bm_clampi(a->rec_step + lst(a, d), 0, len - 1);
         a->step_page = (uint8_t)(a->rec_step / 16);
         snprintf(b, sizeof b, "%d", a->rec_step + 1);
         app_overlay(a, -1, "REC STEP", b, "", a->rec_step * 255 / (len > 1 ? len - 1 : 1), -1, C_RED);
@@ -2390,12 +2474,12 @@ static void enc_rec(bm_app *a, int id, int d)
         bm_event ev = *bm_evc(&a->pat, t, s, e);
         if (bm_event_empty(&ev)) continue;
         if (id == ENC_ALGO) {
-            int g = bm_clampi(ev_gate_ui(&ev) + (d > 0 ? 5 : -5), 10, 100);
+            int g = bm_clampi(ev_gate_ui(&ev) + 5 * lst(a, d), 10, 100);
             ev.len = (uint8_t)((ev.len & BM_LEN_MASK) | (g >= 100 ? BM_LEN_TIE : 0));
             ev.gate = (uint8_t)(g >= 95 ? 0 : g);
             shown = g;
         } else {
-            ev.micro = (int8_t)bm_clampi(ev.micro + (d > 0 ? 1 : -1), -11, 11);
+            ev.micro = (int8_t)bm_clampi(ev.micro + lst(a, d), -11, 11);
             shown = ev.micro;
         }
         app_push_ev(a, t, s, e, &ev);
@@ -2416,11 +2500,30 @@ static void enc_rec(bm_app *a, int id, int d)
 
 static void enc_bpm_fine(bm_app *a, int d)
 {
-    int bpm = bm_clampi(a->pat.meta.bpm_x10 + (d > 0 ? 1 : -1), 400, 2400);
+    int bpm = bm_clampi(a->pat.meta.bpm_x10 + lst(a, d), 400, 2400);
     app_push_i(a, CMD_SET_BPM, 0, 0, 0, bpm); app_edited(a);
     char b[12]; snprintf(b, sizeof b, "%d.%d", bpm / 10, bpm % 10);
     app_overlay(a, -1, "TEMPO (FINE)", b, "BPM", (bpm - 400) * 255 / 2000, -1, C_TEMPO);
     a->ov.beat = 1;
+}
+
+/* Controles bipolares (MOVE, filtro DJ, PAN): el centro retiene 2 detents antes de salir, y un giro
+ * que lo cruza se para en él (como la zona OPEN del filtro del master). */
+static int center_stop(bm_app *a, int cur, int d, int c, int lo, int hi)
+{
+    int nv = bm_clampi(cur + d, lo, hi);
+    if (a->stick_id != a->enc_cur || a->enc_new) { a->stick = 0; a->stick_id = a->enc_cur; }
+    if (cur != c) {
+        a->stick = 0;
+        return (cur < c && nv > c) || (cur > c && nv < c) ? c : nv;
+    }
+    int r = lst(a, d);
+    if (a->stick && (a->stick > 0) != (r > 0)) a->stick = 0;
+    a->stick = (int8_t)bm_clampi(a->stick + r, -20, 20);
+    if (a->stick >= -2 && a->stick <= 2) return c;
+    int out = a->stick > 0 ? a->stick - 2 : a->stick + 2;
+    a->stick = 0;
+    return bm_clampi(c + out, lo, hi);
 }
 
 /* filtro DJ: posición -63..63 (0 abierto) <-> djf (0 abierto, 1-63 pasa-bajos, 65-127 pasa-altos) */
@@ -2445,7 +2548,7 @@ static void enc_home(bm_app *a, int k, int d)
         enc_track_u8(a, t, 0, TRK_OFF(level), tr->level, d, 0, 127, ti, 2);
         return;
     case 1: {
-        int p = bm_clampi(djf_pos(tr->djf) + d, -63, 63);
+        int p = center_stop(a, djf_pos(tr->djf), d, 0, -63, 63);
         app_set_track(a, t, TRK_OFF(djf), djf_of(p));
         a->pat.trk[t].djf = djf_of(p);
         fmt_djf(djf_of(p), b, sizeof b);
@@ -2470,7 +2573,7 @@ static void enc_home(bm_app *a, int k, int d)
  * vivo: no se guarda. Los patrones se eligen con las blancas. */
 static void enc_move(bm_app *a, int d)
 {
-    a->move = (int8_t)bm_clampi(a->move + d, -63, 63);
+    a->move = (int8_t)center_stop(a, a->move, d, 0, -63, 63);
     app_push(a, CMD_MOVE, (uint8_t)a->move, 0, 0);
     char b[8];
     snprintf(b, sizeof b, "%+d", a->move);
@@ -2489,7 +2592,7 @@ static void enc_mode(bm_app *a, int d)
     switch (tr->engine) {
     case ENG_DRUM: box_turn_in(a, d, 1); return;                         /* el instrumento */
     case ENG_BREAK: {                                                     /* el pad */
-        int p = bm_clampi((a->sel_lane[1] & 15) + (d > 0 ? 1 : -1), 0, BM_LANES - 1);
+        int p = bm_clampi((a->sel_lane[1] & 15) + lst(a, d), 0, BM_LANES - 1);
         a->sel_lane[1] = (uint8_t)p;
         app_wave_view(a, a->pat.pad[p].src, a->pat.pad[p].start, a->cut_zoom);
         snprintf(b, sizeof b, TF("PAD %d"), p + 1);
@@ -2498,7 +2601,7 @@ static void enc_mode(bm_app *a, int d)
     }
     case ENG_ACID: case ENG_MINI: app_bass_machine(a, d > 0 ? ENG_MINI : ENG_ACID); return;
     case ENG_FM: {                                                        /* el algoritmo, 1..32 */
-        int alg = bm_clampi(bm_fm_alg_of(tr, tr->macro[3]) + (d > 0 ? 1 : -1), 1, 32);
+        int alg = bm_clampi(bm_fm_alg_of(tr, tr->macro[3]) + lst(a, d), 1, 32);
         app_set_track(a, t, 3, (alg - 1) * 4 + 1);
         snprintf(b, sizeof b, "%d", alg);
         app_overlay(a, -1, "BX-7 ALGORITHM", b, "/ 32", (alg - 1) * 8, -1, bm_track_color(t));
@@ -2506,7 +2609,7 @@ static void enc_mode(bm_app *a, int d)
     }
     case ENG_BITTAL: {                                                    /* la tabla del oscilador 1 */
         int n = bm_snap_count(ENG_BITTAL);
-        int v = bm_clampi(a->pat.prm[t][BT_TAB1] + (d > 0 ? 1 : -1), 0, n);
+        int v = bm_clampi(a->pat.prm[t][BT_TAB1] + lst(a, d), 0, n);
         app_push(a, CMD_SET_PRM, (uint8_t)t, BT_TAB1, (uint8_t)v);
         a->pat.prm[t][BT_TAB1] = (uint8_t)v;
         app_edited(a);
@@ -2514,7 +2617,7 @@ static void enc_mode(bm_app *a, int d)
         return;
     }
     case ENG_BUNO: {                                                      /* el chorus */
-        int v = (a->pat.prm[t][BN_CHORUS] + (d > 0 ? 1 : BN_CHORUSES - 1)) % BN_CHORUSES;
+        int v = wrap(a->pat.prm[t][BN_CHORUS] + lst(a, d), BN_CHORUSES);
         app_push(a, CMD_SET_PRM, (uint8_t)t, BN_CHORUS, (uint8_t)v);
         a->pat.prm[t][BN_CHORUS] = (uint8_t)v;
         app_edited(a);
@@ -2528,7 +2631,7 @@ static void enc_mode(bm_app *a, int d)
 static void enc_pattern(bm_app *a, int d)
 {
     int base = a->pat_sel >= 0 ? a->pat_sel : a->ctx.st.pattern;
-    a->pat_sel = (int8_t)bm_clampi(base + (d > 0 ? 1 : -1), 0, BM_PATTERNS - 1);
+    a->pat_sel = (int8_t)bm_clampi(base + lst(a, d), 0, BM_PATTERNS - 1);
     a->pat_sel_t = a->now;
     char b[8]; snprintf(b, sizeof b, "A%02d", a->pat_sel + 1);
     app_overlay(a, -1, app_playing(a) ? "PATTERN (QUEUED)" : "PATTERN", b, "", a->pat_sel * 17, -1, C_WHITE);
@@ -2556,8 +2659,8 @@ static void box_turn_in(bm_app *a, int d, int lane)
         a->box_track = a->track; a->box_lane = (uint8_t)tr_lane(a);
         a->box_mode = (uint8_t)(lane ? BOX_LANE : BOX_CH);
     }
-    if (lane) a->box_lane = (uint8_t)bm_clampi(a->box_lane + (d > 0 ? 1 : -1), 0, BM_LANES - 1);
-    else a->box_track = (uint8_t)bm_clampi(a->box_track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
+    if (lane) a->box_lane = (uint8_t)bm_clampi(a->box_lane + lst(a, d), 0, BM_LANES - 1);
+    else a->box_track = (uint8_t)bm_clampi(a->box_track + lst(a, d), 0, BM_TRACKS - 1);
     int ms = bm_app_enter_ms(a);
     a->box_on = 1; a->box_hold = 0;
     if (ms <= 0) { box_commit(a); return; }                  /* sin espera (u OFF): directo */
@@ -2567,7 +2670,7 @@ static void box_turn_in(bm_app *a, int d, int lane)
 static void box_turn(bm_app *a, int d, int hold)
 {
     if (!a->box_on || a->box_mode != BOX_HOME) { a->box_track = a->track; a->box_mode = BOX_HOME; }
-    a->box_track = (uint8_t)bm_clampi(a->box_track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
+    a->box_track = (uint8_t)bm_clampi(a->box_track + lst(a, d), 0, BM_TRACKS - 1);
     int ms = bm_app_enter_ms(a);
     a->box_on = 1;
     if (hold) { a->box_hold = 1; return; }
@@ -2582,7 +2685,7 @@ static void enc_source(bm_app *a, int t, int d)
     char b[16];
     int kind = app_kind(a, t);
     if (app_midi(a, t)) {
-        int v = bm_clampi(a->pat.trk[t].macro[1] + (d > 0 ? 1 : -1), 0, 127);
+        int v = bm_clampi(a->pat.trk[t].macro[1] + lst(a, d), 0, 127);
         app_set_track(a, t, 1, v);
         app_push(a, CMD_MIDI_SEND, (uint8_t)(0xC0 | (a->pat.trk[t].midi_ch & 15)), (uint8_t)v, 0xFF);
         snprintf(b, sizeof b, "%d", v + 1);
@@ -2594,7 +2697,7 @@ static void enc_source(bm_app *a, int t, int d)
         int n = bm_app_sources(a, list), i = 0, pad = a->sel_lane[1] & 15;
         if (!n) { app_toast(a, "NO TAKE"); return; }
         while (i < n && list[i] != a->pat.pad[pad].src) i++;
-        i = i >= n ? 0 : (i + (d > 0 ? 1 : n - 1)) % n;
+        i = i >= n ? 0 : wrap(i + lst(a, d), n);
         app_pad_take(a, pad, list[i]);
         char ti[16]; snprintf(ti, sizeof ti, TF("PAD %d"), pad + 1);
         bm_app_src_name(a, list[i], b, sizeof b);
@@ -2602,7 +2705,8 @@ static void enc_source(bm_app *a, int t, int d)
         return;
     }
     int lim = bm_sound_count(a, t), e = a->pat.trk[t].engine;
-    int v = (a->pat.trk[t].source % lim + (d > 0 ? 1 : lim - 1)) % lim;
+    int v = wrap(a->pat.trk[t].source % lim + lst(a, d), lim);
+    if (kind == KIND_TR && a->enc_new) app_undo_snapshot(a, t);   /* el kit de antes: HOME + OCT- (una vez por giro) */
     if (kind == KIND_TR || bm_engine_paged(e)) { app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0); app_edited(a); }
     else app_set_track(a, t, TRK_OFF(source), v);
     a->pat.trk[t].source = (uint8_t)v;
@@ -2618,22 +2722,25 @@ static void more_change(bm_app *a, int d)
     const bm_track *tk = &a->pat.trk[t];
     char b[30];
     switch (rows[a->more_row]) {
-    case ROW_ENGINE: app_bass_machine(a, tk->engine == ENG_ACID ? ENG_MINI : ENG_ACID); return;
-    case ROW_MIDIOUT:
-        app_set_track(a, t, TRK_OFF(midi_out), !tk->midi_out);
-        app_toast(a, tk->midi_out ? "MIDI OUT OFF" : "MIDI OUT ON: NOTES ALSO GO OUT");
+    case ROW_ENGINE:                                            /* a la derecha B-MINI, a la izquierda BB-303 */
+        if ((d > 0) != (tk->engine == ENG_MINI)) app_bass_machine(a, d > 0 ? ENG_MINI : ENG_ACID);
+        return;
+    case ROW_MIDIOUT:                                           /* a la derecha ON, a la izquierda OFF */
+        if ((d > 0) == (tk->midi_out != 0)) return;
+        app_set_track(a, t, TRK_OFF(midi_out), d > 0);
+        app_toast(a, d > 0 ? "MIDI OUT ON: NOTES ALSO GO OUT" : "MIDI OUT OFF");
         return;
     case ROW_ACC: enc_track_u8(a, t, -1, TRK_OFF(accent), tk->accent, d, 0, 127, "ACCENT", 2); return;
-    case ROW_LEN: set_len(a, t, bm_trk_len(&a->pat, t, bm_is_grid(&a->pat, t) ? 0 : -1) + (d > 0 ? 1 : -1)); return;
+    case ROW_LEN: set_len(a, t, bm_trk_len(&a->pat, t, bm_is_grid(&a->pat, t) ? 0 : -1) + lst(a, d)); return;
     case ROW_SPEED: {
-        int v = bm_clampi(tk->speed + (d > 0 ? -1 : 1), 0, SPD_COUNT - 1);
+        int v = bm_clampi(tk->speed + -lst(a, d), 0, SPD_COUNT - 1);
         app_set_track(a, t, TRK_OFF(speed), v);
         snprintf(b, sizeof b, TF("T%d SPEED"), t + 1);
         app_overlay(a, -1, b, bm_speed_names[v], "", (SPD_COUNT - 1 - v) * 51, -1, C_WHITE);
         return;
     }
     case ROW_TRANSP: {
-        int v = bm_clampi(tk->transpose + d, 0, 48);
+        int v = bm_clampi(tk->transpose + lst(a, d), 0, 48);
         app_set_track(a, t, TRK_OFF(transpose), v);
         char vb[12]; fmt_semi(v, vb, sizeof vb);
         snprintf(b, sizeof b, TF("T%d TRANSPOSE"), t + 1);
@@ -2641,17 +2748,36 @@ static void more_change(bm_app *a, int d)
         return;
     }
     case ROW_MIDICH: {
-        int v = bm_clampi(tk->midi_ch + (d > 0 ? 1 : -1), 0, 15);
+        int v = bm_clampi(tk->midi_ch + lst(a, d), 0, 15);
         app_set_track(a, t, TRK_OFF(midi_ch), v);
         char vb[8]; snprintf(vb, sizeof vb, "%d", v + 1);
         app_overlay(a, -1, "MIDI CHANNEL", vb, "", v * 17, -1, C_WHITE);
         return;
     }
-    case ROW_INTERP: app_set_track(a, t, TRK_OFF(interp), !tk->interp); return;
+    case ROW_INTERP: if ((d > 0) != (tk->interp != 0)) app_set_track(a, t, TRK_OFF(interp), d > 0); return;   /* derecha HERMITE */
     default:
         snprintf(b, sizeof b, TF("INIT SOUND ON T%d?"), t + 1);
         app_ask(a, ASK_INIT, t, 0, b, "THE SOUND SETTINGS ARE LOST");
         return;
+    }
+}
+
+/* Las sub-páginas de la página del canal (las que recorre SELECT antes de cambiar de pestaña): las
+ * páginas del editor (SOUND, INSTR), las de PADS, ENV y su ENV FILTER, MIX y su DUCK, y las filas de MORE. */
+static uint8_t *sub_page(bm_app *a, int *n)
+{
+    int t = a->track;
+    *n = 0;
+    if (a->view != V_CH) return NULL;
+    switch (a->page) {
+    case PG_SOUND: case PG_INST:
+        if (!bm_app_ed_on(a) || !bm_app_ed_pages(a, t, n)) { *n = 0; return NULL; }
+        return &a->ed_page[t];
+    case PG_PADS: *n = 4; return &a->ed_page[1];
+    case PG_ENV: *n = 2; return &a->env_page;
+    case PG_MIX: *n = 2; return &a->mix_page;
+    case PG_MORE: *n = bm_app_more_count(a); return &a->more_row;
+    default: return NULL;
     }
 }
 
@@ -2662,34 +2788,61 @@ static void tabs_turn(bm_app *a, int d)
     while (i < n && tabs[i] != a->page) i++;
     if (i >= n) i = d > 0 ? 0 : n - 1;
     else i = (i + (d > 0 ? 1 : n - 1)) % n;
-    if (tabs[i] == PG_MORE) a->more_row = 0;
     app_enter(a, a->track, tabs[i]);
+    int sn;
+    uint8_t *sp = sub_page(a, &sn);                 /* a la derecha entra por la primera, a la izquierda por la última */
+    if (sp && sn > 0) *sp = (uint8_t)(d > 0 || a->page == PG_MORE ? 0 : sn - 1);   /* MORE, siempre arriba */
+}
+
+/* SELECT en un canal: de a un detent, la sub-página siguiente y, en el borde, la pestaña de al lado */
+static void select_turn(bm_app *a, int d)
+{
+    int r = lst(a, d), s = r > 0 ? 1 : -1;
+    for (int i = 0; i < (r > 0 ? r : -r); i++) {
+        int n;
+        uint8_t *sp = sub_page(a, &n);
+        if (sp && n > 0 && *sp % n + s >= 0 && *sp % n + s < n) *sp = (uint8_t)(*sp % n + s);
+        else tabs_turn(a, s);
+    }
+    if (a->page == PG_MORE) { a->ask = ASK_NONE; a->eng_pending = 0xFF; }
 }
 
 static void system_change(bm_app *a, int d)
 {
     bm_settings *s = &a->set;
+    /* los interruptores: a la derecha = encendido (o el siguiente), a la izquierda = apagado; nunca
+     * dan la vuelta, así que girar de más no los cambia otra vez */
+    int on = d > 0;
     switch (a->menu_row) {
-    case 0:                                                     /* ALGORITHM es el BPM en HOME: avisar, por si fue sin querer */
-        s->clock = !s->clock; app_push(a, CMD_CLOCK, s->clock, 0, 0);
+    case 0:                                                     /* derecha EXTERNAL, izquierda INTERNAL */
+        if (on == s->clock) return;
+        s->clock = (uint8_t)on; app_push(a, CMD_CLOCK, s->clock, 0, 0);
         app_toast(a, s->clock ? "CLOCK: EXTERNAL (MIDI)" : "CLOCK: INTERNAL");
         break;
-    case 1: s->sync_mode = !s->sync_mode; break;
-    case 2: s->sync_ppqn = s->sync_ppqn == 1 ? (d > 0 ? 2 : 4) : s->sync_ppqn == 2 ? (d > 0 ? 4 : 1) : (d > 0 ? 1 : 2); break;
-    case 3: s->sync_lat = (uint8_t)bm_clampi(s->sync_lat + d, 0, 20); break;
-    case 4: s->autosave = !s->autosave; break;
-    case 5: s->led_dim = (uint8_t)bm_clampi(s->led_dim + d, 0, 2); break;
+    case 1: if (on == s->sync_mode) return; s->sync_mode = (uint8_t)on; break;
+    case 2: {
+        static const uint8_t PQ[3] = {1, 2, 4};
+        int i = s->sync_ppqn == 4 ? 2 : s->sync_ppqn == 2 ? 1 : 0;
+        s->sync_ppqn = PQ[bm_clampi(i + lst(a, d), 0, 2)];
+        break;
+    }
+    case 3: s->sync_lat = (uint8_t)bm_clampi(s->sync_lat + lst(a, d), 0, 20); break;
+    case 4: if (on == s->autosave) return; s->autosave = (uint8_t)on; break;
+    case 5: s->led_dim = (uint8_t)bm_clampi(s->led_dim + lst(a, d), 0, 2); break;
     case 6:
-        s->fast_lcd = !s->fast_lcd;
+        if (on == s->fast_lcd) return;
+        s->fast_lcd = (uint8_t)on;
         app_toast(a, s->fast_lcd ? "FAST SCREEN ON (TEST)" : "FAST SCREEN OFF");
         break;
     case 7:
-        s->dual_core = !s->dual_core;
+        if (on == s->dual_core) return;
+        s->dual_core = (uint8_t)on;
         app_toast(a, s->dual_core ? "TWO CORES ON (TEST)" : "TWO CORES OFF");
         break;
-    case 9:                                                     /* idioma: inglés o el paquete cargado */
-        if (!bm_app_lang_pack(a)) { app_toast(a, T("NO LANGUAGE PACK: LOAD ONE BY USB")); return; }
-        s->lang = !s->lang;
+    case 9:                                                     /* idioma: derecha el paquete cargado, izquierda inglés */
+        if (on && !bm_app_lang_pack(a)) { app_toast(a, T("NO LANGUAGE PACK: LOAD ONE BY USB")); return; }
+        if (on == s->lang) return;
+        s->lang = (uint8_t)on;
         bm_lang_use(s->lang ? bm_app_lang_pack(a) : NULL);
         break;
     default: return;
@@ -2714,24 +2867,14 @@ static void enc_channel(bm_app *a, int id, int d)
     bm_meta *m = &a->pat.meta;
     char b[16], ti[22];
     if (id == ENC_PRESETS) { enc_source(a, t, d); return; }
-    if (id == ENC_SELECT) {
-        if (a->page == PG_MORE) {
-            if (d < 0 && a->more_row == 0) { tabs_turn(a, -1); return; }
-            a->more_row = (uint8_t)bm_clampi(a->more_row + (d > 0 ? 1 : -1), 0, bm_app_more_count(a) - 1);
-            a->ask = ASK_NONE; a->eng_pending = 0xFF;
-            return;
-        }
-        if (ed_select(a, d)) return;
-        tabs_turn(a, d);
-        return;
-    }
+    if (id == ENC_SELECT) { select_turn(a, d); return; }
     if (id == ENC_ALGO) {
         if (a->page == PG_MORE) { more_change(a, d); return; }
         if (a->page == PG_TAKES) {
             uint8_t list[BM_TAKES + 8];
             int n = bm_app_sources(a, list);
             if (!n) return;
-            a->takes_row = (uint8_t)bm_clampi(a->takes_row + (d > 0 ? 1 : -1), 0, n - 1);
+            a->takes_row = (uint8_t)bm_clampi(a->takes_row + lst(a, d), 0, n - 1);
             return;
         }
         if (a->page == PG_REC) { app_toast(a, "THE SAMPLER STAYS HERE"); return; }
@@ -2748,15 +2891,15 @@ static void enc_channel(bm_app *a, int id, int d)
         if (kind == KIND_TR) { enc_macro(a, t, k, d); return; }
         if (bm_engine_paged(tr->engine)) { ed_turn(a, t, k, d); return; }
         if (k == 3) { enc_track_u8(a, t, 3, TRK_OFF(accent), tr->accent, d, 0, 127, "ACCENT", 2); return; }
-        enc_macro(a, t, k == 0 ? 3 : k - 1, d);
+        enc_macro(a, t, k, d);                                 /* K1-K3 como en SEQ */
         return;
     case PG_INST: ed_turn(a, t, k, d); return;
     case PG_MIX: goto mix;
     case PG_MORE:
-        if (k == 0) enc_track_u8(a, t, 0, TRK_OFF(accent), tr->accent, d, 0, 127, "ACCENT", 2);
-        else if (k == 1) set_len(a, t, bm_trk_len(&a->pat, t, bm_is_grid(&a->pat, t) ? tr_lane(a) : -1) + (d > 0 ? 1 : -1));
-        else if (k == 2) { int v = bm_clampi(tr->speed + (d > 0 ? -1 : 1), 0, SPD_COUNT - 1); app_set_track(a, t, TRK_OFF(speed), v); app_overlay(a, 2, "SPEED", bm_speed_names[v], "", (SPD_COUNT - 1 - v) * 51, -1, bm_knob_color(2)); }
-        else if (kind == KIND_NOTE) { int v = bm_clampi(tr->transpose + d, 0, 48); app_set_track(a, t, TRK_OFF(transpose), v); fmt_semi(v, b, sizeof b); app_overlay(a, 3, "TRANSPOSE", b, "", v * 5, 120, bm_knob_color(3)); }
+        if (k == 0) set_len(a, t, bm_trk_len(&a->pat, t, bm_is_grid(&a->pat, t) ? tr_lane(a) : -1) + lst(a, d));
+        else if (k == 1) { int v = bm_clampi(tr->speed + -lst(a, d), 0, SPD_COUNT - 1); app_set_track(a, t, TRK_OFF(speed), v); app_overlay(a, 1, "SPEED", bm_speed_names[v], "", (SPD_COUNT - 1 - v) * 51, -1, bm_knob_color(1)); }
+        else if (k == 2) enc_track_u8(a, t, 2, TRK_OFF(accent), tr->accent, d, 0, 127, "ACCENT", 2);
+        else if (kind == KIND_NOTE) { int v = bm_clampi(tr->transpose + lst(a, d), 0, 48); app_set_track(a, t, TRK_OFF(transpose), v); fmt_semi(v, b, sizeof b); app_overlay(a, 3, "TRANSPOSE", b, "", v * 5, 120, bm_knob_color(3)); }
         return;
     case PG_BREAK: enc_track_u8(a, 1, k, (uint8_t)(TRK_OFF(gen) + k), tr->gen[k], d, 0, 127, GEN_NAMES[k], 2); return;
     case PG_TAKES: {
@@ -2764,7 +2907,7 @@ static void enc_channel(bm_app *a, int id, int d)
         if (src == BM_SRC_NONE || (src & BM_SRC_ROM)) { app_toast(a, "FACTORY IS READ ONLY"); return; }
         bm_take *tk = &a->take[src];
         if (k == 0) { tk->bpm_x10 = (uint16_t)bm_clampi(tk->bpm_x10 + d * 10, 400, 2400); snprintf(b, sizeof b, "%d", tk->bpm_x10 / 10); app_overlay(a, 0, "TAKE BPM", b, "BPM", (tk->bpm_x10 - 400) * 255 / 2000, -1, bm_knob_color(0)); }
-        else if (k == 1) { tk->bars = (uint8_t)bm_clampi(tk->bars + (d > 0 ? 1 : -1), 1, 8); snprintf(b, sizeof b, "%d", tk->bars); app_overlay(a, 1, "BARS", b, "", tk->bars * 31, -1, bm_knob_color(1)); }
+        else if (k == 1) { tk->bars = (uint8_t)bm_clampi(tk->bars + lst(a, d), 1, 8); snprintf(b, sizeof b, "%d", tk->bars); app_overlay(a, 1, "BARS", b, "", tk->bars * 31, -1, bm_knob_color(1)); }
         else if (k == 2) { tk->gain = (uint8_t)bm_clampi(tk->gain + d, 8, 127); snprintf(b, sizeof b, "%+d", ((int)tk->gain - 64) * 6 / 64); app_overlay(a, 2, "GAIN", b, "DB", tk->gain * 2, 128, bm_knob_color(2)); }
         else return;
         take_changed(a, src);
@@ -2791,12 +2934,12 @@ static void enc_channel(bm_app *a, int id, int d)
         return;
     case PG_ARP:
         if (kind != KIND_NOTE) {
-            if (k == 0) { a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + (d > 0 ? 1 : -1), 0, 4); app_overlay(a, 0, "ROLL", bm_roll_names[a->roll_rate], "", a->roll_rate * 63, -1, bm_knob_color(0)); }
+            if (k == 0) { a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + lst(a, d), 0, 4); app_overlay(a, 0, "ROLL", bm_roll_names[a->roll_rate], "", a->roll_rate * 63, -1, bm_knob_color(0)); }
             return;
         }
         goto arp;
     case PG_LOOP:
-        if (k == 0) { app_push(a, CMD_LOOP, (uint8_t)t, 3, 0); app_edited(a); }
+        if (k == 0 && (d > 0) != (a->pat.loop[t - 2].on != 0)) { app_push(a, CMD_LOOP, (uint8_t)t, 3, 0); app_edited(a); }   /* derecha ON */
         if (k == 1) {
             const bm_loop *lp = &a->pat.loop[t - 2];
             int nb = lp->bars == 1 ? (d > 0 ? 2 : 1) : lp->bars == 2 ? (d > 0 ? 4 : 1) : (d > 0 ? 4 : 2);
@@ -2809,27 +2952,27 @@ static void enc_channel(bm_app *a, int id, int d)
     case PG_SCL: {
         const char *val = "";
         if (k == 0) {
-            if (tr->scl == 0xFF) { int nv = (m->root + (d > 0 ? 1 : 11)) % 12; app_set_meta(a, META_OFF(root), nv); val = bm_note_names[nv]; }
-            else { int nv = (tr->scl_root + (d > 0 ? 1 : 11)) % 12; app_set_track(a, t, TRK_OFF(scl_root), nv); val = bm_note_names[nv]; }
+            if (tr->scl == 0xFF) { int nv = wrap(m->root + lst(a, d), 12); app_set_meta(a, META_OFF(root), nv); val = bm_note_names[nv]; }
+            else { int nv = wrap(tr->scl_root + lst(a, d), 12); app_set_track(a, t, TRK_OFF(scl_root), nv); val = bm_note_names[nv]; }
         } else if (k == 1) {
             int cur = tr->scl == 0xFF ? -1 : tr->scl;
-            int nv = bm_clampi(cur + (d > 0 ? 1 : -1), -1, BM_SCALES - 1);
+            int nv = bm_clampi(cur + lst(a, d), -1, BM_SCALES - 1);
             if (cur == -1 && nv == 0) app_set_track(a, t, TRK_OFF(scl_root), m->root);
             app_set_track(a, t, TRK_OFF(scl), nv < 0 ? 0xFF : nv);
             val = nv < 0 ? "PROJECT" : bm_scale_names[nv];
-        } else if (k == 2) { int nv = (m->voicing + (d > 0 ? 1 : 4)) % 5; app_set_meta(a, META_OFF(voicing), nv); val = EXT_NAMES[nv]; }
-        else { int nv = !m->scale_lock; app_set_meta(a, META_OFF(scale_lock), nv); val = nv ? "ON" : "OFF"; }
+        } else if (k == 2) { int nv = wrap(m->voicing + lst(a, d), 5); app_set_meta(a, META_OFF(voicing), nv); val = EXT_NAMES[nv]; }
+        else { int nv = d > 0; if (nv != m->scale_lock) app_set_meta(a, META_OFF(scale_lock), nv); val = nv ? "ON" : "OFF"; }
         static const char *const NM[4] = {"ROOT", "TRACK SCALE", "BASE CHORD", "KEYS IN SCALE"};
         app_overlay(a, k, NM[k], val, "", 128, -1, bm_knob_color(k));
         return;
     }
     case PG_CHORDS: goto chords;
-    case PG_REC: if (k == 0) { a->rec_now = !a->rec_now; app_toast(a, a->rec_now ? "STARTS WHEN YOU PRESS REC" : "STARTS ON THE BAR"); } return;
+    case PG_REC: if (k == 0 && (d > 0) != (a->rec_now != 0)) { a->rec_now = d > 0; app_toast(a, a->rec_now ? "STARTS WHEN YOU PRESS REC" : "STARTS ON THE BAR"); } return;
     case PG_PADS:
         if (a->ed_page[1] == 0) {                                /* TRIM: START LENGTH ZOOM SNAP */
             if (k <= 1) pad_trim(a, k, d);
-            else if (k == 2) a->cut_zoom = (uint8_t)bm_clampi(a->cut_zoom + (d > 0 ? 1 : -1), 0, 3);
-            else a->cut_snap = (uint8_t)bm_clampi(a->cut_snap + (d > 0 ? 1 : -1), 0, 2);
+            else if (k == 2) a->cut_zoom = (uint8_t)bm_clampi(a->cut_zoom + lst(a, d), 0, 3);
+            else a->cut_snap = (uint8_t)bm_clampi(a->cut_snap + lst(a, d), 0, 2);
         } else pad_sound(a, k, d);
         return;
     case PG_LFO: app_toast(a, "LFO: IN A FUTURE VERSION"); return;
@@ -2845,7 +2988,7 @@ mix:
         }
         static const uint8_t OFFS[4] = {TRK_OFF(level), TRK_OFF(pan), TRK_OFF(send), TRK_OFF(rsend)};
         const uint8_t cur[4] = {tr->level, tr->pan, tr->send, tr->rsend};
-        int nv = bm_clampi(cur[k] + d, 0, 127);
+        int nv = k == 1 ? center_stop(a, cur[k], d, 64, 0, 127) : bm_clampi(cur[k] + d, 0, 127);   /* PAN: el centro retiene */
         app_set_track(a, t, OFFS[k], nv);
         if (k == 1) fmt_pan(nv, b, sizeof b); else if (k == 0) snprintf(b, sizeof b, "%d", nv); else fmt_pct(nv, b, sizeof b);
         static const char *const NM[4] = {"LEVEL", "PAN", "DELAY SEND", "REVERB SEND"};
@@ -2856,7 +2999,7 @@ mix:
 midi:
     {
         static const uint8_t CC[4] = {0, 0, 1, 74};
-        if (k == 0) { int v = bm_clampi(tr->midi_ch + (d > 0 ? 1 : -1), 0, 15); app_set_track(a, t, TRK_OFF(midi_ch), v); snprintf(b, sizeof b, "%d", v + 1); app_overlay(a, 0, "MIDI CHANNEL", b, "", v * 17, -1, bm_knob_color(0)); return; }
+        if (k == 0) { int v = bm_clampi(tr->midi_ch + lst(a, d), 0, 15); app_set_track(a, t, TRK_OFF(midi_ch), v); snprintf(b, sizeof b, "%d", v + 1); app_overlay(a, 0, "MIDI CHANNEL", b, "", v * 17, -1, bm_knob_color(0)); return; }
         if (k == 1) { enc_source(a, t, d); return; }
         int v = bm_clampi(tr->macro[k] + d, 0, 127);
         app_set_track(a, t, (uint8_t)k, v);
@@ -2868,31 +3011,53 @@ midi:
 arp:
     {
         int nv;
-        if (k == 0) { nv = (tr->arp_mode + (d > 0 ? 1 : 4)) % 5; app_set_track(a, t, TRK_OFF(arp_mode), nv); app_overlay(a, 0, "ARP MODE", ARP_MODES[nv], "", nv * 63, -1, bm_knob_color(0)); }
-        if (k == 1) { nv = bm_clampi(tr->arp_rate + (d > 0 ? 1 : -1), 0, 2); app_set_track(a, t, TRK_OFF(arp_rate), nv); app_overlay(a, 1, "ARP RATE", ARP_RATES[nv], "", nv * 127, -1, bm_knob_color(1)); }
-        if (k == 2) { nv = bm_clampi(tr->arp_oct + (d > 0 ? 1 : -1), 1, 3); app_set_track(a, t, TRK_OFF(arp_oct), nv); snprintf(b, sizeof b, "%d", nv); app_overlay(a, 2, "ARP OCTAVES", b, "", nv * 85, -1, bm_knob_color(2)); }
+        if (k == 0) { nv = wrap(tr->arp_mode + lst(a, d), 5); app_set_track(a, t, TRK_OFF(arp_mode), nv); app_overlay(a, 0, "ARP MODE", ARP_MODES[nv], "", nv * 63, -1, bm_knob_color(0)); }
+        if (k == 1) { nv = bm_clampi(tr->arp_rate + lst(a, d), 0, 2); app_set_track(a, t, TRK_OFF(arp_rate), nv); app_overlay(a, 1, "ARP RATE", ARP_RATES[nv], "", nv * 127, -1, bm_knob_color(1)); }
+        if (k == 2) { nv = bm_clampi(tr->arp_oct + lst(a, d), 1, 3); app_set_track(a, t, TRK_OFF(arp_oct), nv); snprintf(b, sizeof b, "%d", nv); app_overlay(a, 2, "ARP OCTAVES", b, "", nv * 85, -1, bm_knob_color(2)); }
         if (k == 3) { nv = bm_clampi(tr->arp_gate + d, 10, 100); app_set_track(a, t, TRK_OFF(arp_gate), nv); snprintf(b, sizeof b, "%d", nv); app_overlay(a, 3, "ARP GATE", b, "%", nv * 255 / 100, -1, bm_knob_color(3)); }
         return;
     }
 chords:
     {
         const char *val = "";
-        if (k == 0) { int nv = (m->chord_set + (d > 0 ? 1 : BM_CHORD_SETS - 1)) % BM_CHORD_SETS; app_set_meta(a, META_OFF(chord_set), nv); val = bm_chord_set_names[nv]; }
-        if (k == 1) { int nv = (m->chord_voicing + (d > 0 ? 1 : 2)) % 3; app_set_meta(a, META_OFF(chord_voicing), nv); val = VOICINGS[nv]; a->prev_chord_n = 0; }
-        if (k == 2) { int nv = bm_clampi(m->chord_oct + (d > 0 ? 1 : -1), 1, 5); app_set_meta(a, META_OFF(chord_oct), nv); snprintf(b, sizeof b, "%d", nv); val = b; }
-        if (k == 3) { int nv = bm_clampi(m->strum + (d > 0 ? 2 : -2), 0, 60); app_set_meta(a, META_OFF(strum), nv); snprintf(b, sizeof b, "%d", nv); val = b; }
+        if (k == 0) { int nv = wrap(m->chord_set + lst(a, d), BM_CHORD_SETS); app_set_meta(a, META_OFF(chord_set), nv); val = bm_chord_set_names[nv]; }
+        if (k == 1) { int nv = wrap(m->chord_voicing + lst(a, d), 3); app_set_meta(a, META_OFF(chord_voicing), nv); val = VOICINGS[nv]; a->prev_chord_n = 0; }
+        if (k == 2) { int nv = bm_clampi(m->chord_oct + lst(a, d), 1, 5); app_set_meta(a, META_OFF(chord_oct), nv); snprintf(b, sizeof b, "%d", nv); val = b; }
+        if (k == 3) { int nv = bm_clampi(m->strum + 2 * lst(a, d), 0, 60); app_set_meta(a, META_OFF(strum), nv); snprintf(b, sizeof b, "%d", nv); val = b; }
         static const char *const NM[4] = {"CHORD SET", "VOICING", "OCTAVE", "STRUM (MS)"};
         app_overlay(a, k, NM[k], val, "", 128, -1, bm_knob_color(k));
     }
 }
 
+static void enc_dispatch(bm_app *a, int id, int d, uint32_t now);
+
+/* Aceleración por el tiempo entre giros de cada perilla (no por cuántos detents juntó el bucle, que
+ * depende de la pantalla): rápido = x2 o x4 en los valores continuos. Las listas usan lst(). */
+#define ENC_FAST_MS  18u     /* menos de esto por detent: x4 */
+#define ENC_MED_MS   35u     /* menos de esto: x2 */
+#define ENC_GESTURE_MS 800u  /* quieta más que esto: el giro empieza un gesto nuevo */
+
 void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
 {
     a->now = now;
-    if (!d || a->view == V_BOOT) return;
+    if (!d || a->view == V_BOOT || id < 0 || id >= ENC_COUNT) return;
     bm_gesture_other(&a->ges, now);
     if (bm_gesture_is_down(&a->ges, BTN_HOME)) a->home_used = 1;
-    if (d >= 3 || d <= -3) d *= 4;
+    d = bm_clampi(d, -100, 100);
+    uint32_t dt = now - a->enc_t[id];
+    a->enc_t[id] = now;
+    uint32_t per = dt / (uint32_t)(d < 0 ? -d : d);
+    a->enc_new = dt > ENC_GESTURE_MS;
+    a->enc_raw = (int8_t)d;
+    a->enc_cur = (uint8_t)(id + 1);
+    int mul = per < ENC_FAST_MS ? 4 : per < ENC_MED_MS ? 2 : 1;
+    enc_dispatch(a, id, d * mul, now);
+    a->enc_raw = 0;
+    a->enc_cur = 0;
+}
+
+static void enc_dispatch(bm_app *a, int id, int d, uint32_t now)
+{
     int k = id - ENC_K1;
     bm_meta *m = &a->pat.meta;
     char b[16];
@@ -2902,33 +3067,34 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
     case L_HOME:
         if (id == ENC_SELECT) box_turn(a, d, 1);              /* HOME + SELECT: a otro canal desde cualquier lado */
         else if (id == ENC_ALGO) enc_bpm_fine(a, d);          /* HOME + ALGORITHM: décimas de BPM */
-        else if (id == ENC_PRESETS) enc_pattern(a, d);
+        else if (id == ENC_PRESETS) enc_pattern(a, d);        /* se elige al soltar HOME */
         else if (k >= 0 && k <= 3) enc_global(a, k, d);
         return;
-    case L_TONE:
-        if (k == 0) enc_transpose(a, d);
-        else if (k == 1) enc_transpose(a, d > 0 ? 12 : -12);
-        else if (k == 2 || k == 3) enc_global(a, k - 2, d);
+    case L_TONE:                                              /* GLO sostenido: K1 BPM, K2 SWING como en todas partes */
+        if (k == 0 || k == 1) enc_global(a, k, d);
+        else if (k == 2) enc_transpose(a, lst(a, d));
+        else if (k == 3) enc_transpose(a, 12 * lst(a, d));
         return;
     case L_LEN:
-        if (k == 0) set_len(a, a->track, bm_trk_len(&a->pat, a->track, app_kind(a, a->track) == KIND_NOTE ? -1 : 0) + (d > 0 ? 1 : -1));
-        else if (k == 1) { int v = bm_clampi(a->pat.trk[a->track].speed + (d > 0 ? -1 : 1), 0, SPD_COUNT - 1); app_set_track(a, a->track, TRK_OFF(speed), v); app_overlay(a, 1, "SPEED", bm_speed_names[v], "", (SPD_COUNT - 1 - v) * 51, -1, bm_knob_color(1)); }
+        if (k == 0) set_len(a, a->track, bm_trk_len(&a->pat, a->track, app_kind(a, a->track) == KIND_NOTE ? -1 : 0) + lst(a, d));
+        else if (k == 1) { int v = bm_clampi(a->pat.trk[a->track].speed + -lst(a, d), 0, SPD_COUNT - 1); app_set_track(a, a->track, TRK_OFF(speed), v); app_overlay(a, 1, "SPEED", bm_speed_names[v], "", (SPD_COUNT - 1 - v) * 51, -1, bm_knob_color(1)); }
         return;
     case L_ACC: if (k == 0) enc_track_u8(a, a->track, 0, TRK_OFF(accent), a->pat.trk[a->track].accent, d, 0, 127, "ACCENT", 2); return;
     case L_REP: if (k == 0 && app_kind(a, a->track) == KIND_NOTE) enc_track_u8(a, a->track, 0, TRK_OFF(glide), a->pat.trk[a->track].glide, d, 0, 127, "GLIDE", 2); return;
     case L_ROLL:
         if (k == 0) {
-            a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + (d > 0 ? 1 : -1), 0, 4);
+            a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + lst(a, d), 0, 4);
             app_overlay(a, 0, "ROLL", bm_roll_names[a->roll_rate], "", a->roll_rate * 63, -1, bm_knob_color(0));
             for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 1, bm_roll_ticks[a->roll_rate]);
         }
         return;
-    case L_FILL:
-        if (k == 0) enc_fill_every(a, d);                       /* K1 = FILL AUTOMATICO */
-        return;
-    case L_PUNCH: case L_CHORDS: case L_ARP: case L_ERASE: case L_COPY: case L_LANEMUTE:
-        if (a->layer == L_PUNCH && k >= 0) break;
-        if ((a->layer == L_CHORDS || a->layer == L_ARP) && k >= 0) break;
+    case L_FILL: case L_LANEMUTE:                               /* pantallas de MUTE y FILL: las perillas siguen con lo de SEQ */
+        if (a->layer == L_FILL && k == 0) { enc_fill_every(a, d); return; }   /* K1 = FILL AUTOMATICO */
+        if (id == ENC_SELECT) key_screen_close(a);              /* cambiar de página cierra la pantalla */
+        break;
+    case L_PUNCH: case L_CHORDS: case L_ARP: case L_ERASE: case L_COPY:
+        if (a->layer == L_PUNCH && k >= 0 && k <= 3) break;
+        if ((a->layer == L_CHORDS || a->layer == L_ARP) && k >= 0 && k <= 3) break;
         return;
     default: break;
     }
@@ -2939,82 +3105,95 @@ void bm_app_encoder(bm_app *a, int id, int d, uint32_t now)
     /* REC en un canal de notas: SELECT = el paso, ALGORITHM = su gate (10..100 %, 100 = TIE), PRESETS = su micro-timing */
     if (a->rec && a->view == V_CH && a->page == PG_SEQ && app_kind(a, a->track) == KIND_NOTE && a->held_step < 0
         && (id == ENC_SELECT || id == ENC_ALGO || id == ENC_PRESETS)) { enc_rec(a, id, d); return; }
-    /* paso sostenido > lista > canal > HOME */
-    if (a->view == V_CH && a->page == PG_SEQ && a->held_step >= 0 && id != ENC_PRESETS) {
+    /* paso sostenido > lista > canal > HOME. Con un paso sostenido PRESETS es la condición (golpes) o
+     * el largo (notas), nunca el kit: cambiarlo ahí reemplazaba los 16 instrumentos sin querer. */
+    if (a->view == V_CH && a->page == PG_SEQ && a->held_step >= 0) {
         if (bm_is_grid(&a->pat, a->track)) enc_step_grid(a, id, d); else enc_step_syn(a, id, d);
+        return;
+    }
+    /* las páginas de la consola (BX-1): PRESETS = MOVE en todas */
+    if (id == ENC_PRESETS && (a->view == V_HOME || a->view == V_SCENES || a->view == V_FXG || a->view == V_GLO || a->view == V_SONG)) {
+        enc_move(a, d);
         return;
     }
     switch (a->view) {
     case V_HOME: case V_SCENES:
         if (id == ENC_ALGO) enc_global(a, 0, d);               /* ALGORITHM = BPM */
-        else if (id == ENC_PRESETS) enc_move(a, d);            /* PRESETS = MOVE (los patrones: las blancas) */
-        else if (id == ENC_SELECT) a->track = (uint8_t)bm_clampi(a->track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1);
+        else if (id == ENC_SELECT) {                           /* el cursor de canal (ESCENAS no tiene cursor) */
+            if (a->view == V_HOME) a->track = (uint8_t)bm_clampi(a->track + lst(a, d), 0, BM_TRACKS - 1);
+        }
         else if (a->view == V_HOME) enc_home(a, k, d);
         else enc_global(a, k, d);
         return;
     case V_MIX:
-        if (id == ENC_SELECT) { a->track = (uint8_t)bm_clampi(a->track + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1); return; }
+        if (id == ENC_SELECT) { a->track = (uint8_t)bm_clampi(a->track + lst(a, d), 0, BM_TRACKS - 1); return; }
         if (id == ENC_ALGO) { enc_global(a, 0, d); return; }
         if (id == ENC_PRESETS) { enc_pattern(a, d); return; }
         { uint8_t v = a->view, pg = a->page; a->view = V_CH; a->page = PG_MIX; enc_channel(a, id, d); a->view = v; a->page = pg; }
         return;
     case V_GLO:
-        if (id == ENC_SELECT) a->glo_row = (uint8_t)bm_clampi(a->glo_row + (d > 0 ? 1 : -1), 0, 5);
+        if (id == ENC_SELECT) a->glo_row = (uint8_t)bm_clampi(a->glo_row + lst(a, d), 0, 5);
         else if (id == ENC_ALGO) glo_change(a, d);
-        else if (k >= 0) enc_global(a, k, d);
+        else if (k >= 0 && k <= 3) enc_global(a, k, d);
         return;
     case V_SYSTEM:
-        if (id == ENC_SELECT) a->menu_row = (uint8_t)bm_clampi(a->menu_row + (d > 0 ? 1 : -1), 0, 10);
-        else if (id == ENC_ALGO || id == ENC_K1) system_change(a, d > 0 ? 1 : -1);
+        if (id == ENC_SELECT) a->menu_row = (uint8_t)bm_clampi(a->menu_row + lst(a, d), 0, 10);
+        else if (id == ENC_ALGO || id == ENC_K1) system_change(a, d);
         return;
-    case V_SAVE:
-        if (id == ENC_SELECT) a->save_row = (uint8_t)bm_clampi(a->save_row + (d > 0 ? 1 : -1), 0, 4);
-        else if (id == ENC_ALGO || id == ENC_K1) a->save_target = (uint8_t)bm_clampi(a->save_target + (d > 0 ? 1 : -1), 0, BM_PATTERNS - 1);
+    case V_SAVE:                                               /* PRESETS = el patrón de destino, como ALGORITHM */
+        if (id == ENC_SELECT) a->save_row = (uint8_t)bm_clampi(a->save_row + lst(a, d), 0, 4);
+        else if (id == ENC_ALGO || id == ENC_K1 || id == ENC_PRESETS) a->save_target = (uint8_t)bm_clampi(a->save_target + lst(a, d), 0, BM_PATTERNS - 1);
         a->clear_armed = 0;
         return;
     case V_SONG:
-        if (id == ENC_SELECT && a->song.n) a->song_cur = (uint8_t)bm_clampi(a->song_cur + (d > 0 ? 1 : -1), 0, a->song.n - 1);
+        if (id == ENC_SELECT && a->song.n) a->song_cur = (uint8_t)bm_clampi(a->song_cur + lst(a, d), 0, a->song.n - 1);
         else if ((id == ENC_K1 || id == ENC_ALGO) && a->song.n) {
             uint8_t e = a->song.pat[a->song_cur];
             int code = (e & 0x80) ? 16 + (e & 3) : e;               /* 0..15 patrones, 16..19 escenas */
-            code = bm_clampi(code + (d > 0 ? 1 : -1), 0, 19);
+            code = bm_clampi(code + lst(a, d), 0, 19);
             a->song.pat[a->song_cur] = (uint8_t)(code >= 16 ? (0x80 | (code - 16)) : code);
             a->song_dirty = 1; a->t_edit = now;
         }
-        else if (id == ENC_K2 && a->song.n) { a->song.rep[a->song_cur] = (uint8_t)bm_clampi(a->song.rep[a->song_cur] + (d > 0 ? 1 : -1), 1, 16); a->song_dirty = 1; a->t_edit = now; }
-        else if (id == ENC_K4) { app_push(a, CMD_SONG, a->ctx.st.song_on ? 0 : 1, 0, 0); app_toast(a, a->ctx.st.song_on ? "SONG OFF" : "SONG ON"); }
+        else if (id == ENC_K2 && a->song.n) { a->song.rep[a->song_cur] = (uint8_t)bm_clampi(a->song.rep[a->song_cur] + lst(a, d), 1, 16); a->song_dirty = 1; a->t_edit = now; }
+        else if (id == ENC_K4) {                                /* a la derecha ON, a la izquierda OFF */
+            int v = d > 0;
+            if (v != (a->ctx.st.song_on != 0)) { app_push(a, CMD_SONG, (uint8_t)v, 0, 0); app_toast(a, v ? "SONG ON" : "SONG OFF"); }
+        }
         return;
     case V_TIME: {
-        if (id == ENC_SELECT || id == ENC_ALGO) { a->time_row = (uint8_t)bm_clampi(a->time_row + (d > 0 ? 1 : -1), 0, BM_TRACKS - 1); return; }
+        if (id == ENC_SELECT || id == ENC_ALGO) { a->time_row = (uint8_t)bm_clampi(a->time_row + lst(a, d), 0, BM_TRACKS - 1); return; }
         int row = a->time_row;
         const bm_track *rt = &a->pat.trk[row];
         char ti[22];
-        if (k == 0) set_len(a, row, bm_trk_len(&a->pat, row, bm_is_grid(&a->pat, row) ? 0 : -1) + (d > 0 ? 1 : -1));
+        if (k == 0) set_len(a, row, bm_trk_len(&a->pat, row, bm_is_grid(&a->pat, row) ? 0 : -1) + lst(a, d));
         else if (k == 1) {
-            int nv = bm_clampi(rt->speed + (d > 0 ? -1 : 1), 0, SPD_COUNT - 1);   /* a la derecha = más rápido */
+            int nv = bm_clampi(rt->speed + -lst(a, d), 0, SPD_COUNT - 1);   /* a la derecha = más rápido */
             app_set_track(a, row, TRK_OFF(speed), nv);
             snprintf(ti, sizeof ti, TF("T%d SPEED"), row + 1);
             app_overlay(a, 1, ti, bm_speed_names[nv], "", (SPD_COUNT - 1 - nv) * 51, -1, bm_knob_color(1));
-        } else if (k == 2 && bm_is_grid(&a->pat, row)) {
-            a->time_lane = (uint8_t)bm_clampi(a->time_lane + (d > 0 ? 1 : -1), 0, 15);
-        } else if (k == 3 && bm_is_grid(&a->pat, row)) {
+        } else if (k == 2 && bm_is_grid(&a->pat, row) && row != 1) {   /* T2: cada pad tiene su largo en la capa LENGTH */
+            a->time_lane = (uint8_t)bm_clampi(a->time_lane + lst(a, d), 0, 15);
+        } else if (k == 3 && bm_is_grid(&a->pat, row) && row != 1) {
             const bm_lane *ln = &bm_trk_trc(&a->pat, row)->lane[a->time_lane];
-            int nv = bm_clampi(ln->len + (d > 0 ? 1 : -1), 1, 64);
+            int nv = bm_clampi(ln->len + lst(a, d), 1, 64);
             app_push_i(a, CMD_SET_LANE, (uint8_t)row, a->time_lane, 0, nv); app_edited(a);
             snprintf(b, sizeof b, "%d", nv); snprintf(ti, sizeof ti, TF("%s LENGTH"), T(bm_lane_name(a, row, a->time_lane)));
             app_overlay(a, 3, ti, b, "STEPS", nv * 4, -1, bm_knob_color(3));
         }
         return;
     }
-    case V_FXG: goto fxg;
+    case V_FXG:                                                /* SELECT = DELAY > REVERB > MASTER, ALGORITHM = BPM */
+        if (id == ENC_SELECT) { a->fx_page = (uint8_t)bm_clampi(a->fx_page + lst(a, d), 0, 2); return; }
+        if (id == ENC_ALGO) { enc_global(a, 0, d); return; }
+        goto fxg;
     case V_SCLG:
-        if (k < 0) return;
+        if (k < 0 || k > 3) return;
         {
             const char *val = "";
-            if (k == 0) { int nv = (m->root + (d > 0 ? 1 : 11)) % 12; app_set_meta(a, META_OFF(root), nv); val = bm_note_names[nv]; }
-            if (k == 1) { int nv = (m->scale + (d > 0 ? 1 : BM_SCALES - 1)) % BM_SCALES; app_set_meta(a, META_OFF(scale), nv); val = bm_scale_names[nv]; }
-            if (k == 2) { int nv = (m->voicing + (d > 0 ? 1 : 4)) % 5; app_set_meta(a, META_OFF(voicing), nv); val = EXT_NAMES[nv]; }
-            if (k == 3) { int nv = !m->scale_lock; app_set_meta(a, META_OFF(scale_lock), nv); val = nv ? "ON" : "OFF"; }
+            if (k == 0) { int nv = wrap(m->root + lst(a, d), 12); app_set_meta(a, META_OFF(root), nv); val = bm_note_names[nv]; }
+            if (k == 1) { int nv = wrap(m->scale + lst(a, d), BM_SCALES); app_set_meta(a, META_OFF(scale), nv); val = bm_scale_names[nv]; }
+            if (k == 2) { int nv = wrap(m->voicing + lst(a, d), 5); app_set_meta(a, META_OFF(voicing), nv); val = EXT_NAMES[nv]; }
+            if (k == 3) { int nv = d > 0; if (nv != m->scale_lock) app_set_meta(a, META_OFF(scale_lock), nv); val = nv ? "ON" : "OFF"; }
             static const char *const NM[4] = {"PROJECT ROOT", "PROJECT SCALE", "BASE CHORD", "KEYS IN SCALE"};
             app_overlay(a, k, NM[k], val, "", 128, -1, bm_knob_color(k));
         }
@@ -3042,7 +3221,7 @@ fxg:
             if (nv >= 60 && nv <= 68) snprintf(b, sizeof b, "OPEN"); else if (nv < 60) snprintf(b, sizeof b, "LP %d", nv); else snprintf(b, sizeof b, "HP %d", nv - 64);
             app_overlay(a, 0, "MASTER FILTER", b, "", nv * 2, 128, bm_knob_color(0));
         } else if (k == 1) {
-            int nv = bm_clampi(m->beatfx + (d > 0 ? 1 : -1), 0, 16);
+            int nv = bm_clampi(m->beatfx + lst(a, d), 0, 16);
             app_set_meta(a, META_OFF(beatfx), nv);
             app_overlay(a, 1, "BEAT FX", BEATFX_N[nv], "", nv * 15, -1, bm_knob_color(1));
         } else if (k == 2) enc_global(a, 3, d);                 /* DRIVE */
@@ -3059,7 +3238,7 @@ fxg:
         return;
     }
     if (k == 0) {
-        int nv = bm_clampi(m->dly_time + (d > 0 ? 1 : -1), 0, 3);
+        int nv = bm_clampi(m->dly_time + lst(a, d), 0, 3);
         app_set_meta(a, META_OFF(dly_time), nv);
         app_overlay(a, 0, "DELAY TIME", DLY_NAMES[nv], "", nv * 85, -1, bm_knob_color(0));
     } else {
@@ -3079,6 +3258,11 @@ void app_input_tick(bm_app *a)
     uint32_t now = a->now;
     if (a->held_white >= 0 && !a->held_long && now - a->step_t0 >= UI_HOLD_MS) a->held_long = 1;
     if (a->rec_free && a->rec_free_t0 == 0xFFFFFFFFu && app_playing(a)) a->rec_free_t0 = a->ctx.st.btick;   /* empieza con PLAY */
+    if (a->fill && a->layer != L_FILL) {                         /* el fill suena solo con su pantalla abierta o su tecla sostenida */
+        int held = 0;
+        for (int k = 0; k < BM_KEYS; k++) if (a->keys_down[k] && (a->key_role[k] == ROLE_FILL || a->key_role[k] == ROLE_FILLK)) held = 1;
+        if (!held) { app_push(a, CMD_FILL, 0, 0, 0); a->fill = 0; }
+    }
     for (int k = 0; k < BM_KEYS; k++) {
         if (!a->keys_down[k] || !a->key_t0[k] || now - a->key_t0[k] < UI_HOLD_MS) continue;
         if (a->key_role[k] == ROLE_MUTE && !a->solo_on) {           /* negra sostenida en HOME: solo */

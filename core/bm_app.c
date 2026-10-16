@@ -119,6 +119,7 @@ void app_overlay(bm_app *a, int enc, const char *title, const char *val, const c
     o->ghost = (uint8_t)(ghost < 0 ? 255 : bm_clampi(ghost, 0, 254));
     o->color = col;
     o->beat = 0;
+    o->knob = a->enc_cur;                  /* la perilla que gira (0 si no vino de una perilla) */
     snprintf(o->title, sizeof o->title, "%s", title);
     snprintf(o->val, sizeof o->val, "%s", val);
     snprintf(o->unit, sizeof o->unit, "%s", unit);
@@ -917,9 +918,17 @@ int app_page_ok(const bm_app *a, int t, int page)
     return 0;
 }
 
+/* A dónde vuelve HOME (prev_view, V_BOOT = a ningún lado: HOME recorre sus páginas). Una pantalla
+ * global abierta desde un canal recuerda el canal y su página; abierta desde otra pantalla (una
+ * página de HOME, por ejemplo), recuerda esa. Entrar a un canal o a HOME lo olvida. Los pasos de
+ * HOME por sus páginas lo borran después (bm_input.c). */
 void app_set_view(bm_app *a, int v)
 {
-    if (v == V_GLO && a->view != V_GLO) { a->prev_view = a->view; a->prev_page = a->page; }
+    if (v != a->view) {
+        if (v == V_CH || v == V_HOME) a->prev_view = V_BOOT;
+        else if (a->view == V_CH) { a->prev_view = V_CH; a->prev_page = a->page; }
+        else if (a->prev_view == V_BOOT && a->view != V_BOOT) a->prev_view = a->view;
+    }
     a->view = (uint8_t)v;
     a->ov.on = 0;
     a->clear_armed = 0;
@@ -1066,7 +1075,8 @@ void bm_app_tick(bm_app *a, uint32_t now)
     bm_gesture_poll(&a->ges, now);
     app_input_tick(a);
     app_tables(a);
-    if (a->pat_sel >= 0 && now - a->pat_sel_t > 500) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }
+    /* PRESETS con HOME sostenido elige el patrón al soltar HOME (no carga ni guarda cada uno por el que pasa) */
+    if (a->pat_sel >= 0 && a->layer != L_HOME && now - a->pat_sel_t > 500) { app_select_pattern(a, a->pat_sel); a->pat_sel = -1; }
     if (a->ov.on && (int32_t)(now - a->ov.until) > 0) a->ov.on = 0;
     if (a->toast_until && (int32_t)(now - a->toast_until) > 0) a->toast_until = 0;
     for (int t = 0; t < BM_TRACKS; t++)

@@ -146,6 +146,23 @@ static void draw_legend(bm_gfx *g, const bm_app *a)
     }
 }
 
+/* Las tres perillas grandes, en su orden del panel (SELECT, ALGORITHM, PRESETS): qué hacen aquí,
+ * o "-" si aquí no hacen nada. Una fila chica debajo de los diales. */
+static void draw_bigknobs(bm_gfx *g, const bm_app *a)
+{
+    if (!gfx_strip_hit(g, 232, 6)) return;
+    const char *v[3];
+    static const char *const N[3] = {"SEL", "ALG", "PRE"};
+    bm_app_bigknobs(a, &v[0], &v[1], &v[2]);
+    for (int i = 0; i < 3; i++) {
+        int x = 4 + i * 80;
+        bool dead = !v[i][0] || (v[i][0] == '-' && !v[i][1]);
+        bool hi = a->ov.on && a->ov.knob == (i == 0 ? ENC_SELECT : i == 1 ? ENC_ALGO : ENC_PRESETS) + 1;
+        gfx_small(g, x, 232, N[i], dead ? C_DGREY : C_GREY);
+        gfx_small(g, x + gfx_small_w(N[i]) + 4, 232, dead ? "-" : v[i], hi ? a->ov.color : dead ? C_DGREY : C_WHITE);
+    }
+}
+
 /* ------------------------------------------------------------ helpers */
 static void header(bm_gfx *g, const char *title, const char *sub, uint16_t col)
 {
@@ -1193,6 +1210,18 @@ static void draw_ch_mix(bm_gfx *g, const bm_app *a)
     const bm_track *tr = &a->pat.trk[t];
     static const char *const NM[4] = {"LEVEL", "PAN", "DELAY", "REVERB"};
     const int val[4] = {tr->level, tr->pan, tr->send, tr->rsend};
+    if (a->mix_page) {                                            /* la sub-página DUCK: solo K1 */
+        char d[30];
+        if (gfx_strip_hit(g, PY + 2, 76)) {
+            gfx_text(g, 6, PY + 2, "DUCK (SIDECHAIN FROM T1)", bm_knob_color(0), 1);
+            gfx_fill(g, 6, PY + 20, 228, 12, C_DDGREY);
+            if (t) gfx_fill(g, 6, PY + 20, tr->duck * 228 / 127, 12, bm_knob_color(0));
+            if (t) snprintf(d, sizeof d, "%d%%", tr->duck * 100 / 127); else snprintf(d, sizeof d, "T1 IS THE SOURCE");
+            gfx_text(g, 6, PY + 40, d, C_WHITE, 2);
+        }
+        hint_s(g, PY + 86, "K1 = DUCK - SELECT LEFT = LEVEL, PAN, SENDS");
+        return;
+    }
     for (int i = 0; i < 4; i++) {
         int x = 6 + i * 58;
         if (!gfx_strip_hit(g, PY + 2, 76)) break;
@@ -1791,15 +1820,38 @@ static void draw_ask(bm_gfx *g, const bm_app *a)
     gfx_text_c(g, 170, 99, "HOME NO", C_WHITE, 1);
 }
 
+/* K1-K4: una línea con el nombre y el valor en la fila de arriba (pestañas o título), sin tapar la
+ * rejilla ni el paso sostenido; el dial de abajo ya marca cuál giró. */
+static void draw_overlay_line(bm_gfx *g, const bm_app *a)
+{
+    const bm_overlay *o = &a->ov;
+    bool tall = (a->layer && a->layer != L_CHORDS) || a->view == V_SAVE || a->view == V_TIME || a->view == V_COPYCH || a->view == V_MIX;
+    int h = tall ? 21 : 11;                                      /* también tapa el título grande de esas pantallas */
+    if (!gfx_strip_hit(g, 24, h)) return;
+    gfx_fill(g, 0, 24, BM_LCD_W, h, C_BLACK);
+    int y = 24 + (h - 7) / 2;
+    gfx_text(g, 4, y, o->title, o->color, 1);
+    int x = 236;
+    if (o->unit[0]) x -= gfx_text_r(g, x, y, o->unit, C_GREY, 1) + 4;
+    gfx_text_r(g, x, y, o->val, C_WHITE, 1);
+    gfx_fill(g, 0, 24 + h - 1, BM_LCD_W, 1, C_DDGREY);
+    gfx_fill(g, 0, 24 + h - 1, o->pct * BM_LCD_W / 255, 1, o->color);
+}
+
 static void draw_overlay(bm_gfx *g, const bm_app *a)
 {
     const bm_overlay *o = &a->ov;
+    if (o->knob >= ENC_K1 + 1 && o->knob <= ENC_K4 + 1 && !o->beat) { draw_overlay_line(g, a); return; }
     if (!gfx_strip_hit(g, 46, 84)) return;
     gfx_fill(g, 12, 46, 216, 84, C_BLACK);
     gfx_rect(g, 12, 46, 216, 84, o->color);
     gfx_rect(g, 13, 47, 214, 82, o->color);
     grid(g, 16, 50, 208, 76, 6);
     gfx_text(g, 20, 52, o->title, C_GREY, 1);
+    if (o->knob) {                                               /* la perilla grande que se giró, en la esquina */
+        static const char *const KN[ENC_COUNT] = {"SELECT", "ALGORITHM", "K1", "K2", "K3", "K4", "PRESETS"};
+        gfx_small(g, 222 - gfx_small_w(KN[(o->knob - 1) % ENC_COUNT]), 53, KN[(o->knob - 1) % ENC_COUNT], o->color);
+    }
     int w = gfx_text(g, 20, 68, o->val, C_WHITE, gfx_text_w(o->val, 3) > 196 ? 2 : 3);
     if (o->unit[0]) gfx_text(g, 26 + w, 78, o->unit, C_GREY, 2);
     if (o->beat) {                                               /* el beat, en el color del tempo */
@@ -1894,6 +1946,7 @@ void bm_app_draw(bm_gfx *g, void *user)
     draw_keys(g, a);
     PASO(29);
     draw_legend(g, a);
+    draw_bigknobs(g, a);
     PASO(0);
     if (a->now < a->clip_until) {
         gfx_fill(g, 0, 0, BM_LCD_W, 2, C_RED); gfx_fill(g, 0, BM_LCD_H - 2, BM_LCD_W, 2, C_RED);

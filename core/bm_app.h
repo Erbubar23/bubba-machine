@@ -45,11 +45,11 @@ typedef enum {
 } bm_layer;
 
 /* Preguntas: OCT+ = sí, HOME = no. */
-enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT };
+enum { ASK_NONE, ASK_CLEAR, ASK_ENGINE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT, ASK_DISCARD };
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
-    uint8_t enter;          /* sin uso desde 0.6 (el recuadro de ALGORITHM se fue) */
+    uint8_t enter;          /* espera del recuadro de canal (HOME + SELECT, ALGORITHM en INSTR): 2 = 400 ms; no se cambia desde la pantalla */
     uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
     uint8_t fast_lcd;       /* 1 = SPI a 30 MHz con DMA (a prueba; el modo seguro lo apaga) */
     uint8_t dual_core;      /* 1 = el audio en los dos núcleos (a prueba; el modo seguro lo apaga) */
@@ -59,6 +59,7 @@ typedef struct {
 typedef struct {
     uint8_t on, enc, pct, ghost;
     uint8_t beat;                 /* el tempo: cuatro bloques con el beat en vez de la barra */
+    uint8_t knob;                 /* la perilla física que lo mostró + 1 (0 = ninguna: TAP, avisos) */
     uint16_t color;
     char title[22], val[12], unit[6];
     uint32_t until;
@@ -198,6 +199,13 @@ typedef struct bm_app {
     int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
     uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
     uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
+    /* perillas: aceleración por el tiempo entre giros, detents crudos y la perilla que gira */
+    uint32_t enc_t[ENC_COUNT];    /* cuándo giró cada perilla por última vez */
+    int8_t enc_raw;               /* detents de este giro, sin acelerar (0 fuera de un giro) */
+    uint8_t enc_cur;              /* la perilla que está girando + 1 (0 = ninguna) */
+    uint8_t enc_new;              /* este giro empieza un gesto nuevo (la perilla estaba quieta) */
+    int8_t stick;                 /* el centro de un control bipolar: detents que lleva retenidos */
+    uint8_t stick_id;
     uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
     uint16_t snap_len;
 } bm_app;
@@ -240,6 +248,9 @@ int  bm_app_layer(const bm_app *a);
 int  bm_app_tabs(const bm_app *a, int t, uint8_t out[8]);   /* pestañas de un canal */
 const char *bm_page_name(int page);
 void bm_app_legend(const bm_app *a, bm_legend out[4]);
+/* Qué hacen ahora las tres perillas grandes (SELECT, ALGORITHM, PRESETS): un nombre corto, o "-"
+ * si no hacen nada aquí. Sale del mismo reparto que bm_app_encoder. */
+void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const char **pre);
 void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
 /* qué hace cada tecla ahora (nombre corto) y su luz: lo mismo que se ve en la tira de teclas */
 void bm_app_keys(const bm_app *a, bm_keyfn out[BM_KEYS]);

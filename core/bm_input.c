@@ -453,7 +453,12 @@ void bm_app_legend(const bm_app *a, bm_legend L[4])
     case L_PUNCH: legend_fx(a, L); return;
     case L_CHORDS: legend_chords(a, L); return;
     case L_ARP: legend_arp(a, t, L); return;
-    case L_ROLL: L4(L, 0, "RATE", bm_roll_names[a->roll_rate % 5], a->roll_rate * 63); return;
+    case L_ROLL:                                               /* K1 velocidad, K2 rampa, K3 swing, K4 cola */
+        L4(L, 0, "RATE", bm_roll_names[a->roll_rate % BM_ROLL_RATES], a->roll_rate * 51);
+        L4(L, 1, a->roll_ramp == 1 ? "CRESC" : a->roll_ramp == 2 ? "DECRESC" : "RAMP", bm_roll_len_names[a->roll_len & 3], a->roll_len * 85);
+        snprintf(b, sizeof b, "%d%%", a->roll_swing); L4(L, 2, "SWING", b, (a->roll_swing - 50) * 255 / 25);
+        L4(L, 3, "TAIL", bm_roll_tail_names[a->roll_tail & 3], a->roll_tail * 85);
+        return;
     case L_COPY: snprintf(b, sizeof b, "A%02d", a->ctx.st.pattern + 1); L4(L, 0, "FROM", b, 0); return;
     case L_ERASE: return;
     default: break;                                            /* MUTE y FILL: las perillas siguen con lo de SEQ */
@@ -586,7 +591,7 @@ static void legend_view(const bm_app *a, bm_legend *L)
             fmt_ms((uint32_t)tr->glide * 500 / 127, b, sizeof b); L4(L, 1, "GLIDE", b, tr->glide * 2);
         }
         return;
-    case PG_ARP: if (kind == KIND_NOTE) legend_arp(a, t, L); else L4(L, 0, "ROLL", bm_roll_names[a->roll_rate % 5], a->roll_rate * 63); return;
+    case PG_ARP: if (kind == KIND_NOTE) legend_arp(a, t, L); return;   /* las rejillas: ARP es la capa ROLL */
     case PG_LOOP: {
         const bm_loop *lp = &a->pat.loop[t >= 2 ? t - 2 : 0];
         L4(L, 0, "LOOP", lp->on ? "ON" : "OFF", lp->on ? 255 : 0);
@@ -618,6 +623,7 @@ void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const 
     int t = a->track, kind = app_kind(a, t), e = a->pat.trk[t].engine;
     switch (a->layer) {
     case L_HOME: S = "TRACK"; A = "BPM .1"; P = "PATTERN"; goto out;
+    case L_ROLL: goto out;                                     /* ROLL: K1-K4 y las negras; las grandes, nada */
     case L_NONE: case L_LANEMUTE: case L_FILL: break;          /* MUTE y FILL: siguen con lo de SEQ */
     default: goto out;                                         /* las otras capas solo usan K1-K4 */
     }
@@ -937,12 +943,18 @@ void bm_app_keymap(const bm_app *a, bm_keyfn K[BM_KEYS], char *title, int cap, u
         map_chords(a, K);
         return;
     case L_ARP: case L_ROLL:
-        if (L == L_ROLL) {
-            snprintf(title, (size_t)cap, "ROLL %s", bm_roll_names[a->roll_rate % 5]);
+        if (L == L_ROLL) {                           /* blancas: los 16 instrumentos o pads */
+            static const char *const RT[BM_ROLL_RATES] = {"8", "16", "32", "8T", "16T", "32T"};
+            snprintf(title, (size_t)cap, "ROLL");
             *color = bm_track_color(t);
-            *h1 = "HOLD WHITE = ROLL  K1 = ROLL SPEED";
-            *h2 = a->rec ? "EXIT: RELEASE ARP  REC IS RECORDING" : "EXIT: RELEASE ARP";
+            *h1 = "HOLD WHITE = ROLL  BLACK 1-6 = RATE";
+            if (a->layer_latch) *h2 = a->rec ? "EXIT: ARP OR HOME  REC IS RECORDING" : "EXIT: ARP OR HOME  BLACK 11 = FILL";
+            else *h2 = a->rec ? "EXIT: RELEASE ARP  REC IS RECORDING" : "EXIT: RELEASE ARP  BLACK 11 = FILL";
             map_lanes(a, K, t, a->roll_mask, LM_ROLL);
+            for (int r = 0; r < BM_ROLL_RATES; r++) KB(K, r, RT[r], a->roll_rate == r ? LED_ON : LED_DIM, C_WHITE);
+            KB(K, 6, "CRE", a->roll_ramp == 1 ? LED_ON : LED_DIM, C_CYAN);
+            KB(K, 7, "DEC", a->roll_ramp == 2 ? LED_ON : LED_DIM, C_CYAN);
+            KB(K, 10, "FIL", a->fill ? LED_ON : LED_DIM, C_ORANGE);
         } else {
             snprintf(title, (size_t)cap, "ARPEGGIO");
             *color = bm_track_color(t);
@@ -1235,10 +1247,44 @@ static void key_screen_open(bm_app *a, int k, int L)
     if (L == L_FILL) { app_push(a, CMD_FILL, 1, 0, 0); a->fill = 1; }
 }
 
+/* ------------------------------------------------------------ ROLL: ARP en las rejillas (T1, T2)
+ * Como el ROLL de una TR-8: un toque de ARP deja la pantalla abierta (se cierra con ARP o HOME),
+ * sostener ARP = solo mientras lo sostienes. Blanca sostenida = ese instrumento o pad se repite;
+ * negras 1-6 la velocidad, 7/8 CRESC/DECRESC, 11 el fill mientras la sostienes. Todo en vivo: no se
+ * guarda. Con REC el roll se graba como pasos con repetición (y la rampa, como acentos). */
+static void roll_cfg_send(bm_app *a)
+{
+    app_push_i(a, CMD_ROLL_CFG, a->roll_ramp, a->roll_swing, bm_roll_tail_ticks[a->roll_tail & 3], bm_roll_len_ticks[a->roll_len & 3]);
+}
+
+static void roll_stop(bm_app *a)                                /* las blancas sueltan (sigue la cola) */
+{
+    for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 0, 0);
+    a->roll_mask = 0;
+}
+
+static void roll_set_rate(bm_app *a, int r)
+{
+    a->roll_rate = (uint8_t)bm_clampi(r, 0, BM_ROLL_RATES - 1);
+    app_overlay(a, 0, "ROLL RATE", bm_roll_names[a->roll_rate], "", a->roll_rate * 51, -1, bm_knob_color(0));
+    for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 1, bm_roll_ticks[a->roll_rate]);
+}
+
+static void roll_open(bm_app *a)
+{
+    if (a->view != V_CH) app_enter(a, a->track, a->ch_page[a->track]);   /* la máquina, entera */
+    a->layer = L_ROLL;
+    a->layer_latch = 1;
+    a->ov.on = 0;
+    a->roll_mask = 0;
+    roll_cfg_send(a);
+}
+
 static void key_screen_close(bm_app *a)
 {
     if (a->layer == L_FILL) { app_push(a, CMD_FILL, 0, 0, 0); a->fill = 0; }
     if (a->layer == L_FILL || a->layer == L_LANEMUTE || (a->layer_latch && a->layer == L_REP)) a->layer = L_NONE;
+    if (a->layer == L_ROLL && a->layer_latch) { roll_stop(a); a->layer = L_NONE; }
     a->layer_latch = 0;
 }
 
@@ -1820,11 +1866,16 @@ static void layer_key(bm_app *a, int k, int w, int b)
         }
         return;
     case L_ROLL:
-        if (w >= 0 && (kind == KIND_TR || w < BM_SLICES)) {
+        if (w >= 0) {
             a->roll_mask |= (uint16_t)(1u << w);
-            if (kind == KIND_TR) a->sel_lane[t] = (uint8_t)w;
-            app_push_i(a, CMD_ROLL, (uint8_t)t, (uint8_t)w, 1, bm_roll_ticks[a->roll_rate % 5]);
-        }
+            a->sel_lane[t] = (uint8_t)w;
+            app_push_i(a, CMD_ROLL, (uint8_t)t, (uint8_t)w, 1, bm_roll_ticks[a->roll_rate % BM_ROLL_RATES]);
+        } else if (b >= 0 && b < BM_ROLL_RATES) roll_set_rate(a, b);
+        else if (b == 6 || b == 7) {                                  /* CRESC / DECRESC: otra vez, plano */
+            int r = b == 6 ? 1 : 2;
+            a->roll_ramp = (uint8_t)(a->roll_ramp == r ? 0 : r);
+            roll_cfg_send(a);
+        } else if (b == 10) { app_push(a, CMD_FILL, 1, 0, 0); a->fill = 1; a->key_role[k] = ROLE_FILL; }   /* FILL + ROLL */
         return;
     case L_CHORDS:
         if (w >= 0) play_pad(a, k, w);
@@ -2007,6 +2058,7 @@ static void open_layer(bm_app *a, int id)
     a->layer = (uint8_t)L;
     a->ov.on = 0;
     if (L == L_ARP) app_push(a, CMD_ARP, a->track, 1, 0);
+    if (L == L_ROLL) { a->roll_mask = 0; roll_cfg_send(a); }
     if (L == L_ERASE) { a->erase_mask = 0; a->erase_syn = 0; }
     if (L == L_LEN) {
         int len = bm_trk_len(&a->pat, a->track, app_kind(a, a->track) == KIND_NOTE ? -1 : 0);
@@ -2022,10 +2074,7 @@ static void close_layer(bm_app *a, int id)
     if (!L || a->layer != L) return;
     if (L == L_PUNCH) { app_push(a, CMD_PUNCH, 0xFF, 0, 0); a->punch_key = -1; }
     if (L == L_ARP) app_push(a, CMD_ARP, a->track, 0, 0);
-    if (L == L_ROLL) {
-        for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 0, 0);
-        a->roll_mask = 0;
-    }
+    if (L == L_ROLL) { roll_stop(a); a->layer_latch = 0; }
     if (L == L_ERASE) { a->erase_mask = 0; a->erase_syn = 0; }
     a->layer = L_NONE;
 }
@@ -2237,9 +2286,20 @@ void app_on_gesture(void *u, int id, bm_gkind k)
             if (id == BTN_HOME || id == BTN_OCT_DN) { app_toast(a, "CANCELED"); return; }
         }
     }
-    /* pantalla abierta con un toque (MUTE, FILL, la capa de LFO): HOME la cierra; otro botón la cierra
-     * y hace lo suyo (LFO otra vez: solo la cierra). PLAY y OCT -/+ (páginas de pasos) no la cierran. */
-    if (a->layer_latch && id != BTN_PLAY && id != BTN_OCT_DN && id != BTN_OCT_UP) {
+    /* ARP en una rejilla (T1, T2) = ROLL: un toque la deja abierta y otro la cierra; sostener ARP con
+     * ella abierta = queda solo mientras lo sostienes (se cierra al soltar). */
+    if (id == BTN_ARP && bm_is_grid(&a->pat, a->track) && (!a->layer || a->layer == L_ROLL || a->layer_latch)) {
+        if (k == G_TAP) {
+            if (a->layer == L_ROLL) close_layer(a, id);
+            else { key_screen_close(a); roll_open(a); }          /* MUTE, FILL o LFO abiertas: ROLL en su lugar */
+            return;
+        }
+        if (k == G_HOLD && a->layer == L_ROLL) { a->layer_latch = 0; return; }
+    }
+    /* pantalla abierta con un toque (MUTE, FILL, ROLL, la capa de LFO): HOME la cierra; otro botón la
+     * cierra y hace lo suyo (LFO otra vez: solo la cierra). PLAY y OCT -/+ (páginas de pasos) no la
+     * cierran, y en ROLL tampoco REC (graba el roll). */
+    if (a->layer_latch && id != BTN_PLAY && id != BTN_OCT_DN && id != BTN_OCT_UP && !(id == BTN_REC && a->layer == L_ROLL)) {
         if (id == BTN_HOME) {
             if (k == G_TAP) { key_screen_close(a); return; }
             if (k == G_HOLD) key_screen_close(a);            /* y se abre la capa de HOME */
@@ -2285,7 +2345,7 @@ void app_on_gesture(void *u, int id, bm_gkind k)
     }
     case BTN_REC:
         if (k == G_TAP) {
-            if (a->view == V_CH && a->track == 1 && a->page != PG_PADS) {   /* en PADS, REC graba lo que tocas */
+            if (a->view == V_CH && a->track == 1 && a->page != PG_PADS && a->layer != L_ROLL) {   /* en PADS y en ROLL, REC graba lo que tocas */
                 if (a->page != PG_REC) { app_enter(a, 1, PG_REC); }
                 if (a->ctx.st.smp_rec || a->ctx.st.smp_armed) { app_push(a, CMD_SMP_REC, 0, 0, 0); return; }
                 uint32_t room = bm_app_rec_room(a);
@@ -3088,10 +3148,7 @@ static void enc_channel(bm_app *a, int id, int d)
         }
         return;
     case PG_ARP:
-        if (kind != KIND_NOTE) {
-            if (k == 0) { a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + lst(a, d), 0, 4); app_overlay(a, 0, "ROLL", bm_roll_names[a->roll_rate], "", a->roll_rate * 63, -1, bm_knob_color(0)); }
-            return;
-        }
+        if (kind != KIND_NOTE) return;                          /* las rejillas: ARP es la capa ROLL */
         goto arp;
     case PG_LOOP:
         if (k == 0 && (d > 0) != (a->pat.loop[t - 2].on != 0)) { app_push(a, CMD_LOOP, (uint8_t)t, 3, 0); app_edited(a); }   /* derecha ON */
@@ -3236,11 +3293,19 @@ static void enc_dispatch(bm_app *a, int id, int d, uint32_t now)
     case L_ACC: if (k == 0) enc_track_u8(a, a->track, 0, TRK_OFF(accent), a->pat.trk[a->track].accent, d, 0, 127, "ACCENT", 2); return;
     case L_REP: if (k == 0 && app_kind(a, a->track) == KIND_NOTE) enc_track_u8(a, a->track, 0, TRK_OFF(glide), a->pat.trk[a->track].glide, d, 0, 127, "GLIDE", 2); return;
     case L_ROLL:
-        if (k == 0) {
-            a->roll_rate = (uint8_t)bm_clampi(a->roll_rate + lst(a, d), 0, 4);
-            app_overlay(a, 0, "ROLL", bm_roll_names[a->roll_rate], "", a->roll_rate * 63, -1, bm_knob_color(0));
-            for (int l = 0; l < BM_LANES; l++) if (a->roll_mask & (1u << l)) app_push_i(a, CMD_ROLL, a->track, (uint8_t)l, 1, bm_roll_ticks[a->roll_rate]);
-        }
+        if (k == 0) roll_set_rate(a, a->roll_rate + lst(a, d));          /* K1 = lo mismo que las negras 1-6 */
+        else if (k == 1) {                                               /* K2 = largo de la rampa */
+            a->roll_len = (uint8_t)bm_clampi(a->roll_len + lst(a, d), 0, 3);
+            app_overlay(a, 1, a->roll_ramp == 1 ? "CRESC" : a->roll_ramp == 2 ? "DECRESC" : "RAMP", bm_roll_len_names[a->roll_len], "", a->roll_len * 85, -1, bm_knob_color(1));
+        } else if (k == 2) {                                             /* K3 = swing del roll */
+            a->roll_swing = (uint8_t)bm_clampi(a->roll_swing + d, 50, 75);
+            snprintf(b, sizeof b, "%d%%", a->roll_swing);
+            app_overlay(a, 2, "ROLL SWING", b, "", (a->roll_swing - 50) * 255 / 25, -1, bm_knob_color(2));
+        } else if (k == 3) {                                             /* K4 = cola al soltar */
+            a->roll_tail = (uint8_t)bm_clampi(a->roll_tail + lst(a, d), 0, 3);
+            app_overlay(a, 3, "ROLL TAIL", bm_roll_tail_names[a->roll_tail], "", a->roll_tail * 85, -1, bm_knob_color(3));
+        } else return;
+        if (k > 0) roll_cfg_send(a);
         return;
     case L_FILL: case L_LANEMUTE:                               /* pantallas de MUTE y FILL: las perillas siguen con lo de SEQ */
         if (a->layer == L_FILL && k == 0) { enc_fill_every(a, d); return; }   /* K1 = FILL AUTOMATICO */

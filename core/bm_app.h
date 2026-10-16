@@ -165,8 +165,13 @@ typedef struct bm_app {
     uint8_t solo_on, solo_saved;
     uint16_t erase_mask;          /* capa BORRAR sonando: instrumentos que se borran al pasar */
     uint8_t erase_syn;
-    uint8_t roll_rate;            /* índice 0..4 */
-    uint16_t roll_mask;
+    /* ROLL (ARP en T1 y T2): en vivo, no se guarda */
+    uint8_t roll_rate;            /* índice en bm_roll_ticks (0..BM_ROLL_RATES-1) */
+    uint16_t roll_mask;           /* blancas sostenidas que hacen roll */
+    uint8_t roll_ramp;            /* 0 plano, 1 CRESC, 2 DECRESC */
+    uint8_t roll_len;             /* largo de la rampa: índice en bm_roll_len_ticks */
+    uint8_t roll_swing;           /* 50..75 % */
+    uint8_t roll_tail;            /* la cola al soltar: índice en bm_roll_tail_ticks */
     uint8_t brk_live;
     uint8_t len_page;             /* capa LARGO: OCT +/- = largos 17-64 */
     uint8_t launch_held, chain[8], chain_n;
@@ -280,6 +285,9 @@ uint32_t bm_app_rec_room(const bm_app *a);                   /* muestras que cab
 uint8_t bm_app_takes_sel(const bm_app *a);                    /* fuente marcada en TOMAS */
 int  bm_app_more_count(const bm_app *a);
 void bm_app_more_row(const bm_app *a, int i, const char **name, char *val, int cap);
-extern const char *const bm_roll_names[5];
+#define BM_ROLL_RATES 6           /* 1/8 1/16 1/32 1/8T 1/16T 1/32T */
+extern const char *const bm_roll_names[BM_ROLL_RATES];
+extern const char *const bm_roll_len_names[4];
+extern const char *const bm_roll_tail_names[4];
 
 #endif

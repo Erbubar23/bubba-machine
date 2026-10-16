@@ -55,6 +55,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->fade_gain = 1.0f;
     c->drive = 25;
     c->sync_ppqn = 2;
+    c->roll_cfg.swing = 50; c->roll_cfg.ramp_len = BM_BAR_TICKS;
     c->st.queued = 0xFF; c->st.punch = 0xFF; c->st.step = -1;
     c->st.scene = 0xFF; c->st.scene_q = 0xFF;
     c->st.brk_slice = -1;
@@ -145,7 +146,7 @@ static void all_off(bm_ctx *c)
         v->pend = 0;
     }
     for (int t = 0; t < BM_TRACKS; t++) { c->arp[t].n = 0; c->arp[t].playing = 0; }
-    for (int t = 0; t < BM_TRACKS; t++) c->roll[t].mask = 0;
+    for (int t = 0; t < BM_TR_TRACKS; t++) { c->roll[t].mask = 0; c->roll[t].tail_m = 0; }
     c->brk_live = 0;
     memset(c->strum, 0, sizeof c->strum);
 }
@@ -304,10 +305,21 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         break;
     case CMD_MIDI: midi_byte(c, k->a); break;
     case CMD_ROLL:
-        if (k->a < BM_TRACKS && k->b < BM_LANES) {
-            if (k->c) c->roll[k->a].mask |= (uint16_t)(1u << k->b); else c->roll[k->a].mask &= (uint16_t)~(1u << k->b);
+        if (k->a < BM_TR_TRACKS && k->b < BM_LANES) {
+            uint16_t bit = (uint16_t)(1u << k->b);
+            if (k->c) {                                  /* empieza (o cambia de velocidad): la rampa, desde cero */
+                if (!(c->roll[k->a].mask & bit)) c->roll[k->a].age[k->b] = 0;
+                c->roll[k->a].mask |= bit; c->roll[k->a].tail_m &= (uint16_t)~bit;
+            } else if (c->roll[k->a].mask & bit) {       /* soltar: sigue la cola */
+                c->roll[k->a].mask &= (uint16_t)~bit;
+                if (c->roll_cfg.tail) { c->roll[k->a].tail_m |= bit; c->roll[k->a].tail[k->b] = c->roll_cfg.tail; }
+            }
             if (k->u.i > 0) c->roll[k->a].rate = (uint8_t)k->u.i;
         }
+        break;
+    case CMD_ROLL_CFG:
+        c->roll_cfg.ramp = k->a; c->roll_cfg.swing = k->b; c->roll_cfg.tail = k->c;
+        c->roll_cfg.ramp_len = (uint16_t)k->u.i;
         break;
     case CMD_REC: c->rec = k->a; break;
     case CMD_LOOP: bm_loop_cmd(c, k->a, k->b, k->c); break;

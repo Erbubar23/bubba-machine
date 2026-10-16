@@ -1633,13 +1633,7 @@ static void draw_arp(bm_gfx *g, const bm_app *a)
     int t = a->track;
     const bm_track *tr = &a->pat.trk[t];
     char b[24];
-    if (bm_is_grid(&a->pat, t)) {
-        gfx_text_c(g, 120, 56, "ROLL", bm_track_color(t), 3);
-        gfx_text_c(g, 120, 86, "HOLD ARP + WHITE", C_WHITE, 1);
-        snprintf(b, sizeof b, TF("SPEED %s (K1)"), bm_roll_names[a->roll_rate % 5]);
-        gfx_text_c(g, 120, 98, b, C_GREY, 1);
-        return;
-    }
+    if (bm_is_grid(&a->pat, t)) return;                          /* las rejillas: ARP es la capa ROLL (draw_layer) */
     gfx_text(g, 6, PY + 4, M[tr->arp_mode % 5], C_WHITE, 3);
     snprintf(b, sizeof b, "%s  %d OCT  GATE %d%%", R[tr->arp_rate % 3], tr->arp_oct, tr->arp_gate);
     note_s(g, PY + 30, b);
@@ -1870,7 +1864,12 @@ static void draw_layer(bm_gfx *g, const bm_app *a)
     if (gfx_strip_hit(g, 26, 20)) {
         gfx_fill(g, 0, 26, BM_LCD_W, 18, col);
         gfx_text(g, 6, 28, title, C_BLACK, 2);
-        char b[16];
+        char b[24];
+        if (a->layer == L_ROLL) {                                /* la velocidad y la rampa, siempre a la vista */
+            const char *rp = a->roll_ramp == 1 ? T("CRESC") : a->roll_ramp == 2 ? T("DECRESC") : "";
+            snprintf(b, sizeof b, "%s  %s", bm_roll_names[a->roll_rate % BM_ROLL_RATES], rp);
+            gfx_text(g, 8 + gfx_text_w(title, 2), 32, b, C_BLACK, 1);
+        }
         if (a->layer == L_HOME || a->view == V_HOME) snprintf(b, sizeof b, "A%02d", a->ctx.st.pattern + 1);
         else snprintf(b, sizeof b, "T%d", a->track + 1);
         if (a->layer_latch) {                                    /* abierta con un toque: queda hasta cerrarla */

@@ -15,8 +15,12 @@
 static const uint16_t TRACK_COLORS[BM_TRACKS] = {C_ORANGE, C_PINK, C_ACID, C_CYAN, C_VIOLET, C_GREEN};
 static const uint16_t KNOB_COLORS[4] = {C_CYAN, C_ORANGE, C_GREEN, C_PINK};
 const uint8_t bm_master_steps_tab[6] = {1, 2, 3, 4, 8, 0};
-const uint8_t bm_roll_ticks[5] = {48, 24, 12, 32, 16};
-const char *const bm_roll_names[5] = {"1/8", "1/16", "1/32", "1/8T", "1/16T"};
+const uint8_t bm_roll_ticks[BM_ROLL_RATES] = {48, 24, 12, 32, 16, 8};
+const char *const bm_roll_names[BM_ROLL_RATES] = {"1/8", "1/16", "1/32", "1/8T", "1/16T", "1/32T"};
+const uint16_t bm_roll_len_ticks[4] = {BM_PPQN, BM_PPQN * 2, BM_BAR_TICKS, BM_BAR_TICKS * 2};
+const char *const bm_roll_len_names[4] = {"1/4", "1/2", "1 BAR", "2 BARS"};
+const uint8_t bm_roll_tail_ticks[4] = {0, BM_TICKS_STEP, BM_TICKS_STEP * 2, BM_PPQN};
+const char *const bm_roll_tail_names[4] = {"OFF", "1/16", "1/8", "1/4"};
 static const int16_t ENTER_MS[5] = {0, 250, 400, 800, -1};
 
 const char *bm_track_name(const bm_app *a, int t)
@@ -814,7 +818,8 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     bm_gesture_init(&a->ges, app_on_gesture, a);
     a->pend_obj = -1; a->undo_track = -1; a->redo_track = -1; a->held_step = -1; a->held_white = -1;
     a->slice_sens = 64; a->pad_key = -1; a->rec_gate = 100; a->tie_from = -1; a->rec_step = -1;
-    a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->roll_rate = 1; a->solo_key = -1; a->solo_track = -1;
+    a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->solo_key = -1; a->solo_track = -1;
+    a->roll_rate = 1; a->roll_len = 2; a->roll_swing = 50;   /* 1/16, rampa de un compás: lo mismo que arranca el audio */
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
     for (int k = 0; k < BM_KEYS; k++) a->key_rec_step[k] = -1;

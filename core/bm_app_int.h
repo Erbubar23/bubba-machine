@@ -67,6 +67,8 @@ void app_input_tick(bm_app *a);
 void app_leds(bm_app *a);
 
 extern const uint8_t bm_master_steps_tab[6];
-extern const uint8_t bm_roll_ticks[5];
+extern const uint8_t bm_roll_ticks[BM_ROLL_RATES];
+extern const uint16_t bm_roll_len_ticks[4];
+extern const uint8_t bm_roll_tail_ticks[4];
 
 #endif

@@ -1,10 +1,10 @@
 [
  {
   "archivo": "bubba-machine-0.7.0-beta.bin",
-  "sha256": "6dade2c445fb85b8f08af9c53c6ba38ab0e5790a8b88e59983a74ce3011b4ed5",
-  "bytes": 432540,
+  "sha256": "c90585d4c3dd73c311b7fa3ff40d06fc7feaa24490a5c9ab70223b1505dfa243",
+  "bytes": 441308,
   "fwsc": "bubba-machine-0.7.0-beta.fwsc",
-  "fwsc_sha256": "f150304e59e0197e5fa2c80ce62a312da829f03c3b64bd1eac3adb268ba043bf",
+  "fwsc_sha256": "fd954c6f1bb826e82c51345450a5a57dbfe5aeb16b73a2e5089a4f1f0d145708",
   "nombre": "Bubba Machine 0.7.0-beta",
   "nombre_en": "Bubba Machine 0.7.0-beta",
   "detalle": "El groovebox completo: seis máquinas, secuenciador, sampler y sonido. Beta: una actualización puede borrar lo guardado.",

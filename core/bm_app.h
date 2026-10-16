@@ -32,9 +32,11 @@ typedef enum {
     V_COUNT
 } bm_view;
 
-/* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). */
+/* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). PG_MACH es la
+ * página MACHINE de T3-T6: la primera de SOUND (EDIT), donde se elige la máquina. */
+#define BM_MACH_MS 2000u          /* MACHINE: la resaltada se carga si se queda 2 s */
 typedef enum {
-    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_ENV, PG_ARP, PG_LOOP, PG_MIDI,
+    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_MACH, PG_ARP, PG_LOOP, PG_MIDI,
     PG_SCL, PG_CHORDS, PG_REC, PG_PADS, PG_COUNT
 } bm_page;
 
@@ -124,7 +126,10 @@ typedef struct bm_app {
     /* UI */
     bm_gesture ges;
     bm_screen scr;
-    uint8_t view, page, layer, track, step_page, env_page;
+    uint8_t view, page, layer, track, step_page;
+    uint8_t mach_sel;             /* MACHINE: la máquina resaltada (ENG_*) */
+    uint8_t mach_arm;             /* MACHINE: 1 = la cuenta de 2 s corre (ALGORITHM la movió a otra) · 2 = recién llegada desde MORE */
+    uint32_t mach_t0;             /* MACHINE: cuándo se llegó a la resaltada */
     uint8_t ch_page[BM_TRACKS];   /* última página de cada canal */
     uint8_t prev_view, prev_page;
     uint8_t sel_lane[BM_TRACKS];

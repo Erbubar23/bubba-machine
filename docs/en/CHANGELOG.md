@@ -29,7 +29,8 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - **Screen:** the line that says how to exit stays; the header shows the six tracks' mutes and hits, the queued pattern as A01>A05 with a beat countdown, SONG and a green autosave dot (no more AUTOSAVED box); the 2 s ring names what it opens; short drum names (BD, SD, CH, OH…) that don't collide; K1-K4 values on the top line instead of a box over the grid; the small font gained > < , ! ? ' and a readable #.
 
 ### Fixed
-- **Holding REC for 2 s erased the track without asking** (for example while recording the mix on the sampler). REC no longer has a 2 s hold except on the LOOP page; clear a track with EDIT held + CLR.
+- **Holding REC to record could erase the track** (for example while recording the mix on the sampler). REC held 2 s is now a deliberate live erase: instant, no question, undoable with HOME + OCT−, the ring says ERASE T#, and it never fires while anything is recording or on the RECORD and TAKES pages.
+- **LFO no longer opens an empty page** on BR-8, BP-1, BB-303 and BX-7: a tap keeps its layer open (repeat on the grids, tie on the notes).
 - **Holding a step and turning PRESETS replaced the whole kit or patch** with no undo; it now sets the step's condition (drums) or length/TIE (notes). Changing a kit with PRESETS can be undone.
 - **HOME on the recorder threw away an unsaved take**; it now asks.
 - The FILL screen made OCT− breathe and the MUTES screen made SEQ breathe; the page light could land on the wrong button (ENV on drums lit EDIT).

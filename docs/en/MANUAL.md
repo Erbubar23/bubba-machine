@@ -18,7 +18,7 @@ The interface fits in two sentences: **four gestures per button, and they mean t
 |---|---|---|
 | **Tap** | under 300 ms | Opens its page on the track you are on. Again: the next page of the same button |
 | **Hold** | 300 ms or more | Its **live layer**: while you hold it, the keys do that job and the screen draws the keyboard with what each key does. Let go and you are back |
-| **Hold 2 s** | 2 s without touching anything else | Its settings or its dangerous action. A ring fills at the top with the name of what it opens; touching anything cancels it. Only on HOME, SEQ, EDIT, SAVE (and REC on the LOOP page) |
+| **Hold 2 s** | 2 s without touching anything else | Its settings or its dangerous action. A ring fills at the top with the name of what it opens; touching anything cancels it. Only on HOME, SEQ, EDIT, SAVE and REC |
 | **HOME + button** | with HOME held | The **global version** of the button: for the whole project, not just the track |
 
 There are never two layers at once: with a layer open, holding another button does not open its own.
@@ -96,13 +96,13 @@ The palette: blue-black background, **cyan** for what is active, **amber** for v
 | **SEQ** | The track's steps | Notes: LOOP · sampler: BREAK | **Length and speed** | TIME of the 6 tracks | Song |
 | **EDIT** | SOUND (BP-1: PADS) | The editor's next page | **Erase** | Sampler: TAKES · others: initial sound | Copy the track to another |
 | **ENV** | The machine's envelope · INSTR (drums) | The other envelope | **Accent** | — | — |
-| **LFO** | The machine's LFO (B-MINI, BITTAL, BUNO-6) | — | **Repeat** (grids) · **tie** (notes) | — | — |
+| **LFO** | The machine's LFO (B-MINI, BITTAL, BUNO-6). On machines without an LFO it **latches its layer**: repeat (BR-8, BP-1) or tie (BB-303, BX-7); LFO again or HOME closes it | — | **Repeat** (grids) · **tie** (notes) | — | — |
 | **FX** | The track's MIX | DUCK (sidechain) | **Punch-in** | — | Master FX: delay; again: reverb |
 | **SCL** | The track's SCALE | CHORDS | Live **chords** | — | Project scale |
 | **ARP** | The track's ARP | — | **Arpeggio** (notes) · **roll** (grids) | — | — |
 | **SAVE** | Save menu | Run it | **Copy pattern** | Quick save | Save as |
 | **GLO** | Global list | Close | **Pitch** and TAP tempo | — | — |
-| **REC** | Record (on the sampler: the recorder) | Looper: overdub › play | Record only while held | LOOP page: erase the loop | SONG REC |
+| **REC** | Record (on the sampler: the recorder) | Looper: overdub › play | Record only while held | **Erase the track at once, no question** (for live use; HOME + OCT− undoes it). Not while anything is recording, nor on RECORD or TAKES. LOOP page: erase the loop | SONG REC |
 | **PLAY** | Play / stop | — | — | — | Back to step 1 without stopping |
 | **OCT − / +** | Octave · step page · on questions OCT+ = yes | — | — | — | Undo / redo |
 
@@ -118,7 +118,7 @@ If you used HOME as a modifier, letting go does **not** take you to the home scr
 
 **Where a HOME tap goes:** inside a machine, to the console. On a screen you opened from a machine (GLO, HOME + FX, SAVE, TIME, SCALE, SONG, SYSTEM), back to that machine and page. On the console, to the next console page. While you hold HOME, only the buttons with a HOME + function are lit (OCT−/+ only when there is something to undo or redo), and turning PRESETS picks a pattern that loads when you let go.
 
-To clear a track: EDIT held + black 3 (CLR); HOME + OCT− undoes it.
+To clear a track: REC held 2 s (instant) or EDIT held + black 3 (CLR); HOME + OCT− undoes either.
 
 **Keys with HOME (on the HOME screen or while holding HOME):**
 
@@ -322,7 +322,7 @@ While you hold, the screen draws the keyboard with what each key does and its LE
 | **SEQ** | Length and speed | White = track length (1-16; OCT−/+ = 17-64): the length is on, inside it medium, outside dim · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars (1BR-4BR) |
 | **EDIT** | Erase | Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the track · sampler: black 4 = CAPT (what BREAK does goes into the grid) · OCT−/+ = undo / redo |
 | **ENV** | Accent | White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACCENT › GHOST). K1 = how much accent |
-| **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide) |
+| **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide). On machines without an LFO page a tap on LFO keeps this layer open |
 | **FX** | Punch-in | White = 16 effects quantized to 1/16 · black 1-6 still mute |
 | **SCL** | Chords | White = 16 chords · black 1-4 = +7, +9, SUS2, SUS4 |
 | **ARP** | Arpeggio · roll | Notes: what you play is arpeggiated · grids: white = roll that instrument or pad (K1 = rate; with REC it is recorded as repeats) |

@@ -135,6 +135,7 @@ typedef struct bm_app {
     uint8_t box_on, box_track, box_hold;
     uint8_t box_mode, box_lane;   /* recuadro de ALGORITHM: BOX_HOME, BOX_CH (dentro de un canal) o BOX_LANE (instrumento) */
     uint8_t layer_latch;          /* la capa quedó abierta con un toque (negras 10 y 11): se cierra con la misma tecla o HOME */
+    uint8_t nav_btn, nav_track, nav_page, nav_sub;   /* botón + 1 que abrió la página del canal (0 = ninguno), para su luz */
     uint32_t box_until;
     int8_t held_step, held_white;
     uint8_t held_edit, held_had_event, held_long, held_notes;

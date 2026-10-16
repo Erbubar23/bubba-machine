@@ -591,6 +591,65 @@ static void test_home(void)
 
 /* Negras 10 y 11 en la batería: un toque deja abierta la pantalla de MUTE o de FILL; mantener = solo
  * mientras la sostienes. En INSTR, ALGORITHM elige instrumento con el recuadro. */
+static int t2_steps(void)
+{
+    int n = 0;
+    for (int l = 0; l < BM_LANES; l++) for (int s = 0; s < BM_STEPS; s++) if (app.pat.tr[1].st[l][s] & ST_ON) n++;
+    return n;
+}
+
+static void test_button_lights(void)
+{
+    printf("luces de los botones: SAVE pendiente, capas, página, REC sostenido en la grabadora\n");
+    boot(1);
+    run_ms(UI_AUTOSAVE_MS + 1500);                               /* el demo ya está guardado */
+    ch(0);
+    page(BTN_SEQ, PG_SEQ);
+    CHECK(sim.leds[BTN_SEQ] == LED_ON && sim.leds[BTN_SAVE] == LED_DIM && sim.leds[BTN_ENV] == LED_DIM);
+    white(15, 40);                                               /* una edición */
+    CHECK(sim.leds[BTN_SAVE] == LED_DIM);                        /* dentro de la máquina: sin avisos globales */
+    btn(BTN_HOME, 30);
+    CHECK(app.view == V_HOME && sim.leds[BTN_SAVE] == LED_BREATH);   /* en la consola: algo sin guardar */
+    CHECK(sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_SEQ] == LED_MID && sim.leds[BTN_EDIT] == LED_MID);
+    btn(BTN_HOME, 30);                                           /* HOME otra vez: FX de la consola */
+    CHECK(app.view == V_FXG && sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_FX] == LED_MID);
+    ch(0);
+    /* SISTEMA > LED: solo los botones en reposo */
+    app.set.led_dim = 2; run_ms(60);
+    CHECK(sim.leds[BTN_ENV] == LED_MID && sim.leds[BTN_SEQ] == LED_ON);
+    app.set.led_dim = 0; run_ms(60);
+    CHECK(sim.leds[BTN_ENV] == LED_OFF && sim.leds[BTN_SEQ] == LED_ON);
+    app.set.led_dim = 1; run_ms(60);
+    /* FILL y MUTE no tienen botón: no respira OCT- ni SEQ; HOME las cierra */
+    black(10, 40);
+    CHECK(app.layer == L_FILL);
+    CHECK(sim.leds[BTN_OCT_DN] != LED_BREATH && sim.leds[BTN_SEQ] == LED_OFF && sim.leds[BTN_HOME] == LED_MID);
+    btn(BTN_HOME, 30);
+    black(9, 40);
+    CHECK(app.layer == L_LANEMUTE && sim.leds[BTN_SEQ] != LED_BREATH);
+    btn(BTN_HOME, 30);
+    CHECK(app.layer == L_NONE);
+    /* ENV en la batería abre INSTR: se enciende ENV, no EDIT */
+    btn(BTN_ENV, 30);
+    CHECK(app.page == PG_INST && sim.leds[BTN_ENV] == LED_ON && sim.leds[BTN_EDIT] == LED_DIM);
+    /* la grabadora: REC sostenido 2.5 s graba la mezcla y no borra la pista */
+    ch(1);
+    if (!t2_steps()) white(0, 40);
+    int before = t2_steps();
+    CHECK(before > 0);
+    btn(BTN_REC, 30);                                            /* a la GRABADORA, armada */
+    CHECK(app.page == PG_REC && app.ctx.st.smp_armed && sim.leds[BTN_REC] == LED_BREATH);
+    btn(BTN_REC, 30);                                            /* desarmar */
+    CHECK(!app.ctx.st.smp_armed);
+    down(BTN_REC); run_ms(1000);
+    CHECK(app.ctx.st.smp_rec && sim.leds[BTN_REC] == LED_BLINK);
+    run_ms(1500);
+    CHECK(app.ctx.st.smp_rec);                                   /* a los 2 s sigue grabando */
+    up(BTN_REC); run_ms(60);
+    CHECK(!app.ctx.st.smp_rec && app.ctx.st.smp_unsaved && app.page == PG_REC && app.ask == ASK_NONE);
+    CHECK(t2_steps() == before);
+}
+
 static void test_key_screens(void)
 {
     printf("negras 10 y 11: pantallas de MUTE y FILL; ALGORITHM en INSTR\n");
@@ -735,15 +794,31 @@ static void test_layers(void)
     down(BTN_SAVE); run_ms(400); kdown(bm_black_key(2)); white(5, 40); kup(bm_black_key(2)); up(BTN_SAVE); run_ms(60);
     CHECK(app.ask == ASK_COPY_TRK);                           /* A06 ya tiene datos: pregunta */
     shot("46-ask");
+    CHECK(sim.leds[BTN_OCT_UP] == LED_BLINK && sim.leds[BTN_HOME] == LED_ON && sim.leds[BTN_OCT_DN] == LED_MID);
+    CHECK(sim.leds[BTN_SEQ] == LED_OFF && sim.leds[BTN_SAVE] == LED_OFF);   /* en la pregunta, solo sí y no */
     btn(BTN_OCT_UP, 20); run_ms(600);
     CHECK(app.ask == ASK_NONE);
-    /* REC 2 s: borra el canal sin preguntar (HOME + OCT- lo deshace) */
+    /* REC 2 s ya no borra el canal: borrar es EDIT sostenido + CLR (HOME + OCT- lo deshace) */
     ch(0);
     down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);
-    CHECK(app.ask == ASK_NONE && app.view == V_CH);
+    CHECK(app.ask == ASK_NONE && app.view == V_CH && !app.rec);
+    any = 0;
+    for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
+    CHECK(any);
+    down(BTN_EDIT); run_ms(400);
+    CHECK(app.layer == L_ERASE && sim.leds[BTN_EDIT] == LED_BREATH && sim.leds[BTN_SEQ] == LED_OFF);
+    black(2, 40);                                             /* CLR */
+    CHECK(sim.leds[BTN_OCT_DN] == LED_MID && sim.leds[BTN_OCT_UP] == LED_OFF);   /* deshacer sí, rehacer no */
+    up(BTN_EDIT); run_ms(60);
     any = 0;
     for (int l = 0; l < 16; l++) for (int s = 0; s < 64; s++) if (app.pat.tr[0].st[l][s]) any = 1;
     CHECK(!any);
+    /* HOME sostenido: solo los botones con HOME + */
+    down(BTN_HOME); run_ms(400);
+    CHECK(app.layer == L_HOME && sim.leds[BTN_HOME] == LED_ON);
+    CHECK(sim.leds[BTN_SEQ] == LED_MID && sim.leds[BTN_FX] == LED_MID && sim.leds[BTN_OCT_DN] == LED_MID);
+    CHECK(sim.leds[BTN_ENV] == LED_OFF && sim.leds[BTN_LFO] == LED_OFF && sim.leds[BTN_ARP] == LED_OFF && sim.leds[BTN_OCT_UP] == LED_OFF);
+    up(BTN_HOME); run_ms(60);
 }
 
 static void test_free_engines(void)
@@ -1063,7 +1138,7 @@ static void test_free_rec(void)
     printf("grabación libre: el largo se cierra en compases y cada nota guarda lo que se sostuvo\n");
     boot(1);
     ch(5);
-    down(BTN_REC); run_ms(2200); up(BTN_REC); run_ms(60);       /* vaciar T6 */
+    down(BTN_EDIT); run_ms(400); black(2, 40); up(BTN_EDIT); run_ms(60);   /* vaciar T6 (BORRAR + CLR) */
     btn(BTN_OCT_UP, 20);
     page(BTN_EDIT, PG_SOUND);
     btn(BTN_PLAY, 20); run_ms(200);
@@ -1782,6 +1857,7 @@ int main(int argc, char **argv)
     test_dual_core();
     test_engines();
     test_key_screens();
+    test_button_lights();
     test_migrate();
     test_fm();
     test_demo_and_persist();

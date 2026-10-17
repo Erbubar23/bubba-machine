@@ -13,10 +13,6 @@
 #include "bm_snap.h"
 #include "bm_fm.h"
 
-static const char *const MAC_MINI[4] = {"CUTOFF", "EMPHASIS", "OSC TUNE", "CONTOUR"};
-static const char *const MAC_BUNO[4] = {"FREQ", "RES", "ENV", "PWM"};
-static const char *const MAC_ACID[4] = {"CUTOFF", "RESO", "DECAY", "ENV MOD"};
-static const char *const MAC_FM[4] = {"BRIGHT", "FEEDBACK", "DECAY", "ALG"};   /* "ALG": no es la perilla ALGORITHM */
 static const char *const MAC_TR[4] = {"TONE", "TUNE", "DECAY", "COLOR"};
 static const char *const GEN_NAMES[4] = {"VARY", "ANCHOR", "REPEAT", "BREAK"};
 static const char *const MAC_PAD[4] = {"FILTER", "PITCH", "DECAY", "START"};
@@ -36,14 +32,12 @@ const char *bm_macro_name(const bm_app *a, int t, int i)
 {
     if (t == 1) return MAC_PAD[i & 3];
     if (bm_is_tr(&a->pat, t)) return MAC_TR[i & 3];
-    if (a->pat.trk[t].engine == ENG_ACID) return MAC_ACID[i & 3];
-    if (a->pat.trk[t].engine == ENG_FM) return MAC_FM[i & 3];
-    if (a->pat.trk[t].engine == ENG_BUNO) return MAC_BUNO[i & 3];
     if (a->pat.trk[t].engine == ENG_BITTAL) {                    /* la macro dice a dónde va */
         int dst = a->pat.prm[t][BT_M1D + 2 * (i & 3)];
         return dst ? bm_btm_names[dst % BTM_TARGETS] : "MACRO";
     }
-    return MAC_MINI[i & 3];
+    const bm_pdef *d = bm_engine_macro(a->pat.trk[t].engine, i);   /* el nombre de su página */
+    return d ? d->name : "MACRO";
 }
 
 /* ------------------------------------------------------------ formato */
@@ -90,20 +84,9 @@ void bm_fmt_macro(const bm_app *a, int t, int i, int v, char *b, int cap)
         return;
     }
     if (bm_engine_paged(a->pat.trk[t].engine)) {                 /* la definición de la macro en sus páginas */
-        int n;
-        const bm_ppage *pg = bm_engine_pages(a->pat.trk[t].engine, &n);
-        for (int p = 0; p < n; p++)
-            for (int k = 0; k < pg[p].n; k++)
-                if (pg[p].p[k].slot == (PS_M0 + (i & 3))) { bm_prm_fmt(&pg[p].p[k], v, b, cap); return; }
-        fmt_pct(v, b, cap);
-        return;
-    }
-    if (a->pat.trk[t].engine == ENG_FM) {
-        const bm_track *tk = &a->pat.trk[t];
-        if (i == 0) snprintf(b, (size_t)cap, "%+d", (v - 64) / 2);
-        else if (i == 1) snprintf(b, (size_t)cap, "FB %d", bm_fm_fb_of(tk, v));
-        else if (i == 2) snprintf(b, (size_t)cap, "%+d", (v - 64) / 3);
-        else snprintf(b, (size_t)cap, v == 64 ? "ALG %d *" : "ALG %d", bm_fm_alg_of(tk, v));
+        if (a->pat.trk[t].engine == ENG_FM && (i & 3) == 1) { snprintf(b, (size_t)cap, "FB %d", bm_fm_fb_of(&a->pat.trk[t], v)); return; }
+        const bm_pdef *d = bm_engine_macro(a->pat.trk[t].engine, i);
+        if (d) bm_prm_fmt(d, v, b, cap); else fmt_pct(v, b, cap);
         return;
     }
     switch (i) {
@@ -155,7 +138,7 @@ enum { ROW_ENGINE, ROW_ACC, ROW_LEN, ROW_SPEED, ROW_TRANSP, ROW_MIDIOUT, ROW_MID
 static int more_rows(const bm_app *a, int t, uint8_t out[10])
 {
     int n = 0;
-    if (t == 2) out[n++] = ROW_ENGINE;
+    if (app_kind(a, t) == KIND_NOTE) out[n++] = ROW_ENGINE;           /* T3-T6: a la página MACHINE */
     out[n++] = ROW_ACC; out[n++] = ROW_LEN; out[n++] = ROW_SPEED;
     if (app_kind(a, t) == KIND_NOTE) { out[n++] = ROW_TRANSP; out[n++] = ROW_MIDIOUT; }
     if (a->pat.trk[t].midi_out) out[n++] = ROW_MIDICH;
@@ -352,9 +335,22 @@ static void ed_set(bm_app *a, int t, const bm_pdef *d, int v)
 {
     if (bm_is_tr(&a->pat, t)) { app_push_i(a, CMD_SET_LANE, (uint8_t)t, (uint8_t)tr_lane(a), d->slot & 7, v); app_edited(a); return; }
     if (d->slot & PS_M0) { app_set_track(a, t, d->slot & 3, v); return; }
-    app_push(a, CMD_SET_PRM, (uint8_t)t, d->slot, (uint8_t)v);
+    if (bm_ps_trk(d->slot)) { app_set_track(a, t, d->slot & 0x3F, v); return; }   /* ACCENT, GLIDE, TRANSPOSE... */
+    uint8_t s[2], x[2];
+    int n = bm_prm_split(d, v, s, x);
+    for (int i = 0; i < n; i++) app_push(a, CMD_SET_PRM, (uint8_t)t, s[i], x[i]);
     app_edited(a);
 }
+
+/* el valor de un ajuste en palabras: las macros como en SEQ; el algoritmo de BX-7 dice el del patch */
+static void ed_fmt(const bm_app *a, int t, const bm_pdef *d, int v, char *b, int cap)
+{
+    if (!bm_is_tr(&a->pat, t) && (d->slot & PS_M0)) { bm_fmt_macro(a, t, d->slot & 3, v, b, cap); return; }
+    if (d->fmt == PF_ALG && !v) { snprintf(b, (size_t)cap, "%d *", bm_fm_alg_of(&a->pat.trk[t], a->pat.prm[t])); return; }
+    bm_prm_fmt(d, v, b, cap);
+}
+
+static bool fmt_bip(int f) { return f == PF_BIP || f == PF_SEMI || f == PF_DSEMI || f == PF_CENT || f == PF_TRSP || f == PF_MOD; }
 
 static void ed_turn(bm_app *a, int t, int k, int d)
 {
@@ -371,10 +367,11 @@ static void ed_turn(bm_app *a, int t, int k, int d)
     if (nv == cur) return;
     ed_set(a, t, def, nv);
     char b[12], ti[22];
-    bm_prm_fmt(def, nv, b, sizeof b);
+    if (bm_is_tr(&a->pat, t)) bm_prm_fmt(def, nv, b, sizeof b);
+    else ed_fmt(a, t, def, nv, b, sizeof b);
     if (bm_is_tr(&a->pat, t)) snprintf(ti, sizeof ti, "%s %s", T(bm_lane_name(a, t, tr_lane(a))), T(bm_app_ed_name(a, t, def)));
     else snprintf(ti, sizeof ti, "%s %s", T(P->name), T(def->name));
-    app_overlay(a, k, ti, b, "", nv * 255 / (def->max ? def->max : 1), def->fmt == PF_BIP || def->fmt == PF_SEMI || def->fmt == PF_DSEMI || def->fmt == PF_CENT ? 128 : -1, bm_knob_color(k));
+    app_overlay(a, k, ti, b, "", nv * 255 / (def->max ? def->max : 1), fmt_bip(def->fmt) ? 128 : -1, bm_knob_color(k));
 }
 
 
@@ -387,7 +384,7 @@ static void legend_editor(const bm_app *a, int t, bm_legend *L)
     char b[12];
     for (int k = 0; k < P->n; k++) {
         int v = bm_app_ed_value(a, t, &P->p[k]);
-        bm_prm_fmt(&P->p[k], v, b, sizeof b);
+        if (bm_is_tr(&a->pat, t)) bm_prm_fmt(&P->p[k], v, b, sizeof b); else ed_fmt(a, t, &P->p[k], v, b, sizeof b);
         L4(L, k, bm_app_ed_name(a, t, &P->p[k]), b, v * 255 / (P->p[k].max ? P->p[k].max : 1));
     }
 }
@@ -544,12 +541,9 @@ static void legend_view(const bm_app *a, bm_legend *L)
         return;
     case PG_SOUND:
         if (kind == KIND_TR) legend_macros(a, t, L);
-        else if (bm_engine_paged(tr->engine)) legend_editor(a, t, L);
-        else {                                                 /* BX-7 y BB-303: K1-K3 como en SEQ, K4 = ACCENT */
-            legend_macros(a, t, L);
-            fmt_pct(tr->accent, b, sizeof b); L4(L, 3, "ACCENT", b, tr->accent * 2);
-        }
+        else legend_editor(a, t, L);
         return;
+    case PG_MACH: return;                                      /* MACHINE: K1-K4 no hacen nada */
     case PG_INST: legend_editor(a, t, L); return;
     case PG_MIX: legend_mix(a, t, L); return;
     case PG_MORE: {
@@ -580,17 +574,6 @@ static void legend_view(const bm_app *a, bm_legend *L)
         }
         return;
     }
-    case PG_ENV:
-        if (a->env_page == 0) {
-            fmt_ms(bm_attack_ms(tr->attack), b, sizeof b); L4(L, 0, "ATTACK", b, tr->attack * 2);
-            fmt_ms(bm_decay_ms(tr->macro[2]), b, sizeof b); L4(L, 1, "DECAY", b, tr->macro[2] * 2);
-            fmt_pct(tr->sustain, b, sizeof b); L4(L, 2, "SUSTAIN", b, tr->sustain * 2);
-            fmt_ms(bm_decay_ms(tr->release), b, sizeof b); L4(L, 3, "RELEASE", b, tr->release * 2);
-        } else {
-            fmt_pct(tr->env_amt, b, sizeof b); L4(L, 0, "ENV>FILT", b, tr->env_amt * 2);
-            fmt_ms((uint32_t)tr->glide * 500 / 127, b, sizeof b); L4(L, 1, "GLIDE", b, tr->glide * 2);
-        }
-        return;
     case PG_ARP: if (kind == KIND_NOTE) legend_arp(a, t, L); return;   /* las rejillas: ARP es la capa ROLL */
     case PG_LOOP: {
         const bm_loop *lp = &a->pat.loop[t >= 2 ? t - 2 : 0];
@@ -648,17 +631,19 @@ void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const 
         S = a->page == PG_MORE ? "ROW" : "PAGE";
         if (a->page == PG_MORE) A = "VALUE";
         else if (a->page == PG_TAKES) A = "TAKE";
+        else if (a->page == PG_MACH) A = "MACHINE";
         else if (a->page != PG_REC)
             switch (e) {
             case ENG_DRUM: A = "INSTR"; break;
             case ENG_BREAK: A = "PAD"; break;
-            case ENG_ACID: case ENG_MINI: A = "MACHINE"; break;
+            case ENG_ACID: A = "WAVE"; break;
+            case ENG_MINI: A = "MODE"; break;
             case ENG_FM: A = "ALG"; break;
             case ENG_BITTAL: A = "TABLE"; break;
             case ENG_BUNO: A = "CHORUS"; break;
             default: break;
             }
-        P = bm_is_pads(t) ? "TAKE" : kind == KIND_TR ? "KIT" : e == ENG_ACID ? "WAVE" : e == ENG_FM ? "PATCH" : "SOUND";
+        P = bm_is_pads(t) ? "TAKE" : kind == KIND_TR ? "KIT" : e == ENG_FM ? "PATCH" : "SOUND";
         break;
     default: break;
     }
@@ -1114,7 +1099,9 @@ static void play_pad(bm_app *a, int k, int pad)
     play_notes(a, k, t, notes, n, 95, 1);
 }
 
-static int base_oct(const bm_app *a, int t) { return (t == 2 ? 2 : 3) + a->oct; }
+/* las máquinas de bajo (BB-303 y B-MINI) tocan una octava más abajo, en el canal que estén */
+static int bass_machine(const bm_app *a, int t) { int e = app_engine(a, t); return e == ENG_ACID || e == ENG_MINI; }
+static int base_oct(const bm_app *a, int t) { return (bass_machine(a, t) ? 2 : 3) + a->oct; }
 
 /* Tocar el instrumento del canal con una tecla (páginas que no son SEQ). */
 static void play_key_down(bm_app *a, int k, int w, int b)
@@ -1144,7 +1131,7 @@ static void play_key_down(bm_app *a, int k, int w, int b)
         } else { a->chord_mod |= (uint8_t)(1u << (b - 7)); a->key_role[k] = ROLE_CMOD; }
         return;
     }
-    int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0);
+    int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (bass_machine(a, t) ? 12 : 0);
     uint8_t n = (uint8_t)bm_clampi(note, 0, 127);
     play_notes(a, k, t, &n, 1, 105, 0);
 }
@@ -1288,11 +1275,11 @@ static void key_screen_close(bm_app *a)
     a->layer_latch = 0;
 }
 
-/* LFO en una máquina sin página de LFO (BR-8, BP-1, BB-303, BX-7, MIDI): un toque deja abierta su
+/* LFO en una máquina sin página de LFO (BR-8, BP-1, BB-303, MIDI): un toque deja abierta su
  * capa de mantener (REPETIR en las de pasos, LIGAR en las de notas) hasta LFO otra vez o HOME. */
 static bool lfo_has_page(const bm_app *a, int t)
 {
-    return app_kind(a, t) == KIND_NOTE && !app_midi(a, t) && bm_engine_paged(app_engine(a, t));
+    return app_kind(a, t) == KIND_NOTE && !app_midi(a, t) && bm_engine_page_of(app_engine(a, t), EPG_LFO) >= 0;
 }
 
 static void lfo_latch(bm_app *a)
@@ -1882,7 +1869,7 @@ static void layer_key(bm_app *a, int k, int w, int b)
         else if (b < 4) { a->chord_mod |= (uint8_t)(1u << b); a->key_role[k] = ROLE_CMOD; }
         return;
     case L_ARP: {
-        int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0);
+        int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (bass_machine(a, t) ? 12 : 0);
         uint8_t n = (uint8_t)bm_clampi(note, 0, 127);
         play_notes(a, k, t, &n, 1, 105, 0);
         return;
@@ -2099,22 +2086,21 @@ static void button_page(bm_app *a, int id)
             if (cur == PG_SOUND) { pg = PG_INST; a->ed_page[t] = 0; }
             else if (cur == PG_INST && a->ed_page[t] + 1 < BM_LANE_PAGES) { pg = PG_INST; a->ed_page[t]++; }
             else pg = PG_SOUND;
-        } else if (bm_engine_paged(app_engine(a, t))) {          /* SONIDO: la página siguiente */
+        } else {                                                 /* SOUND: vuelve a la última; otra vez, la siguiente */
             int np; bm_engine_pages(app_engine(a, t), &np);
-            if (cur == PG_SOUND) a->ed_page[t] = (uint8_t)((a->ed_page[t] + 1) % np);
+            if (cur == PG_SOUND && np) a->ed_page[t] = (uint8_t)((a->ed_page[t] + 1) % np);
             pg = PG_SOUND;
-        } else pg = PG_SOUND;
+        }
         break;
     case BTN_ENV:
         if (bm_is_pads(t)) { a->ed_page[t] = 2; pg = PG_PADS; }
         else if (kind == KIND_TR) { pg = PG_INST; if (cur != PG_INST) a->ed_page[t] = 0; }
-        else if (bm_is_pads(t)) { a->ed_page[t] = 2; pg = PG_PADS; }
         else if (midi) pg = PG_MIDI;
-        else if (bm_engine_paged(app_engine(a, t))) {             /* ENV NIVEL, otra vez ENV FILTRO */
-            int amp = bm_engine_page_of(app_engine(a, t), EPG_AMP), fen = bm_engine_page_of(app_engine(a, t), EPG_FENV);
-            a->ed_page[t] = (uint8_t)(cur == PG_SOUND && a->ed_page[t] == amp ? fen : amp);
+        else {                                                   /* su envolvente; otra vez, la segunda */
+            int e1 = bm_engine_page_of(app_engine(a, t), EPG_ENV1), e2 = bm_engine_page_of(app_engine(a, t), EPG_ENV2);
+            a->ed_page[t] = (uint8_t)(cur == PG_SOUND && a->ed_page[t] == e1 ? e2 : e1);
             pg = PG_SOUND;
-        } else { if (cur == PG_ENV) a->env_page ^= 1; else a->env_page = 0; pg = PG_ENV; }
+        }
         break;
     case BTN_LFO:
         if (!lfo_has_page(a, t)) { lfo_latch(a); return; }     /* sin LFO: su capa queda abierta */
@@ -2169,15 +2155,24 @@ static void copy_channel(bm_app *a)
 {
     int s = a->copy_src, d = a->copy_dst;
     int ks = app_kind(a, s);
+    char b[30];
+    if (ks == KIND_NOTE) {                                       /* la máquina viaja con el canal */
+        int o = bm_machine_conflict(&a->pat, d, a->pat.trk[s].engine);
+        if (o >= 0 && o != d) {                                  /* BUNO-6 y BITTAL: una vez por patrón */
+            snprintf(b, sizeof b, TF("%s ALREADY ON T%d"), bm_engine_names[a->pat.trk[s].engine], o + 1);
+            app_toast(a, b);
+            return;
+        }
+    }
     app_undo_snapshot(a, d);
-    (void)ks;
+    if (ks == KIND_NOTE) app_push(a, CMD_CLONE, (uint8_t)s, (uint8_t)d, 0);
     memcpy(&a->clip, app_track_data(a, s), app_track_size(s));
     app_push_ptr(a, CMD_TRACK_BULK, (uint8_t)d, &a->clip);
     const uint8_t *src = (const uint8_t *)&a->pat.trk[s];
     for (unsigned off = 0; off < sizeof(bm_track); off++)
         if (off != TRK_OFF(engine) && off != TRK_OFF(mute) && off != TRK_OFF(midi_ch)) app_push(a, CMD_SET_TRACK, (uint8_t)d, (uint8_t)off, src[off]);
     app_edited(a);
-    char b[30]; snprintf(b, sizeof b, TF("T%d COPIED TO T%d"), s + 1, d + 1);
+    snprintf(b, sizeof b, TF("T%d COPIED TO T%d"), s + 1, d + 1);
     app_toast(a, b);
     app_enter(a, d, PG_SEQ);
 }
@@ -2798,6 +2793,44 @@ static void enc_move(bm_app *a, int d)
 
 static void box_turn_in(bm_app *a, int d, int lane);
 
+/* MACHINE (T3-T6): ALGORITHM mueve el resaltado entre las 5 máquinas, sin pregunta. Quedarse 2 s en
+ * una la carga (en vivo: se elige girando y se suelta); irse antes cancela. Una pesada que ya está en
+ * otro canal no arranca la cuenta. */
+static void mach_turn(bm_app *a, int d)
+{
+    int t = a->track;
+    if (a->mach_arm == 2) {                                      /* el giro que trajo hasta aquí (MORE > MACHINE) */
+        if (a->now - a->mach_t0 < 250) return;
+        a->mach_arm = 0;
+    }
+    int i = 0;
+    while (i < BM_MACHINES && bm_machines[i] != a->mach_sel) i++;
+    if (i >= BM_MACHINES) i = 0;
+    i = bm_clampi(i + lst(a, d), 0, BM_MACHINES - 1);
+    if (bm_machines[i] == a->mach_sel && a->mach_arm) return;
+    a->mach_sel = bm_machines[i];
+    a->mach_t0 = a->now;
+    a->mach_arm = 0;
+    if (a->mach_sel == a->pat.trk[t].engine) return;            /* la que suena: nada que cargar */
+    int o = bm_machine_conflict(&a->pat, t, a->mach_sel);
+    if (o >= 0) {
+        char b[30]; snprintf(b, sizeof b, TF("%s ALREADY ON T%d"), bm_engine_names[a->mach_sel], o + 1);
+        app_toast(a, b);
+        return;
+    }
+    a->mach_arm = 1;
+}
+
+/* la cuenta de MACHINE: a los 2 s en la misma, el canal cambia de máquina */
+static void mach_tick(bm_app *a)
+{
+    if (!a->mach_arm) return;
+    if (a->view != V_CH || a->page != PG_MACH || a->layer) { a->mach_arm = 0; return; }
+    if (a->mach_arm != 1 || a->now - a->mach_t0 < BM_MACH_MS) return;
+    a->mach_arm = 0;
+    app_set_machine(a, a->track, a->mach_sel);
+}
+
 /* ALGORITHM dentro de un canal: el modo de su máquina (docs/DISENO_0.6.md §5.3) */
 static void enc_mode(bm_app *a, int d)
 {
@@ -2814,10 +2847,29 @@ static void enc_mode(bm_app *a, int d)
         app_toast(a, b);
         return;
     }
-    case ENG_ACID: case ENG_MINI: app_bass_machine(a, d > 0 ? ENG_MINI : ENG_ACID); return;
+    case ENG_ACID: {                                                      /* la forma de onda: derecha SQUARE */
+        int v = d > 0;
+        if (v == (a->pat.prm[t][AC_WAVE] & 1)) return;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, AC_WAVE, (uint8_t)v);
+        a->pat.prm[t][AC_WAVE] = (uint8_t)v;
+        app_edited(a);
+        app_overlay(a, -1, "BB-303 WAVEFORM", v ? "SQUARE" : "SAW", "", v * 255, -1, bm_track_color(t));
+        return;
+    }
+    case ENG_MINI: {                                                      /* derecha LEGATO, izquierda MONO */
+        int v = d > 0;
+        if (v == (a->pat.prm[t][MN_MODE] != 0)) return;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, MN_MODE, (uint8_t)v);
+        a->pat.prm[t][MN_MODE] = (uint8_t)v;
+        app_edited(a);
+        app_overlay(a, -1, "B-MINI MODE", v ? "LEGATO" : "MONO", "", v * 255, -1, bm_track_color(t));
+        return;
+    }
     case ENG_FM: {                                                        /* el algoritmo, 1..32 */
-        int alg = bm_clampi(bm_fm_alg_of(tr, tr->macro[3]) + lst(a, d), 1, 32);
-        app_set_track(a, t, 3, (alg - 1) * 4 + 1);
+        int alg = bm_clampi(bm_fm_alg_of(tr, a->pat.prm[t]) + lst(a, d), 1, 32);
+        app_push(a, CMD_SET_PRM, (uint8_t)t, FX_ALG, (uint8_t)alg);
+        a->pat.prm[t][FX_ALG] = (uint8_t)alg;
+        app_edited(a);
         snprintf(b, sizeof b, "%d", alg);
         app_overlay(a, -1, "BX-7 ALGORITHM", b, "/ 32", (alg - 1) * 8, -1, bm_track_color(t));
         return;
@@ -2925,8 +2977,10 @@ static void enc_source(bm_app *a, int t, int d)
     if (kind == KIND_TR || bm_engine_paged(e)) { app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0); app_edited(a); }
     else app_set_track(a, t, TRK_OFF(source), v);
     a->pat.trk[t].source = (uint8_t)v;
-    app_overlay(a, -1, kind == KIND_TR ? "KIT" : e == ENG_ACID ? "BB-303 WAVE" : e == ENG_FM ? "BX-7 PATCH" : "SOUND",
-                bm_sound_name(a, t), "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
+    char ti[22];
+    if (kind == KIND_TR) snprintf(ti, sizeof ti, "KIT");
+    else snprintf(ti, sizeof ti, "%s %s", bm_engine_names[e % ENG_COUNT], T(e == ENG_FM ? "PATCH" : "SOUND"));
+    app_overlay(a, -1, ti, bm_sound_name(a, t), "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
 }
 
 static void more_change(bm_app *a, int d)
@@ -2937,8 +2991,9 @@ static void more_change(bm_app *a, int d)
     const bm_track *tk = &a->pat.trk[t];
     char b[30];
     switch (rows[a->more_row]) {
-    case ROW_ENGINE:                                            /* a la derecha B-MINI, a la izquierda BB-303 */
-        if ((d > 0) != (tk->engine == ENG_MINI)) app_bass_machine(a, d > 0 ? ENG_MINI : ENG_ACID);
+    case ROW_ENGINE:                                            /* la máquina se elige en su página */
+        app_enter(a, t, PG_MACH);
+        a->mach_t0 = a->now; a->mach_arm = 2;                   /* el resto de este giro no mueve el resaltado */
         return;
     case ROW_MIDIOUT:                                           /* a la derecha ON, a la izquierda OFF */
         if ((d > 0) == (tk->midi_out != 0)) return;
@@ -2989,7 +3044,6 @@ static uint8_t *sub_page(bm_app *a, int *n)
         if (!bm_app_ed_on(a) || !bm_app_ed_pages(a, t, n)) { *n = 0; return NULL; }
         return &a->ed_page[t];
     case PG_PADS: *n = 4; return &a->ed_page[1];
-    case PG_ENV: *n = 2; return &a->env_page;
     case PG_MIX: *n = 2; return &a->mix_page;
     case PG_MORE: *n = bm_app_more_count(a); return &a->more_row;
     default: return NULL;
@@ -3093,6 +3147,7 @@ static void enc_channel(bm_app *a, int id, int d)
             return;
         }
         if (a->page == PG_REC) { app_toast(a, "THE SAMPLER STAYS HERE"); return; }
+        if (a->page == PG_MACH) { mach_turn(a, d); return; }
         enc_mode(a, d);
         return;
     }
@@ -3104,10 +3159,9 @@ static void enc_channel(bm_app *a, int id, int d)
         return;
     case PG_SOUND:
         if (kind == KIND_TR) { enc_macro(a, t, k, d); return; }
-        if (bm_engine_paged(tr->engine)) { ed_turn(a, t, k, d); return; }
-        if (k == 3) { enc_track_u8(a, t, 3, TRK_OFF(accent), tr->accent, d, 0, 127, "ACCENT", 2); return; }
-        enc_macro(a, t, k, d);                                 /* K1-K3 como en SEQ */
+        ed_turn(a, t, k, d);
         return;
+    case PG_MACH: return;                                      /* MACHINE: solo ALGORITHM */
     case PG_INST: ed_turn(a, t, k, d); return;
     case PG_MIX: goto mix;
     case PG_MORE:
@@ -3128,25 +3182,6 @@ static void enc_channel(bm_app *a, int id, int d)
         take_changed(a, src);
         return;
     }
-    case PG_ENV:
-        if (a->env_page == 0) {
-            static const uint8_t OFFS[4] = {TRK_OFF(attack), 2, TRK_OFF(sustain), TRK_OFF(release)};
-            const uint8_t cur[4] = {tr->attack, tr->macro[2], tr->sustain, tr->release};
-            int nv = bm_clampi(cur[k] + d, 0, 127);
-            app_set_track(a, t, OFFS[k], nv);
-            if (k == 0) fmt_ms(bm_attack_ms(nv), b, sizeof b); else if (k == 2) fmt_pct(nv, b, sizeof b); else fmt_ms(bm_decay_ms(nv), b, sizeof b);
-            static const char *const NM[4] = {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"};
-            snprintf(ti, sizeof ti, "T%d %s", t + 1, T(NM[k]));
-            app_overlay(a, k, ti, b, "", nv * 2, -1, bm_knob_color(k));
-        } else if (k < 2) {
-            const uint8_t cur = k == 0 ? tr->env_amt : tr->glide;
-            int nv = bm_clampi(cur + d, 0, 127);
-            app_set_track(a, t, k == 0 ? TRK_OFF(env_amt) : TRK_OFF(glide), nv);
-            if (k == 0) fmt_pct(nv, b, sizeof b); else fmt_ms((uint32_t)nv * 500 / 127, b, sizeof b);
-            snprintf(ti, sizeof ti, "T%d %s", t + 1, T(k == 0 ? "ENV > FILTER" : "GLIDE"));
-            app_overlay(a, k, ti, b, "", nv * 2, -1, bm_knob_color(k));
-        }
-        return;
     case PG_ARP:
         if (kind != KIND_NOTE) return;                          /* las rejillas: ARP es la capa ROLL */
         goto arp;
@@ -3475,6 +3510,7 @@ fxg:
 void app_input_tick(bm_app *a)
 {
     uint32_t now = a->now;
+    mach_tick(a);
     if (a->held_white >= 0 && !a->held_long && now - a->step_t0 >= UI_HOLD_MS) a->held_long = 1;
     if (a->rec_free && a->rec_free_t0 == 0xFFFFFFFFu && app_playing(a)) a->rec_free_t0 = a->ctx.st.btick;   /* empieza con PLAY */
     if (a->fill && a->layer != L_FILL) {                         /* el fill suena solo con su pantalla abierta o su tecla sostenida */
@@ -3524,13 +3560,12 @@ static int page_button(const bm_app *a)
     case PG_SOUND:
         if (app_kind(a, t) == KIND_NOTE && bm_engine_paged(app_engine(a, t))) {
             int e = app_engine(a, t), p = a->ed_page[t];
-            if (p == bm_engine_page_of(e, EPG_AMP) || p == bm_engine_page_of(e, EPG_FENV)) return BTN_ENV;
+            if (p == bm_engine_page_of(e, EPG_ENV1) || p == bm_engine_page_of(e, EPG_ENV2)) return BTN_ENV;
             if (p == bm_engine_page_of(e, EPG_LFO)) return BTN_LFO;
         }
         return BTN_EDIT;
     case PG_PADS: return a->ed_page[t] == 2 ? BTN_ENV : BTN_EDIT;
-    case PG_INST: case PG_TAKES: case PG_MIDI: return BTN_EDIT;
-    case PG_ENV: return BTN_ENV;
+    case PG_INST: case PG_TAKES: case PG_MIDI: case PG_MACH: return BTN_EDIT;
     case PG_MIX: return BTN_FX;
     case PG_SCL: case PG_CHORDS: return BTN_SCL;
     case PG_ARP: return BTN_ARP;
@@ -3782,7 +3817,7 @@ static void note_keys(const bm_app *a, bm_keyfn *K, int t)
     uint16_t pcs = 0;
     for (int d = 0; d < sl; d++) pcs |= (uint16_t)(1u << (bm_scale_note(root, sc, d, 0) % 12));
     for (int k = 0; k < BM_KEYS; k++) {
-        int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (t == 2 ? 12 : 0), pc = (note + 120) % 12;
+        int note = BM_KEY_BASE_NOTE + k + 12 * a->oct - (bass_machine(a, t) ? 12 : 0), pc = (note + 120) % 12;
         KL(K, k, bm_note_names[pc]);
         K[k].led = pc == root ? LED_MID : ((pcs >> pc) & 1) ? LED_DIM : LED_OFF;
         K[k].color = col;

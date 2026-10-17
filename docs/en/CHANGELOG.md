@@ -2,6 +2,30 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.8.0-beta] - 2026-10-16
+
+**Choose your instrument.** The drums and the pad sampler stay fixed; T3-T6 pick their machine, and every machine is laid out like the real one.
+
+> 0.8 changes the pattern format (and the B-MINI / BUNO-6 sound format): on first boot it erases the saved patterns. BITTAL sounds and DX7 banks still load.
+
+### Added
+- **MACHINE page on T3-T6:** BB-303, B-MINI, BX-7, BITTAL or BUNO-6. Turn ALGORITHM to one and leave it 2 s to load it (built for live use: no question). Notes, loop, ARP, scale and mix stay; the machine is saved with the pattern.
+- **Heavy machines one at a time:** BUNO-6 and BITTAL can only be on one track; elsewhere they show "ON T6" and are refused with a message. Also enforced when copying a track or loading a pattern.
+- **BX-7 LFO page** (SPEED, DELAY, PMD, AMD) on top of the patch, and a BB-303 sound bank (8 sounds).
+- `py -3 tools/build.py longrun` runs minutes of simulated playing to catch audio that degrades over time.
+
+### Changed
+- **Every machine's SOUND pages follow its real panel**, in order and with its names: TB-303 (VCO VCF, ENV), Minimoog (CONTROL, OSC 1-3, MIXER, FILTER, F/L CONTOUR, OUTPUT), DX7 (ALGORITHM, EG, VOICE, LFO), Vital (OSC, FILTER, ENV, LFO, MACROS) and Juno-6 (LFO, DCO, HPF VCF, VCF MOD, VCA, ENV, CHORUS).
+- **K1-K4 on SEQ are each machine's four most-played controls:** BB-303 CUTOFF · RESO · ENV MOD · DECAY; B-MINI CUTOFF · EMPHASIS · CONTOUR · F DECAY; BX-7 MOD LVL · FEEDBACK · DECAY · RELEASE; BUNO-6 FREQ · RES · ENV · LFO.
+- ALGORITHM on BB-303 = waveform, on B-MINI = MONO / LEGATO. Voices are shared by machine, not by track (a BX-7 on T3 is polyphonic).
+- **The voice brake** no longer silences voices again and again under load: it lowers a voice cap (never below 4), fades release tails first and gives the voices back when the load drops.
+
+### Fixed
+- **The BUNO-6 chorus got rough after about 6 minutes** (a sample counter lost precision); it now stays clean.
+- **Voices went silent after a while** under load (the brake kept fading the newest notes).
+- Notes were lost when a stolen voice ended during its 2 ms fade.
+- BB-303 and BX-7 showed envelope knobs that did nothing.
+
 ## [0.7.0-beta] - 2026-10-15
 
 **One machine per screen.** HOME becomes the BX-1 machine with its own pages, and every screen loses the text it did not need. Design: the "Bubba Machine UI 0.7" canvas.

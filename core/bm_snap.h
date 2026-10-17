@@ -21,6 +21,7 @@ extern "C" {
 
 #define BM_SNAP_MAGIC  0x31534E42u      /* "BNS1" */
 #define BM_SNAP_HDR    88
+#define BM_SNAP_VER    2                 /* 2: B-MINI con TUNE y macros CUTOFF EMPHASIS CONTOUR F DECAY; BUNO-6 con PWM y macro LFO */
 #define BM_SNAP_PRM    48
 #define BM_SNAP_MAX    8800              /* cabecera + dos tablas de 8 frames x 256 armónicos */
 #define BM_SNAPS_USER  12                /* snapshots del usuario como máximo */

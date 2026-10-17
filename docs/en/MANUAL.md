@@ -1,6 +1,6 @@
-# Bubba Machine 0.6 — Manual
+# Bubba Machine 0.8 — Manual
 
-Bubba Machine turns the FM-1 into a live groovebox with **six fixed machines**, each named after the machine that inspired it: **BR-8** (drums), **BP-1** (pad sampler), **BB-303** or **B-MINI** (bass), **BX-7** (6-operator FM), **BITTAL** (wavetable that loads Vital presets) and **BUNO-6** (polysynth with chorus). HOME holds the **BX-1** mixer. Every track has its own length and its own speed.
+Bubba Machine turns the FM-1 into a live groovebox with **six tracks**, each one a machine named after the one that inspired it. The drums (**BR-8**) and the pad sampler (**BP-1**) are fixed; **T3-T6 choose their instrument** among **BB-303** (acid bass), **B-MINI** (three-oscillator mono), **BX-7** (6-operator FM), **BITTAL** (wavetable that loads Vital presets) and **BUNO-6** (polysynth with chorus). HOME holds the **BX-1** mixer. Every track has its own length and its own speed.
 
 > The names recall famous machines (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6), but Bubba Machine has no relation to their brands or makers.
 
@@ -57,8 +57,10 @@ The FM-1's lights are white only: they never say *what* a key or button does (th
 |---|---|
 | BR-8 | Picks the instrument (with the box: big number, its name and model) |
 | BP-1 | Picks the pad |
-| BB-303 / B-MINI | Switches from one to the other (the notes stay) |
+| BB-303 | The waveform: SAW or SQUARE |
+| B-MINI | MONO or LEGATO |
 | BX-7 | The algorithm, 1 to 32 |
+| On the MACHINE page | Picks the instrument (see below) |
 | BITTAL | Oscillator 1's table: its own or another bank sound's |
 | BUNO-6 | The chorus: OFF, I, II or I+II |
 
@@ -139,14 +141,13 @@ To clear a track: REC held 2 s (instant) or EDIT held + black 3 (CLR); HOME + OC
 |---|---|---|---|
 | **T1** | **BR-8** | Drums: TR grid of 16 **modeled** instruments (computed live); kits 808, 909 and SYNTH | SEQ · SOUND · INSTR · MIX · MORE |
 | **T2** | **BP-1** | 16 pads made from your takes, on a grid | SEQ · PADS · BREAK · TAKES · MIX · MORE |
-| **T3** | **BB-303** or **B-MINI** | The bass: 303-style acid, or three oscillators into a ladder filter | SEQ · SOUND · MIX · ARP · LOOP · MORE |
-| **T4** | **BX-7** | 6-operator FM, compatible with the DX7 and its .syx banks | SEQ · SOUND · ENV · MIX · ARP · LOOP · MORE |
-| **T5** | **BITTAL** | Two wavetables from a bank sound (Vital presets), with unison and 4 macros | SEQ · SOUND · MIX · ARP · LOOP · MORE |
-| **T6** | **BUNO-6** | 6-voice polysynth: one oscillator per voice, filter and a Juno-style chorus | SEQ · SOUND · MIX · ARP · LOOP · MORE |
+| **T3-T6** | **your choice** | BB-303, B-MINI, BX-7, BITTAL or BUNO-6 (factory: BB-303, BX-7, BITTAL, BUNO-6) | SEQ · MACHINE · SOUND · MIX · ARP · LOOP · MORE |
 
-Machines don't change: each track is its own. T3 switches between BB-303 and B-MINI with ALGORITHM (or MORE › MACHINE) and the notes stay.
+**Choosing the instrument (T3-T6).** The **MACHINE** page sits just before SOUND (SELECT to the left of SOUND, or MORE › MACHINE). It lists the five machines with what inspired each one. **Turn ALGORITHM to a machine and leave it there 2 seconds**: a bar fills ("LOAD IN 1.4 S") and the track becomes that machine. Moving away cancels it. The notes, length, loop, ARP, scale and mix stay; the sound goes to the machine's first preset and per-note P-Locks are cleared. The machine is saved with the pattern, like the sound.
 
-**MORE** is the list with everything about the track: machine (T3 only), accent, length, speed, transpose, **MIDI OUT** (the track also sends its notes over MIDI) and its MIDI channel, and initial sound (on the sampler also: interpolation). SELECT picks the row and ALGORITHM changes it.
+**Heavy machines, one at a time:** **BUNO-6** (it uses about a third of the processor) and **BITTAL** (its wavetables fill the memory) can only be on one track. On another track they show dimmed with "ON T6" and the screen says "BUNO-6 ALREADY ON T6". BB-303, B-MINI and BX-7 can repeat (a BX-7 on T3 is polyphonic too). The same rule applies when copying a track or loading a pattern.
+
+**MORE** is the list with everything about the track: machine (T3-T6, it opens MACHINE), accent, length, speed, transpose, **MIDI OUT** (the track also sends its notes over MIDI) and its MIDI channel, and initial sound (on the sampler also: interpolation). SELECT picks the row and ALGORITHM changes it.
 
 **Black keys follow a single grammar in SEQ:** 1-8 are the track's elements, 9 and 10 modify them and **11 breaks the pattern** (FILL).
 
@@ -157,29 +158,33 @@ Everything is computed live; the sampler uses your takes. Until v1 each version 
 | Machine | What it is | K1-K4 on SEQ | PRESETS |
 |---|---|---|---|
 | **BR-8** | 16 modeled instruments, each with its own **model**: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL, clap, TOM (and congas), cowbell, RESON (rim, clave, block), noise or FM | TONE · TUNE · DECAY · COLOR | Kits 808, 909 and SYNTH |
-| **BB-303** | 303-style mono: 4-pole ladder filter, accent opens the filter, slide with TIE | CUTOFF · RESO · DECAY · ENV MOD | Saw or square |
-| **B-MINI** | Three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, two envelopes (CONTOUR and LOUDNESS), LFO and glide | CUTOFF · EMPHASIS · OSC TUNE · CONTOUR | 6 basses from the bank |
-| **BX-7** | 6 operators (msfa, the core of Dexed); the DX7's 32 algorithms | BRIGHT · FEEDBACK · DECAY · ALG | 16 original patches and the voices of your .syx banks |
+| **BB-303** | 303-style mono: 4-pole ladder filter, accent opens the filter, slide with TIE | CUTOFF · RESO · ENV MOD · DECAY | 8 sounds: CLASSIC, SQUELCH, DEEP SAW, RUBBER, SQUARE, SCREAM, DUB, PLUCK |
+| **B-MINI** | Three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, two envelopes (CONTOUR and LOUDNESS), LFO and glide | CUTOFF · EMPHASIS · CONTOUR · F DECAY | 6 basses from the bank |
+| **BX-7** | 6 operators (msfa, the core of Dexed); the DX7's 32 algorithms | MOD LVL · FEEDBACK · DECAY · RELEASE | 16 original patches and the voices of your .syx banks |
 | **BITTAL** | Two wavetable oscillators (up to 8 frames, alias-free on every note) with up to 4-voice unison, filter (LP 24/12, BP, HP or ladder) with drive, two ADSRs, LFO and 4 macros | The sound's 4 macros (their name says where they go: CUTOFF, POSITION, LFO, SPACE…) | 19 bank sounds and yours |
-| **BUNO-6** | One oscillator per voice (saw, pulse with PWM, sub one octave down and noise), 4-position high-pass, 24 dB resonant filter, one ADSR, delayed LFO and stereo chorus | FREQ · RES · ENV · PWM | 12 original sounds |
+| **BUNO-6** | One oscillator per voice (saw, pulse with PWM, sub one octave down and noise), 4-position high-pass, 24 dB resonant filter, one ADSR, delayed LFO and stereo chorus | FREQ · RES · ENV · LFO | 12 original sounds |
 
 BR-8's kicks, snares and hats are the **Plaits** models (Mutable Instruments), which imitate the 808 circuits and 909-style synthetic versions. With **accent** they hit differently, not just louder.
 
 **The sound bank.** B-MINI, BITTAL and BUNO-6 load **sounds** (.bsnap): their settings, their macros and, on BITTAL, their tables. The factory ones come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0; credits in [CREDITS.md](CREDITS.md)) and from original BUNO-6 presets made in Vital. Yours are added from the web editor ([sounds](../../web/sonidos.html)): PRESETS goes through the factory ones first and then yours. The sound's fingerprint (#A4F9) shows at the top right of SOUND.
 
-### Editing the sound (B-MINI, BITTAL, BUNO-6)
+### Editing the sound
 
-**SOUND** is the machine's editor, in pages of 4 settings:
+**SOUND** is the machine's editor. Its pages follow **the real machine's panel**, in the same order and with the same names, 4 settings per page:
 
-- **B-MINI:** OSC 1, OSC 2, OSC 3, FILTER, FILTER +, CONTOUR, LOUDNESS, MOD and VOICE.
-- **BITTAL:** OSC 1, OSC 1 +, OSC 2, OSC 2 +, FILTER, FILTER +, AMP ENV, MOD ENV, LFO, MACRO 1 2, MACRO 3 4 and VOICE. The oscillator pages draw the table in 2.5D, with the playing frame in cyan.
-- **BUNO-6:** DCO, DCO +, VCF, VCF +, ENV and LFO VCA (with the chorus).
+| Machine | Pages (K1-K4) |
+|---|---|
+| **BB-303** | **VCO VCF** (TUNING, CUTOFF, RESO, ENV MOD) · **ENV** (DECAY, ACCENT, SLIDE, WAVE) |
+| **B-MINI** | **CONTROL** (TUNE, GLIDE, MOD RATE, MOD AMT: left = oscillators, right = filter) · **OSC 1-3** (RANGE, FREQ, WAVE) · **MIXER** (OSC 1, OSC 2, OSC 3, NOISE) · **FILTER** (CUTOFF, EMPHASIS, CONTOUR, KBD CTRL) · **F CONTOUR** and **L CONTOUR** (ATTACK, DECAY, SUSTAIN, RELEASE) · **OUTPUT** (DRIVE, MODE, VEL FILT, VEL LVL) |
+| **BX-7** | **ALGORITHM** (ALG, FEEDBACK, MOD LVL, KEY VEL) · **EG** (R1 ATK, R2-3 DEC, R4 REL) · **VOICE** (PORTA, TRANSP) · **LFO** (SPEED, DELAY, PMD, AMD; on top of the patch's own LFO) |
+| **BITTAL** | **OSC 1 / OSC 1 +** · **OSC 2 / OSC 2 +** (LEVEL, TRANSP, FRAME, UNISON · DETUNE, FINE, TABLE) · **FILTER** (MODEL, CUTOFF, RESO, DRIVE) · **FILTER +** · **ENV 1 / ENV 2** (A, D, S, R) · **LFO 1** (SHAPE, RATE, DEST, AMOUNT) · **MACRO 1-2 / 3-4** · **VOICE**. The oscillator pages draw the table in 2.5D, with the playing frame in cyan |
+| **BUNO-6** | **LFO** (RATE, DELAY) · **DCO** (LFO, PWM, PWM MODE, RANGE) · **DCO WAVE** (PULSE, SAW, SUB, NOISE) · **HPF VCF** (HPF, FREQ, RES, ENV) · **VCF MOD** (ENV +/-, LFO, KYBD, VELO) · **VCA** (ENV/GATE, VELO) · **ENV** (A, D, S, R) · **CHORUS** |
 
-On **BX-7** and **BB-303**, SOUND's K1-K3 are the same as on SEQ and K4 is ACCENT. Elsewhere, **K1-K4** change the page's 4 settings; above them, a drawing of what they do (the wave, the table, the filter curve, the envelope or the LFO). **SELECT** changes page (at the first or last one it moves to the next tab). **EDIT** again = next page. **ENV** opens the amp envelope (again: the filter one). **LFO** opens the LFO. The macros (K1-K4 on SEQ) take P-Locks per note.
+**K1-K4** change the page's 4 settings; above them, a drawing of what they do (the wave, the table, the filter curve, the envelope or the LFO). **SELECT** changes page (at the first or last one it moves to the next tab). **EDIT** again = next page (EDIT never lands on MACHINE, so you can't change the instrument by accident). **ENV** opens the machine's first envelope (again: the second one). **LFO** opens the LFO page; the BB-303 has none, so LFO keeps its tie layer. The macros (K1-K4 on SEQ) take P-Locks per note.
 
 ### BX-7: the algorithm
 
-SOUND draws the **algorithm as on a DX7**: carriers at the bottom, modulators above, feedback in amber and each operator's level; below, each one's frequency ratio. ALGORITHM steps through all 32 (with BRIGHT, FEEDBACK and DECAY on top of the patch). DX7 **.syx** banks (32 voices) load from the web editor or with `py -3 tools/fm1/sonido.py bank.syx`.
+SOUND draws the **algorithm as on a DX7**: carriers at the bottom, modulators above, feedback in amber and each operator's level; below, each one's frequency ratio. ALGORITHM steps through all 32 (with MOD LVL, FEEDBACK, DECAY and RELEASE on top of the patch). DX7 **.syx** banks (32 voices) load from the web editor or with `py -3 tools/fm1/sonido.py bank.syx`.
 
 ### Editing a drum instrument
 

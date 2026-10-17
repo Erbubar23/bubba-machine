@@ -66,21 +66,31 @@ static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3
 #define FRENO_PICO  95u
 #define FRENO_PROM  85u
 #define FRENO_CADA  4u
+/* 0.7.1: el freno baja un tope de voces del pool (bm_audio_overload) y las notas nuevas roban dentro
+ * de él. Antes cada nota nueva sonaba y el freno la apagaba al rato: con la carga alta todo el
+ * tiempo se callaban las voces (en el aparato, 6 por segundo a los 9 minutos). Con el promedio por
+ * debajo del 70 % y ningún pico durante ALIVIO_CADA bloques (~0.4 s), el tope sube de a una. */
+#define ALIVIO_PROM 70u
+#define ALIVIO_CADA 64u
 
 static volatile uint8_t par_sesion = 1;     /* el núcleo 1 gira durante cada render (lab 36 lo apaga) */
 static volatile uint16_t lab_par;           /* lab 36: 0x100 | arg, se aplica al empezar un render */
 
 static void render(int32_t *lr, uint32_t frames)
 {
-    static uint32_t n, freno_n, ses;
+    static uint32_t n, freno_n, alivio_n, ses;
     uint32_t budget = fm1_stat[FM1_STAT_BUDGET];
     n++;
     if (budget && n - freno_n >= FRENO_CADA &&
         (fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * FRENO_PICO ||
          fm1_stat[FM1_STAT_RENDER_AVG] * 100u > budget * FRENO_PROM)) {
-        bm_audio_overload(&app.ctx);
+        if (bm_audio_overload(&app.ctx))
+            fm1_stat[FM1_STAT_FRENO]++;
         freno_n = n;
-        fm1_stat[FM1_STAT_FRENO]++;
+    } else if (budget && app.ctx.pool_cap && n - freno_n >= ALIVIO_CADA && n - alivio_n >= ALIVIO_CADA &&
+               fm1_stat[FM1_STAT_RENDER_AVG] * 100u < budget * ALIVIO_PROM) {
+        bm_audio_relief(&app.ctx);
+        alivio_n = n;
     }
     if (lab_par) {                           /* entre renders: ningún núcleo está calculando */
         uint8_t a = (uint8_t)lab_par;
@@ -97,6 +107,13 @@ static void render(int32_t *lr, uint32_t frames)
     bm_app_audio(&app, lr, frames);
     if (sesion)
         fm1_cpu1_sesion(0);
+    {                                        /* para la consola: voces de cada canal (4 bits) y el tope del freno */
+        uint32_t v = 0;
+        for (int i = 0; i < BM_VOICES; i++)
+            if (app.ctx.voice[i].active && app.ctx.voice[i].track < BM_TRACKS && ((v >> (app.ctx.voice[i].track * 4)) & 15u) < 15u)
+                v += 1u << (app.ctx.voice[i].track * 4);
+        fm1_stat[FM1_STAT_VOCES] = v | (uint32_t)(app.ctx.pool_cap ? app.ctx.pool_cap : BM_V_POOL_N) << 24;
+    }
     /* el codec toma los 24 bits de abajo de cada palabra, con signo (dato de Felucca: Q15 * 2^7,
      * audio.c). Antes se corrían 8 bits hacia arriba y en el aparato sonaba como una alarma. */
     for (uint32_t i = 0; i < frames * 2u; i++) {

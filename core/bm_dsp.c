@@ -117,7 +117,7 @@ static void rv_step(float x, float decay, float damp, float *oL, float *oR)
  * lado. Velocidades y retardos de los citados para el Juno-60 (a confirmar con el manual de servicio). */
 #define CH_LEN 512u
 static float ch_buf[CH_LEN], ch_lfo, ch_lpL, ch_lpR;
-static uint32_t ch_w;
+static uint32_t ch_w;      /* siempre < CH_LEN: como float, un contador libre pierde los decimales a los 6 min (2^24) */
 static const float CH_RATE[BN_CHORUSES] = {0.0f, 0.513f, 0.863f, 9.75f};
 static const float CH_MIN_MS[BN_CHORUSES] = {0.0f, 1.66f, 1.66f, 3.30f};
 static const float CH_MAX_MS[BN_CHORUSES] = {0.0f, 5.35f, 5.35f, 3.70f};
@@ -244,12 +244,12 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
                 int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
                 if (ax > pk) pk = ax;
                 float v = (float)xi;
-                ch_buf[ch_w & (CH_LEN - 1u)] = v;
+                ch_buf[ch_w] = v;
                 ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
                 float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
                 float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
                 ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
-                ch_w++;
+                ch_w = (ch_w + 1u) & (CH_LEN - 1u);
                 L[i] += (v + ch_lpL) * gl * 0.75f; R[i] += (v + ch_lpR) * gr * 0.75f; S[i] += v * gs;
             }
             peak[t] = (int32_t)((int64_t)pk * tr->level / 400);

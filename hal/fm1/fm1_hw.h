@@ -133,6 +133,7 @@ enum {
     FM1_STAT_PAR_MODO, FM1_STAT_PAR_ESPERA_MAX,     /* núcleo 1: FM1_C1_*, la espera más larga en µs */
     FM1_STAT_PAR_MASK, FM1_STAT_CARGA0, FM1_STAT_CARGA1,   /* el reparto y lo que estima para cada núcleo, en µs */
     FM1_STAT_PAR_MISMO,                             /* trabajos que corrieron en el núcleo del audio */
+    FM1_STAT_VOCES,                                 /* voces sonando de T1..T6 (4 bits cada una) y el tope del pool (bits 24-31) */
     FM1_STAT_N
 };
 

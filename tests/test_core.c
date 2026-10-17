@@ -1769,6 +1769,117 @@ static void test_dual_core(void)
     CHECK(bm_audio_par_pick(COST, 180, m) == m);
 }
 
+/* 0.7.1: the BUNO-6 chorus kept its write position as a free-running counter and read with
+ * (float)ch_w - delay: past 2^24 samples (6.3 minutes of BUNO-6) float drops the units and the
+ * interpolated read jitters (measured: 57x the high-frequency noise at minute 7). One held note
+ * through CHORUS I, the second difference energy over the energy, at the start and after 6.5 min. */
+static double hf_ratio(uint32_t frames)
+{
+    static int32_t b[128 * 2];
+    double e = 0, h = 0;
+    int32_t p1 = 0, p2 = 0;
+    for (uint32_t f = 0; f < frames; f += 128) {
+        bm_app_audio(&app, b, 128);
+        for (int i = 0; i < 128; i++) {
+            int32_t x = b[2 * i] >> 8;
+            double d2 = (double)x - 2.0 * p1 + p2;
+            e += (double)x * x; h += d2 * d2; p2 = p1; p1 = x;
+        }
+    }
+    return e > 0 ? h / e : 0;
+}
+
+static void test_chorus_long(void)
+{
+    printf("BUNO-6 chorus: the same after 6.5 minutes playing\n");
+    boot(1);
+    for (int t = 0; t < 5; t++) app.pat.trk[t].mute = 1;
+    app.pat.trk[5].macro[0] = 50; app.pat.trk[5].macro[1] = 0;
+    app.pat.prm[5][BN_CHORUS] = BN_CH_I; app.pat.prm[5][BN_S] = 127; app.pat.prm[5][BN_VCA] = 1;
+    app.pat.trk[5].rsend = 0; app.pat.trk[5].send = 0; app.pat.meta.rv_mix = 0;
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_NOTE_ON; c.a = 5; c.b = 45; c.c = 100; bm_cmd_push(&app.cmdq, &c);
+    hf_ratio(44118);
+    double a = hf_ratio(20u * 44118u);
+    for (int k = 0; k < 19; k++) hf_ratio(20u * 44118u);                 /* to 6.7 min: ch_w past 2^24 */
+    double b = hf_ratio(20u * 44118u);
+    printf("  high-frequency ratio: start %.3g, after 6.7 min %.3g (%.1fx)\n", a, b, a > 0 ? b / a : 0);
+    CHECK(a > 0 && b < a * 3.0);
+}
+
+/* 0.7.1: the brake lowers a cap on the pool. Before, each overload faded a voice and the next notes
+ * started anyway (and were faded again): with the load high all the time the poly machines went
+ * quiet (on the device, 6 voices a second after 9 minutes). Now new notes steal inside the cap
+ * (tails first) and the cap goes back up when the load drops. */
+static int pool_voices(int track)
+{
+    int n = 0;
+    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++)
+        n += app.ctx.voice[i].active && !app.ctx.voice[i].fade && (track < 0 || app.ctx.voice[i].track == track);
+    return n;
+}
+
+static void note(int t, int n, int on)
+{
+    bm_cmd c; memset(&c, 0, sizeof c);
+    c.type = on ? CMD_NOTE_ON : CMD_NOTE_OFF; c.a = (uint8_t)t; c.b = (uint8_t)n; c.c = 110;
+    bm_cmd_push(&app.cmdq, &c);
+}
+
+static void test_brake(void)
+{
+    printf("voice brake: a cap that new notes respect, and that goes back up\n");
+    static int32_t b[256 * 2];
+    boot(1);
+    bm_audio_overload(&app.ctx);                                 /* load from elsewhere, no pool voices: not below the floor */
+    CHECK(app.ctx.pool_cap == BM_POOL_MIN);
+    for (int i = 0; i < BM_V_POOL_N; i++) bm_audio_relief(&app.ctx);
+    CHECK(app.ctx.pool_cap == 0);
+    for (int k = 0; k < 6; k++) { note(3, 50 + k * 3, 1); note(5, 48 + k * 4, 1); }
+    for (int k = 0; k < 4; k++) note(4, 60 + k * 3, 1);
+    for (int i = 0; i < 20; i++) bm_app_audio(&app, b, 256);
+    int n0 = pool_voices(-1);
+    for (int i = 0; i < 40; i++) { bm_audio_overload(&app.ctx); for (int k = 0; k < 4; k++) bm_app_audio(&app, b, 256); }
+    int n1 = pool_voices(-1);
+    printf("  held voices %d, after the brake %d (cap %d)\n", n0, n1, app.ctx.pool_cap);
+    CHECK(n0 >= 12 && app.ctx.pool_cap == BM_POOL_MIN && n1 <= BM_POOL_MIN);
+    /* new notes still sound, inside the cap */
+    for (int k = 0; k < 3; k++) note(5, 70 + k * 2, 1);
+    for (int i = 0; i < 4; i++) bm_app_audio(&app, b, 256);
+    int fresh = 0;
+    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++)
+        fresh += app.ctx.voice[i].active && !app.ctx.voice[i].fade && app.ctx.voice[i].track == 5 && app.ctx.voice[i].note >= 70;
+    printf("  three new notes on T6: %d sound, pool %d\n", fresh, pool_voices(-1));
+    CHECK(fresh == 3 && pool_voices(-1) <= BM_POOL_MIN);
+    /* the load dropped: the cap goes back up and a new chord gets all its voices */
+    for (int i = 0; i < BM_V_POOL_N; i++) bm_audio_relief(&app.ctx);
+    CHECK(app.ctx.pool_cap == 0);
+    for (int k = 0; k < 6; k++) note(3, 80 + k, 1);
+    for (int i = 0; i < 4; i++) bm_app_audio(&app, b, 256);
+    printf("  after relief: T4 %d voices, pool %d\n", pool_voices(3), pool_voices(-1));
+    CHECK(pool_voices(3) == 6 && pool_voices(-1) > BM_POOL_MIN + 4);
+}
+
+/* 0.7.1: a pad being stolen (its 2 ms fade, a note waiting) that reached the end of its take in the
+ * fade dropped the waiting note: it never sounded. Now the waiting note starts. */
+static void test_steal_at_end(void)
+{
+    printf("a voice stolen right at the end of its pad still hands over to the new note\n");
+    static int32_t b[64 * 2];
+    boot_loop();
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_NOTE_ON; c.a = 1; c.b = 0; c.c = 110; bm_cmd_push(&app.cmdq, &c);
+    bm_app_audio(&app, b, 64);
+    bm_voice *v = NULL;
+    for (int i = 0; i < BM_VOICES; i++) if (app.ctx.voice[i].active && app.ctx.voice[i].track == 1) v = &app.ctx.voice[i];
+    CHECK(v != NULL);
+    if (!v) return;
+    v->pos = ((v->end - v->start) << 16) - 1u;                     /* the take ends in the next sample */
+    v->fade = BM_STEAL_FADE; v->pend = 1; v->pend_track = 5; v->pend_note = 60; v->pend_vel = 100;
+    memset(v->pend_lk, BM_LOCK_NONE, 4); v->pend_legato = 0;
+    bm_app_audio(&app, b, 64);
+    printf("  after the pad ends: active %d, channel T%d, note %d\n", v->active, v->track + 1, v->note);
+    CHECK(v->active && v->track == 5 && v->note == 60 && !v->pend);
+}
+
 static void test_sounds(void)
 {
     printf("sonidos del usuario: un .bsnap de BITTAL y un banco de BX-7, guardados y elegidos con PRESETS\n");
@@ -2240,6 +2351,9 @@ int main(int argc, char **argv)
     test_sounds();
     test_printf();
     test_dual_core();
+    test_chorus_long();
+    test_brake();
+    test_steal_at_end();
     test_engines();
     test_key_screens();
     test_button_lights();

@@ -229,6 +229,7 @@ typedef struct bm_ctx {
     bm_engine eng[BM_TRACKS];
     bm_voice voice[BM_VOICES];
     uint32_t age;
+    uint8_t pool_cap;            /* freno: voces del pool que pueden sonar a la vez (0 = todas) */
 
     /* reloj */
     uint32_t spt_q16, acc_q16, sample_clock;
@@ -317,7 +318,13 @@ typedef struct bm_ctx {
 
 void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_audio_mem *mem);
 void bm_audio_render(bm_ctx *c, int32_t *out_lr, uint32_t out_frames);
-void bm_audio_overload(bm_ctx *c);
+/* Freno de voces (lo llama el aparato según la carga, antes del render). overload baja el tope de
+ * voces del pool por debajo de las que suenan y apaga la que menos se oye (las colas primero);
+ * con el tope, las notas nuevas roban dentro de él en vez de sonar y apagarse. relief lo sube de a
+ * una cuando la carga bajó: las voces vuelven. */
+int  bm_audio_overload(bm_ctx *c);          /* 1 si apagó una voz */
+void bm_audio_relief(bm_ctx *c);
+#define BM_POOL_MIN 4            /* el freno no baja de aquí: siempre suenan acordes */
 /* la otra tarea del audio en dos núcleos: calcula los canales de par_mask en el tramo pedido */
 void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n);
 /* el reparto que deja más parejos los dos núcleos con esos costos; cur si no mejora un 20 % */

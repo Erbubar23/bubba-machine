@@ -43,11 +43,19 @@ bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const ui
     if (lo == BM_V_POOL0)
         for (int i = 0; i < n; i++) { const bm_voice *v = &c->voice[lo + i]; mine += (v->active && v->track == track && !v->fade) || (v->pend && v->pend_track == track); }
     int full = lo == BM_V_POOL0 && mine >= VCAP[track % BM_TRACKS];   /* lleno: roba una suya */
+    /* el freno bajó el tope del pool (bm_audio_overload): con tantas sonando, se roba una */
+    int capped = 0;
+    if (lo == BM_V_POOL0 && c->pool_cap && !full) {
+        int busy = 0;
+        for (int i = 0; i < n; i++) { const bm_voice *v = &c->voice[lo + i]; busy += (v->active && !v->fade) || v->pend; }
+        capped = busy >= c->pool_cap;
+    }
 
     bm_voice *best = NULL;
     for (int i = 0; i < n; i++) {
         bm_voice *v = &c->voice[lo + i];
         if (full && !(v->active && v->track == track) && !(v->pend && v->pend_track == track)) continue;
+        if (capped && !v->active && !v->pend) continue;
         if (!v->active && !v->pend && !full) return v;
         if (!best) { best = v; continue; }
         int pv = voice_prio(v), pb = voice_prio(best);
@@ -89,6 +97,15 @@ static int32_t voice_fade_step(bm_ctx *c, bm_voice *v, int32_t s)
         }
     }
     return s;
+}
+
+/* La voz terminó sola (fin de la toma, envolvente en cero). Si la estaban robando (fade con una nota
+ * esperando), la nota que esperaba arranca ya: antes se perdía. */
+static void voice_end(bm_ctx *c, bm_voice *v)
+{
+    if (!v->pend) { v->active = 0; return; }
+    v->fade = 1;
+    (void)voice_fade_step(c, v, 0);
 }
 
 static uint8_t eff(const bm_voice *v, const bm_track *t, int i)
@@ -233,16 +250,16 @@ static bool acid_process(bm_engine *e, int32_t *buf, uint16_t frames)
             case ENV_ATK: v->env += ACID_ATK; if (v->env >= (1 << 30)) { v->env = 1 << 30; v->stage = ENV_DEC; } break;
             case ENV_REL:
                 v->env = (int32_t)(((int64_t)v->env * c_rel) >> 30);
-                if (v->env < (1 << 14)) { v->active = 0; v->pend = 0; }
+                if (v->env < (1 << 14)) voice_end(c, v);
                 break;
-            default: v->env = (int32_t)(((int64_t)v->env * c_amp) >> 30); if (v->env < (1 << 14)) { v->active = 0; v->pend = 0; } break;
+            default: v->env = (int32_t)(((int64_t)v->env * c_amp) >> 30); if (v->env < (1 << 14)) voice_end(c, v); break;
             }
             v->fenv = (int32_t)(((int64_t)v->fenv * c_f) >> 30);
             int32_t out = (int32_t)(((int64_t)y * (v->env >> 14)) >> 16);
             out = out * lvl >> 7;
             int fading = v->fade != 0;
             buf[i] += voice_fade_step(c, v, out);
-            if (fading && v->fade == 0) break;
+            if ((fading && v->fade == 0) || !v->active || v->track != e->track) break;   /* terminó o cambió de dueño */
         }
     }
     return any;
@@ -496,7 +513,7 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
             uint32_t lend = v->ph[2] ? v->ph[2] : span, lbeg = v->ph[2] ? v->ph[1] : 0;
             bool sus = v->loopv == PAD_LOOP && (v->gate || v->phase) && v->stage != ENV_REL;
             if (sus && off >= lend) { v->pos -= (lend - lbeg) << 16; off = v->pos >> 16; }   /* sostenido: el loop */
-            else if (off >= span) { v->active = 0; v->pend = 0; break; }                     /* suelto: hasta el final */
+            else if (off >= span) { voice_end(c, v); break; }                     /* suelto: hasta el final */
             int32_t idx = v->dir ? (int32_t)(v->end - 1 - off) : (int32_t)(v->start + off);
             int32_t s, dn = v->dir ? -1 : 1;
             if (herm) s = hermite(smp_at(m, idx - dn), smp_at(m, idx), smp_at(m, idx + dn), smp_at(m, idx + 2 * dn), v->pos & 0xFFFF);
@@ -517,7 +534,7 @@ static bool smp_process(bm_engine *e, int32_t *buf, uint16_t frames)
             buf[i] += voice_fade_step(c, v, out);
             if (fading && v->fade == 0) break;     /* la voz cambió de dueño o terminó */
             v->pos += v->step;
-            if (v->env < (1 << 14) && v->stage != ENV_ATK) { v->active = 0; v->pend = 0; }
+            if (v->env < (1 << 14) && v->stage != ENV_ATK) { voice_end(c, v); break; }
         }
     }
     c->st.smp_pos = pp; c->st.smp_pos_src = ps;

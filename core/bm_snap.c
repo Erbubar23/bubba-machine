@@ -22,6 +22,7 @@ int bm_snap_ok(const uint8_t *p, uint32_t len)
     if (eng == ENG_FM) return ntab == 0 && size == BM_FM_BANK;
     if (eng != ENG_MINI && eng != ENG_BITTAL && eng != ENG_BUNO) return 0;
     if (ntab > 2 || (eng != ENG_BITTAL && ntab)) return 0;
+    if (eng != ENG_BITTAL && p[7] < BM_SNAP_VER) return 0;    /* B-MINI y BUNO-6 de antes: otras macros */
     uint32_t at = BM_SNAP_HDR;
     for (int i = 0; i < ntab; i++) {
         if (at + 2 > size) return 0;

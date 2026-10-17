@@ -161,7 +161,7 @@ static void page(int btn_id, int pg)
 /* ------------------------------------------------------------ formato, flash y tomas */
 static void test_pack(void)
 {
-    printf("formato 7: rejillas, sampler, notas, máquinas fijas, MIDI OUT, loop de pad y loopera\n");
+    printf("formato 8: rejillas, sampler, notas, máquinas fijas, MIDI OUT, loop de pad y loopera\n");
     static bm_pattern p, q;
     static uint8_t b1[BM_PENDING_LEN], b2[BM_PENDING_LEN];
     bm_pattern_init(&p);
@@ -175,9 +175,10 @@ static void test_pack(void)
     CHECK(p.tr[0].st[9][9] & ST_LOCK);
     CHECK(p.trk[0].engine == ENG_DRUM && p.trk[1].engine == ENG_BREAK && p.trk[2].engine == ENG_ACID && p.trk[3].engine == ENG_FM
           && p.trk[4].engine == ENG_BITTAL && p.trk[5].engine == ENG_BUNO);
-    bm_track_set_engine(&p, 4, ENG_FM);                               /* las máquinas son fijas: no cambia */
-    CHECK(p.trk[4].engine == ENG_BITTAL && !bm_engine_ok(5, ENG_MINI) && bm_engine_ok(2, ENG_MINI));
-    bm_track_set_engine(&p, 2, ENG_MINI);                             /* T3: BB-303 o B-MINI */
+    bm_track_set_engine(&p, 0, ENG_FM);                               /* T1 y T2 son fijos */
+    bm_track_set_engine(&p, 1, ENG_MINI);
+    CHECK(p.trk[0].engine == ENG_DRUM && p.trk[1].engine == ENG_BREAK);
+    bm_track_set_engine(&p, 2, ENG_MINI);                             /* T3-T6: cualquiera de las 5 */
     CHECK(p.trk[2].engine == ENG_MINI && bm_kind(&p, 2) == KIND_NOTE && bm_is_grid(&p, 1) && !bm_is_tr(&p, 1));
     p.trk[5].midi_out = 1; p.trk[4].rsend = 77; p.meta.mfilt = 30; p.meta.beatfx = 3;
     for (int t = 2; t < 6; t++) {
@@ -681,10 +682,13 @@ static void test_navigation(void)
     CHECK(!app.box_on && app.track == 3 && app.view == V_CH && app.layer == L_NONE);
     btn(BTN_EDIT, 30);
     CHECK(app.page == PG_SOUND);
+    app.ed_page[3] = 0;                                       /* BX-7: ALGORITHM, con el dibujo */
     shot("12-fm");
-    enc(ENC_SELECT, 1);                                       /* SELECT: las pestañas */
-    CHECK(app.page == PG_MIX || app.page == PG_ENV);
-    enc(ENC_SELECT, -1); enc(ENC_SELECT, -1); enc(ENC_SELECT, -1);
+    enc(ENC_SELECT, 1);                                       /* SELECT: las páginas de la máquina y luego las pestañas */
+    CHECK(app.page == PG_SOUND && app.ed_page[3] == 1);
+    enc(ENC_SELECT, -1); enc(ENC_SELECT, -1);                 /* antes de la primera: MACHINE */
+    CHECK(app.page == PG_MACH);
+    enc(ENC_SELECT, -1); enc(ENC_SELECT, -1);
     CHECK(app.page == PG_MORE);
     shot("45-more");
     btn(BTN_FX, 30);
@@ -781,14 +785,15 @@ static void test_home(void)
     down(BTN_HOME); run_ms(40); btn(BTN_PLAY, 20); up(BTN_HOME); run_ms(60);
     CHECK(app.ctx.st.playing);                                /* HOME + PLAY: desde el paso 1 */
     btn(BTN_PLAY, 20);
-    /* HOME + EDIT: copiar un canal (T4 BX-7 a T5 BITTAL: las notas pasan, la máquina queda) */
+    /* HOME + EDIT: copiar un canal (T4 BX-7 a T5: las notas y la máquina con su sonido) */
     ch(3);
     down(BTN_HOME); run_ms(40); btn(BTN_EDIT, 30); up(BTN_HOME); run_ms(60);
     CHECK(app.view == V_COPYCH && app.copy_src == 3);
     for (int i = 0; i < 12 && app.copy_dst != 4; i++) enc(ENC_ALGO, 1);
     shot("49-copy-channel");
     btn(BTN_OCT_UP, 20); run_ms(100);
-    CHECK(app.pat.trk[4].engine == ENG_BITTAL && app.view == V_CH && app.track == 4);
+    CHECK(app.pat.trk[4].engine == ENG_FM && app.view == V_CH && app.track == 4);
+    CHECK(memcmp(app.pat.prm[4], app.pat.prm[3], BM_PRM) == 0 && app.pat.trk[4].source == app.pat.trk[3].source);
     CHECK(!bm_event_empty(bm_evc(&app.pat, 4, 10, 0)) && bm_evc(&app.pat, 4, 10, 0)->note == 57);
 }
 
@@ -1063,27 +1068,24 @@ static void test_layers(void)
 
 static void test_free_engines(void)
 {
-    printf("máquinas fijas: BR-8 BP-1 BB-303/B-MINI BX-7 BITTAL BUNO-6, ALGORITHM = modo, MIDI OUT\n");
+    printf("máquinas: BR-8 BP-1 y las de notas, ALGORITHM = el modo de cada una, MORE > MACHINE, MIDI OUT\n");
     boot(1);
     static const char *const NM[BM_TRACKS] = {"BR-8", "BP-1", "BB-303", "BX-7", "BITTAL", "BUNO-6"};
     for (int t = 0; t < BM_TRACKS; t++) CHECK(strcmp(bm_track_name(&app, t), NM[t]) == 0);
-    /* T3: ALGORITHM cambia BB-303 <-> B-MINI y las notas se quedan */
+    /* T3 BB-303: ALGORITHM = la forma de onda (ya no cambia de máquina) */
     ch(2);
-    int n0 = 0;
-    for (int s = 0; s < 16; s++) n0 += !bm_event_empty(bm_evc(&app.pat, 2, s, 0));
     enc(ENC_ALGO, 1);
-    CHECK(app.pat.trk[2].engine == ENG_MINI && app.ask == ASK_NONE);
-    int n1 = 0;
-    for (int s = 0; s < 16; s++) n1 += !bm_event_empty(bm_evc(&app.pat, 2, s, 0));
-    CHECK(n0 == n1 && n0 > 0);
+    CHECK(app.pat.trk[2].engine == ENG_ACID && app.pat.prm[2][AC_WAVE] == 1);
     enc(ENC_ALGO, -1);
-    CHECK(app.pat.trk[2].engine == ENG_ACID);
-    enc(ENC_SELECT, -1);                                        /* MAS: la fila MACHINE solo en T3 */
+    CHECK(app.pat.prm[2][AC_WAVE] == 0);
+    enc(ENC_SELECT, -1);                                        /* MORE: la fila MACHINE en T3-T6 */
     const char *nm; char v[24];
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
     CHECK(app.page == PG_MORE && strcmp(nm, "MACHINE") == 0 && strcmp(v, "BB-303") == 0);
-    enc(ENC_ALGO, 1);
-    CHECK(app.pat.trk[2].engine == ENG_MINI);
+    enc(ENC_ALGO, 1);                                           /* salta a la página MACHINE, sin cambiar nada */
+    CHECK(app.page == PG_MACH && app.pat.trk[2].engine == ENG_ACID && app.mach_arm != 1);
+    run_ms(2500);
+    CHECK(app.pat.trk[2].engine == ENG_ACID);
     ch(0);
     enc(ENC_SELECT, -1);
     bm_app_more_row(&app, 0, &nm, v, sizeof v);
@@ -1458,12 +1460,20 @@ static void test_fm(void)
     for (int v = 0; v < BM_VOICES; v++) if (app.ctx.voice[v].active && app.ctx.voice[v].track == 3) vivas++;
     CHECK(vivas == 0);
     /* ALGORITHM: uno por uno de los 32, y el dibujo de la topología */
-    app.pat.trk[3].macro[3] = 64;
-    int a0 = bm_fm_alg_of(&app.pat.trk[3], 64);
+    app.pat.prm[3][FX_ALG] = 0;                                /* 0 = el del patch */
+    int a0 = bm_fm_alg_of(&app.pat.trk[3], app.pat.prm[3]);
     enc(ENC_ALGO, 1);
-    CHECK(bm_fm_alg_of(&app.pat.trk[3], app.pat.trk[3].macro[3]) == (a0 < 32 ? a0 + 1 : 32));
+    CHECK(bm_fm_alg_of(&app.pat.trk[3], app.pat.prm[3]) == (a0 < 32 ? a0 + 1 : 32) && app.pat.prm[3][FX_ALG] == bm_fm_alg_of(&app.pat.trk[3], app.pat.prm[3]));
     for (int i = 0; i < 40; i++) enc(ENC_ALGO, -1);
-    CHECK(bm_fm_alg_of(&app.pat.trk[3], app.pat.trk[3].macro[3]) == 1);
+    CHECK(bm_fm_alg_of(&app.pat.trk[3], app.pat.prm[3]) == 1);
+    /* el LFO encima del patch: 0 = el del patch, si no el valor - 1 */
+    uint8_t fp[BM_FM_PATCH];
+    app.pat.prm[3][FX_LSPD] = 51;
+    bm_fm_patch_of(&app.pat.trk[3], app.pat.prm[3], NULL, fp);
+    CHECK(fp[137] == 50 && fp[BM_FM_ALG] == 0);
+    app.pat.prm[3][FX_LSPD] = 0;
+    bm_fm_patch_of(&app.pat.trk[3], app.pat.prm[3], NULL, fp);
+    CHECK(fp[137] == bm_fm_patch(app.pat.trk[3].source)[137]);
     uint8_t mods[6]; int8_t fb[2];
     bm_fm_alg_graph(0, mods, fb);                              /* algoritmo 1: 2>1 y 6>5>4>3, realimenta el 6 */
     CHECK(mods[5] == (1u << 4) && mods[3] == (1u << 2) && mods[2] == (1u << 1) && mods[1] == (1u << 0) && fb[0] == 0 && fb[1] == 0);
@@ -1484,16 +1494,33 @@ static void test_engines(void)
     shot("53-acid");
     double p_acid = solo_peak(2, bass, 4, 100, 250);
     double p_acc = solo_peak(2, bass, 4, 127, 250);
-    enc(ENC_PRESETS, 1);                                         /* cuadrada */
-    CHECK(app.pat.trk[2].source == 1);
-    CHECK(solo_peak(2, bass, 2, 100, 250) > 0.05);
-    enc(ENC_ALGO, 1);                                            /* T3: B-MINI */
+    int acid_ok = 0;                                             /* los sonidos de fábrica del BB-303 */
+    for (int i = 0; i < BM_AC_PRESETS; i++) {
+        while (app.pat.trk[2].source != (i + 1) % BM_AC_PRESETS) { enc(ENC_PRESETS, 1); run_ms(20); }
+        double pk = solo_peak(2, bass, 2, 100, 250);
+        if (pk > 0.05 && pk < 1.0) acid_ok++; else printf("  BB-303 %s: pico %.2f\n", bm_sound_name(&app, 2), pk);
+    }
+    CHECK(acid_ok == BM_AC_PRESETS && app.pat.trk[2].source == 0 && strcmp(bm_sound_name(&app, 2), "CLASSIC") == 0);
+    app.ed_page[2] = 1;
+    run_ms(1600);                                                /* sin el aviso de PRESETS encima */
+    shot("53b-acid-env");
+    CHECK(app_set_machine(&app, 2, ENG_MINI) == 0);              /* T3: B-MINI */
+    run_ms(40);
+    app.ed_page[2] = 5;                                          /* FILTER */
     CHECK(app.pat.trk[2].engine == ENG_MINI && bm_app_ed_on(&app));
     double p_mini = solo_peak(2, bass, 4, 100, 250);
     printf("  pico BB-303 %.2f (acento %.2f) · B-MINI %.2f\n", p_acid, p_acc, p_mini);
     CHECK(p_acid > 0.05 && p_acid < 1.0 && p_acc >= p_acid);
     CHECK(p_mini > 0.05 && p_mini < 1.0);
     shot("54-bmini");
+    app.ed_page[2] = 0;                                          /* CONTROL: MOD AMT lleva el destino */
+    app.pat.prm[2][MN_LAMT] = 0;
+    enc(ENC_K4, -10); run_ms(20);
+    CHECK(app.pat.prm[2][MN_LAMT] > 0 && app.pat.prm[2][MN_LDEST] == MN_D_PITCH);
+    enc(ENC_K4, 30); run_ms(20);
+    CHECK(app.pat.prm[2][MN_LAMT] > 0 && app.pat.prm[2][MN_LDEST] == MN_D_CUT);
+    shot("54b-bmini-control");
+    app.ed_page[2] = 5;
 
     /* el banco de fábrica: cada sonido de cada máquina suena sin saturar */
     static const uint8_t chord[3] = {57, 60, 64};
@@ -1530,7 +1557,9 @@ static void test_engines(void)
     enc(ENC_K1, 1); run_ms(20);
     CHECK(app.pat.prm[4][BT_FT] == ft + 1);
     btn(BTN_ENV, 20); run_ms(20);
-    CHECK(app.ed_page[4] == bm_engine_page_of(ENG_BITTAL, EPG_AMP));
+    CHECK(app.ed_page[4] == bm_engine_page_of(ENG_BITTAL, EPG_ENV1) && app.ed_page[4] == 6);   /* ENV 1 */
+    btn(BTN_ENV, 20); run_ms(20);
+    CHECK(app.ed_page[4] == bm_engine_page_of(ENG_BITTAL, EPG_ENV2) && app.ed_page[4] == 7);   /* otra vez: ENV 2 */
     shot("58-bittal-env");
     btn(BTN_LFO, 20); run_ms(20);
     CHECK(app.ed_page[4] == bm_engine_page_of(ENG_BITTAL, EPG_LFO));
@@ -1548,10 +1577,20 @@ static void test_engines(void)
     int chm = app.pat.prm[5][BN_CHORUS];
     enc(ENC_ALGO, 1);
     CHECK(app.pat.prm[5][BN_CHORUS] == (chm + 1) % BN_CHORUSES);
-    app.ed_page[5] = 0;
+    app.ed_page[5] = 2;
+    run_ms(1600);                                                /* sin el aviso del chorus encima */
     shot("60-buno-dco");
-    app.ed_page[5] = 5;
+    app.ed_page[5] = 7;
     shot("60b-buno-chorus");
+    btn(BTN_LFO, 20); run_ms(20);                                /* LFO: la página LFO (la primera, como en el panel) */
+    CHECK(app.page == PG_SOUND && app.ed_page[5] == 0);
+    btn(BTN_ENV, 20); run_ms(20);
+    CHECK(app.ed_page[5] == 6);
+    app.ed_page[5] = 4;                                          /* VCF MOD: K2 = la macro LFO (la de SEQ) */
+    int lfo = app.pat.trk[5].macro[3];
+    enc(ENC_K2, 2); run_ms(20);
+    CHECK(app.pat.trk[5].macro[3] == lfo + 2);
+    shot("60c-buno-vcf-mod");
 
     /* batería modelada: los 3 kits, los 16 instrumentos de cada uno suenan */
     ch(0);
@@ -1593,6 +1632,131 @@ static void test_engines(void)
     CHECK(peak_abs > 0.05 && peak_abs <= 1.0);
 }
 
+/* ------------------------------------------------------------ MACHINE: la máquina de T3-T6 */
+static int notes_of(int t)
+{
+    int n = 0;
+    for (int s = 0; s < BM_STEPS; s++)
+        for (int k = 0; k < BM_EVENTS; k++) n += !bm_event_empty(bm_evc(&app.pat, t, s, k));
+    return n;
+}
+
+static void test_machines(void)
+{
+    printf("máquinas en T3-T6: MACHINE (2 s en una la carga), las pesadas una vez, presets por máquina\n");
+    /* el núcleo: qué máquina va en cada canal, las pesadas y el cambio */
+    for (int t = 2; t < BM_TRACKS; t++)
+        for (int e = ENG_ACID; e < ENG_COUNT; e++) CHECK(bm_engine_ok(t, e));
+    CHECK(bm_engine_ok(0, ENG_DRUM) && bm_engine_ok(1, ENG_BREAK) && !bm_engine_ok(0, ENG_FM) && !bm_engine_ok(1, ENG_ACID));
+    CHECK(!bm_engine_ok(2, ENG_DRUM) && !bm_engine_ok(5, ENG_BREAK));
+    CHECK(bm_engine_heavy(ENG_BUNO) && bm_engine_heavy(ENG_BITTAL) && !bm_engine_heavy(ENG_FM) && !bm_engine_heavy(ENG_ACID) && !bm_engine_heavy(ENG_MINI));
+    static bm_pattern p, q;
+    static uint8_t b[BM_PENDING_LEN];
+    bm_pattern_init(&p);
+    CHECK(bm_machine_conflict(&p, 2, ENG_BUNO) == 5 && bm_machine_conflict(&p, 2, ENG_BITTAL) == 4);
+    CHECK(bm_machine_conflict(&p, 2, ENG_FM) < 0 && bm_machine_conflict(&p, 5, ENG_BUNO) < 0);
+    bm_track_set_engine(&p, 2, ENG_BUNO);                               /* BUNO-6 ya está en T6: no */
+    CHECK(p.trk[2].engine == ENG_ACID);
+    bm_event *e = bm_ev(&p, 3, 4, 0);
+    e->note = 60; e->vel = 99; e->len = 3; e->lk[1] = 99;
+    p.trk[3].length = 24; p.trk[3].level = 77;
+    bm_track_set_engine(&p, 3, ENG_MINI);                               /* las notas quedan, sin P-Locks */
+    CHECK(p.trk[3].engine == ENG_MINI && e->note == 60 && e->vel == 99 && e->len == 3 && e->lk[1] == BM_LOCK_NONE);
+    CHECK(p.trk[3].length == 24 && p.trk[3].level == 77 && p.trk[3].source == 0);
+    CHECK(memcmp(p.trk[3].macro, bm_snap_get(ENG_MINI, 0) + 36, 4) == 0);
+    /* al leer un patrón, una pesada repetida vuelve a la máquina de fábrica de su canal */
+    p.trk[3].engine = ENG_BUNO;
+    int n = bm_pattern_pack(&p, b, sizeof b);
+    CHECK(n > 0 && bm_pattern_unpack(&q, b, n) == n);
+    CHECK(q.trk[5].engine == ENG_BUNO && q.trk[3].engine == ENG_FM && bm_evc(&q, 3, 4, 0)->note == 60);
+    p.trk[4].engine = ENG_FM; p.trk[2].engine = ENG_BITTAL; p.trk[3].engine = ENG_BITTAL;   /* ninguna en la suya: queda la primera */
+    n = bm_pattern_pack(&p, b, sizeof b);
+    CHECK(bm_pattern_unpack(&q, b, n) == n && q.trk[2].engine == ENG_BITTAL && q.trk[3].engine == ENG_FM && q.trk[4].engine == ENG_FM);
+
+    /* PRESETS: solo los sonidos de la máquina del canal */
+    boot(1);
+    CHECK(bm_sound_count(&app, 2) == BM_AC_PRESETS && bm_sound_count(&app, 3) == bm_fm_count());
+    CHECK(bm_sound_count(&app, 4) == bm_snap_count(ENG_BITTAL) && bm_sound_count(&app, 5) == bm_snap_count(ENG_BUNO));
+    ch(2);
+    enc(ENC_PRESETS, -1); run_ms(20);                                   /* da la vuelta dentro del BB-303 */
+    CHECK(app.pat.trk[2].source == BM_AC_PRESETS - 1 && app.pat.trk[2].engine == ENG_ACID);
+    CHECK(app.pat.trk[2].macro[0] == bm_ac_presets[BM_AC_PRESETS - 1].cut && strcmp(bm_sound_name(&app, 2), bm_ac_presets[BM_AC_PRESETS - 1].name) == 0);
+
+    /* la página MACHINE: SELECT a la izquierda de la primera página de SOUND */
+    ch(3);
+    page(BTN_EDIT, PG_SOUND);
+    app.ed_page[3] = 0;
+    enc(ENC_SELECT, -1);
+    CHECK(app.page == PG_MACH && app.mach_sel == ENG_FM && !app.mach_arm);
+    const char *s, *al, *pr;
+    bm_app_bigknobs(&app, &s, &al, &pr);
+    CHECK(strcmp(al, "MACHINE") == 0);
+    shot("67-machine");
+    int n4 = notes_of(3);
+    CHECK(n4 > 0);
+    enc(ENC_ALGO, -1);                                                  /* a B-MINI: corre la cuenta */
+    CHECK(app.mach_sel == ENG_MINI && app.mach_arm == 1);
+    run_ms(1000);
+    shot("67b-machine-countdown");
+    CHECK(app.pat.trk[3].engine == ENG_FM);
+    enc(ENC_ALGO, 1);                                                   /* irse antes de los 2 s: nada */
+    CHECK(app.mach_sel == ENG_FM && !app.mach_arm);
+    run_ms(2500);
+    CHECK(app.pat.trk[3].engine == ENG_FM);
+    enc(ENC_ALGO, -1); run_ms(1200); enc(ENC_ALGO, -1); run_ms(1200);   /* B-MINI 1.2 s y luego BB-303 1.2 s */
+    CHECK(app.pat.trk[3].engine == ENG_FM && app.mach_sel == ENG_ACID);
+    enc(ENC_ALGO, 1); run_ms(2200);                                     /* quedarse 2 s: T4 es B-MINI */
+    CHECK(app.pat.trk[3].engine == ENG_MINI && notes_of(3) == n4 && app.page == PG_MACH && !app.mach_arm);
+    CHECK(strcmp(app.toast, "T4 = B-MINI") == 0 && app.pat.trk[3].source == 0);
+    enc(ENC_ALGO, 2);                                                   /* BITTAL ya está en T5: apagada, sin cuenta */
+    CHECK(app.mach_sel == ENG_BITTAL && !app.mach_arm && strcmp(app.toast, "BITTAL ALREADY ON T5") == 0);
+    shot("67c-machine-heavy");
+    run_ms(2500);
+    CHECK(app.pat.trk[3].engine == ENG_MINI);
+    btn(BTN_EDIT, 30);                                                  /* EDIT: a la última página de SOUND */
+    CHECK(app.page == PG_SOUND);
+    btn(BTN_HOME, 30); btn(BTN_SEQ, 30); btn(BTN_EDIT, 30);
+    CHECK(app.track == 3 && app.page == PG_SOUND);                      /* volver no pasa por MACHINE */
+
+    /* BX-7 en T3: polifónico (las voces van por máquina, no por canal) */
+    CHECK(app_set_machine(&app, 2, ENG_FM) == 0);
+    run_ms(40);
+    CHECK(app.pat.trk[2].engine == ENG_FM);
+    for (int i = 0; i < BM_TRACKS; i++) app.pat.trk[i].mute = (uint8_t)(i != 2);
+    bm_cmd c; memset(&c, 0, sizeof c);
+    static const uint8_t ch3[3] = {48, 55, 64};
+    for (int i = 0; i < 3; i++) { c.type = CMD_NOTE_ON; c.a = 2; c.b = ch3[i]; c.c = 100; bm_cmd_push(&app.cmdq, &c); }
+    run_ms(60);
+    int v3 = 0;
+    for (int i = 0; i < BM_VOICES; i++) v3 += app.ctx.voice[i].active && app.ctx.voice[i].track == 2;
+    CHECK(v3 == 3);
+    c.type = CMD_ALL_OFF; bm_cmd_push(&app.cmdq, &c);
+    run_ms(300);
+
+    /* HOME + EDIT: copiar T6 (BUNO-6) a otro canal no duplica la pesada */
+    for (int i = 0; i < BM_TRACKS; i++) app.pat.trk[i].mute = 0;
+    ch(5);
+    down(BTN_HOME); run_ms(40); btn(BTN_EDIT, 30); up(BTN_HOME); run_ms(60);
+    CHECK(app.view == V_COPYCH && app.copy_src == 5);
+    int dst = app.copy_dst, de = app.pat.trk[dst].engine;
+    btn(BTN_OCT_UP, 20); run_ms(100);
+    CHECK(app.pat.trk[dst].engine == de && strcmp(app.toast, "BUNO-6 ALREADY ON T6") == 0);
+    CHECK(app_machine_track(&app, ENG_BUNO) == 5);
+
+    /* copiar T6 a otro patrón que ya tiene BUNO-6 en otro canal: no se copia */
+    btn(BTN_HOME, 30);
+    CHECK(app_set_machine(&app, 5, ENG_ACID) == 0); run_ms(40);
+    CHECK(app_set_machine(&app, 2, ENG_BUNO) == 0); run_ms(40);
+    app_job(&app, JOB_COPY_PAT, 1); run_ms(400);                        /* A02: BUNO-6 en T3 */
+    CHECK(app_set_machine(&app, 2, ENG_ACID) == 0); run_ms(40);
+    CHECK(app_set_machine(&app, 5, ENG_BUNO) == 0); run_ms(40);
+    app_job(&app, JOB_COPY_TRK, 1 | (5 << 4)); run_ms(400);
+    CHECK(strcmp(app.toast, "BUNO-6 ALREADY ON T3") == 0);
+    int len = bm_store_read(&app.store, 1, b, sizeof b);
+    CHECK(len > 0 && bm_pattern_unpack(&q, b, len) == len && q.trk[2].engine == ENG_BUNO && q.trk[5].engine == ENG_ACID);
+    CHECK(app.pat.trk[5].engine == ENG_BUNO && app.pat.trk[2].engine == ENG_ACID);
+}
+
 /* Hasta la v1 no hay compatibilidad hacia atrás: un patrón de 0.3 (formato 3) no se lee. */
 static void test_migrate(void)
 {
@@ -1604,6 +1768,20 @@ static void test_migrate(void)
     CHECK(n > 0 && bm_pattern_unpack(&q, b, n) == n);
     b[offsetof(bm_meta, fmt)] = 3;
     CHECK(bm_pattern_unpack(&q, b, n) < 0);
+    b[offsetof(bm_meta, fmt)] = 7;                                /* 0.7.0: otras páginas y máquinas fijas */
+    CHECK(BM_PAT_FMT == 8 && bm_pattern_unpack(&q, b, n) < 0);
+    /* al arrancar, un patrón de formato 7 en la flash se borra (sin conversión) */
+    bm_sim_flash_erase_all(&sim);
+    bm_platform pf;
+    bm_sim_platform(&sim, &pf);
+    static bm_store st;
+    bm_store_mount(&st, pf.flash);
+    bm_settings s; memset(&s, 0, sizeof s); s.ver = BM_FMT;
+    bm_store_write_glob(&st, (const uint8_t *)&s, sizeof s);
+    bm_store_write(&st, 3, b, (uint16_t)n);
+    CHECK(bm_store_has(&st, 3));
+    boot(0);
+    CHECK(!bm_store_has(&app.store, 3) && app.pat.trk[2].engine == ENG_ACID);
 }
 
 static void test_loop(void)
@@ -1767,6 +1945,117 @@ static void test_dual_core(void)
     printf("  elección con los costos del aparato: reparto 0x%02X, núcleos %u y %u\n", m, l0, l1);
     CHECK((m & 1) && (l0 > l1 ? l0 - l1 : l1 - l0) <= 60);
     CHECK(bm_audio_par_pick(COST, 180, m) == m);
+}
+
+/* 0.7.1: the BUNO-6 chorus kept its write position as a free-running counter and read with
+ * (float)ch_w - delay: past 2^24 samples (6.3 minutes of BUNO-6) float drops the units and the
+ * interpolated read jitters (measured: 57x the high-frequency noise at minute 7). One held note
+ * through CHORUS I, the second difference energy over the energy, at the start and after 6.5 min. */
+static double hf_ratio(uint32_t frames)
+{
+    static int32_t b[128 * 2];
+    double e = 0, h = 0;
+    int32_t p1 = 0, p2 = 0;
+    for (uint32_t f = 0; f < frames; f += 128) {
+        bm_app_audio(&app, b, 128);
+        for (int i = 0; i < 128; i++) {
+            int32_t x = b[2 * i] >> 8;
+            double d2 = (double)x - 2.0 * p1 + p2;
+            e += (double)x * x; h += d2 * d2; p2 = p1; p1 = x;
+        }
+    }
+    return e > 0 ? h / e : 0;
+}
+
+static void test_chorus_long(void)
+{
+    printf("BUNO-6 chorus: the same after 6.5 minutes playing\n");
+    boot(1);
+    for (int t = 0; t < 5; t++) app.pat.trk[t].mute = 1;
+    app.pat.trk[5].macro[0] = 50; app.pat.trk[5].macro[1] = 0;
+    app.pat.prm[5][BN_CHORUS] = BN_CH_I; app.pat.prm[5][BN_S] = 127; app.pat.prm[5][BN_VCA] = 1;
+    app.pat.trk[5].rsend = 0; app.pat.trk[5].send = 0; app.pat.meta.rv_mix = 0;
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_NOTE_ON; c.a = 5; c.b = 45; c.c = 100; bm_cmd_push(&app.cmdq, &c);
+    hf_ratio(44118);
+    double a = hf_ratio(20u * 44118u);
+    for (int k = 0; k < 19; k++) hf_ratio(20u * 44118u);                 /* to 6.7 min: ch_w past 2^24 */
+    double b = hf_ratio(20u * 44118u);
+    printf("  high-frequency ratio: start %.3g, after 6.7 min %.3g (%.1fx)\n", a, b, a > 0 ? b / a : 0);
+    CHECK(a > 0 && b < a * 3.0);
+}
+
+/* 0.7.1: the brake lowers a cap on the pool. Before, each overload faded a voice and the next notes
+ * started anyway (and were faded again): with the load high all the time the poly machines went
+ * quiet (on the device, 6 voices a second after 9 minutes). Now new notes steal inside the cap
+ * (tails first) and the cap goes back up when the load drops. */
+static int pool_voices(int track)
+{
+    int n = 0;
+    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++)
+        n += app.ctx.voice[i].active && !app.ctx.voice[i].fade && (track < 0 || app.ctx.voice[i].track == track);
+    return n;
+}
+
+static void note(int t, int n, int on)
+{
+    bm_cmd c; memset(&c, 0, sizeof c);
+    c.type = on ? CMD_NOTE_ON : CMD_NOTE_OFF; c.a = (uint8_t)t; c.b = (uint8_t)n; c.c = 110;
+    bm_cmd_push(&app.cmdq, &c);
+}
+
+static void test_brake(void)
+{
+    printf("voice brake: a cap that new notes respect, and that goes back up\n");
+    static int32_t b[256 * 2];
+    boot(1);
+    bm_audio_overload(&app.ctx);                                 /* load from elsewhere, no pool voices: not below the floor */
+    CHECK(app.ctx.pool_cap == BM_POOL_MIN);
+    for (int i = 0; i < BM_V_POOL_N; i++) bm_audio_relief(&app.ctx);
+    CHECK(app.ctx.pool_cap == 0);
+    for (int k = 0; k < 6; k++) { note(3, 50 + k * 3, 1); note(5, 48 + k * 4, 1); }
+    for (int k = 0; k < 4; k++) note(4, 60 + k * 3, 1);
+    for (int i = 0; i < 20; i++) bm_app_audio(&app, b, 256);
+    int n0 = pool_voices(-1);
+    for (int i = 0; i < 40; i++) { bm_audio_overload(&app.ctx); for (int k = 0; k < 4; k++) bm_app_audio(&app, b, 256); }
+    int n1 = pool_voices(-1);
+    printf("  held voices %d, after the brake %d (cap %d)\n", n0, n1, app.ctx.pool_cap);
+    CHECK(n0 >= 12 && app.ctx.pool_cap == BM_POOL_MIN && n1 <= BM_POOL_MIN);
+    /* new notes still sound, inside the cap */
+    for (int k = 0; k < 3; k++) note(5, 70 + k * 2, 1);
+    for (int i = 0; i < 4; i++) bm_app_audio(&app, b, 256);
+    int fresh = 0;
+    for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++)
+        fresh += app.ctx.voice[i].active && !app.ctx.voice[i].fade && app.ctx.voice[i].track == 5 && app.ctx.voice[i].note >= 70;
+    printf("  three new notes on T6: %d sound, pool %d\n", fresh, pool_voices(-1));
+    CHECK(fresh == 3 && pool_voices(-1) <= BM_POOL_MIN);
+    /* the load dropped: the cap goes back up and a new chord gets all its voices */
+    for (int i = 0; i < BM_V_POOL_N; i++) bm_audio_relief(&app.ctx);
+    CHECK(app.ctx.pool_cap == 0);
+    for (int k = 0; k < 6; k++) note(3, 80 + k, 1);
+    for (int i = 0; i < 4; i++) bm_app_audio(&app, b, 256);
+    printf("  after relief: T4 %d voices, pool %d\n", pool_voices(3), pool_voices(-1));
+    CHECK(pool_voices(3) == 6 && pool_voices(-1) > BM_POOL_MIN + 4);
+}
+
+/* 0.7.1: a pad being stolen (its 2 ms fade, a note waiting) that reached the end of its take in the
+ * fade dropped the waiting note: it never sounded. Now the waiting note starts. */
+static void test_steal_at_end(void)
+{
+    printf("a voice stolen right at the end of its pad still hands over to the new note\n");
+    static int32_t b[64 * 2];
+    boot_loop();
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_NOTE_ON; c.a = 1; c.b = 0; c.c = 110; bm_cmd_push(&app.cmdq, &c);
+    bm_app_audio(&app, b, 64);
+    bm_voice *v = NULL;
+    for (int i = 0; i < BM_VOICES; i++) if (app.ctx.voice[i].active && app.ctx.voice[i].track == 1) v = &app.ctx.voice[i];
+    CHECK(v != NULL);
+    if (!v) return;
+    v->pos = ((v->end - v->start) << 16) - 1u;                     /* the take ends in the next sample */
+    v->fade = BM_STEAL_FADE; v->pend = 1; v->pend_track = 5; v->pend_note = 60; v->pend_vel = 100;
+    memset(v->pend_lk, BM_LOCK_NONE, 4); v->pend_legato = 0;
+    bm_app_audio(&app, b, 64);
+    printf("  after the pad ends: active %d, channel T%d, note %d\n", v->active, v->track + 1, v->note);
+    CHECK(v->active && v->track == 5 && v->note == 60 && !v->pend);
 }
 
 static void test_sounds(void)
@@ -2240,7 +2529,11 @@ int main(int argc, char **argv)
     test_sounds();
     test_printf();
     test_dual_core();
+    test_chorus_long();
+    test_brake();
+    test_steal_at_end();
     test_engines();
+    test_machines();
     test_key_screens();
     test_button_lights();
     test_knobs_nav();

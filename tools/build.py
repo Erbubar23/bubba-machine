@@ -5,6 +5,8 @@
 
   py -3 tools/build.py assets   regenera fuente, sonidos, ondas y logo (Python + numpy + Pillow)
   py -3 tools/build.py test     compila y corre las pruebas en PC (gcc) y guarda capturas
+  py -3 tools/build.py longrun [min] [demo|dense|wrap|all] [asan]
+                                minutos de audio sin parar (tests/test_longrun.c): NaN, voces, freno, CPU
   py -3 tools/build.py web      compila el emulador a WebAssembly (web/bm.js)
   py -3 tools/build.py site     genera la documentación del sitio (web/docs/) desde los .md
   py -3 tools/build.py fm1 [diag|bubba]
@@ -73,6 +75,25 @@ def test():
         print('capturas en assets/screens/')
     except ImportError:
         print('(sin Pillow: las capturas quedan en build/out/*.ppm)')
+
+
+def longrun(args):
+    """tests/test_longrun.c: minutes of audio offline (args: [minutes] [demo|dense|wrap|all] [asan])"""
+    asan = 'asan' in args
+    args = [a for a in args if a != 'asan']
+    lang()
+    os.makedirs(os.path.join(ROOT, 'build', 'out'), exist_ok=True)
+    if asan:
+        # shift-base fuera: correr a la izquierda un negativo es lo de siempre en DSP (y está definido en gcc)
+        san = '-fsanitize=address,undefined,float-cast-overflow -fno-sanitize=shift-base -fno-omit-frame-pointer'
+        cmd = (cxx_objs('g++ ' + san, 'build/aobj') +
+               f'gcc {CFLAGS} {san} {SRC} tests/test_longrun.c build/aobj/*.o -lstdc++ -lm -o build/test_longrun_asan && '
+               f'./build/test_longrun_asan {" ".join(args)}')
+    else:
+        cmd = (cxx_objs('g++', 'build/obj') +
+               f'gcc {CFLAGS} {SRC} tests/test_longrun.c build/obj/*.o -lstdc++ -lm -o build/test_longrun && '
+               f'./build/test_longrun {" ".join(args)}')
+    docker(GCC_IMAGE, cmd)
 
 
 def web():
@@ -215,6 +236,8 @@ def main():
         test()
     if what in ('web', 'all'):
         web()
+    if what == 'longrun':
+        longrun(sys.argv[2:])
     if what == 'fm1':
         fm1(sys.argv[2] if len(sys.argv) > 2 else 'diag')
     if what in ('site', 'all'):

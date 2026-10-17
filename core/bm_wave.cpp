@@ -174,16 +174,19 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     int ld = prm[MN_LDEST] % MN_LDESTS;
     float pitch = z.note + (ld == MN_D_PITCH ? lfo * lamt * lamt * 2.0f : 0.0f);
     float f0 = hz_of(pitch) / fs_;
-    float tune = bip(mac[2]) * 1.0f;                                /* OSC TUNE: ±1 semitono a 2 y 3 */
+    float tune = bip(prm[MN_TUNE]) * 1.0f;                          /* TUNE: ±1 semitono a 2 y 3 */
     float fr[3];
     fr[0] = f0 * RANGE[prm[MN_R1] % 5];
     fr[1] = f0 * RANGE[prm[MN_R2] % 5] * SemitonesToRatioSafe(bip(prm[MN_T2]) * 7.0f + tune);
     fr[2] = f0 * RANGE[prm[MN_R3] % 5] * SemitonesToRatioSafe(bip(prm[MN_T3]) * 7.0f - tune * 0.5f);
     for (int i = 0; i < 3; i++) CONSTRAIN(fr[i], 0.00001f, 0.25f);
 
-    static const uint8_t KI[8] = {MN_FA, MN_FD, 0xFF, MN_FR, MN_AA, MN_AD, 0xFF, MN_AR};
+    /* las dos envolventes; la macro F DECAY (64 = nada) corre la caída de la de filtro */
+    static const uint8_t KI[8] = {0, 1, 0xFF, 3, 4, 5, 0xFF, 7};
     static const float SC[8] = {1, 1, 1, 1, 1, 1, 1, 1};
-    env_coefs(z, KI, prm, SC);
+    int fd = prm[MN_FD] + (int)mac[3] - 64;
+    const uint8_t ev[8] = {prm[MN_FA], (uint8_t)(fd < 0 ? 0 : fd > 127 ? 127 : fd), 0, prm[MN_FR], prm[MN_AA], prm[MN_AD], 0, prm[MN_AR]};
+    env_coefs(z, KI, ev, SC);
 
     const uint8_t W[3] = {(uint8_t)(prm[MN_W1] % MN_WAVES), (uint8_t)(prm[MN_W2] % MN_WAVES), (uint8_t)(prm[MN_W3] % MN_WAVES)};
     const float Lv[3] = {pc(prm[MN_L1]), pc(prm[MN_L2]), pc(prm[MN_L3])};
@@ -198,7 +201,7 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     for (int i = 0; i < n; i++) b1[i] = clip3(b1[i] * pre);
 
     /* filtro: CUTOFF, EMPHASIS y CONTOUR (la cantidad de la envolvente de filtro) */
-    float cut = (float)mac[0] * (120.0f / 127.0f) + pc(mac[3]) * 72.0f * z.ef.v
+    float cut = (float)mac[0] * (120.0f / 127.0f) + pc(mac[2]) * 72.0f * z.ef.v
               + pc(prm[MN_KEYT]) * (z.note - 60.0f) + pc(prm[MN_VELF]) * z.vel * 24.0f
               + (ld == MN_D_CUT ? lfo * lamt * 36.0f : 0.0f);
     if (z.first) { z.cut_prev = cut; z.first = 0; }
@@ -240,7 +243,7 @@ int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     float pitch = z.note + lfo * pc(prm[BN_LFODCO]) * pc(prm[BN_LFODCO]) * 3.0f;
     float f0 = hz_of(pitch) / fs_ * RNG[prm[BN_RANGE] % 3];
     CONSTRAIN(f0, 0.00001f, 0.25f);
-    float pwm = pc(mac[3]), mod;
+    float pwm = pc(prm[BN_PWM]), mod;
     switch (prm[BN_PWMSRC] % BN_PWMS) {
     case BN_PWM_MAN: mod = 1.0f; break;
     case BN_PWM_ENV: mod = z.ef.v; break;
@@ -268,7 +271,7 @@ int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     }
     /* VCF: FREQ, RES, ENV (con su polaridad), LFO y teclado */
     float env = pc(mac[2]) * 84.0f * z.ef.v * (prm[BN_ENVPOL] ? -1.0f : 1.0f);
-    float cut = (float)mac[0] * (120.0f / 127.0f) + env + pc(prm[BN_LFOVCF]) * lfo * 30.0f
+    float cut = (float)mac[0] * (120.0f / 127.0f) + env + pc(mac[3]) * lfo * 30.0f   /* macro LFO: el LFO al VCF */
               + pc(prm[BN_KEYT]) * (z.note - 60.0f) + pc(prm[BN_VELF]) * z.vel * 20.0f;
     if (z.first) { z.cut_prev = cut; z.first = 0; }
     float kres = pc(mac[1]) * 3.9f;

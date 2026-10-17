@@ -59,7 +59,8 @@ void app_paste_track(bm_app *a, int t);
 void *app_track_data(bm_app *a, int t);
 size_t app_track_size(int t);
 void app_init_sound(bm_app *a, int t);
-void app_bass_machine(bm_app *a, int eng);          /* T3: BB-303 o B-MINI (las notas quedan) */
+int  app_set_machine(bm_app *a, int t, int eng);     /* T3-T6: otra máquina (las notas quedan); 0 = se cambió */
+int  app_machine_track(const bm_app *a, int engine); /* el canal T3-T6 con esa máquina, o -1 */
 
 /* entrada (bm_input.c) */
 void app_on_gesture(void *u, int id, bm_gkind k);

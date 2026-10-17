@@ -182,6 +182,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_PRESET:
         if (k->a >= BM_TRACKS) break;
         if (bm_is_tr(c->pat, k->a)) bm_kit_apply(bm_trk_tr(c->pat, k->a), k->b);
+        else if (k->b == 0xFF) { bm_prm_defaults(c->pat, k->a); break; }   /* INIT SOUND: el preset queda */
         else bm_preset_apply(c->pat, k->a, k->b);
         c->pat->trk[k->a].source = k->b;
         break;
@@ -279,8 +280,17 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_SMP_PREVIEW:
         bm_smp_preview(c, k->b, (uint32_t)k->u.i & 0xFFFFu, (uint32_t)k->u.i >> 16, k->a);
         break;
+    case CMD_CLONE:                       /* la máquina y el sonido de un canal en otro (sin pasar por el preset) */
+        if (k->a < BM_TR_TRACKS || k->a >= BM_TRACKS || k->b < BM_TR_TRACKS || k->b >= BM_TRACKS || k->a == k->b) break;
+        if (bm_machine_conflict(c->pat, k->b, c->pat->trk[k->a].engine) >= 0) break;
+        c->pat->trk[k->b].engine = c->pat->trk[k->a].engine;
+        memcpy(c->pat->prm[k->b], c->pat->prm[k->a], BM_PRM);
+        bm_engines_sync(c);
+        c->st.edits++;
+        break;
     case CMD_ENGINE:
-        if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b)) {
+        if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b) && c->pat->trk[k->a].engine != k->b
+            && bm_machine_conflict(c->pat, k->a, k->b) < 0) {
             for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == k->a) { c->voice[i].active = 0; c->voice[i].pend = 0; }
             bm_track_set_engine(c->pat, k->a, k->b);
             bm_engines_sync(c);
@@ -343,15 +353,32 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     }
 }
 
-void bm_audio_overload(bm_ctx *c)
+int bm_audio_overload(bm_ctx *c)
 {
     bm_voice *worst = NULL;
+    int n = 0;
     for (int i = BM_V_POOL0; i < BM_V_POOL0 + BM_V_POOL_N; i++) {
         bm_voice *v = &c->voice[i];
+        if (v->pend) n++;
         if (!v->active || v->fade) continue;
-        if (!worst || v->env < worst->env) worst = v;
+        n += !v->pend;
+        /* la que menos se oye, y entre una cola y una nota sostenida, la cola */
+        int tail = v->stage == ENV_REL, wt = worst && worst->stage == ENV_REL;
+        if (!worst || tail > wt || (tail == wt && v->env < worst->env)) worst = v;
     }
-    if (worst) bm_voice_fade(worst);
+    int cap = c->pool_cap ? c->pool_cap : BM_V_POOL_N;
+    if (n < cap) cap = n;                       /* el tope arranca de lo que suena ahora */
+    if (cap > BM_POOL_MIN) cap--;
+    else cap = BM_POOL_MIN;                     /* la carga es de otro lado (batería, FX): no se baja más */
+    c->pool_cap = (uint8_t)cap;
+    if (n <= cap || !worst) return 0;
+    bm_voice_fade(worst);
+    return 1;
+}
+
+void bm_audio_relief(bm_ctx *c)
+{
+    if (c->pool_cap && ++c->pool_cap >= BM_V_POOL_N) c->pool_cap = 0;
 }
 
 /* ticks entre dos lecturas del reloj; leído desde el otro núcleo puede ir un pelo atrás: cero */

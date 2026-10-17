@@ -83,12 +83,6 @@ void bm_track_clear_events(bm_pattern *p, int track)
             bm_event_clear(bm_ev(p, track, s, e));
 }
 
-static void sound_defaults(bm_track *t, int engine)
-{
-    if (engine == ENG_ACID) { t->macro[0] = 40; t->macro[1] = 96; t->macro[2] = 56; t->macro[3] = 90; t->source = 0; t->glide = 40; }
-    else if (engine == ENG_FM) { t->macro[0] = 64; t->macro[1] = 64; t->macro[2] = 64; t->macro[3] = 64; t->source = 0; t->attack = 0; t->release = 64; }
-}
-
 int bm_track_engine(int track)
 {
     static const uint8_t E[BM_TRACKS] = {ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_FM, ENG_BITTAL, ENG_BUNO};
@@ -97,19 +91,55 @@ int bm_track_engine(int track)
 
 bool bm_engine_ok(int track, int engine)
 {
-    if (track == 2) return engine == ENG_ACID || engine == ENG_MINI;
+    if (track >= BM_TR_TRACKS && track < BM_TRACKS) return engine >= ENG_ACID && engine < ENG_COUNT;
     return engine == bm_track_engine(track);
+}
+
+int bm_machine_conflict(const bm_pattern *p, int track, int engine)
+{
+    if (!bm_engine_heavy(engine)) return -1;
+    for (int o = BM_TR_TRACKS; o < BM_TRACKS; o++)
+        if (o != track && p->trk[o].engine == engine) return o;
+    return -1;
+}
+
+/* la máquina y su primer preset, sin P-Locks en las notas (los de otra máquina no significan nada) */
+static void machine_put(bm_pattern *p, int track, int engine)
+{
+    bm_track *t = &p->trk[track];
+    t->engine = (uint8_t)engine;
+    t->source = 0;
+    bm_preset_apply(p, track, 0);
+    for (int s = 0; s < BM_STEPS; s++)
+        for (int k = 0; k < BM_EVENTS; k++) {
+            bm_event *e = bm_ev(p, track, s, k);
+            e->lk[0] = e->lk[1] = e->lk[2] = e->lk[3] = BM_LOCK_NONE;
+        }
 }
 
 void bm_track_set_engine(bm_pattern *p, int track, int engine)
 {
-    if (!bm_engine_ok(track, engine)) return;
-    bm_track *t = &p->trk[track];
-    if (t->engine == engine) return;
-    t->engine = (uint8_t)engine;
-    t->source = 0;
-    if (engine == ENG_ACID || engine == ENG_FM) sound_defaults(t, engine);
-    else bm_preset_apply(p, track, 0);
+    if (track < BM_TR_TRACKS || !bm_engine_ok(track, engine)) return;
+    if (p->trk[track].engine == engine || bm_machine_conflict(p, track, engine) >= 0) return;
+    machine_put(p, track, engine);
+}
+
+/* Una máquina pesada dos veces (un patrón de afuera, o copiado): se queda en el canal donde es de
+ * fábrica, o en el primero; el otro vuelve a su máquina de fábrica. */
+static void heavy_fix(bm_pattern *p)
+{
+    for (int pass = 0; pass < BM_SYN_TRACKS; pass++) {
+        int changed = 0;
+        for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) {
+            int e = p->trk[t].engine, o = bm_machine_conflict(p, t, e);
+            if (o < 0) continue;
+            int keep = bm_track_engine(t) == e ? t : bm_track_engine(o) == e ? o : (t < o ? t : o);
+            int r = keep == t ? o : t;
+            machine_put(p, r, bm_track_engine(r));
+            changed = 1;
+        }
+        if (!changed) break;
+    }
 }
 
 void bm_pattern_init(bm_pattern *p)
@@ -126,10 +156,7 @@ void bm_pattern_init(bm_pattern *p)
     for (int i = 0; i < BM_SYN_TRACKS; i++) p->loop[i].bars = 2;
     bm_kit_apply(&p->tr[0], 0);
     p->meta.rv_size = 80; p->meta.rv_damp = 60; p->meta.rv_mix = 90; p->meta.mfilt = 64;
-    for (int t = 2; t < BM_TRACKS; t++) {
-        if (p->trk[t].engine == ENG_ACID || p->trk[t].engine == ENG_FM) sound_defaults(&p->trk[t], p->trk[t].engine);
-        else bm_preset_apply(p, t, p->trk[t].source);
-    }
+    for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) bm_preset_apply(p, t, p->trk[t].source);
 }
 
 int bm_master_steps(const bm_meta *m) { return m->master * BM_PAGE_STEPS; }
@@ -320,9 +347,9 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
     GET((int)sizeof p->prm);
     memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
-    for (int t = 0; t < BM_TRACKS; t++) {                          /* los canales fijos no cambian de motor */
+    for (int t = 0; t < BM_TRACKS; t++) {                          /* T1 y T2 no cambian de máquina */
         uint8_t e = p->trk[t].engine;
-        if (!bm_engine_ok(t, e)) { p->trk[t].engine = (uint8_t)bm_track_engine(t); bm_preset_apply(p, t, 0); }
+        if (!bm_engine_ok(t, e)) { p->trk[t].engine = (uint8_t)bm_track_engine(t); p->trk[t].source = 0; bm_preset_apply(p, t, 0); }
     }
     for (int t = 0; t < BM_TRACKS; t++) {
         if (bm_is_grid(p, t)) {
@@ -349,6 +376,7 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
             }
         }
     }
+    heavy_fix(p);                                                  /* BUNO-6 y BITTAL, una vez cada una */
     for (int t = 0; t < BM_SYN_TRACKS; t++) {
         GET(3);
         bm_loop *lp = &p->loop[t];

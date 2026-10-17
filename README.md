@@ -20,7 +20,7 @@ Batería, sampler de pads, bajo, FM, wavetable y polifónico. Escrito desde cero
 
 ---
 
-> **Estado: 0.7.0-beta.** Corre en el aparato y se instala desde el navegador, plug and play, pero es una **beta**: se probó en un solo FM-1 y todavía cambia mucho (la 0.7.0-beta, todavía sin probar del todo en el aparato). **Una actualización puede borrar lo que guardaste** (patrones, canción, ajustes y tomas): hasta la v1 no hay compatibilidad hacia atrás. Ver [cómo instalar](docs/INSTALAR.md) y [cómo volver al firmware de fábrica](docs/INSTALAR.md#volver-al-firmware-de-fábrica).
+> **Estado: 0.8.0-beta.** Corre en el aparato y se instala desde el navegador, plug and play, pero es una **beta**: se probó en un solo FM-1 y todavía cambia mucho (la 0.8.0-beta, todavía sin probar del todo en el aparato). **Una actualización puede borrar lo que guardaste** (patrones, canción, ajustes y tomas): hasta la v1 no hay compatibilidad hacia atrás. Ver [cómo instalar](docs/INSTALAR.md) y [cómo volver al firmware de fábrica](docs/INSTALAR.md#volver-al-firmware-de-fábrica).
 
 ## Qué es
 
@@ -73,7 +73,7 @@ M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afil
 
 **Bubba Machine** is a free (GPL-3.0-or-later) groovebox firmware for the M-VAVE FM-1 with six fixed machines: BR-8 modeled drums, BP-1 pad sampler, BB-303 / B-MINI bass, BX-7 FM (reads DX7 .syx banks), BITTAL wavetable (loads Vital presets) and BUNO-6 polysynth with chorus, plus the BX-1 mixer on HOME. Written from scratch in C99.
 
-- **Status:** 0.7.0-beta. It runs on the device and installs from the browser, plug and play, but it is a **beta**: tested on a single FM-1 and still changing a lot (0.7.0-beta, not fully tried on the device yet). **An update may erase what you saved** (patterns, song, settings and takes): there is no backward compatibility until v1. You can also try it in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html).
+- **Status:** 0.8.0-beta. It runs on the device and installs from the browser, plug and play, but it is a **beta**: tested on a single FM-1 and still changing a lot (0.8.0-beta, not fully tried on the device yet). **An update may erase what you saved** (patterns, song, settings and takes): there is no backward compatibility until v1. You can also try it in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html).
 - **Website and docs in English:** [erbubar23.github.io/bubba-machine/en](https://erbubar23.github.io/bubba-machine/en/), with the [manual](docs/en/MANUAL.md), [install status](docs/en/INSTALL.md), [audio quality](docs/en/AUDIO.md) and [roadmap](docs/en/ROADMAP.md). The firmware screens are in English; Spanish is an optional language pack. Issues and pull requests in English are welcome.
 - **Clean room:** all project code is original; synthesis libraries (Plaits, msfa) and the community Vital presets in the factory bank keep their free licenses ([credits](docs/en/CREDITS.md)). Only hardware facts from public FM-1 reverse engineering were used.
 - M-VAVE and FM-1 are trademarks of their respective owners. This project is not affiliated with or endorsed by M-VAVE.

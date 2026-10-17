@@ -13,8 +13,8 @@ export const LIC = { OWN: 0, CC0: 1, UNLICENSE: 2, GPL3: 3 };
 
 // Los índices de bm_pattern.prm de cada máquina, en el orden de core/bm_params.h (gen_snaps.mjs lo comprueba).
 export const MN = ['W1', 'R1', 'L1', 'W2', 'R2', 'T2', 'L2', 'W3', 'R3', 'T3', 'L3', 'NOISE', 'DRIVE', 'KEYT', 'VELF',
-  'FA', 'FD', 'FS', 'FR', 'AA', 'AD', 'AS', 'AR', 'LRATE', 'LAMT', 'LDEST', 'GLIDE', 'MODE', 'VELA'];
-export const BN = ['SAW', 'PULSE', 'RANGE', 'SUB', 'NOISE', 'PWMSRC', 'LFODCO', 'HPF', 'ENVPOL', 'LFOVCF', 'KEYT', 'VELF',
+  'FA', 'FD', 'FS', 'FR', 'AA', 'AD', 'AS', 'AR', 'LRATE', 'LAMT', 'LDEST', 'GLIDE', 'MODE', 'VELA', 'TUNE'];
+export const BN = ['SAW', 'PULSE', 'RANGE', 'SUB', 'NOISE', 'PWMSRC', 'LFODCO', 'HPF', 'ENVPOL', 'PWM', 'KEYT', 'VELF',
   'A', 'D', 'S', 'R', 'VCA', 'LRATE', 'LDELAY', 'CHORUS', 'VELA'];
 export const BT = ['L1', 'S1', 'F1', 'P1', 'U1', 'D1', 'TAB1', 'L2', 'S2', 'F2', 'P2', 'U2', 'D2', 'TAB2',
   'FT', 'CUT', 'RES', 'DRIVE', 'FENV', 'KEYT', 'VELF', 'AA', 'AD', 'AS', 'AR', 'MA', 'MD', 'MS', 'MR',
@@ -25,14 +25,14 @@ const WAVE = { TRI: 0, SHARK: 1, SAW: 2, SQR: 3, WIDE: 4, NARROW: 5 };
 // Los valores de fábrica de cada ajuste (los mismos que las páginas de core/bm_params.c).
 const DEF = {
   'B-MINI': { W1: 2, R1: 1, L1: 110, W2: 2, R2: 1, T2: 66, L2: 90, W3: 3, R3: 0, T3: 64, L3: 50, NOISE: 0, DRIVE: 30, KEYT: 40, VELF: 40,
-    FA: 0, FD: 55, FS: 20, FR: 45, AA: 0, AD: 70, AS: 110, AR: 35, LRATE: 70, LAMT: 0, LDEST: 1, GLIDE: 35, MODE: 0, VELA: 40 },
-  'BUNO-6': { SAW: 1, PULSE: 0, RANGE: 1, SUB: 40, NOISE: 0, PWMSRC: 0, LFODCO: 0, HPF: 1, ENVPOL: 0, LFOVCF: 0, KEYT: 60, VELF: 20,
+    FA: 0, FD: 55, FS: 20, FR: 45, AA: 0, AD: 70, AS: 110, AR: 35, LRATE: 70, LAMT: 0, LDEST: 1, GLIDE: 35, MODE: 0, VELA: 40, TUNE: 64 },
+  'BUNO-6': { SAW: 1, PULSE: 0, RANGE: 1, SUB: 40, NOISE: 0, PWMSRC: 0, LFODCO: 0, HPF: 1, ENVPOL: 0, PWM: 50, KEYT: 60, VELF: 20,
     A: 10, D: 70, S: 90, R: 60, VCA: 0, LRATE: 60, LDELAY: 0, CHORUS: 1, VELA: 0 },
   'BITTAL': { L1: 100, S1: 64, F1: 64, P1: 0, U1: 0, D1: 20, TAB1: 0, L2: 0, S2: 64, F2: 64, P2: 0, U2: 0, D2: 20, TAB2: 0,
     FT: 0, CUT: 100, RES: 15, DRIVE: 0, FENV: 64, KEYT: 64, VELF: 20, AA: 0, AD: 70, AS: 110, AR: 55, MA: 0, MD: 65, MS: 40, MR: 55,
     LSHAPE: 1, LRATE: 60, LDEST: 2, LAMT: 0, M1D: 1, M1A: 110, M2D: 5, M2A: 120, M3D: 8, M3A: 120, M4D: 12, M4A: 120, MODE: 0, GLIDE: 0, VELA: 50 },
 };
-const MACRO_DEF = { 'B-MINI': [60, 50, 64, 70], 'BUNO-6': [72, 30, 50, 50], 'BITTAL': [64, 0, 0, 0] };
+const MACRO_DEF = { 'B-MINI': [60, 50, 70, 64], 'BUNO-6': [72, 30, 50, 0], 'BITTAL': [64, 0, 0, 0] };
 
 const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
 const r127 = (x) => clamp(Math.round(x), 0, 127);
@@ -270,7 +270,7 @@ function mini(s, report, P, mac, frames) {
   report.approx.push('OSC: wavetables -> closest classic wave');
   mac[0] = cutV(s.filter_1_cutoff ?? 80); mac[1] = r127((s.filter_1_resonance ?? 0.2) * 127);
   const M = mods(s), fe = M.find(m => m.source === 'env_2' && /filter_\d_cutoff/.test(m.destination));
-  mac[2] = 64; mac[3] = fe ? r127(Math.abs(fe.amount) * 127) : 40;
+  mac[2] = fe ? r127(Math.abs(fe.amount) * 127) : 40; mac[3] = 64;   // CONTOUR y F DECAY (64 = la de la envolvente)
   P.DRIVE = r127((s.filter_1_drive ?? 0) / 20 * 127 + 20);
   P.AA = envV(vSecs(s.env_1_attack)); P.AD = envV(vSecs(s.env_1_decay)); P.AS = r127((s.env_1_sustain ?? 1) * 127); P.AR = envV(vSecs(s.env_1_release));
   P.FA = envV(vSecs(s.env_2_attack)); P.FD = envV(vSecs(s.env_2_decay)); P.FS = r127((s.env_2_sustain ?? 0.2) * 127); P.FR = envV(vSecs(s.env_2_release));
@@ -339,7 +339,7 @@ export function vitalToBsnap(json, opts = {}) {
   const size = 88 + tabs.reduce((n, t) => n + t.length, 0);
   const out = new Uint8Array(size);
   out.set([0x42, 0x4E, 0x53, 0x31], 0);                 // "BNS1"
-  out[4] = ENG[machine]; out[5] = tabs.length; out[6] = opts.lic ?? LIC.OWN; out[7] = 1;
+  out[4] = ENG[machine]; out[5] = tabs.length; out[6] = opts.lic ?? LIC.OWN; out[7] = 2;   // versión 2: B-MINI con TUNE, BUNO-6 con PWM (core/bm_snap.h)
   out[10] = size & 255; out[11] = size >> 8;
   out.set(ascii(opts.name || json.preset_name || 'SOUND', 12), 12);
   out.set(ascii(opts.author || json.author || '', 12), 24);

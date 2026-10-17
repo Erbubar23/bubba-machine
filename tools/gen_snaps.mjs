@@ -33,20 +33,20 @@ function checkOrder() {
 }
 
 // ------------------------------------------------------------ BUNO-6: presets propios
-// valores de Bubba (0..127); macro = [FREQ, RES, ENV, PWM]
+// valores de Bubba (0..127); macro = [FREQ, RES, ENV, LFO] (el LFO al VCF); PWM es un ajuste
 const BUNO = [
-  ['BRASS 6', { SAW: 1, PULSE: 0, SUB: 20, HPF: 1, A: 45, D: 75, S: 85, R: 60, CHORUS: 0, macro: [55, 20, 70, 0] }],
-  ['STRINGS 6', { SAW: 1, PULSE: 0, SUB: 0, HPF: 2, A: 80, D: 90, S: 110, R: 85, CHORUS: 2, LRATE: 50, macro: [90, 10, 10, 0] }],
-  ['WARM PAD', { SAW: 1, PULSE: 1, PWMSRC: 0, SUB: 30, A: 85, D: 95, S: 100, R: 95, CHORUS: 1, LRATE: 45, macro: [70, 25, 30, 70] }],
-  ['PWM PAD', { SAW: 0, PULSE: 1, PWMSRC: 0, SUB: 25, A: 70, D: 90, S: 110, R: 90, CHORUS: 2, LRATE: 55, macro: [85, 15, 15, 90] }],
-  ['SUB BASS 6', { SAW: 1, PULSE: 0, SUB: 110, RANGE: 0, HPF: 0, A: 0, D: 60, S: 70, R: 30, CHORUS: 0, KEYT: 40, macro: [40, 30, 60, 0] }],
-  ['PLUCK 6', { SAW: 1, PULSE: 1, PWMSRC: 1, SUB: 30, A: 0, D: 62, S: 0, R: 55, CHORUS: 1, macro: [45, 35, 90, 30] }],
-  ['ORGAN 6', { SAW: 0, PULSE: 1, PWMSRC: 1, SUB: 90, HPF: 1, VCA: 1, A: 0, D: 60, S: 127, R: 20, CHORUS: 3, macro: [110, 0, 0, 0] }],
-  ['SOFT LEAD', { SAW: 1, PULSE: 0, SUB: 40, A: 10, D: 70, S: 100, R: 40, CHORUS: 1, LFODCO: 20, LDELAY: 80, LRATE: 70, macro: [80, 30, 25, 0] }],
-  ['SQUARE LEAD', { SAW: 0, PULSE: 1, PWMSRC: 1, SUB: 20, A: 5, D: 70, S: 110, R: 40, CHORUS: 0, LFODCO: 15, LDELAY: 70, LRATE: 72, macro: [95, 20, 20, 40] }],
-  ['STAB 6', { SAW: 1, PULSE: 0, SUB: 30, A: 0, D: 60, S: 20, R: 45, CHORUS: 2, macro: [60, 25, 75, 0] }],
-  ['NOISE SWEEP', { SAW: 0, PULSE: 0, NOISE: 110, SUB: 0, A: 90, D: 100, S: 40, R: 95, CHORUS: 1, LFOVCF: 60, LRATE: 30, macro: [40, 80, 90, 0] }],
-  ['BELL PAD 6', { SAW: 0, PULSE: 1, PWMSRC: 2, SUB: 0, HPF: 2, A: 0, D: 85, S: 50, R: 90, CHORUS: 2, macro: [100, 50, 40, 80] }],
+  ['BRASS 6', { SAW: 1, PULSE: 0, SUB: 20, HPF: 1, A: 45, D: 75, S: 85, R: 60, CHORUS: 0, PWM: 0, macro: [55, 20, 70, 0] }],
+  ['STRINGS 6', { SAW: 1, PULSE: 0, SUB: 0, HPF: 2, A: 80, D: 90, S: 110, R: 85, CHORUS: 2, LRATE: 50, PWM: 0, macro: [90, 10, 10, 0] }],
+  ['WARM PAD', { SAW: 1, PULSE: 1, PWMSRC: 0, SUB: 30, A: 85, D: 95, S: 100, R: 95, CHORUS: 1, LRATE: 45, PWM: 70, macro: [70, 25, 30, 0] }],
+  ['PWM PAD', { SAW: 0, PULSE: 1, PWMSRC: 0, SUB: 25, A: 70, D: 90, S: 110, R: 90, CHORUS: 2, LRATE: 55, PWM: 90, macro: [85, 15, 15, 0] }],
+  ['SUB BASS 6', { SAW: 1, PULSE: 0, SUB: 110, RANGE: 0, HPF: 0, A: 0, D: 60, S: 70, R: 30, CHORUS: 0, KEYT: 40, PWM: 0, macro: [40, 30, 60, 0] }],
+  ['PLUCK 6', { SAW: 1, PULSE: 1, PWMSRC: 1, SUB: 30, A: 0, D: 62, S: 0, R: 55, CHORUS: 1, PWM: 30, macro: [45, 35, 90, 0] }],
+  ['ORGAN 6', { SAW: 0, PULSE: 1, PWMSRC: 1, SUB: 90, HPF: 1, VCA: 1, A: 0, D: 60, S: 127, R: 20, CHORUS: 3, PWM: 0, macro: [110, 0, 0, 0] }],
+  ['SOFT LEAD', { SAW: 1, PULSE: 0, SUB: 40, A: 10, D: 70, S: 100, R: 40, CHORUS: 1, LFODCO: 20, LDELAY: 80, LRATE: 70, PWM: 0, macro: [80, 30, 25, 0] }],
+  ['SQUARE LEAD', { SAW: 0, PULSE: 1, PWMSRC: 1, SUB: 20, A: 5, D: 70, S: 110, R: 40, CHORUS: 0, LFODCO: 15, LDELAY: 70, LRATE: 72, PWM: 40, macro: [95, 20, 20, 0] }],
+  ['STAB 6', { SAW: 1, PULSE: 0, SUB: 30, A: 0, D: 60, S: 20, R: 45, CHORUS: 2, PWM: 0, macro: [60, 25, 75, 0] }],
+  ['NOISE SWEEP', { SAW: 0, PULSE: 0, NOISE: 110, SUB: 0, A: 90, D: 100, S: 40, R: 95, CHORUS: 1, LRATE: 30, PWM: 0, macro: [40, 80, 90, 60] }],
+  ['BELL PAD 6', { SAW: 0, PULSE: 1, PWMSRC: 2, SUB: 0, HPF: 2, A: 0, D: 85, S: 50, R: 90, CHORUS: 2, PWM: 80, macro: [100, 50, 40, 0] }],
 ];
 
 function waveB64(kind) {
@@ -76,7 +76,7 @@ function bunoVital(name, p) {
   if (p.NOISE) s.osc_3_on = 0;
   const tag = { ...p };
   return { author: 'Bubba Machine', comments: 'Bubba Machine factory sound for BUNO-6, CC0. bubba-buno: ' + JSON.stringify(tag),
-    macro1: 'FREQ', macro2: 'RES', macro3: 'ENV', macro4: 'PWM', preset_name: name, preset_style: 'Keys', synth_version: '1.0.5', settings: s };
+    macro1: 'FREQ', macro2: 'RES', macro3: 'ENV', macro4: 'LFO', preset_name: name, preset_style: 'Keys', synth_version: '1.0.5', settings: s };
 }
 
 // ------------------------------------------------------------ main

@@ -29,20 +29,19 @@ static int voice_prio(const bm_voice *v)
     return 2;                                         /* ataques recientes */
 }
 
-/* voces como máximo por canal dentro del pool (T2 pads, T4 BX-7, T5 BITTAL, T6 BUNO-6) */
-static const uint8_t VCAP[BM_TRACKS] = {BM_V_DRUM_N, 6, 1, 6, 4, 6};
+/* voces como máximo por máquina dentro del pool (BP-1 pads, BB-303, B-MINI, BX-7, BITTAL, BUNO-6) */
+static const uint8_t VCAP[ENG_COUNT] = {BM_V_DRUM_N, 6, 1, 1, 6, 4, 6};
 
 bm_voice *bm_voice_get(bm_ctx *c, int track, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
     int lo, n;
     if (track == 0) { lo = BM_V_DRUM0; n = BM_V_DRUM_N; }
-    else if (track == 2) { lo = BM_V_BASS; n = 1; }
     else { lo = BM_V_POOL0; n = BM_V_POOL_N; }
 
     int mine = 0;
     if (lo == BM_V_POOL0)
         for (int i = 0; i < n; i++) { const bm_voice *v = &c->voice[lo + i]; mine += (v->active && v->track == track && !v->fade) || (v->pend && v->pend_track == track); }
-    int full = lo == BM_V_POOL0 && mine >= VCAP[track % BM_TRACKS];   /* lleno: roba una suya */
+    int full = lo == BM_V_POOL0 && mine >= VCAP[c->pat->trk[track % BM_TRACKS].engine % ENG_COUNT];   /* lleno: roba una suya */
     /* el freno bajó el tope del pool (bm_audio_overload): con tantas sonando, se roba una */
     int capped = 0;
     if (lo == BM_V_POOL0 && c->pool_cap && !full) {
@@ -226,16 +225,16 @@ static bool acid_process(bm_engine *e, int32_t *buf, uint16_t frames)
             if (st == 0) v->inc = v->inc_target; else v->inc = (uint32_t)((int64_t)v->inc + st);
         }
         int acc = v->vel >= 120;
-        int dec = eff(v, t, 2);
+        int dec = eff(v, t, 3);                                  /* macros: CUTOFF RESO ENV MOD DECAY */
         uint32_t c_f = bm_decay_coef[bm_clampi(acc ? dec * 2 / 3 : dec, 0, 127)];
         uint32_t c_amp = bm_decay_coef[bm_clampi(90 + dec / 4, 0, 127)];
         uint32_t c_rel = bm_decay_coef[14];
-        int mod = eff(v, t, 3) * (acc ? 127 + t->accent : 127) / 127;
+        int mod = eff(v, t, 2) * (acc ? 127 + t->accent : 127) / 127;
         int ci = eff(v, t, 0) + (int)((mod * (v->fenv >> 22)) / 340);
         ci = bm_clampi(ci, 0, 124);
         int32_t g = bm_onepole_a[ci];
         int32_t kq = eff(v, t, 1) * 990 / 127;                   /* realimentación Q8: hasta ~3.9 */
-        int sq = t->source & 1;
+        int sq = c->pat->prm[e->track][AC_WAVE] & 1;
         int32_t lvl = acc ? 127 : bm_clampi(v->vel + 8, 1, 127);
         for (uint16_t i = 0; i < frames && v->active; i++) {
             int32_t o = sq ? osc_pulse(v->phase, v->inc, 0x80000000u) : osc_saw(v->phase, v->inc);
@@ -703,15 +702,16 @@ const bm_engine_vt bm_eng_acid = {acid_init, acid_note_on, acid_note_off, common
 
 /* ------------------------------------------------------------ FM: 6 operadores (msfa, core/bm_fm.cpp)
  * El patch de fábrica (PRESETS) y encima las macros, con 64 = el patch tal cual:
- *   BRILLO   nivel de los moduladores (±32)        REALIM  realimentación (±4)
- *   DECAY    tiempos de caída y salida de todos     ALGORITMO  64 = el del patch; si no, uno de los 32
- * ATAQUE y SALIDA del canal alargan las envolventes. Mono con glide en T3 o con LIGA. */
+ *   MOD LVL  nivel de los moduladores (±32)        FEEDBACK  realimentación (±4)
+ *   DECAY    tiempos de caída (R2-R3) de todos     RELEASE   la salida (R4) de todos
+ * Encima también los ajustes del canal: el algoritmo (FX_ALG, 0 = el del patch), el LFO (FX_L*, 0 =
+ * el del patch) y R1 ATK (attack del canal). Polifónico; una nota con LIGA sigue con glide (PORTA). */
 static uint8_t fm_m(const bm_voice *v, const bm_track *t, int i) { return v ? eff(v, t, i) : t->macro[i]; }
 
-int bm_fm_alg_of(const bm_track *t, int m4)
+int bm_fm_alg_of(const bm_track *t, const uint8_t *prm)
 {
-    const uint8_t *p = bm_fm_patch(t->source);
-    return m4 == 64 ? p[BM_FM_ALG] + 1 : m4 * 32 / 128 + 1;
+    int a = prm[FX_ALG];
+    return a >= 1 && a <= 32 ? a : bm_fm_patch(t->source)[BM_FM_ALG] % 32 + 1;
 }
 
 int bm_fm_fb_of(const bm_track *t, int m2)
@@ -719,17 +719,20 @@ int bm_fm_fb_of(const bm_track *t, int m2)
     return bm_clampi(bm_fm_patch(t->source)[BM_FM_FB] + (m2 - 64) / 16, 0, 7);
 }
 
-void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p)
+void bm_fm_patch_of(const bm_track *t, const uint8_t *prm, const bm_voice *v, uint8_t *p)
 {
     memcpy(p, bm_fm_patch(t->source), BM_FM_PATCH);
     int m1 = fm_m(v, t, 0), m2 = fm_m(v, t, 1), m3 = fm_m(v, t, 2), m4 = fm_m(v, t, 3);
-    p[BM_FM_ALG] = (uint8_t)(bm_fm_alg_of(t, m4) - 1);
+    p[BM_FM_ALG] = (uint8_t)(bm_fm_alg_of(t, prm) - 1);
     p[BM_FM_FB] = (uint8_t)bm_fm_fb_of(t, m2);
+    for (int i = 0; i < 4; i++) if (prm[FX_LSPD + i]) p[137 + i] = (uint8_t)bm_clampi(prm[FX_LSPD + i] - 1, 0, 99);   /* LFS LFD LPMD LAMD */
+    if (prm[FX_LPMD] > 1 && !(p[143] & 7)) p[143] = 3;           /* PMD sin sensibilidad en el patch: una media */
     uint8_t car = bm_fm_carriers(p[BM_FM_ALG]);
-    int dec = (m3 - 64) / 3, atk = t->attack * 70 / 127, rel = (t->release - 64) / 2;
+    int dec = (m3 - 64) / 3, atk = t->attack * 70 / 127, rel = (m4 - 64) / 2;
     for (int op = 0; op < 6; op++) {
         uint8_t *o = p + op * BM_FM_OP;
         if (!(car & (1u << op))) o[FMO_OL] = (uint8_t)bm_clampi(o[FMO_OL] + (m1 - 64) / 2, 0, 99);
+        else if (prm[FX_LAMD] > 1 && !o[FMO_AMS]) o[FMO_AMS] = 2;  /* AMD: las portadoras lo sienten */
         o[FMO_R2] = (uint8_t)bm_clampi(o[FMO_R2] - dec, 1, 99);
         o[FMO_R3] = (uint8_t)bm_clampi(o[FMO_R3] - dec, 1, 99);
         o[FMO_R4] = (uint8_t)bm_clampi(o[FMO_R4] - dec - rel, 1, 99);
@@ -737,10 +740,12 @@ void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p)
     }
 }
 
-static uint32_t fm_sig(const bm_voice *v, const bm_track *t)
+static uint32_t fm_sig(const bm_voice *v, const bm_track *t, const uint8_t *prm)
 {
+    uint32_t h = (uint32_t)(t->source ^ t->attack) + 31u * prm[FX_ALG];
+    for (int i = 0; i < 4; i++) h = h * 31u + prm[FX_LSPD + i];
     return (uint32_t)fm_m(v, t, 0) | (uint32_t)fm_m(v, t, 1) << 7 | (uint32_t)fm_m(v, t, 2) << 14 | (uint32_t)fm_m(v, t, 3) << 21
-         | (uint32_t)((t->source ^ t->attack ^ (t->release << 1)) & 15) << 28;
+         | (h & 15u) << 28;
 }
 
 static int fm_note(const bm_ctx *c, const bm_track *t, uint8_t note)
@@ -757,8 +762,8 @@ static void fm_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel,
     int glide = legato && v->active && v->track == e->track && v->gate && !v->fade;
     int from = glide ? fm_note(c, t, v->note) : fm_note(c, t, note);
     memcpy(v->lk, lk, 4);
-    bm_fm_patch_of(t, v, p);
-    v->ic1 = (int32_t)fm_sig(v, t);
+    bm_fm_patch_of(t, c->pat->prm[e->track], v, p);
+    v->ic1 = (int32_t)fm_sig(v, t, c->pat->prm[e->track]);
     if (glide) {                                          /* ligado: cambia de nota sin redisparar */
         v->note = note; v->vel = vel;
         bm_fm_update(vi, p, fm_note(c, t, note), vel, t->glide);
@@ -776,11 +781,13 @@ static void fm_note_on(bm_engine *e, uint8_t note, uint8_t vel)
     take_locks(e, lk);
     uint8_t legato = e->legato_next;
     e->legato_next = 0;
-    if (e->track == 2) {                                  /* T3: mono, con glide si liga */
+    if (legato) {                                         /* LIGA: la última voz sigue con glide (PORTA) */
+        bm_voice *last = NULL;
         for (int i = 0; i < BM_VOICES; i++) {
             bm_voice *v = &c->voice[i];
-            if (v->active && v->track == e->track && v->gate && !v->fade) { fm_voice_start(e, v, note, vel, lk, legato); return; }
+            if (v->active && v->track == e->track && v->gate && !v->fade && (!last || v->age > last->age)) last = v;
         }
+        if (last) { fm_voice_start(e, last, note, vel, lk, legato); return; }
     }
     bm_voice *v = bm_voice_get(c, e->track, note, vel, lk, 0);
     if (v) fm_voice_start(e, v, note, vel, lk, 0);
@@ -809,10 +816,10 @@ static bool fm_process(bm_engine *e, int32_t *buf, uint16_t frames)
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != e->track) continue;
         any = true;
-        uint32_t sig = fm_sig(v, t);
+        uint32_t sig = fm_sig(v, t, c->pat->prm[e->track]);
         if ((int32_t)sig != v->ic1) {                     /* se movió una perilla: el patch cambia en vivo */
             uint8_t p[BM_FM_PATCH];
-            bm_fm_patch_of(t, v, p);
+            bm_fm_patch_of(t, c->pat->prm[e->track], v, p);
             bm_fm_update(vi, p, fm_note(c, t, v->note), v->vel, -1);
             v->ic1 = (int32_t)sig;
         }

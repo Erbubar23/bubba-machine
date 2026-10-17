@@ -53,12 +53,13 @@ static void syn_gates_off(bm_ctx *c)
             }
 }
 
-/* Motor de cada canal según el patrón. Si un canal libre cambió de motor, se callan sus voces. */
+/* Motor de cada canal según el patrón. Si un canal cambió de máquina, se callan sus voces. */
 void bm_engines_sync(bm_ctx *c)
 {
     for (int t = 0; t < BM_TRACKS; t++) {
         const bm_engine_vt *vt = c->pat->trk[t].midi_out && t >= BM_TR_TRACKS ? &bm_eng_midi_out : bm_engine_vt_for(c->pat->trk[t].engine);
-        if (c->eng[t].vt == vt) continue;
+        if (c->eng[t].vt == vt && c->eng[t].machine == c->pat->trk[t].engine) continue;
+        c->eng[t].machine = c->pat->trk[t].engine;
         for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == t) { c->voice[i].active = 0; c->voice[i].pend = 0; }
         if (t >= BM_TR_TRACKS)
             for (int k = 0; k < BM_EVENTS; k++) { c->gate[t - BM_TR_TRACKS][k].ticks = 0; c->gate[t - BM_TR_TRACKS][k].tie = 0; }

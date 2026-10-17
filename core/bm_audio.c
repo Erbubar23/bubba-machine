@@ -182,6 +182,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_PRESET:
         if (k->a >= BM_TRACKS) break;
         if (bm_is_tr(c->pat, k->a)) bm_kit_apply(bm_trk_tr(c->pat, k->a), k->b);
+        else if (k->b == 0xFF) { bm_prm_defaults(c->pat, k->a); break; }   /* INIT SOUND: el preset queda */
         else bm_preset_apply(c->pat, k->a, k->b);
         c->pat->trk[k->a].source = k->b;
         break;
@@ -279,8 +280,17 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_SMP_PREVIEW:
         bm_smp_preview(c, k->b, (uint32_t)k->u.i & 0xFFFFu, (uint32_t)k->u.i >> 16, k->a);
         break;
+    case CMD_CLONE:                       /* la máquina y el sonido de un canal en otro (sin pasar por el preset) */
+        if (k->a < BM_TR_TRACKS || k->a >= BM_TRACKS || k->b < BM_TR_TRACKS || k->b >= BM_TRACKS || k->a == k->b) break;
+        if (bm_machine_conflict(c->pat, k->b, c->pat->trk[k->a].engine) >= 0) break;
+        c->pat->trk[k->b].engine = c->pat->trk[k->a].engine;
+        memcpy(c->pat->prm[k->b], c->pat->prm[k->a], BM_PRM);
+        bm_engines_sync(c);
+        c->st.edits++;
+        break;
     case CMD_ENGINE:
-        if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b)) {
+        if (k->a < BM_TRACKS && bm_engine_ok(k->a, k->b) && c->pat->trk[k->a].engine != k->b
+            && bm_machine_conflict(c->pat, k->a, k->b) < 0) {
             for (int i = 0; i < BM_VOICES; i++) if (c->voice[i].track == k->a) { c->voice[i].active = 0; c->voice[i].pend = 0; }
             bm_track_set_engine(c->pat, k->a, k->b);
             bm_engines_sync(c);

@@ -44,7 +44,7 @@ typedef enum {
     CMD_SMP_DISCARD,    /* descarta la toma sin guardar y vuelve al loop A del patrón (ptr) */
     CMD_BRK_LIVE,       /* a=bits: 1 reversa, 2 media velocidad, 4 stutter (negras 9-11 del sampler) */
     CMD_SMP_PREVIEW,    /* a=1 escuchar la toma b (BM_TAKE_NEW = la nueva) desde i&0xFFFF, i>>16 muestras · a=0 soltar */
-    CMD_ENGINE,         /* a=canal libre b=motor (borra sus notas) */
+    CMD_ENGINE,         /* a=canal T3-T6 b=máquina (las notas quedan; el sonido, su primer preset) */
     CMD_PCHAIN,         /* a=largo, ptr=uint8_t[8] patrones (dos blancas en HOME) */
     CMD_MIDI_SEND,      /* a,b,c = bytes MIDI de salida (b o c = 0xFF: no se mandan) */
     CMD_MASTER,         /* i=0..1023 */
@@ -61,10 +61,11 @@ typedef enum {
     CMD_ALL_OFF,
     CMD_FADE,           /* a=0 subir, 1 bajar (antes de escribir flash) */
     CMD_SET_PRM,        /* a=canal b=parámetro (bm_pattern.prm) c=valor */
-    CMD_PRESET,         /* a=canal b=preset de su motor (ANALOG) o kit (rejilla de batería) */
+    CMD_PRESET,         /* a=canal b=preset de su máquina o kit (rejilla de batería); b=0xFF: el sonido de fábrica */
     CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
     CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
-    CMD_ROLL_CFG        /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
+    CMD_ROLL_CFG,       /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
+    CMD_CLONE           /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
 } bm_cmd_type;
 
 typedef struct {
@@ -184,13 +185,14 @@ struct bm_engine {
     uint8_t track;
     uint8_t lock_next[4];
     uint8_t legato_next;
+    uint8_t machine;            /* la máquina con que se armó (ENG_*): si cambia, se reinicia */
 };
 
 extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_acid, bm_eng_fm, bm_eng_midi_out;
-/* FM: lo que hacen las macros sobre el patch (para la pantalla) */
-int bm_fm_alg_of(const bm_track *t, int m4);          /* algoritmo 1..32 */
+/* FM: lo que hacen las macros y los ajustes (prm del canal) sobre el patch (para la pantalla) */
+int bm_fm_alg_of(const bm_track *t, const uint8_t *prm);   /* algoritmo 1..32 */
 int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
-void bm_fm_patch_of(const bm_track *t, const bm_voice *v, uint8_t *p);   /* patch con las macros (v NULL = las del canal) */
+void bm_fm_patch_of(const bm_track *t, const uint8_t *prm, const bm_voice *v, uint8_t *p);   /* v NULL = las macros del canal */
 extern const char *const bm_acid_names[2];             /* sierra o cuadrada */
 const bm_engine_vt *bm_engine_vt_for(int engine);
 

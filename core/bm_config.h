@@ -6,7 +6,7 @@
 
 #define BM_VERSION_STR "0.7.0-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
-#define BM_PAT_FMT       7        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
+#define BM_PAT_FMT       8        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           48       /* parámetros de sonido por canal, además de las 4 macros (= BM_SNAP_PRM) */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
@@ -39,9 +39,8 @@
 #define BM_VOICES        22
 #define BM_V_DRUM0       0        /* 0..5 reservadas a T1 */
 #define BM_V_DRUM_N      6
-#define BM_V_BASS        6        /* 6 reservada a T3 (mono) */
-#define BM_V_POOL0       7        /* 7..21 pool compartido T2, T4-T6, con un tope por canal (bm_engines.c) */
-#define BM_V_POOL_N      15
+#define BM_V_POOL0       6        /* 6..21 pool compartido T2-T6, con un tope por máquina (bm_engines.c) */
+#define BM_V_POOL_N      16
 #define BM_STEAL_FADE    88       /* 2 ms a BM_FS */
 
 /* ---- Memoria (docs/TRAZA_FM1.md) ----

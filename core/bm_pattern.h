@@ -7,7 +7,8 @@
  *               y P-Locks en una lista dispersa.
  *   T2 BP-1:    16 pads (trozos de las tomas, como un KO II o un OP-1 field) en una rejilla TR
  *               como la de T1: una línea por pad. La página BREAK varía lo que suena.
- *   T3 BB-303 o B-MINI, T4 BX-7, T5 BITTAL, T6 BUNO-6: pasos con hasta 4 notas de 8 bytes + loopera.
+ *   T3-T6: una máquina de notas cada uno (de fábrica BB-303, BX-7, BITTAL, BUNO-6; se elige en
+ *               MACHINE): pasos con hasta 4 notas de 8 bytes + loopera.
  * Cada canal tiene su largo y su velocidad; cada instrumento TR, su largo. */
 #ifndef BM_PATTERN_H
 #define BM_PATTERN_H
@@ -81,7 +82,7 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-/* 0.6: cada canal es una máquina. T3 cambia entre BB-303 (ACID) y B-MINI con ALGORITHM. */
+/* Cada canal es una máquina. T3-T6 eligen la suya en la página MACHINE (por patrón). */
 enum { ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_MINI, ENG_FM, ENG_BITTAL, ENG_BUNO, ENG_COUNT };
 enum { KIND_TR, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];     /* nombres de las máquinas: BR-8, BP-1, BB-303... */
@@ -96,7 +97,7 @@ extern const char *const bm_speed_names[SPD_COUNT];
 #define BM_SRC_ROM   0x80u
 
 typedef struct {
-    uint8_t macro[4];      /* notas: CUTOFF RESO DECAY WAVE · FM: BRILLO REALIM DECAY ALGORITMO · batería: TONE TUNE DECAY START */
+    uint8_t macro[4];      /* notas: las de la máquina (bm_engine_macro) · batería: TONE TUNE DECAY COLOR · pads: FILTER PITCH DECAY START */
     uint8_t level, pan, send, duck;
     uint8_t source;        /* batería: kit · sampler: loop A · notas: banco de ondas · FM: patch */
     uint8_t attack, sustain, release, env_amt, glide;
@@ -106,7 +107,7 @@ typedef struct {
     uint8_t arp_mode, arp_rate, arp_oct, arp_gate;
     uint8_t speed;         /* SPD_* */
     uint8_t length;        /* notas: 1..64 pasos (TR: largo por instrumento) */
-    uint8_t engine;        /* ENG_*: fijo; T3 elige BB-303 o B-MINI */
+    uint8_t engine;        /* ENG_*: T1 y T2 fijos; T3-T6 una de las 5 máquinas de notas */
     uint8_t accent;        /* cuánto más fuerte suena un acento (0 = igual) */
     uint8_t midi_ch;       /* MIDI: canal 0..15 */
     uint8_t scl_root, scl; /* escala propia del canal; scl 0xFF = la del proyecto */
@@ -182,9 +183,15 @@ void bm_track_defaults(bm_track *t, int track);
 void bm_tr_defaults(bm_tr *tr);
 void bm_pattern_init(bm_pattern *p);
 void bm_track_clear_events(bm_pattern *p, int track);
-bool bm_engine_ok(int track, int engine);       /* la máquina de cada canal; T3: BB-303 o B-MINI */
+bool bm_engine_ok(int track, int engine);       /* T1 BR-8, T2 BP-1; T3-T6 cualquiera de las 5 máquinas de notas */
 int  bm_track_engine(int track);                 /* la máquina de fábrica del canal */
-void bm_track_set_engine(bm_pattern *p, int track, int engine);   /* T3: cambia de máquina (las notas quedan) */
+/* BUNO-6 (~32 % de CPU, un solo chorus) y BITTAL (sus tablas en RAM): una sola vez por patrón */
+static inline bool bm_engine_heavy(int engine) { return engine == ENG_BUNO || engine == ENG_BITTAL; }
+/* el otro canal que ya tiene esa máquina pesada (-1 si no hay o si no es pesada) */
+int  bm_machine_conflict(const bm_pattern *p, int track, int engine);
+/* T3-T6: cambia de máquina. Las notas, el largo y la mezcla quedan; el sonido pasa al primer preset
+ * de la máquina y se borran los P-Locks de las notas. No hace nada si choca con una pesada. */
+void bm_track_set_engine(bm_pattern *p, int track, int engine);
 int  bm_pattern_count_events(const bm_pattern *p);
 int  bm_master_steps(const bm_meta *m);       /* 0 = infinito */
 

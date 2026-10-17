@@ -437,7 +437,7 @@ static bool again_name(const bm_app *a, char *b, int cap)
     case PG_MIX: s = a->mix_page ? "MIX" : (t ? "DUCK" : NULL); break;
     case PG_SCL: s = "CHORDS"; break;
     case PG_CHORDS: s = "SCALE"; break;
-    case PG_ENV: s = a->env_page ? "PAGE 1" : "PAGE 2"; break;
+    case PG_MACH: s = "SOUND"; break;
     case PG_PADS: { static const char *const PN[4] = {"TRIM", "SOUND", "ENV", "LOOP"}; s = PN[(a->ed_page[1] + 1) % 4]; break; }
     default: break;
     }
@@ -725,7 +725,7 @@ static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w,
     gfx_rect(g, x0, y0, w, h, C_DDGREY);
     grid(g, x0 + 2, y0 + 2, w - 4, h - 4, 8);
     gfx_hline(g, x0 + 1, y0 + h / 2, w - 2, C_DDGREY);
-    int sq = tr->source & 1;
+    int sq = a->pat.prm[t][AC_WAVE] & 1;
     int py = -1, cw = (w - 4) / 2;
     for (int x = 0; x < w - 4; x++) {
         int ph = (x % cw) * 256 / cw, s = sq ? (ph < 128 ? 100 : -100) : 127 - ph;
@@ -745,7 +745,7 @@ static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w,
 static void draw_fm(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
 {
     uint8_t p[BM_FM_PATCH];
-    bm_fm_patch_of(&a->pat.trk[t], NULL, p);
+    bm_fm_patch_of(&a->pat.trk[t], a->pat.prm[t], NULL, p);
     int alg = p[BM_FM_ALG] & 31;
     uint8_t car = bm_fm_carriers(alg), mods[6];
     int8_t fb[2];
@@ -1029,7 +1029,7 @@ static void ed_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, in
     for (int x = 0; x < w; x++) {
         float p = (float)x * 2.0f / (float)w, y, y2 = 0.0f;
         if (eng == ENG_BUNO) {
-            float ph = p - (float)(int)p, pw = 0.5f - 0.46f * (float)a->pat.trk[t].macro[3] / 127.0f * 0.5f;
+            float ph = p - (float)(int)p, pw = 0.5f - 0.46f * (float)q[BN_PWM] / 127.0f * 0.5f;
             y = (q[BN_SAW] ? 1.0f - 2.0f * ph : 0.0f) + (q[BN_PULSE] ? (ph < pw ? 1.0f : -1.0f) : 0.0f);
             float ps = p * 0.5f; ps -= (float)(int)ps;
             y += (float)q[BN_SUB] / 127.0f * (ps < 0.5f ? 1.0f : -1.0f);
@@ -1049,7 +1049,7 @@ static void ed_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, in
         int yy = mid - (int)(bm_clampf(y, -1.2f, 1.2f) * (float)(h / 2 - 3));
         if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, yy, col);
         py = yy;
-        if (eng == ENG_MINI && page <= 2) {
+        if (eng == ENG_MINI && page >= 0 && page <= 2) {
             int y1 = mid - (int)(y2 * (float)(h / 2 - 3));
             if (py2 >= 0) gfx_line(g, x0 + x - 1, py2, x0 + x, y1, C_ORANGE);
             py2 = y1;
@@ -1109,7 +1109,7 @@ static void ed_filter(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, 
     int eng = tk->engine, type = 0, cut, res;
     float env;
     if (eng == ENG_BITTAL) { type = q[BT_FT] % BT_FILTERS; cut = q[BT_CUT]; res = q[BT_RES]; env = (float)((int)q[BT_FENV] - 64) / 63.0f * 72.0f; if (type == BT_F_LADDER) type = 0; }
-    else { cut = tk->macro[0]; res = tk->macro[1]; env = (float)(eng == ENG_MINI ? tk->macro[3] : tk->macro[2]) / 127.0f * 72.0f; }
+    else { cut = tk->macro[0]; res = tk->macro[1]; env = (float)tk->macro[2] / 127.0f * 72.0f; }   /* B-MINI y BUNO-6: CONTOUR / ENV */
     if (eng == ENG_BITTAL && q[BT_FT] == BT_F_OFF) { gfx_text_c(g, x0 + w / 2, y0 + h / 2, "FILTER OFF", C_GREY, 1); return; }
     float fc = bm_cut_hz(cut), qv = bm_reso_q(res);
     if (env != 0.0f) {
@@ -1215,7 +1215,7 @@ static void draw_editor(bm_gfx *g, const bm_app *a)
             snprintf(b, sizeof b, "%s - %s", T(bm_lane_name(a, t, a->sel_lane[t] & 15)), T(bm_drm_names[ln->model % DRM_COUNT]));
         } else snprintf(b, sizeof b, "%s", bm_sound_name(a, t));
         gfx_text(g, 4, PY, b, C_WHITE, 1);
-        if (!tr && bm_engine_paged(eng)) {                          /* la huella del snapshot: #A4F9 */
+        if (!tr && (eng == ENG_MINI || eng == ENG_BITTAL || eng == ENG_BUNO)) {   /* la huella del snapshot: #A4F9 */
             const uint8_t *s = bm_snap_get(eng, a->pat.trk[t].source);
             if (s) { snprintf(b, sizeof b, "#%04X", (unsigned)(s[8] | s[9] << 8)); gfx_small(g, 236 - gfx_small_w(b), PY + 1, b, C_DGREY); }
         }
@@ -1247,44 +1247,89 @@ static void draw_editor(bm_gfx *g, const bm_app *a)
         gfx_small(g, x0 + w - gfx_small_w(b) - 2, y0 + 2, b, C_GREY);
         return;
     }
-    int amp = bm_engine_page_of(eng, EPG_AMP), fen = bm_engine_page_of(eng, EPG_FENV), lfo = bm_engine_page_of(eng, EPG_LFO);
-    if (eng == ENG_BITTAL) {
+    const bm_track *tk = &a->pat.trk[t];
+    if (eng == ENG_BITTAL) {                                        /* OSC 1, OSC 1 +, OSC 2, OSC 2 +, FILTER, FILTER +, ENV 1, ENV 2, LFO 1, MACRO x2, VOICE */
         if (cur <= 3) ed_table(g, a, t, x0, y0, w, h, cur >= 2);
         else if (cur == 4 || cur == 5) ed_filter(g, a, t, x0, y0, w, h);
-        else if (cur == amp) ed_adsr(g, x0, y0, w, h, q[BT_AA], q[BT_AD], q[BT_AS], q[BT_AR]);
-        else if (cur == fen) ed_adsr(g, x0, y0, w, h, q[BT_MA], q[BT_MD], q[BT_MS], q[BT_MR]);
-        else if (cur == lfo) ed_lfo(g, x0, y0, w, h, q[BT_LSHAPE] % BT_LSHAPES, q[BT_LAMT], col);
+        else if (cur == 6) ed_adsr(g, x0, y0, w, h, q[BT_AA], q[BT_AD], q[BT_AS], q[BT_AR]);
+        else if (cur == 7) ed_adsr(g, x0, y0, w, h, q[BT_MA], q[BT_MD], q[BT_MS], q[BT_MR]);
+        else if (cur == 8) ed_lfo(g, x0, y0, w, h, q[BT_LSHAPE] % BT_LSHAPES, q[BT_LAMT], col);
         else if (cur == 9 || cur == 10) ed_macros(g, a, t, x0, y0, w, h);
         else {
             static const char *const M[WM_MODES] = {"POLY: UP TO 4 VOICES", "MONO: ONE VOICE, RETRIGGERS", "LEGATO: ONE VOICE, TIED"};
             gfx_text_c(g, 120, y0 + h / 2 - 4, M[q[BT_MODE] % WM_MODES], C_WHITE, 1);
         }
-    } else if (eng == ENG_MINI) {
-        if (cur <= 2) ed_wave(g, a, t, x0, y0, w, h, cur);
-        else if (cur == 3 || cur == 4) ed_filter(g, a, t, x0, y0, w, h);
-        else if (cur == fen) ed_adsr(g, x0, y0, w, h, q[MN_FA], q[MN_FD], q[MN_FS], q[MN_FR]);
-        else if (cur == amp) ed_adsr(g, x0, y0, w, h, q[MN_AA], q[MN_AD], q[MN_AS], q[MN_AR]);
-        else if (cur == lfo) ed_lfo(g, x0, y0, w, h, 1, q[MN_LAMT], col);
+    } else if (eng == ENG_MINI) {                                   /* CONTROL, OSC 1-3, MIXER, FILTER, F CONTOUR, L CONTOUR, OUTPUT */
+        if (cur == 0) ed_lfo(g, x0, y0, w, h, 1, q[MN_LAMT], col);
+        else if (cur <= 4) ed_wave(g, a, t, x0, y0, w, h, cur <= 3 ? cur - 1 : -1);
+        else if (cur == 5) ed_filter(g, a, t, x0, y0, w, h);
+        else if (cur == 6) ed_adsr(g, x0, y0, w, h, q[MN_FA], q[MN_FD], q[MN_FS], q[MN_FR]);
+        else if (cur == 7) ed_adsr(g, x0, y0, w, h, q[MN_AA], q[MN_AD], q[MN_AS], q[MN_AR]);
         else gfx_text_c(g, 120, y0 + h / 2 - 4, q[MN_MODE] ? "LEGATO: TIED NOTES GLIDE" : "MONO: EVERY NOTE RETRIGGERS", C_WHITE, 1);
-    } else {                                                        /* BUNO-6 */
-        if (cur <= 1) ed_wave(g, a, t, x0, y0, w, h, cur);
-        else if (cur <= 3) ed_filter(g, a, t, x0, y0, w, h);
-        else if (cur == amp) ed_adsr(g, x0, y0, w, h, q[BN_A], q[BN_D], q[BN_S], q[BN_R]);
+    } else if (eng == ENG_ACID) {                                   /* VCO VCF y ENV */
+        if (cur == 0) draw_synth(g, a, t, x0, y0, w, h);
+        else ed_adsr(g, x0, y0, w, h, 0, tk->macro[3], 0, 10);
+        if (hints_on) gfx_small(g, x0 + 4, y0 + h - 8, "ACCENT OPENS THE FILTER - TIE = SLIDE", C_GREY);
+    } else if (eng == ENG_FM) {                                     /* ALGORITHM, EG, VOICE, LFO */
+        if (cur == 3) ed_lfo(g, x0, y0, w, h, 1, q[FX_LPMD] || q[FX_LAMD] ? 100 : 0, col);
+        else if (cur == 2) {
+            snprintf(b, sizeof b, TF("PORTA WITH TIE  %+d ST"), (int)tk->transpose - 24);
+            gfx_text_c(g, 120, y0 + h / 2 - 4, b, C_WHITE, 1);
+        } else if (cur == 1) ed_adsr(g, x0, y0, w, h, tk->attack, tk->macro[2], 90, tk->macro[3]);
+        else draw_fm(g, a, t, x0, y0, w, h);
+    } else {                                                        /* BUNO-6: LFO, DCO, DCO WAVE, HPF VCF, VCF MOD, VCA, ENV, CHORUS */
+        if (cur == 0) ed_lfo(g, x0, y0, w, h, 1, 90, col);
+        else if (cur <= 2) ed_wave(g, a, t, x0, y0, w, h, cur);
+        else if (cur <= 4) ed_filter(g, a, t, x0, y0, w, h);
+        else if (cur == 5) gfx_text_c(g, 120, y0 + h / 2 - 4, q[BN_VCA] ? "VCA: GATE" : "VCA: ENV", C_WHITE, 1);
+        else if (cur == 6) ed_adsr(g, x0, y0, w, h, q[BN_A], q[BN_D], q[BN_S], q[BN_R]);
         else {
-            ed_lfo(g, x0, y0, w, h / 2, 1, 90, col);
             int ch = q[BN_CHORUS] % BN_CHORUSES;
             snprintf(b, sizeof b, "CHORUS %s", bm_bn_chorus_names[ch]);
-            gfx_text(g, x0 + 6, y0 + h / 2 + 6, b, ch ? C_PINK : C_GREY, 2);
-            if (hints_on) gfx_small(g, x0 + 6, y0 + h - 8, "ALGORITHM = CHORUS - VCA ENV OR GATE", C_GREY);
+            gfx_text(g, x0 + 6, y0 + h / 2 - 8, b, ch ? C_PINK : C_GREY, 2);
+            if (hints_on) gfx_small(g, x0 + 6, y0 + h - 8, "ALGORITHM = CHORUS", C_GREY);
         }
     }
+}
+
+/* MACHINE (T3-T6): las 5 máquinas. ALGORITHM mueve el resaltado; quedarse 2 s carga. La que suena
+ * va marcada; una pesada que ya está en otro canal, apagada con su canal. */
+static void draw_machine(bm_gfx *g, const bm_app *a)
+{
+    int t = a->track, cur = a->pat.trk[t].engine;
+    uint16_t col = bm_track_color(t);
+    char b[30];
+    for (int i = 0; i < BM_MACHINES; i++) {
+        int e = bm_machines[i], y = PY + i * 18;
+        if (!gfx_strip_hit(g, y, 18)) continue;
+        int other = bm_machine_conflict(&a->pat, t, e);
+        bool sel = e == a->mach_sel, on = e == cur, off = other >= 0;
+        uint16_t fg = off ? C_DGREY : sel ? C_BLACK : C_WHITE, sub = off ? C_DGREY : sel ? C_BLACK : C_GREY;
+        if (sel) gfx_fill(g, 2, y, 236, 17, off ? C_DDGREY : col);
+        bool count = sel && a->mach_arm == 1;
+        if (count) {                                                /* la cuenta: la barra se llena en 2 s */
+            uint32_t dt = a->now - a->mach_t0;
+            int wbar = (int)(dt >= BM_MACH_MS ? 236 : dt * 236u / BM_MACH_MS);
+            gfx_fill(g, 2, y + 15, 236, 2, C_DDGREY);
+            gfx_fill(g, 2, y + 15, wbar, 2, C_WHITE);
+            unsigned left = dt >= BM_MACH_MS ? 0 : (unsigned)(BM_MACH_MS - dt + 99) / 100;
+            snprintf(b, sizeof b, TF("LOAD IN %u.%u S"), left / 10, left % 10);
+            gfx_small(g, 234 - gfx_small_w(b), y + 2, b, C_BLACK);
+        }
+        gfx_text(g, 6, y + 1, on ? ">" : " ", fg, 1);
+        gfx_text(g, 14, y + 1, bm_engine_names[e], fg, 1);
+        gfx_small(g, 14, y + 10, bm_machine_origin(e), sub);
+        if (off) { snprintf(b, sizeof b, TF("ON T%d"), other + 1); gfx_small(g, 234 - gfx_small_w(b), y + 2, b, C_GREY); }
+        else if (count) { }
+        else if (bm_engine_heavy(e)) gfx_small(g, 234 - gfx_small_w("HEAVY - ONE AT A TIME"), y + 2, "HEAVY - ONE AT A TIME", sub);
+        if (on) gfx_small(g, 234 - gfx_small_w("NOW"), y + 10, "NOW", sel ? C_BLACK : col);
+    }
+    note_s(g, VB - 6, "HOLD 2 S ON A MACHINE = LOAD");
 }
 
 static void draw_sound(bm_gfx *g, const bm_app *a)
 {
     int t = a->track;
-    const bm_track *tr = &a->pat.trk[t];
-    char b[30];
     if (bm_is_tr(&a->pat, t)) {
         if (gfx_strip_hit(g, PY, 9)) {
             gfx_text(g, 4, PY, "KIT", C_GREY, 1); gfx_text(g, 28, PY, bm_sound_name(a, t), C_WHITE, 1);
@@ -1294,25 +1339,7 @@ static void draw_sound(bm_gfx *g, const bm_app *a)
         lane_pads(g, a, t, PY + 10, 22);
         return;
     }
-    if (tr->engine == ENG_FM) {
-        if (gfx_strip_hit(g, PY, 9)) {
-            gfx_text(g, 4, PY, bm_sound_name(a, t), C_WHITE, 1);
-            if (hints_on) gfx_small(g, 120, PY + 1, "ALGORITHM = ALG - PRESETS = PATCH", C_GREY);
-        }
-        draw_fm(g, a, t, 4, PY + 10, 232, VB - PY - 10);
-        return;
-    }
-    if (bm_engine_paged(tr->engine)) { draw_editor(g, a); return; }
-    if (gfx_strip_hit(g, PY, 9)) {                                /* BB-303 */
-        gfx_text(g, 4, PY, bm_sound_name(a, t), C_WHITE, 1);
-        if (hints_on) gfx_small(g, 110, PY + 1, "ALGORITHM = B-MINI - PRESETS = WAVE", C_GREY);
-    }
-    draw_synth(g, a, t, 4, PY + 10, 232, 70);
-    char c0[12];
-    bm_fmt_macro(a, t, 0, tr->macro[0], c0, sizeof c0);
-    snprintf(b, sizeof b, TF("LP 4 POLE %s  RES %d%%"), c0, tr->macro[1] * 100 / 127);
-    hint_s(g, PY + 84, b);
-    hint_s(g, PY + 92, "ACCENT OPENS THE FILTER - TIE = SLIDE");
+    draw_editor(g, a);                                            /* las 5 máquinas de notas: sus páginas */
 }
 
 static void draw_inst(bm_gfx *g, const bm_app *a) { draw_editor(g, a); }
@@ -1475,24 +1502,6 @@ static void draw_rec(bm_gfx *g, const bm_app *a)
 }
 
 /* ------------------------------------------------------------ ENV, LFO, FX */
-static void draw_env(bm_gfx *g, const bm_app *a)
-{
-    int t = a->track;
-    const bm_track *tr = &a->pat.trk[t];
-    char b[24];
-    if (gfx_strip_hit(g, PY, 9)) { snprintf(b, sizeof b, TF("PAGE %d/2 (ENV AGAIN)"), a->env_page + 1); gfx_text(g, 4, PY, b, C_GREY, 1); }
-    if (gfx_strip_hit(g, PY + 10, 72)) {
-        gfx_rect(g, 4, PY + 10, 232, 70, C_DDGREY);
-        ed_adsr(g, 8, PY + 14, 224, 62, tr->attack, tr->macro[2], tr->sustain, tr->release);
-    }
-    if (a->env_page == 1) {
-        snprintf(b, sizeof b, TF("ENV > FILTER %d%%"), tr->env_amt * 100 / 127);
-        note_s(g, PY + 84, b);
-        snprintf(b, sizeof b, TF("GLIDE %dMS (WITH TIE)"), tr->glide * 500 / 127);
-        note_s(g, PY + 92, b);
-    } else hint_s(g, PY + 86, "HOLD ENV = PAINT ACCENTS");
-}
-
 static void draw_fx(bm_gfx *g, const bm_app *a)
 {
     const bm_meta *m = &a->pat.meta;
@@ -1545,7 +1554,7 @@ static void draw_fx(bm_gfx *g, const bm_app *a)
 static void draw_keyboard(bm_gfx *g, const bm_app *a, int ky, int kh)
 {
     int t = a->track, root, sc = app_scale(a, t, &root);
-    int base_oct = (t == 2 ? 2 : 3) + a->oct;
+    int base_oct = (app_engine(a, t) == ENG_ACID || app_engine(a, t) == ENG_MINI ? 2 : 3) + a->oct;   /* las de bajo, una octava abajo */
     char b[12];
     if (!gfx_strip_hit(g, ky, kh + 2)) return;
     int n = bm_scale_len(sc);
@@ -2018,7 +2027,7 @@ static void draw_channel(bm_gfx *g, const bm_app *a)
     case PG_MORE: PASO(19); draw_more(g, a); break;
     case PG_BREAK: PASO(16); draw_break(g, a); break;
     case PG_TAKES: PASO(17); draw_takes(g, a); break;
-    case PG_ENV: draw_env(g, a); break;
+    case PG_MACH: draw_machine(g, a); break;
     case PG_ARP: draw_arp(g, a); break;
     case PG_LOOP: draw_loop(g, a); break;
     case PG_SCL: draw_scl(g, a, 0); break;

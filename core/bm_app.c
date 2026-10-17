@@ -34,7 +34,7 @@ const char *bm_kit_name(int kit) { return bm_kits[(kit % BM_KITS_N + BM_KITS_N) 
 int bm_sound_count(const bm_app *a, int t)
 {
     if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
-    if (a->pat.trk[t].engine == ENG_ACID) return 2;
+    if (a->pat.trk[t].engine == ENG_ACID) return BM_AC_PRESETS;
     if (a->pat.trk[t].engine == ENG_FM) return bm_fm_count();
     int n = bm_snap_count(a->pat.trk[t].engine);
     return n ? n : 1;
@@ -44,19 +44,26 @@ const char *bm_sound_name(const bm_app *a, int t)
 {
     int s = a->pat.trk[t].source % bm_sound_count(a, t);
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
-    if (a->pat.trk[t].engine == ENG_ACID) return bm_acid_names[s];
+    if (a->pat.trk[t].engine == ENG_ACID) return bm_ac_presets[s].name;
     if (a->pat.trk[t].engine == ENG_FM) return bm_fm_patch_name(s);
     return bm_snap_name(a->pat.trk[t].engine, s);
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
 void bm_app_cpu(bm_app *a, int pct) { a->cpu = (uint8_t)bm_clampi(pct, 0, 255); }
 
-/* BITTAL (T5): sus dos tablas, armadas en RAM desde el espectro del snapshot (core/bm_wt.h). Se
- * rearman cuando cambia el sonido o la tabla elegida con ALGORITHM; mientras, ese oscilador calla. */
+int app_machine_track(const bm_app *a, int engine)
+{
+    for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) if (a->pat.trk[t].engine == engine) return t;
+    return -1;
+}
+
+/* BITTAL (un canal a la vez): sus dos tablas, armadas en RAM desde el espectro del snapshot
+ * (core/bm_wt.h). Se rearman cuando cambia el sonido o la tabla elegida con ALGORITHM; mientras,
+ * ese oscilador calla. */
 static void app_tables(bm_app *a)
 {
-    const int t = 4;
-    if (a->pat.trk[t].engine != ENG_BITTAL) return;
+    const int t = app_machine_track(a, ENG_BITTAL);
+    if (t < 0) return;
     const uint8_t *q = a->pat.prm[t];
     int n = bm_snap_count(ENG_BITTAL);
     for (int o = 0; o < 2; o++) {
@@ -587,12 +594,23 @@ static int copy_to(bm_app *a, int dst, int trk)
         memcpy(&a->redo, app_track_data(a, trk), app_track_size(trk));
         a->redo_track = -1;
         bm_track tk = a->pat.trk[trk];
+        uint8_t prm[BM_PRM];
+        memcpy(prm, a->pat.prm[trk], BM_PRM);
         bm_loop lp;
         memset(&lp, 0, sizeof lp);
         if (trk >= BM_TR_TRACKS) lp = a->pat.loop[trk - BM_TR_TRACKS];
         load_into(a, dst);
+        int o = bm_machine_conflict(&a->pat, trk, tk.engine);
+        if (o >= 0) {                                  /* BUNO-6 y BITTAL, una vez por patrón: no se copia */
+            load_into(a, cur);
+            bm_engines_sync(&a->ctx);
+            char b[30]; snprintf(b, sizeof b, TF("%s ALREADY ON T%d"), bm_engine_names[tk.engine], o + 1);
+            app_toast(a, b);
+            return 0;
+        }
         memcpy(app_track_data(a, trk), &a->redo, app_track_size(trk));
         a->pat.trk[trk] = tk;
+        memcpy(a->pat.prm[trk], prm, BM_PRM);
         if (trk >= BM_TR_TRACKS) a->pat.loop[trk - BM_TR_TRACKS] = lp;
     }
     int err = write_pattern(a, dst);
@@ -747,10 +765,10 @@ static void demo_pattern(bm_pattern *p, bm_song *song, const bm_take *tk, uint8_
         int n = bm_slice_onsets(tk->data, tk->len, (uint32_t)BM_SMP_RATE * 150u / bpm, 64, m);
         kit_layout(p, tk, take, m, n, true);
     }
-    /* T3: ACID, la línea 303 (acento = vel 127, LIGA = slide) */
+    /* T3: BB-303, la línea 303 (acento = vel 127, LIGA = slide); macros CUTOFF RESO ENV MOD DECAY */
     bm_track_set_engine(p, 2, ENG_ACID);
     bm_track *t3 = &p->trk[2];
-    t3->macro[0] = 28; t3->macro[1] = 108; t3->macro[2] = 58; t3->macro[3] = 105; t3->glide = 45; t3->accent = 115;
+    t3->macro[0] = 28; t3->macro[1] = 108; t3->macro[2] = 105; t3->macro[3] = 58; t3->glide = 45; t3->accent = 115;
     t3->length = 16; t3->send = 25;
     static const struct { int8_t s, n; uint8_t acc, slide; } L[] = {
         {0, 45, 1, 0}, {1, 45, 0, 0}, {2, 57, 1, 1}, {3, 45, 0, 0}, {4, 48, 0, 0}, {5, 45, 0, 1}, {6, 52, 1, 0},
@@ -892,15 +910,15 @@ void bm_app_master(bm_app *a, uint16_t adc)
 /* ------------------------------------------------------------ navegación */
 static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE};
 static const uint8_t TABS_PADS[] = {PG_SEQ, PG_PADS, PG_BREAK, PG_TAKES, PG_MIX, PG_MORE};
-static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_SOUND, PG_ENV, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
-static const uint8_t TABS_WV[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};   /* ENV y LFO están en SONIDO */
+/* T3-T6: MACHINE es la primera de SOUND (SELECT pasa por ella antes de las páginas del sonido); ENV
+ * y LFO están en SOUND */
+static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_MACH, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
 
 int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 {
     const uint8_t *s; int n;
     if (bm_is_pads(t)) { s = TABS_PADS; n = (int)sizeof TABS_PADS; }
     else if (app_kind(a, t) == KIND_TR) { s = TABS_TR; n = (int)sizeof TABS_TR; }
-    else if (bm_engine_paged(a->pat.trk[t].engine)) { s = TABS_WV; n = (int)sizeof TABS_WV; }
     else { s = TABS_NOTE; n = (int)sizeof TABS_NOTE; }
     memcpy(out, s, (size_t)n);
     return n;
@@ -908,7 +926,7 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 
 const char *bm_page_name(int page)
 {
-    static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "MORE", "BREAK", "TAKES", "ENV", "ARP", "LOOP",
+    static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "MORE", "BREAK", "TAKES", "MACHINE", "ARP", "LOOP",
                                             "MIDI", "SCALE", "CHORDS", "RECORD", "PADS"};
     return page < PG_COUNT ? N[page] : "";
 }
@@ -946,8 +964,9 @@ void app_enter(bm_app *a, int t, int page)
     if (a->view == V_CH && a->page == PG_PADS && page != PG_PADS && a->take_dirty)   /* la ganancia de la toma se guarda al salir */
         for (int i = 0; i < BM_TAKES; i++) if (a->take_dirty & (1u << i)) app_job(a, JOB_TAKE_META, i);
     a->page = (uint8_t)page;
-    if (page != PG_REC) a->ch_page[a->track] = (uint8_t)page;
+    if (page != PG_REC) a->ch_page[a->track] = (uint8_t)(page == PG_MACH ? PG_SOUND : page);   /* volver no pasa por MACHINE */
     a->held_step = -1; a->held_white = -1;
+    a->mach_sel = a->pat.trk[a->track].engine; a->mach_arm = 0;   /* MACHINE: empieza en la que suena, sin cuenta */
     app_set_view(a, V_CH);
 }
 
@@ -956,6 +975,7 @@ void app_select_track(bm_app *a, int t, int keep_page)
     if (t < 0 || t >= BM_TRACKS) return;
     a->track = (uint8_t)t;
     a->held_step = -1; a->held_white = -1;
+    a->mach_sel = a->pat.trk[t].engine; a->mach_arm = 0;
     if (a->view == V_CH) {
         int pg = keep_page && app_page_ok(a, t, a->page) && a->page != PG_REC ? a->page : a->ch_page[t];
         if (!app_page_ok(a, t, pg)) pg = PG_SEQ;
@@ -1037,20 +1057,28 @@ void app_paste_track(bm_app *a, int t)
 
 void app_init_sound(bm_app *a, int t)
 {
-    bm_track d; bm_track_defaults(&d, t);
-    static const uint8_t F[] = {0, 1, 2, 3, TRK_OFF(attack), TRK_OFF(sustain), TRK_OFF(release), TRK_OFF(env_amt), TRK_OFF(glide), TRK_OFF(transpose)};
-    for (unsigned i = 0; i < sizeof F; i++) app_push(a, CMD_SET_TRACK, (uint8_t)t, F[i], ((const uint8_t *)&d)[F[i]]);
+    if (app_kind(a, t) == KIND_NOTE) app_push(a, CMD_PRESET, (uint8_t)t, 0xFF, 0);   /* los ajustes de fábrica de la máquina */
+    else {
+        bm_track d; bm_track_defaults(&d, t);
+        static const uint8_t F[] = {0, 1, 2, 3, TRK_OFF(attack), TRK_OFF(sustain), TRK_OFF(release), TRK_OFF(env_amt), TRK_OFF(glide), TRK_OFF(transpose)};
+        for (unsigned i = 0; i < sizeof F; i++) app_push(a, CMD_SET_TRACK, (uint8_t)t, F[i], ((const uint8_t *)&d)[F[i]]);
+    }
     app_edited(a);
     app_toast(a, "INIT SOUND");
 }
 
-void app_bass_machine(bm_app *a, int eng)
+/* T3-T6: otra máquina. Las notas quedan; el sonido pasa a su primer preset. 0 = se cambió. */
+int app_set_machine(bm_app *a, int t, int eng)
 {
-    if (!bm_engine_ok(2, eng) || a->pat.trk[2].engine == eng) return;
-    app_push(a, CMD_ENGINE, 2, (uint8_t)eng, 0);
+    if (!bm_engine_ok(t, eng) || t < BM_TR_TRACKS || a->pat.trk[t].engine == eng) return -1;
+    if (bm_machine_conflict(&a->pat, t, eng) >= 0) return -1;
+    if (a->undo_track == t) a->undo_track = -1;                   /* el undo tenía P-Locks de la otra máquina */
+    if (a->redo_track == t) a->redo_track = -1;
+    app_push(a, CMD_ENGINE, (uint8_t)t, (uint8_t)eng, 0);
     app_edited(a);
-    char b[30]; snprintf(b, sizeof b, TF("T3 IS NOW %s"), bm_engine_names[eng]);
+    char b[30]; snprintf(b, sizeof b, "T%d = %s", t + 1, bm_engine_names[eng]);
     app_toast(a, b);
+    return 0;
 }
 
 void app_select_pattern(bm_app *a, int idx)

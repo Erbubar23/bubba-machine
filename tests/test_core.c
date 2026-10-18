@@ -2,6 +2,8 @@
  * Copyright (C) 2026 Erbubar23 */
 /* Bubba Machine — pruebas del núcleo en PC (interfaz 3.0).
  * Uso: test_core [carpeta_salida]  -> escribe demo.wav y capturas *.ppm */
+#define _GNU_SOURCE                       /* dlsym(RTLD_NEXT): contar las funciones de libm (test_draw_cost) */
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -17,6 +19,7 @@
 #include "../core/bm_fm.h"
 #include "../core/bm_params.h"
 #include <stddef.h>
+#include <time.h>
 
 static int fails, checks;
 #define CHECK(c) do { checks++; if (!(c)) { fails++; printf("  FALLO %s:%d  %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -94,8 +97,11 @@ static void enc(int id, int d) { bm_app_encoder(&app, id, d, now_ms); run_ms(40)
 
 static void shot(const char *name)
 {
+    uint32_t budget = app.scr.budget;                            /* la captura: el cuadro entero de una vez */
+    app.scr.budget = 0;
     app.scr.force = 1;
     bm_app_tick(&app, now_ms);
+    app.scr.budget = budget;
     char p[512];
     snprintf(p, sizeof p, "%s/%s.ppm", outdir, name);
     FILE *f = fopen(p, "wb");
@@ -2228,6 +2234,126 @@ static void test_old_version(void)
     CHECK(app.pat.trk[1].source == BM_SRC_NONE && app.pat.tr[0].st[0][0] & ST_ON);   /* la demo (sin tomas) */
 }
 
+/* Lo que cuesta dibujar cada pantalla (el cuadro entero, las 30 franjas), en la PC. El FM-1 es
+ * unas 20-40 veces más lento: lo que importa es la proporción entre pantallas y el antes/después. */
+static void null_blit(void *u, int x, int y, int w, int h, const uint16_t *px) { (void)u; (void)x; (void)y; (void)w; (void)h; (void)px; }
+
+/* Las funciones caras de libm (en el FM-1 son de software): cuántas llama un cuadro. En la PC son
+ * casi gratis, así que el tiempo de la PC no las muestra; la cuenta sí. Cuentan solo si math_on. */
+static int math_on;
+static long math_n;
+#define MATH_WRAP(f)                                                                     \
+    float f(float x) {                                                                   \
+        static float (*real)(float);                                                     \
+        if (!real) *(void **)&real = dlsym(RTLD_NEXT, #f);                               \
+        math_n += math_on;                                                               \
+        return real(x);                                                                  \
+    }
+MATH_WRAP(expf)
+MATH_WRAP(exp2f)
+MATH_WRAP(log10f)
+MATH_WRAP(log2f)
+MATH_WRAP(logf)
+MATH_WRAP(sinf)
+MATH_WRAP(cosf)
+MATH_WRAP(tanhf)
+
+static double draw_us(long *math)
+{
+    enum { N = 200 };
+    app.ov.on = 0; app.toast_until = 0;
+    bm_screen_render(&app.scr, bm_app_draw, &app, null_blit, NULL);     /* el primero llena los cachés */
+    math_n = 0; math_on = 1;
+    app.scr.force = 1; bm_screen_render(&app.scr, bm_app_draw, &app, null_blit, NULL);
+    math_on = 0;
+    if (math) *math = math_n;
+    clock_t c0 = clock();
+    for (int i = 0; i < N; i++) { app.scr.force = 1; bm_screen_render(&app.scr, bm_app_draw, &app, null_blit, NULL); }
+    return (double)(clock() - c0) * 1e6 / CLOCKS_PER_SEC / N;
+}
+
+static void draw_one(const char *name)
+{
+    long m;
+    double us = draw_us(&m);
+    printf("  %-7s %5.0f us %5ld exp/log/sin\n", name, us, m);
+}
+
+static void draw_pages(int t, int pg, const char *name)
+{
+    int n = 0;
+    ch(t);
+    page(BTN_EDIT, pg);
+    run_ms(80);
+    bm_app_ed_pages(&app, t, &n);
+    long m[16];
+    printf("  %-7s", name);
+    for (int p = 0; p < n && p < 16; p++) { app.ed_page[t] = (uint8_t)p; printf(" %5.0f", draw_us(&m[p])); }
+    printf("  us/cuadro por pagina de SOUND\n  %-7s", "");
+    for (int p = 0; p < n && p < 16; p++) printf(" %5ld", m[p]);
+    printf("  exp/log/sin por cuadro\n");
+}
+
+static void test_draw_cost(void)
+{
+    printf("pantalla: costo de dibujar un cuadro entero (PC)\n");
+    boot(1);
+    uint32_t budget = app.scr.budget;
+    app.scr.budget = 0;                                          /* aquí se mide el cuadro entero */
+    btn(BTN_PLAY, 20);
+    run_ms(300);
+    draw_one("HOME");
+    ch(0); page(BTN_SEQ, PG_SEQ);
+    draw_one("SEQ TR");
+    ch(2); page(BTN_SEQ, PG_SEQ);
+    draw_one("SEQ T3");
+    ch(1); page(BTN_EDIT, PG_PADS);
+    draw_one("PADS");
+    draw_pages(0, PG_INST, "BR-8");
+    draw_pages(2, PG_SOUND, "BB-303");
+    draw_pages(3, PG_SOUND, "BX-7");
+    draw_pages(4, PG_SOUND, "BITTAL");
+    draw_pages(5, PG_SOUND, "BUNO-6");
+    CHECK(app_set_machine(&app, 2, ENG_MINI) == 0);
+    run_ms(40);
+    draw_pages(2, PG_SOUND, "B-MINI");
+    /* el caché sigue a los parámetros: otro corte cambia la curva, volver deja el mismo dibujo */
+    app.ed_page[2] = 5;                                          /* B-MINI: FILTER */
+    app.ov.on = 0; app.toast_until = 0;
+    app.scr.force = 1; bm_screen_render(&app.scr, bm_app_draw, &app, app.pf.blit, app.pf.user);
+    static uint16_t ref[240 * 240];
+    memcpy(ref, sim.fb, sizeof ref);
+    uint8_t cut = app.pat.trk[2].macro[0];
+    app.pat.trk[2].macro[0] = (uint8_t)(cut > 60 ? cut - 40 : cut + 40);
+    app.scr.force = 1; bm_screen_render(&app.scr, bm_app_draw, &app, app.pf.blit, app.pf.user);
+    CHECK(memcmp(ref + 57 * 240, sim.fb + 57 * 240, 78 * 240 * 2) != 0);   /* la curva, no solo la perilla */
+    app.pat.trk[2].macro[0] = cut;
+    app.scr.force = 1; bm_screen_render(&app.scr, bm_app_draw, &app, app.pf.blit, app.pf.user);
+    CHECK(memcmp(ref, sim.fb, sizeof ref) == 0);
+    app.scr.budget = budget;
+    btn(BTN_PLAY, 20);
+    run_ms(2000);
+    /* entrar a una página: el redibujo entero se reparte en varios ticks y termina igual que de una vez */
+    app.ov.on = 0; app.toast_until = 0;
+    memset(sim.fb, 0, sizeof sim.fb);
+    app.scr.force = 1; sim.spi_bytes = 0;
+    bm_app_tick(&app, now_ms);
+    CHECK(sim.spi_bytes <= BM_SCR_BUDGET && app.scr.pending);
+    int n = 1;
+    while (app.scr.pending && n < 10) { bm_app_tick(&app, now_ms); n++; }
+    printf("  redibujo entero: %d ticks de hasta %u B\n", n, (unsigned)BM_SCR_BUDGET);
+    CHECK(!app.scr.pending && n == 3);
+    memcpy(ref, sim.fb, sizeof ref);
+    app.scr.budget = 0; app.scr.force = 1;
+    bm_app_tick(&app, now_ms);
+    CHECK(memcmp(ref, sim.fb, sizeof ref) == 0);
+    app.scr.budget = budget;
+    /* 25 cuadros por segundo: un tick cada 10 ms dibuja uno de cada cuatro */
+    uint32_t f0 = app.scr.frames;
+    for (int i = 0; i < 100; i++) { now_ms += 10; bm_app_tick(&app, now_ms); }
+    CHECK(app.scr.frames - f0 == 25);
+}
+
 static void test_spi_budget(void)
 {
     printf("pantalla: bytes por frame en SEQ sonando\n");
@@ -2541,6 +2667,7 @@ int main(int argc, char **argv)
     test_fm();
     test_demo_and_persist();
     test_old_version();
+    test_draw_cost();
     test_spi_budget();
     test_ui_flow();
     test_lang();

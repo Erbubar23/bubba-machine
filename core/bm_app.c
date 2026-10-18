@@ -891,6 +891,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->page = PG_SEQ;
     a->boot_t = now;
     a->scr.force = 1;
+    a->scr.budget = BM_SCR_BUDGET;
 }
 
 void bm_app_audio(bm_app *a, int32_t *out, uint32_t frames) { bm_audio_render(&a->ctx, out, frames); }
@@ -1174,5 +1175,6 @@ void bm_app_tick(bm_app *a, uint32_t now)
         else if (a->page == PG_REC) app_wave_view(a, BM_TAKE_NEW, 0, 0);
     }
     app_leds(a);
-    if (a->pf.blit) bm_screen_render(&a->scr, bm_app_draw, a, a->pf.blit, a->pf.user);
+    /* 25 cuadros por segundo como mucho, y un redibujo entero repartido en varios ticks (bm_gfx.h) */
+    if (a->pf.blit && bm_screen_due(&a->scr, now)) bm_screen_render(&a->scr, bm_app_draw, a, a->pf.blit, a->pf.user);
 }

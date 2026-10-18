@@ -186,12 +186,16 @@ static void sys_val(const bm_app *a, int i, char *v, int cap);
 static void draw_legend(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_LEGEND_Y, BM_LEGEND_H)) return;
-    bm_legend L[4];
-    PASO(30);
-    bm_app_legend(a, L);
-    PASO(29);
-    /* SYSTEM: K1 muestra el valor de la fila, no el nombre de otra perilla */
-    if (a->view == V_SYSTEM && !a->layer && L[0].name[0]) sys_val(a, a->menu_row, L[0].val, sizeof L[0].val);
+    static bm_legend L[4];                                       /* una vez por cuadro, no por franja */
+    static uint32_t lf;
+    if (lf != g->frame) {
+        lf = g->frame;
+        PASO(30);
+        bm_app_legend(a, L);
+        PASO(29);
+        /* SYSTEM: K1 muestra el valor de la fila, no el nombre de otra perilla */
+        if (a->view == V_SYSTEM && !a->layer && L[0].name[0]) sys_val(a, a->menu_row, L[0].val, sizeof L[0].val);
+    }
     gfx_fill(g, 0, BM_LEGEND_Y, BM_LCD_W, BM_LEGEND_H, C_BLACK);
     gfx_hline(g, 0, BM_LEGEND_Y, BM_LCD_W, C_DDGREY);
     for (int i = 0; i < 4; i++) {
@@ -359,10 +363,14 @@ static void key_cell(bm_gfx *g, const bm_app *a, int x, int y, int w, int h, con
 static void draw_keys(bm_gfx *g, const bm_app *a)
 {
     if (!gfx_strip_hit(g, BM_KEYS_Y, BM_KEYS_H)) return;
-    bm_keyfn K[BM_KEYS];
-    PASO(31);
-    bm_app_keys(a, K);
-    PASO(28);
+    static bm_keyfn K[BM_KEYS];                                  /* una vez por cuadro, no por franja */
+    static uint32_t kf;
+    if (kf != g->frame) {
+        kf = g->frame;
+        PASO(31);
+        bm_app_keys(a, K);
+        PASO(28);
+    }
     gfx_fill(g, 0, BM_KEYS_Y, BM_LCD_W, BM_KEYS_H, C_BLACK);
     gfx_hline(g, 0, BM_KEYS_Y, BM_LCD_W, C_DDGREY);
     int wy = BM_KEYS_Y + 15;
@@ -744,49 +752,55 @@ static void draw_synth(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w,
  * realimentación como un lazo. Cada operador con su nivel y su relación de frecuencia. */
 static void draw_fm(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h)
 {
-    uint8_t p[BM_FM_PATCH];
-    bm_fm_patch_of(&a->pat.trk[t], a->pat.prm[t], NULL, p);
-    int alg = p[BM_FM_ALG] & 31;
-    uint8_t car = bm_fm_carriers(alg), mods[6];
-    int8_t fb[2];
-    bm_fm_alg_graph(alg, mods, fb);
     if (!gfx_strip_hit(g, y0, h + 1)) return;
+    /* el patch y la topología, una vez por cuadro (no una por franja) */
+    static struct { uint32_t frame; int t, alg, bx[6], by[6]; uint8_t p[BM_FM_PATCH], car, mods[6]; int8_t fb[2]; } L;
+    if (L.frame != g->frame || L.t != t) {
+        L.frame = g->frame; L.t = t;
+        uint8_t *p = L.p, *mods = L.mods;
+        bm_fm_patch_of(&a->pat.trk[t], a->pat.prm[t], NULL, p);
+        int alg = L.alg = p[BM_FM_ALG] & 31;
+        uint8_t car = L.car = bm_fm_carriers(alg);
+        bm_fm_alg_graph(alg, mods, L.fb);
+        /* profundidad: las portadoras en 0; un modulador, uno más que su destino */
+        int depth[6] = {0, 0, 0, 0, 0, 0}, maxd = 0;
+        for (int it = 0; it < 6; it++)
+            for (int i = 0; i < 6; i++)
+                for (int j = 0; j < 6; j++)
+                    if (mods[j] & (1u << i)) if (depth[i] < depth[j] + 1) depth[i] = depth[j] + 1;
+        for (int i = 0; i < 6; i++) if (depth[i] > maxd) maxd = depth[i];
+        /* columnas: las portadoras de izquierda a derecha (OP1 primero), sus cadenas encima */
+        float cx[6]; int placed[6] = {0, 0, 0, 0, 0, 0}, col = 0;
+        for (int pass = 0; pass < 2; pass++)
+            for (int op = 1; op <= 6; op++) {
+                int i = 6 - op;
+                if (placed[i]) continue;
+                bool carrier = (car >> i) & 1;
+                if (pass == 0 && !carrier) continue;
+                int tgt = -1;
+                for (int j = 0; j < 6; j++) if (mods[j] & (1u << i)) { tgt = j; break; }
+                if (tgt >= 0 && placed[tgt]) {
+                    int sib = 0;                                       /* hermanos ya puestos sobre el mismo destino */
+                    for (int k = 0; k < 6; k++) if (k != i && placed[k] && (mods[tgt] & (1u << k))) sib++;
+                    cx[i] = cx[tgt] + (float)sib;
+                    if (sib) { cx[i] = (float)col; col++; }
+                } else { cx[i] = (float)col; col++; }
+                placed[i] = 1;
+            }
+        int ncol = col > 0 ? col : 1;
+        float cw = (float)(w - 8) / (float)ncol;
+        int rh = (h - 18) / (maxd + 1);
+        if (rh > 22) rh = 22;
+        for (int i = 0; i < 6; i++) {
+            L.bx[i] = x0 + 4 + (int)(cx[i] * cw + cw / 2.0f) - 9;
+            L.by[i] = y0 + h - 18 - depth[i] * rh - 12;
+        }
+    }
+    const uint8_t *p = L.p, *mods = L.mods, car = L.car;
+    const int8_t *fb = L.fb;
+    const int *bx = L.bx, *by = L.by, alg = L.alg;
     gfx_rect(g, x0, y0, w, h, C_DDGREY);
     grid(g, x0 + 2, y0 + 2, w - 4, h - 4, 8);
-    /* profundidad: las portadoras en 0; un modulador, uno más que su destino */
-    int depth[6] = {0, 0, 0, 0, 0, 0}, maxd = 0;
-    for (int it = 0; it < 6; it++)
-        for (int i = 0; i < 6; i++)
-            for (int j = 0; j < 6; j++)
-                if (mods[j] & (1u << i)) if (depth[i] < depth[j] + 1) depth[i] = depth[j] + 1;
-    for (int i = 0; i < 6; i++) if (depth[i] > maxd) maxd = depth[i];
-    /* columnas: las portadoras de izquierda a derecha (OP1 primero), sus cadenas encima */
-    float cx[6]; int placed[6] = {0, 0, 0, 0, 0, 0}, col = 0;
-    for (int pass = 0; pass < 2; pass++)
-        for (int op = 1; op <= 6; op++) {
-            int i = 6 - op;
-            if (placed[i]) continue;
-            bool carrier = (car >> i) & 1;
-            if (pass == 0 && !carrier) continue;
-            int tgt = -1;
-            for (int j = 0; j < 6; j++) if (mods[j] & (1u << i)) { tgt = j; break; }
-            if (tgt >= 0 && placed[tgt]) {
-                int sib = 0;                                       /* hermanos ya puestos sobre el mismo destino */
-                for (int k = 0; k < 6; k++) if (k != i && placed[k] && (mods[tgt] & (1u << k))) sib++;
-                cx[i] = cx[tgt] + (float)sib;
-                if (sib) { cx[i] = (float)col; col++; }
-            } else { cx[i] = (float)col; col++; }
-            placed[i] = 1;
-        }
-    int ncol = col > 0 ? col : 1;
-    float cw = (float)(w - 8) / (float)ncol;
-    int rh = (h - 18) / (maxd + 1);
-    if (rh > 22) rh = 22;
-    int bx[6], by[6];
-    for (int i = 0; i < 6; i++) {
-        bx[i] = x0 + 4 + (int)(cx[i] * cw + cw / 2.0f) - 9;
-        by[i] = y0 + h - 18 - depth[i] * rh - 12;
-    }
     uint16_t tc = bm_track_color(t);
     for (int j = 0; j < 6; j++)                                   /* conexiones */
         for (int i = 0; i < 6; i++)
@@ -1004,6 +1018,36 @@ static void draw_break(bm_gfx *g, const bm_app *a)
     hint_s(g, PY + 88, "HOLD EDIT + BLACK 4 = CAPTURE INTO THE GRID");
 }
 
+/* ------------------------------------------------------------ el dibujo del visor, guardado
+ * El cuadro recorre la escena una vez por franja (30 veces). Las curvas del visor de SOUND (filtro,
+ * ondas, LFO, el golpe de la batería, la tabla de BITTAL) cuestan exp/log/seno por cada x: se
+ * calculan cuando cambia lo que dibujan y cada franja las recorre desde aquí. Se ve una sola a la
+ * vez: la clave dice cuál es y con qué valores. ~1.4 KB. */
+#define CV_W 228
+static union {
+    int16_t y[2][CV_W];                          /* curvas: la fila de cada x, desde y0 */
+    uint8_t tab[1368];                           /* BITTAL: los frames uno tras otro, desde su fila de arriba (8 x 171 como mucho) */
+} cv;
+static int32_t cv_x[8];                          /* lo demás de la curva: marcas, la barra del ENV, Hz */
+static uint8_t cv_key[24], cv_len;
+
+/* ¿lo guardado es de esta clave? Si no, la anota: el que llama lo calcula de nuevo */
+static bool cv_fresh(const uint8_t *key, int len)
+{
+    if (len == cv_len && !memcmp(cv_key, key, (size_t)len)) return true;
+    memcpy(cv_key, key, (size_t)len);
+    cv_len = (uint8_t)len;
+    return false;
+}
+
+/* un tramo de la curva solo si toca la franja (los demás ni llaman a gfx_line) */
+static void seg(bm_gfx *g, int xa, int ya, int xb, int yb, uint16_t c)
+{
+    if (ya < 0) return;                          /* como el "py >= 0" de siempre */
+    if ((ya > yb ? ya : yb) < g->cy0 || (ya < yb ? ya : yb) >= g->cy1) return;
+    gfx_line(g, xa, ya, xb, yb, c);
+}
+
 /* ------------------------------------------------------------ editor de sonido por páginas */
 static float mini_wave(int w, float p)             /* las formas de B-MINI */
 {
@@ -1022,38 +1066,42 @@ static float mini_wave(int w, float p)             /* las formas de B-MINI */
 static void ed_wave(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, int h, int page)
 {
     const uint8_t *q = a->pat.prm[t];
-    int eng = a->pat.trk[t].engine, py = -1, py2 = -1, mid = y0 + h / 2;
+    int eng = a->pat.trk[t].engine, mid = y0 + h / 2;
+    bool two = eng == ENG_MINI && page >= 0 && page <= 2;      /* el oscilador de la página, encima */
     uint16_t col = C_CYAN;
     gfx_hline(g, x0, mid, w, C_DDGREY);
-    static const float RG[5] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
-    for (int x = 0; x < w; x++) {
-        float p = (float)x * 2.0f / (float)w, y, y2 = 0.0f;
-        if (eng == ENG_BUNO) {
-            float ph = p - (float)(int)p, pw = 0.5f - 0.46f * (float)q[BN_PWM] / 127.0f * 0.5f;
-            y = (q[BN_SAW] ? 1.0f - 2.0f * ph : 0.0f) + (q[BN_PULSE] ? (ph < pw ? 1.0f : -1.0f) : 0.0f);
-            float ps = p * 0.5f; ps -= (float)(int)ps;
-            y += (float)q[BN_SUB] / 127.0f * (ps < 0.5f ? 1.0f : -1.0f);
-            y *= 0.6f;
-        } else {
-            static const uint8_t W[3] = {MN_W1, MN_W2, MN_W3}, R[3] = {MN_R1, MN_R2, MN_R3}, L[3] = {MN_L1, MN_L2, MN_L3};
-            y = 0.0f;
-            int sel = page >= 0 && page <= 2 ? page : -1;
-            for (int k = 0; k < 3; k++) {
-                float pk = p * RG[q[R[k]] % 5] / RG[q[R[0]] % 5]; pk -= (float)(int)pk;
-                float v = mini_wave(q[W[k]] % MN_WAVES, pk) * (float)q[L[k]] / 127.0f;
-                y += v * 0.45f;
-                if (k == sel) y2 = v;
+    if (w > CV_W) return;
+    const uint8_t key[] = {1, (uint8_t)eng, (uint8_t)(page + 1), (uint8_t)w, (uint8_t)h, q[BN_PWM], q[BN_SAW], q[BN_PULSE], q[BN_SUB],
+                           q[MN_W1], q[MN_W2], q[MN_W3], q[MN_R1], q[MN_R2], q[MN_R3], q[MN_L1], q[MN_L2], q[MN_L3]};
+    if (!cv_fresh(key, sizeof key)) {
+        static const float RG[5] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
+        for (int x = 0; x < w; x++) {
+            float p = (float)x * 2.0f / (float)w, y, y2 = 0.0f;
+            if (eng == ENG_BUNO) {
+                float ph = p - (float)(int)p, pw = 0.5f - 0.46f * (float)q[BN_PWM] / 127.0f * 0.5f;
+                y = (q[BN_SAW] ? 1.0f - 2.0f * ph : 0.0f) + (q[BN_PULSE] ? (ph < pw ? 1.0f : -1.0f) : 0.0f);
+                float ps = p * 0.5f; ps -= (float)(int)ps;
+                y += (float)q[BN_SUB] / 127.0f * (ps < 0.5f ? 1.0f : -1.0f);
+                y *= 0.6f;
+            } else {
+                static const uint8_t W[3] = {MN_W1, MN_W2, MN_W3}, R[3] = {MN_R1, MN_R2, MN_R3}, L[3] = {MN_L1, MN_L2, MN_L3};
+                y = 0.0f;
+                int sel = page >= 0 && page <= 2 ? page : -1;
+                for (int k = 0; k < 3; k++) {
+                    float pk = p * RG[q[R[k]] % 5] / RG[q[R[0]] % 5]; pk -= (float)(int)pk;
+                    float v = mini_wave(q[W[k]] % MN_WAVES, pk) * (float)q[L[k]] / 127.0f;
+                    y += v * 0.45f;
+                    if (k == sel) y2 = v;
+                }
+                if (sel < 0) y2 = 0.0f;
             }
-            if (sel < 0) y2 = 0.0f;
+            cv.y[0][x] = (int16_t)(h / 2 - (int)(bm_clampf(y, -1.2f, 1.2f) * (float)(h / 2 - 3)));
+            cv.y[1][x] = (int16_t)(h / 2 - (int)(y2 * (float)(h / 2 - 3)));
         }
-        int yy = mid - (int)(bm_clampf(y, -1.2f, 1.2f) * (float)(h / 2 - 3));
-        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, yy, col);
-        py = yy;
-        if (eng == ENG_MINI && page >= 0 && page <= 2) {
-            int y1 = mid - (int)(y2 * (float)(h / 2 - 3));
-            if (py2 >= 0) gfx_line(g, x0 + x - 1, py2, x0 + x, y1, C_ORANGE);
-            py2 = y1;
-        }
+    }
+    for (int x = 1; x < w; x++) {                                 /* en el orden de siempre: se pisan igual */
+        seg(g, x0 + x - 1, y0 + cv.y[0][x - 1], x0 + x, y0 + cv.y[0][x], col);
+        if (two) seg(g, x0 + x - 1, y0 + cv.y[1][x - 1], x0 + x, y0 + cv.y[1][x], C_ORANGE);
     }
 }
 
@@ -1069,16 +1117,22 @@ static void ed_table(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, i
     int curf = (int)(pos * (float)(nf - 1) + 0.5f);
     int dx = 7, dy = 5, ww = w - 8 - dx * (nf - 1), hh = h - 6 - dy * (nf - 1);
     if (hh < 16) hh = 16;
-    for (int f = nf - 1; f >= 0; f--) {
-        int n;
-        const int16_t *d = bm_wt_data(slot, f, 3, &n);              /* 128 muestras para dibujar */
-        int ox = x0 + 4 + f * dx, oy = y0 + 3 + (nf - 1 - f) * dy, mid = oy + hh / 2, pyy = -1;
-        uint16_t c = f == curf ? C_CYAN : (f < curf ? C_DGREY : dim(C_VIOLET));
-        for (int x = 0; x < ww; x++) {
-            int yy = mid - (int)d[x * n / ww] * (hh / 2 - 1) / 32768;
-            if (pyy >= 0) gfx_line(g, ox + x - 1, pyy, ox + x, yy, c);
-            pyy = yy;
+    if (nf < 1 || ww < 1 || nf * ww > (int)sizeof cv.tab || hh > 255) return;
+    uint32_t sig = a->wt_sig[slot];
+    const uint8_t key[] = {2, (uint8_t)slot, (uint8_t)nf, (uint8_t)ww, (uint8_t)hh,
+                           (uint8_t)sig, (uint8_t)(sig >> 8), (uint8_t)(sig >> 16), (uint8_t)(sig >> 24)};
+    if (!cv_fresh(key, sizeof key))                                /* la tabla solo cambia si se rearma */
+        for (int f = 0; f < nf; f++) {
+            int n;
+            const int16_t *d = bm_wt_data(slot, f, 3, &n);          /* 128 muestras para dibujar */
+            for (int x = 0; x < ww; x++) cv.tab[f * ww + x] = (uint8_t)(hh / 2 - (int)d[x * n / ww] * (hh / 2 - 1) / 32768);
         }
+    for (int f = nf - 1; f >= 0; f--) {
+        int ox = x0 + 4 + f * dx, oy = y0 + 3 + (nf - 1 - f) * dy;
+        if (oy + hh <= g->cy0 || oy >= g->cy1) continue;            /* el frame entero, fuera de la franja */
+        uint16_t c = f == curf ? C_CYAN : (f < curf ? C_DGREY : dim(C_VIOLET));
+        const uint8_t *ty = cv.tab + f * ww;
+        for (int x = 1; x < ww; x++) seg(g, ox + x - 1, oy + ty[x - 1], ox + x, oy + ty[x], c);
     }
     char b[24];
     snprintf(b, sizeof b, "WT FRAME %d/%d", curf + 1, nf);
@@ -1106,38 +1160,48 @@ static void ed_filter(bm_gfx *g, const bm_app *a, int t, int x0, int y0, int w, 
 {
     const bm_track *tk = &a->pat.trk[t];
     const uint8_t *q = a->pat.prm[t];
-    int eng = tk->engine, type = 0, cut, res;
-    float env;
-    if (eng == ENG_BITTAL) { type = q[BT_FT] % BT_FILTERS; cut = q[BT_CUT]; res = q[BT_RES]; env = (float)((int)q[BT_FENV] - 64) / 63.0f * 72.0f; if (type == BT_F_LADDER) type = 0; }
-    else { cut = tk->macro[0]; res = tk->macro[1]; env = (float)tk->macro[2] / 127.0f * 72.0f; }   /* B-MINI y BUNO-6: CONTOUR / ENV */
+    int eng = tk->engine, type = 0, cut, res, envb;
+    if (eng == ENG_BITTAL) { type = q[BT_FT] % BT_FILTERS; cut = q[BT_CUT]; res = q[BT_RES]; envb = q[BT_FENV]; if (type == BT_F_LADDER) type = 0; }
+    else { cut = tk->macro[0]; res = tk->macro[1]; envb = tk->macro[2]; }   /* B-MINI y BUNO-6: CONTOUR / ENV */
     if (eng == ENG_BITTAL && q[BT_FT] == BT_F_OFF) { gfx_text_c(g, x0 + w / 2, y0 + h / 2, "FILTER OFF", C_GREY, 1); return; }
-    float fc = bm_cut_hz(cut), qv = bm_reso_q(res);
-    if (env != 0.0f) {
-        float fe = fc * exp2f(env / 12.0f);
-        int xa = x0 + (int)((log2f(bm_clampf(fc, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
-        int xb = x0 + (int)((log2f(bm_clampf(fe, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
+    if (w > CV_W) return;
+    int hpf = eng == ENG_BUNO ? q[BN_HPF] : 0;
+    const uint8_t key[] = {3, (uint8_t)(eng == ENG_BITTAL), (uint8_t)type, (uint8_t)cut, (uint8_t)res, (uint8_t)envb, (uint8_t)hpf, (uint8_t)w, (uint8_t)h};
+    enum { XA, XB, ENV_ON, HPF_X, MK0 };                           /* cv_x: lo que no es la curva */
+    if (!cv_fresh(key, sizeof key)) {                              /* 228 x (exp2f, 2 sqrtf, log10f): solo si cambió */
+        float env = eng == ENG_BITTAL ? (float)(envb - 64) / 63.0f * 72.0f : (float)envb / 127.0f * 72.0f;
+        float fc = bm_cut_hz(cut), qv = bm_reso_q(res);
+        cv_x[ENV_ON] = env != 0.0f;
+        if (env != 0.0f) {
+            float fe = fc * exp2f(env / 12.0f);
+            cv_x[XA] = (int)((log2f(bm_clampf(fc, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
+            cv_x[XB] = (int)((log2f(bm_clampf(fe, 20.0f, 20000.0f) / 20.0f)) / 10.0f * (float)w);
+        }
+        for (int x = 0; x < w; x++) {
+            float f = 20.0f * exp2f((float)x * 10.0f / (float)w);
+            float db = bm_clampf(ed_filter_db(type, f / fc, qv), -36.0f, 18.0f);
+            cv.y[0][x] = (int16_t)(int)((18.0f - db) / 54.0f * (float)(h - 6));
+        }
+        static const float F[3] = {100.0f, 1000.0f, 10000.0f};
+        for (int k = 0; k < 3; k++) cv_x[MK0 + k] = (int)(log2f(F[k] / 20.0f) / 10.0f * (float)w);
+        static const float HZ[4] = {0.0f, 120.0f, 250.0f, 520.0f};
+        if (hpf) cv_x[HPF_X] = (int)(log2f(HZ[hpf & 3] / 20.0f) / 10.0f * (float)w);
+    }
+    if (cv_x[ENV_ON]) {
+        int xa = x0 + cv_x[XA], xb = x0 + cv_x[XB];
         gfx_fill(g, xa < xb ? xa : xb, y0 + h - 4, (xa < xb ? xb - xa : xa - xb) + 1, 3, C_GREEN);
     }
     int y0db = y0 + h * 18 / 54;
     gfx_hline(g, x0, y0db, w, C_DDGREY);
-    int py = -1;
-    for (int x = 0; x < w; x++) {
-        float f = 20.0f * exp2f((float)x * 10.0f / (float)w);
-        float db = bm_clampf(ed_filter_db(type, f / fc, qv), -36.0f, 18.0f);
-        int y = y0 + (int)((18.0f - db) / 54.0f * (float)(h - 6));
-        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, y, C_ORANGE);
-        py = y;
-    }
-    static const float F[3] = {100.0f, 1000.0f, 10000.0f};
+    for (int x = 1; x < w; x++) seg(g, x0 + x - 1, y0 + cv.y[0][x - 1], x0 + x, y0 + cv.y[0][x], C_ORANGE);
     static const char *const N[3] = {"100", "1K", "10K"};
     for (int k = 0; k < 3; k++) {
-        int x = x0 + (int)(log2f(F[k] / 20.0f) / 10.0f * (float)w);
+        int x = x0 + cv_x[MK0 + k];
         gfx_vline(g, x, y0 + h - 8, 3, C_DGREY);
         gfx_small(g, x - 4, y0 + h - 12, N[k], C_GREY);
     }
-    if (eng == ENG_BUNO && q[BN_HPF]) {                          /* el pasa-altos de BUNO-6 */
-        static const float HZ[4] = {0.0f, 120.0f, 250.0f, 520.0f};
-        int x = x0 + (int)(log2f(HZ[q[BN_HPF] & 3] / 20.0f) / 10.0f * (float)w);
+    if (hpf) {                                                     /* el pasa-altos de BUNO-6 */
+        int x = x0 + cv_x[HPF_X];
         gfx_fill(g, x0, y0 + 2, x - x0, 3, C_PINK);
         gfx_small(g, x0 + 2, y0 + 6, "HPF", C_PINK);
     }
@@ -1158,26 +1222,29 @@ static void ed_adsr(bm_gfx *g, int x0, int y0, int w, int h, int A, int D, int S
 
 static void ed_lfo(bm_gfx *g, int x0, int y0, int w, int h, int shape, int amt, uint16_t col)
 {
-    int mid = y0 + h / 2, py = -1;
-    uint32_t rng = 12345;
-    float sh = 0.0f;
+    int mid = y0 + h / 2;
     gfx_hline(g, x0, mid, w, C_DDGREY);
-    for (int x = 0; x < w; x++) {
-        float p = (float)x * 3.0f / (float)w, ph = p - (float)(int)p, y;
-        switch (shape) {
-        case 0: y = sinf(6.2831853f * ph); break;
-        case 1: y = 4.0f * fabsf(ph - 0.5f) - 1.0f; break;
-        case 2: y = 1.0f - 2.0f * ph; break;
-        case 3: y = ph < 0.5f ? 1.0f : -1.0f; break;
-        default:
-            if (x == 0 || (int)((float)(x - 1) * 3.0f / (float)w * 2.0f) != (int)(p * 2.0f)) sh = (float)(int32_t)(rng = rng * 1664525u + 1013904223u) / 2147483648.0f;
-            y = sh;
-            break;
+    if (w > CV_W) return;
+    const uint8_t key[] = {4, (uint8_t)shape, (uint8_t)amt, (uint8_t)w, (uint8_t)h};
+    if (!cv_fresh(key, sizeof key)) {
+        uint32_t rng = 12345;
+        float sh = 0.0f;
+        for (int x = 0; x < w; x++) {
+            float p = (float)x * 3.0f / (float)w, ph = p - (float)(int)p, y;
+            switch (shape) {
+            case 0: y = sinf(6.2831853f * ph); break;
+            case 1: y = 4.0f * fabsf(ph - 0.5f) - 1.0f; break;
+            case 2: y = 1.0f - 2.0f * ph; break;
+            case 3: y = ph < 0.5f ? 1.0f : -1.0f; break;
+            default:
+                if (x == 0 || (int)((float)(x - 1) * 3.0f / (float)w * 2.0f) != (int)(p * 2.0f)) sh = (float)(int32_t)(rng = rng * 1664525u + 1013904223u) / 2147483648.0f;
+                y = sh;
+                break;
+            }
+            cv.y[0][x] = (int16_t)(h / 2 - (int)(y * (float)(h / 2 - 3) * (0.25f + 0.75f * (float)amt / 127.0f)));
         }
-        int yy = mid - (int)(y * (float)(h / 2 - 3) * (0.25f + 0.75f * (float)amt / 127.0f));
-        if (py >= 0) gfx_line(g, x0 + x - 1, py, x0 + x, yy, amt ? col : C_DGREY);
-        py = yy;
     }
+    for (int x = 1; x < w; x++) seg(g, x0 + x - 1, y0 + cv.y[0][x - 1], x0 + x, y0 + cv.y[0][x], amt ? col : C_DGREY);
 }
 
 /* BITTAL: las 4 macros con su destino y lo que mueven ahora */
@@ -1233,17 +1300,25 @@ static void draw_editor(bm_gfx *g, const bm_app *a)
     const uint8_t *q = a->pat.prm[t];
     if (tr) {
         const bm_lane *ln = &bm_trk_trc(&a->pat, t)->lane[a->sel_lane[t] & 15];
-        int dec = 6 + ln->decay * (w - 12) / 127, mid = y0 + h / 2, py = -1, pyn = -1;
+        int dec = 6 + ln->decay * (w - 12) / 127, mid = y0 + h / 2, n = dec < w ? dec : w;
         gfx_hline(g, x0, mid, w, C_DDGREY);
-        float hz = (float)bm_drm_base_hz[ln->model % DRM_COUNT] * exp2f((float)(ln->tune - 64) * 0.375f / 12.0f);
-        for (int x = 0; x < dec && x < w; x++) {
-            float e = expf(-4.0f * (float)x / (float)dec);
-            float s = sinf((float)x * 0.12f * hz / 300.0f) * e;
-            int yy = mid - (int)(s * (float)(h / 2 - 4)), yn = mid + (int)(s * (float)(h / 2 - 4));
-            if (py >= 0) { gfx_line(g, x0 + x - 1, py, x0 + x, yy, col); gfx_line(g, x0 + x - 1, pyn, x0 + x, yn, dim(col)); }
-            py = yy; pyn = yn;
+        if (n > CV_W) return;
+        const uint8_t key[] = {5, (uint8_t)(ln->model % DRM_COUNT), ln->tune, (uint8_t)dec, (uint8_t)w, (uint8_t)h};
+        if (!cv_fresh(key, sizeof key)) {                           /* el golpe: expf y sinf por x, solo si cambió */
+            float hz = (float)bm_drm_base_hz[ln->model % DRM_COUNT] * exp2f((float)(ln->tune - 64) * 0.375f / 12.0f);
+            for (int x = 0; x < n; x++) {
+                float e = expf(-4.0f * (float)x / (float)dec);
+                float s = sinf((float)x * 0.12f * hz / 300.0f) * e;
+                cv.y[0][x] = (int16_t)(h / 2 - (int)(s * (float)(h / 2 - 4)));
+                cv.y[1][x] = (int16_t)(h / 2 + (int)(s * (float)(h / 2 - 4)));
+            }
+            cv_x[0] = (int)(hz + 0.5f);
         }
-        snprintf(b, sizeof b, "%d HZ", (int)(hz + 0.5f));
+        for (int x = 1; x < n; x++) {
+            seg(g, x0 + x - 1, y0 + cv.y[0][x - 1], x0 + x, y0 + cv.y[0][x], col);
+            seg(g, x0 + x - 1, y0 + cv.y[1][x - 1], x0 + x, y0 + cv.y[1][x], dim(col));
+        }
+        snprintf(b, sizeof b, "%d HZ", (int)cv_x[0]);
         gfx_small(g, x0 + w - gfx_small_w(b) - 2, y0 + 2, b, C_GREY);
         return;
     }
@@ -1386,6 +1461,7 @@ static void draw_more(bm_gfx *g, const bm_app *a)
     int first = a->more_row > 6 ? a->more_row - 6 : 0;
     for (int i = 0; i < 7 && first + i < n; i++) {
         const char *nm;
+        if (!gfx_strip_hit(g, PY + 1 + i * 12, 12)) continue;      /* la fila, solo si se dibuja */
         bm_app_more_row(a, first + i, &nm, v, sizeof v);
         row(g, PY + 1 + i * 12, first + i == a->more_row, nm, v);
     }
@@ -1711,12 +1787,15 @@ static void sys_val(const bm_app *a, int i, char *v, int cap)
 static void draw_system(bm_gfx *g, const bm_app *a)
 {
     enum { NR = SYS_ROWS };
-    char v[NR][20];
-    for (int i = 0; i < NR; i++) sys_val(a, i, v[i], 20);
+    char v[20];
     static const char *const L[NR] = {"CLOCK", "SYNC OUT", "SYNC PPQN", "SYNC LATENCY", "AUTOSAVE", "IDLE LEDS", "FAST SCREEN", "TWO CORES",
                                       "TAKES+SOUNDS", N_("LANGUAGE"), "VERSION"};
     int first = a->menu_row > 7 ? a->menu_row - 7 : 0;
-    for (int i = 0; i < 8 && first + i < NR; i++) row(g, 26 + i * 12, first + i == a->menu_row, T(L[first + i]), v[first + i]);
+    for (int i = 0; i < 8 && first + i < NR; i++) {
+        if (!gfx_strip_hit(g, 26 + i * 12, 12)) continue;         /* el valor, solo de la fila que se dibuja */
+        sys_val(a, first + i, v, sizeof v);
+        row(g, 26 + i * 12, first + i == a->menu_row, T(L[first + i]), v);
+    }
     if (a->menu_row == 6 || a->menu_row == 7) note_s(g, 124, "TESTING: SAFE MODE TURNS IT OFF AFTER A CRASH");
 }
 
@@ -1865,11 +1944,15 @@ static void draw_copych(bm_gfx *g, const bm_app *a)
 /* La franja del teclado ya muestra cada tecla con su luz; el visor dice qué capa es y cómo se usa. */
 static void draw_layer(bm_gfx *g, const bm_app *a)
 {
-    bm_keyfn K[BM_KEYS];
-    char title[24];
-    uint16_t col;
-    const char *h1, *h2;
-    bm_app_keymap(a, K, title, sizeof title, &col, &h1, &h2);
+    static char title[24];                                       /* el mapa de la capa: una vez por cuadro */
+    static uint16_t col;
+    static const char *h1, *h2;
+    static uint32_t mf;
+    if (mf != g->frame) {
+        bm_keyfn K[BM_KEYS];                                     /* aquí solo hace falta el título y las ayudas */
+        mf = g->frame;
+        bm_app_keymap(a, K, title, sizeof title, &col, &h1, &h2);
+    }
     if (gfx_strip_hit(g, 26, 20)) {
         gfx_fill(g, 0, 26, BM_LCD_W, 18, col);
         gfx_text(g, 6, 28, title, C_BLACK, 2);

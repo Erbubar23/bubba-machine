@@ -53,12 +53,22 @@ void gfx_rect(bm_gfx *g, int x, int y, int w, int h, uint16_t c)
     gfx_vline(g, x, y, h, c); gfx_vline(g, x + w - 1, y, h, c);
 }
 
+/* Bresenham. Sale enseguida si la línea no toca el recorte (lo normal: cada franja recorre todas
+ * las líneas de la escena), y deja de avanzar cuando ya pasó del recorte: los píxeles que dibuja
+ * son los mismos. */
 void gfx_line(bm_gfx *g, int x0, int y0, int x1, int y1, uint16_t c)
 {
+    int xlo = x0 < x1 ? x0 : x1, xhi = x0 < x1 ? x1 : x0;
+    int ylo = y0 < y1 ? y0 : y1, yhi = y0 < y1 ? y1 : y0;
+    if (yhi < g->cy0 || ylo >= g->cy1 || xhi < g->cx0 || xlo >= g->cx1) return;
+    if (y0 == y1) { gfx_fill(g, xlo, y0, xhi - xlo + 1, 1, c); return; }
+    if (x0 == x1) { gfx_fill(g, x0, ylo, 1, yhi - ylo + 1, c); return; }
     int dx = x1 > x0 ? x1 - x0 : x0 - x1, sx = x0 < x1 ? 1 : -1;
     int dy = y1 > y0 ? y0 - y1 : y1 - y0, sy = y0 < y1 ? 1 : -1;
     int e = dx + dy;
     for (;;) {
+        if (sy > 0 ? y0 >= g->cy1 : y0 < g->cy0) break;          /* ya pasó del recorte */
+        if (sx > 0 ? x0 >= g->cx1 : x0 < g->cx0) break;
         px(g, x0, y0, c);
         if (x0 == x1 && y0 == y1) break;
         int e2 = 2 * e;
@@ -96,6 +106,7 @@ int gfx_text(bm_gfx *g, int x, int y, const char *s, uint16_t c, int scale)
     s = bm_txt(s);
     if (y >= g->cy1 || y + 7 * scale <= g->cy0) return text_w(s, scale);
     for (; *s; s++) {
+        if (x >= g->cx1 || x + 5 * scale <= g->cx0) { x += 6 * scale; continue; }   /* fuera del recorte */
         const uint8_t *gl = bm_font5x7[glyph((unsigned char)*s)];
         for (int r = 0; r < 7; r++) {
             uint8_t bits = gl[r];
@@ -131,7 +142,12 @@ int gfx_small_w(const char *s)
 int gfx_small(bm_gfx *g, int x, int y, const char *s, uint16_t c)
 {
     int x0 = x;
-    for (s = bm_txt(s); *s; s++) {
+    s = bm_txt(s);
+    if (y >= g->cy1 || y + 5 <= g->cy0) {                        /* fuera de la franja: solo el ancho */
+        for (; *s; s++) x += *s == '#' ? 5 : 4;
+        return x - x0 - 1;
+    }
+    for (; *s; s++) {
         if (*s == '#') {
             for (int r = 0; r < 5; r++)
                 for (int col = 0; col < 4; col++)
@@ -162,33 +178,59 @@ void gfx_logo(bm_gfx *g)
     }
 }
 
-static uint32_t fnv(const uint16_t *p, int n)
+/* el hash de un tile, leído directo de la franja (fila por fila, como quedaría en tile_buf) */
+static uint32_t tile_hash(int tx)
 {
     uint32_t h = 2166136261u;
-    for (int i = 0; i < n; i++) { h ^= p[i]; h *= 16777619u; }
+    for (int r = 0; r < BM_STRIP_H; r++) {
+        const uint16_t *p = &strip_buf[r * BM_LCD_W + tx * BM_TILE_W];
+        for (int i = 0; i < BM_TILE_W; i++) { h ^= p[i]; h *= 16777619u; }
+    }
     return h;
 }
 
+static uint32_t frame_no;   /* todos los bm_screen: un número distinto para cada cuadro */
+
 void bm_screen_render(bm_screen *s, bm_draw_fn draw, void *user, bm_blit_fn blit, void *blit_user)
 {
+    enum { NS = BM_LCD_H / BM_STRIP_H, NT = BM_LCD_W / BM_TILE_W, TB = BM_TILE_W * BM_STRIP_H * 2 };
     bm_gfx g;
     g.buf = strip_buf;
+    g.frame = ++frame_no;
+    if (s->force) { memset(s->stale, (1 << NT) - 1, sizeof s->stale); s->force = 0; }
     s->bytes_last = 0;
-    for (int st = 0; st < BM_LCD_H / BM_STRIP_H; st++) {
+    s->pending = 0;
+    s->frames++;
+    int st = s->next < NS ? s->next : 0;
+    for (int k = 0; k < NS; k++, st = st + 1 < NS ? st + 1 : 0) {
         g.y0 = st * BM_STRIP_H;
         gfx_noclip(&g);
         for (int i = 0; i < BM_LCD_W * BM_STRIP_H; i++) strip_buf[i] = C_BLACK;
         draw(&g, user);
-        for (int tx = 0; tx < BM_LCD_W / BM_TILE_W; tx++) {
+        for (int tx = 0; tx < NT; tx++) {
+            uint32_t h = tile_hash(tx);
+            if (h == s->hash[st][tx] && !((s->stale[st] >> tx) & 1)) continue;
+            if (s->budget && s->bytes_last && s->bytes_last + TB > s->budget) {   /* lo demás, en el próximo */
+                s->pending = 1;
+                s->next = (uint8_t)st;
+                return;
+            }
             for (int r = 0; r < BM_STRIP_H; r++)
                 memcpy(&tile_buf[r * BM_TILE_W], &strip_buf[r * BM_LCD_W + tx * BM_TILE_W], BM_TILE_W * 2);
-            uint32_t h = fnv(tile_buf, BM_TILE_W * BM_STRIP_H);
-            if (h != s->hash[st][tx] || s->force) {
-                s->hash[st][tx] = h;
-                blit(blit_user, tx * BM_TILE_W, g.y0, BM_TILE_W, BM_STRIP_H, tile_buf);
-                s->bytes_last += BM_TILE_W * BM_STRIP_H * 2;
-            }
+            s->hash[st][tx] = h;
+            s->stale[st] &= (uint8_t)~(1u << tx);
+            blit(blit_user, tx * BM_TILE_W, g.y0, BM_TILE_W, BM_STRIP_H, tile_buf);
+            s->bytes_last += TB;
         }
     }
-    s->force = 0;
+    s->next = 0;
+}
+
+bool bm_screen_due(bm_screen *s, uint32_t now)
+{
+    int32_t late = (int32_t)(now - s->t_next);
+    if (!s->force && !s->pending && late < 0) return false;
+    /* el ritmo se mantiene aunque el bucle llegue un poco tarde; si llegó muy tarde, empieza de nuevo */
+    s->t_next = (late >= 0 && late < (int32_t)BM_SCR_FRAME_MS ? s->t_next : now) + BM_SCR_FRAME_MS;
+    return true;
 }

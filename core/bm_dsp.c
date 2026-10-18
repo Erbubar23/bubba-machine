@@ -223,21 +223,25 @@ static int32_t mix_track(bm_ctx *c, int t, uint32_t n, float *L, float *R, float
         float rate = CH_RATE[chm] / (float)BM_FS;
         float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
         float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
-        const float kl = 0.55f;                                 /* el BBD filtra los agudos */
+        /* 0.9: the BBD's filter is a 12 dB low-pass before the delay line (two poles at ~9 kHz,
+         * ~6 kHz together; ch_lpL and ch_lpR are its two stages), and I+II is mono, as on the
+         * Juno-60 (both sides read the same tap): one read less */
+        const float kl = 0.73f;
         float cl = gl * 0.75f, cr = gr * 0.75f;
+        int mono = chm == BN_CH_BOTH;
         for (uint32_t i = 0; i < n; i++) {
             int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
             if (ax > pk) pk = ax;
             /* ducking a la entrada del chorus: el eco del BBD lo sigue 2-5 ms después (no se
              * oye) y cuesta una multiplicación. dk = 0: sin ducking (SC viejo, no importa) */
             float v = (float)xi * (1.0f - SC[i] * dk);
-            ch_buf[ch_w] = v;
+            ch_lpL += kl * (v - ch_lpL); ch_lpR += kl * (ch_lpL - ch_lpR);
+            ch_buf[ch_w] = ch_lpR;
             ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
             float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
-            float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
-            ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
+            float wl = ch_read(mid + dep * tri), wr = mono ? wl : ch_read(mid - dep * tri);
             ch_w = (ch_w + 1u) & (CH_LEN - 1u);
-            L[i] += (v + ch_lpL) * cl; R[i] += (v + ch_lpR) * cr; S[i] += v * gs;
+            L[i] += (v + wl) * cl; R[i] += (v + wr) * cr; S[i] += v * gs;
         }
     } else if (!lr) {                                        /* solo el envío (BEAT FX OFF, antes del efecto) */
         for (uint32_t i = 0; i < n; i++) {

@@ -200,6 +200,9 @@ BB-303
 # core/bm_input.c
 BB-303 WAVEFORM
 
+# core/bm_acid.cpp
+BB-303 voice does not fit the shared pool (bm_vpool.h)
+
 # core/bm_input.c
 BD
 
@@ -224,8 +227,8 @@ BD909
 # core/bm_input.c core/bm_ui_draw.c
 BEAT FX
 
-# core/gen/bm_fm_rom.c
-BELL
+# core/bm_params.c
+BIG BEAT
 
 # core/bm_input.c core/bm_ui_draw.c
 BIT
@@ -255,6 +258,9 @@ BLOCK
 BLP
 
 # core/bm_params.c
+BOMBAY 82
+
+# core/bm_params.c
 BP
 
 # core/bm_pattern.c
@@ -270,7 +276,7 @@ BPM .1
 BR-8
 
 # core/gen/bm_fm_rom.c
-BRASS
+BRASS 80
 
 # core/bm_app.c core/bm_input.c core/bm_ui_draw.c
 BREAK
@@ -298,6 +304,9 @@ BX-7 ALGORITHM
 
 # core/bm_app.c
 BX-7 BANK: %d VOICES
+
+# core/bm_fm.cpp
+BX-7 voice does not fit the shared pool (bm_vpool.h)
 
 # core/bm_input.c
 CANCELED
@@ -340,6 +349,12 @@ CHANGE: HOLD T%d ON HOME + ALG
 
 # core/bm_input.c core/bm_ui_draw.c
 CHANNEL
+
+# core/bm_params.c
+CHICAGO 86
+
+# core/gen/bm_fm_rom.c
+CHIMES
 
 # core/bm_input.c core/bm_params.c
 CHOKE
@@ -491,9 +506,6 @@ DECAY
 # core/bm_input.c core/bm_ui_draw.c
 DECRESC
 
-# core/bm_params.c
-DEEP SAW
-
 # core/bm_input.c
 DEL
 
@@ -557,9 +569,6 @@ DRIVE
 # core/bm_input.c
 DRIVE (SOFT-CLIP)
 
-# core/bm_params.c
-DUB
-
 # core/bm_input.c core/bm_ui_draw.c
 DUCK
 
@@ -572,8 +581,11 @@ DUCK (SIDECHAIN FROM T1)
 # core/bm_input.c
 DUCK (SIDECHAIN)
 
-# core/gen/bm_fm_rom.c
-E.PIANO
+# core/bm_params.c
+E.BASS A
+
+# core/bm_params.c
+E.BASS B
 
 # core/bm_input.c
 ECHO
@@ -634,6 +646,9 @@ ENV/GATE
 
 # core/bm_params.c
 ENV2 AMT
+
+# core/bm_params.c
+ENV2 POS
 
 # core/bm_input.c
 ERASE
@@ -791,9 +806,6 @@ FLUTE
 # core/bm_drums.cpp core/bm_input.c core/bm_params.c
 FM
 
-# core/gen/bm_fm_rom.c
-FM BASS
-
 # core/bm_ui_draw.c
 FOR TRACKS WITHOUT THEIR OWN SCALE
 
@@ -823,6 +835,9 @@ FROM
 
 # core/bm_input.c
 FROM STEP 1
+
+# core/gen/bm_fm_rom.c
+FULLTINE
 
 # core/bm_input.c
 FWD
@@ -932,6 +947,9 @@ HOME + THIS BUTTON: NOTHING
 # core/bm_ui_draw.c
 HOME = DISCARD? - REC = ANOTHER TAKE
 
+# core/gen/bm_fm_rom.c
+HOUSE BS
+
 # core/bm_input.c core/bm_params.c core/bm_ui_draw.c
 HP
 
@@ -961,6 +979,9 @@ INF
 
 # core/bm_input.c core/bm_snap.c
 INIT
+
+# core/bm_params.c
+INIT 1982
 
 # core/bm_input.c
 INIT KIT
@@ -1634,6 +1655,9 @@ PENTA MI
 # core/bm_params.c
 PERC
 
+# core/bm_params.c
+PHILLY 95
+
 # core/bm_pattern.c
 PHRYG
 
@@ -1642,6 +1666,9 @@ PIANO ROLL
 
 # core/bm_ui_draw.c
 PICK A NOTE TRACK
+
+# core/gen/bm_fm_rom.c
+PIPE ORG
 
 # core/bm_input.c core/bm_params.c
 PITCH
@@ -1654,9 +1681,6 @@ PLAY = LOOP: HELD REPEATS THE LOOP
 
 # core/bm_input.c core/bm_ui_draw.c
 PLAYS
-
-# core/bm_params.c
-PLUCK
 
 # core/gen/bm_fm_rom.c
 PLUCKED
@@ -1672,6 +1696,9 @@ POLY: UP TO 4 VOICES
 
 # core/bm_ui_draw.c
 POLYMETER
+
+# core/gen/bm_fm_rom.c
+POP BASS
 
 # core/bm_params.c
 PORTA
@@ -1823,6 +1850,9 @@ RED
 # core/bm_app.c
 REDONE ON T%d
 
+# core/gen/bm_fm_rom.c
+REED HRP
+
 # core/bm_input.c core/bm_params.c
 RELEASE
 
@@ -1892,6 +1922,9 @@ RIDE
 # core/bm_params.c
 RIM
 
+# core/bm_params.c
+ROBOT FUNK
+
 # core/bm_input.c
 ROLL
 
@@ -1912,9 +1945,6 @@ ROW
 
 # core/bm_input.c
 RS
-
-# core/bm_params.c
-RUBBER
 
 # core/bm_input.c core/bm_ui_draw.c
 SAVE
@@ -1969,9 +1999,6 @@ SCL
 
 # core/bm_ui_draw.c
 SCL AGAIN: CHORDS - HOME + SCL: PROJECT
-
-# core/bm_params.c
-SCREAM
 
 # core/bm_input.c
 SD
@@ -2101,9 +2128,6 @@ SPLIT L/R
 
 # core/bm_engines.c core/bm_input.c core/bm_params.c
 SQUARE
-
-# core/bm_params.c
-SQUELCH
 
 # core/bm_input.c core/bm_ui_draw.c
 SR
@@ -2239,6 +2263,9 @@ SYNC PPQN
 
 # core/bm_params.c
 SYNTH
+
+# core/bm_params.c
+SYNTH BASS
 
 # core/bm_drums.cpp
 SYNTH KICK
@@ -2411,11 +2438,11 @@ TIME
 # core/bm_input.c
 TIMES
 
+# core/gen/bm_fm_rom.c
+TINEKEYS
+
 # core/bm_drums.cpp core/bm_input.c core/bm_params.c
 TOM
-
-# core/gen/bm_fm_rom.c
-TOM FM
 
 # core/bm_params.c
 TOM H
@@ -2459,6 +2486,9 @@ TRIAD
 # core/bm_ui_draw.c
 TRIM
 
+# core/gen/bm_fm_rom.c
+TUBECHIM
+
 # core/bm_input.c core/bm_params.c
 TUNE
 
@@ -2500,6 +2530,9 @@ UP-DN
 
 # core/bm_ui_draw.c
 UP-DOWN
+
+# core/bm_params.c
+UPRIGHT
 
 # core/bm_input.c
 VALUE
@@ -2573,6 +2606,9 @@ W11-16 = TRACK
 # core/bm_input.c core/bm_params.c
 WAVE
 
+# core/bm_wave.cpp
+WAVE voice does not fit the shared pool (bm_vpool.h)
+
 # core/bm_input.c
 WHITE %d
 
@@ -2620,6 +2656,9 @@ WHOLE
 
 # core/bm_params.c
 WIDE
+
+# core/bm_params.c
+WINDSOR 93
 
 # core/bm_input.c core/bm_params.c
 YES

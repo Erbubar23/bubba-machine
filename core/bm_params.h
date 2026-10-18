@@ -22,8 +22,8 @@ extern "C" {
 
 enum { PF_PCT, PF_BIP, PF_SEMI, PF_DSEMI, PF_CENT, PF_HZ, PF_TIME, PF_RATE, PF_LIST, PF_ONOFF, PF_INT, PF_DB,
        PF_TRSP,      /* transposición del canal: 24 = 0 semitonos */
-       PF_OHZ,       /* corte del BB-303 (bm_cutoff_hz) */
-       PF_DMS,       /* caída del BB-303 (bm_decay_ms) */
+       PF_OHZ,       /* corte del BB-303 (bm_acid_cut_hz) */
+       PF_DMS,       /* caída del BB-303 (bm_acid_decay_ms) */
        PF_GLIDE,     /* slide del BB-303 en ms */
        PF_MOD,       /* B-MINI: cantidad de modulación con su destino (64 = nada, < OSC, > FILT) */
        PF_ALG,       /* BX-7: 0 = el algoritmo del patch, 1..32 */
@@ -47,7 +47,7 @@ enum { AC_WAVE, AC_NPRM };
 #define BM_AC_PAGES 2
 extern const bm_ppage bm_ac_pages[BM_AC_PAGES];
 typedef struct { const char *name; uint8_t cut, res, env, dec, acc, glide, wave; } bm_ac_preset;
-#define BM_AC_PRESETS 8
+#define BM_AC_PRESETS 12
 extern const bm_ac_preset bm_ac_presets[BM_AC_PRESETS];
 
 /* ------------------------------------------------------------ B-MINI (Minimoog): tres osciladores y escalera
@@ -85,7 +85,7 @@ enum { BT_L1, BT_S1, BT_F1, BT_P1, BT_U1, BT_D1, BT_TAB1,
        BT_AA, BT_AD, BT_AS, BT_AR, BT_MA, BT_MD, BT_MS, BT_MR,
        BT_LSHAPE, BT_LRATE, BT_LDEST, BT_LAMT,
        BT_M1D, BT_M1A, BT_M2D, BT_M2A, BT_M3D, BT_M3A, BT_M4D, BT_M4A,
-       BT_MODE, BT_GLIDE, BT_VELA, BT_NPRM };
+       BT_MODE, BT_GLIDE, BT_VELA, BT_EPOS, BT_NPRM };
 enum { BT_F_LP24, BT_F_LP12, BT_F_BP, BT_F_HP, BT_F_LADDER, BT_F_OFF, BT_FILTERS };
 enum { BT_L_SIN, BT_L_TRI, BT_L_SAW, BT_L_SQR, BT_L_SH, BT_LSHAPES };
 enum { BT_D_PITCH, BT_D_CUT, BT_D_POS, BT_D_AMP, BT_LDESTS };

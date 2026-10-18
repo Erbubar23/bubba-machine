@@ -7,10 +7,6 @@
   },
   "presets": [
     {"name": "SUB ONE", "machine": "B-MINI", "repo": "nahush", "path": "Presets (1)/Sub 1.vital", "author": "NAHUSH"},
-    {"name": "SUB GROWL", "machine": "B-MINI", "repo": "nahush", "path": "Presets (1)/Sub 56.vital", "author": "NAHUSH"},
-    {"name": "CURIOUS", "machine": "B-MINI", "repo": "amage", "path": "Presets/Curious Bass.vital", "author": "ABSTR. MAGE"},
-    {"name": "808 BASS", "machine": "B-MINI", "repo": "mxm40b", "path": "bad 808.vital", "author": "MXMFRPR"},
-    {"name": "HEAVY LOW", "machine": "B-MINI", "repo": "mxm40b", "path": "low part of heavy bass.vital", "author": "MXMFRPR"},
     {"name": "REESE", "machine": "B-MINI", "repo": "mxm40b", "path": "reese bass.vital", "author": "MXMFRPR"},
 
     {"name": "SAW MOTION", "machine": "BITTAL", "repo": "nahush", "path": "Presets (1)/Saw Movement 45.vital", "author": "NAHUSH"},

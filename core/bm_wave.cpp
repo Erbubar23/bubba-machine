@@ -12,6 +12,7 @@
 #include "bm_config.h"
 #include "bm_params.h"
 #include "bm_wt.h"
+#include "bm_vpool.h"
 
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/filter.h"
@@ -39,7 +40,20 @@ struct Adsr {
         }
         return v;
     }
+    /* 16 samples at once (BUNO-6, 0.9): r16 = (1 - k)^16 for the attack, k^16 for decay and
+     * release, stage changes on the 16-sample grid; off at -60 dB */
+    inline float Next16(float ra16, float kd16, float s, float kr16) {
+        switch (st) {
+        case ST_A: v = 1.3f - (1.3f - v) * ra16; if (v >= 1.0f) { v = 1.0f; st = ST_D; } break;
+        case ST_D: v = s + (v - s) * kd16; if (v - s < 1.0e-4f) { v = s; st = ST_S; } break;
+        case ST_S: v = s; break;
+        case ST_R: v *= kr16; if (v < 1.0e-3f) { v = 0.0f; st = ST_OFF; } break;
+        default: v = 0.0f; break;
+        }
+        return v;
+    }
 };
+inline float pow16(float x) { x *= x; x *= x; x *= x; return x * x; }
 
 inline float blep(float t, float dt)
 {
@@ -90,7 +104,6 @@ struct Voice {
     float wph[2][4];             /* BITTAL: fases del unísono de cada oscilador */
     Ladder lad;
     Svf f1, f2;
-    float hp_z;                  /* BUNO-6: pasa-altos de un polo */
     Adsr ea, ef;
     float note, target, vel;
     float lph, lsh, ldel;        /* LFO: fase, valor del azar, rampa del retardo (BUNO-6) */
@@ -101,8 +114,15 @@ struct Voice {
     float k[8];
 };
 
-alignas(8) unsigned char mem_[BM_VOICES][sizeof(Voice)];
-inline Voice &V(int v) { return *reinterpret_cast<Voice *>(mem_[v]); }
+/* the voices live in the shared pool (bm_vpool.h): only T3-T6 voices play these machines */
+static_assert(sizeof(Voice) <= BM_VPOOL_BYTES && alignof(Voice) <= 8, "WAVE voice does not fit the shared pool (bm_vpool.h)");
+inline Voice &V(int v) { return *reinterpret_cast<Voice *>(bm_vpool(v)); }
+inline bool mine(int v) { return bm_vpool_is(v, VP_WAVE) != 0; }
+
+/* BUNO-6, per channel: what acts on the sum of its voices (bm_wv_bus) — the HPF, and the VCF when
+ * the paraphonic fast path is on */
+struct Bus { Ladder lad; float hp, cut_prev; uint8_t para; };
+Bus bus_[BM_TRACKS];
 
 inline float rnd(uint32_t &s) { s = s * 1664525u + 1013904223u; return (float)(int32_t)s * (1.0f / 2147483648.0f); }
 inline float ka_of(float t) { return 1.0f - expf(-1.466f / (t * fs_ + 1.0f)); }
@@ -224,10 +244,15 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     return z.ea.st != ST_OFF;
 }
 
-/* ------------------------------------------------------------ BUNO-6 */
-static const float HPF_HZ[4] = {0.0f, 120.0f, 250.0f, 520.0f};   /* posiciones 0-3 (a medir contra un Juno) */
+/* ------------------------------------------------------------ BUNO-6
+ * 0.9, lighter (it was the most expensive machine on the FM-1): the HPF is one per channel on the
+ * sum of the voices, as in the Juno-60 (bm_wv_bus); the x0.55 of the mixer goes with the oscillators
+ * (no pass of its own); the VCF updates its coefficients every 16 samples; a released voice ends at
+ * -60 dB. With the paraphonic fast path (WV_PARA, see bm_wv_bus) the voice skips its VCF: the
+ * channel filters the sum once. */
+#define BN_COEF_N 16
 
-int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
+int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1, bool para)
 {
     /* LFO triangular con retardo: la rampa sube después de la nota */
     z.lph += bm_lfo_hz(prm[BN_LRATE]) * (float)n / fs_;
@@ -253,53 +278,55 @@ int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     }
     float pw = 0.5f - 0.46f * pwm * mod;
     bool saw = prm[BN_SAW] != 0, pul = prm[BN_PULSE] != 0;
-    float subl = pc(prm[BN_SUB]), noise = pc(prm[BN_NOISE]);
-    for (int i = 0; i < n; i++) {
-        float y = 0.0f;
-        if (saw) y += z.o[0].saw(f0);
-        if (pul) y += z.o[0].sqr(f0, pw);
-        b1[i] = y;
-        z.o[0].step(f0);
-    }
+    /* the mixer (x0.55) folded into the levels: one pass less */
+    const float MIX = 0.55f;
+    float subl = pc(prm[BN_SUB]) * MIX, noise = pc(prm[BN_NOISE]) * MIX;
+    if (saw && pul) for (int i = 0; i < n; i++) { b1[i] = MIX * (z.o[0].saw(f0) + z.o[0].sqr(f0, pw)); z.o[0].step(f0); }
+    else if (saw) for (int i = 0; i < n; i++) { b1[i] = MIX * z.o[0].saw(f0); z.o[0].step(f0); }
+    else if (pul) for (int i = 0; i < n; i++) { b1[i] = MIX * z.o[0].sqr(f0, pw); z.o[0].step(f0); }
+    else for (int i = 0; i < n; i++) { b1[i] = 0.0f; z.o[0].step(f0); }
     if (subl > 0.0f) { float fs2 = f0 * 0.5f; for (int i = 0; i < n; i++) { b1[i] += subl * z.sub.sqr(fs2, 0.5f); z.sub.step(fs2); } }
     if (noise > 0.0f) for (int i = 0; i < n; i++) b1[i] += noise * rnd(z.rng);
-    for (int i = 0; i < n; i++) b1[i] *= 0.55f;
 
-    int hpf = prm[BN_HPF] & 3;
-    if (hpf) {
-        float a = expf(-6.2831853f * HPF_HZ[hpf] / fs_);
-        for (int i = 0; i < n; i++) { float x = b1[i]; z.hp_z = x + a * (z.hp_z - x); b1[i] = x - z.hp_z; }
-        /* (un polo: hp = x - lp) */
-    }
     /* VCF: FREQ, RES, ENV (con su polaridad), LFO y teclado */
-    float env = pc(mac[2]) * 84.0f * z.ef.v * (prm[BN_ENVPOL] ? -1.0f : 1.0f);
-    float cut = (float)mac[0] * (120.0f / 127.0f) + env + pc(mac[3]) * lfo * 30.0f   /* macro LFO: el LFO al VCF */
-              + pc(prm[BN_KEYT]) * (z.note - 60.0f) + pc(prm[BN_VELF]) * z.vel * 20.0f;
-    if (z.first) { z.cut_prev = cut; z.first = 0; }
-    float kres = pc(mac[1]) * 3.9f;
-    float c0 = z.cut_prev, dc = (cut - c0) / (float)n;
-    z.cut_prev = cut;
-    for (int i0 = 0; i0 < n; i0 += 8) {
-        int i1 = i0 + 8 < n ? i0 + 8 : n;
-        float G = ladder_g(c0 + dc * (float)(i0 + 4));
-        for (int i = i0; i < i1; i++) b1[i] = z.lad.Process(b1[i], G, kres);
-    }
+    if (!para) {
+        float env = pc(mac[2]) * 84.0f * z.ef.v * (prm[BN_ENVPOL] ? -1.0f : 1.0f);
+        float cut = (float)mac[0] * (120.0f / 127.0f) + env + pc(mac[3]) * lfo * 30.0f   /* macro LFO: el LFO al VCF */
+                  + pc(prm[BN_KEYT]) * (z.note - 60.0f) + pc(prm[BN_VELF]) * z.vel * 20.0f;
+        if (z.first) { z.cut_prev = cut; z.first = 0; }
+        float kres = pc(mac[1]) * 3.9f;
+        float c0 = z.cut_prev, dc = (cut - c0) / (float)n;
+        z.cut_prev = cut;
+        for (int i0 = 0; i0 < n; i0 += BN_COEF_N) {
+            int i1 = i0 + BN_COEF_N < n ? i0 + BN_COEF_N : n;
+            float G = ladder_g(c0 + dc * (float)((i0 + i1) / 2));
+            for (int i = i0; i < i1; i++) b1[i] = z.lad.Process(b1[i], G, kres);
+        }
+    } else { z.first = 0; z.cut_prev = (float)mac[0] * (120.0f / 127.0f); }   /* (where the VCF resumes) */
     /* VCA: con la envolvente o en GATE (con 2 ms de suavizado) */
     float s = pc(prm[BN_S]);
-    float velg = 1.0f - pc(prm[BN_VELA]) * (1.0f - z.vel);
+    float velg = (1.0f - pc(prm[BN_VELA]) * (1.0f - z.vel)) * 1.3f;
     float ka = z.k[0], kd = z.k[1], kr = z.k[3];
     if (prm[BN_VCA]) {
         float tgt = z.gate ? 1.0f : 0.0f, kg = 1.0f / (0.002f * fs_);
         for (int i = 0; i < n; i++) {
             z.ef.Next(ka, kd, s, kr);
             z.gate_g += (tgt - z.gate_g) * kg;
-            out[i] = b1[i] * z.gate_g * velg * 1.3f;
+            out[i] = b1[i] * z.gate_g * velg;
         }
         z.ea.v = z.gate_g > z.ef.v ? z.gate_g : z.ef.v;
-        z.ea.st = (z.gate || z.gate_g > 1e-4f || z.ef.st != ST_OFF) ? ST_S : ST_OFF;
-        if (!z.gate && z.gate_g <= 1e-4f) z.ea.st = ST_OFF;
+        z.ea.st = (z.gate || z.gate_g > 1e-3f || z.ef.st != ST_OFF) ? ST_S : ST_OFF;
+        if (!z.gate && z.gate_g <= 1e-3f) z.ea.st = ST_OFF;
     } else {
-        for (int i = 0; i < n; i++) out[i] = b1[i] * z.ef.Next(ka, kd, s, kr) * velg * 1.3f;
+        /* the envelope every 16 samples, a straight line in between (no per-sample stage switch) */
+        float ra16 = pow16(1.0f - ka), kd16 = pow16(kd), kr16 = pow16(kr);
+        int i0 = 0;
+        for (; i0 + 16 <= n; i0 += 16) {
+            float e0 = z.ef.v, e1 = z.ef.Next16(ra16, kd16, s, kr16), de = (e1 - e0) * (1.0f / 16.0f);
+            for (int i = 0; i < 16; i++) out[i0 + i] = b1[i0 + i] * (e0 + de * (float)(i + 1)) * velg;
+        }
+        for (int i = i0; i < n; i++) out[i] = b1[i] * z.ef.Next(ka, kd, s, kr) * velg;
+        if (z.ef.st == ST_R && z.ef.v < 1e-3f) { z.ef.v = 0.0f; z.ef.st = ST_OFF; }   /* -60 dB: done */
         z.ea.v = z.ef.v; z.ea.st = z.ef.st;
     }
     return z.ea.st != ST_OFF;
@@ -334,26 +361,47 @@ void wt_osc(Voice &z, int o, int slot, float f0, float pos, int uni, float det, 
     float fN = (float)N;
     uint32_t mask = (uint32_t)N - 1u;
     float g = lvl * (1.0f / 32768.0f) / sqrtf((float)uni);
+    /* 0.9: one frame read when there is one frame or the crossfade is (almost) at one end */
+    bool one = fa == fb || ff < (1.0f / 128.0f) || ff > (127.0f / 128.0f);
+    if (one && ff > 0.5f) ta = tb;
     for (int u = 0; u < uni; u++) {
         float sp = uni > 1 ? ((float)u / (float)(uni - 1)) * 2.0f - 1.0f : 0.0f;
         float dt = f0 * (1.0f + det * sp);
         CONSTRAIN(dt, 0.00001f, 0.45f);
         float ph = z.wph[o][u];
-        for (int i = 0; i < n; i++) {
-            float x = ph * fN;
-            uint32_t i0 = (uint32_t)x;
-            float fr = x - (float)i0;
-            uint32_t j0 = i0 & mask, j1 = (i0 + 1u) & mask;
-            float a = (float)ta[j0] + fr * (float)(ta[j1] - ta[j0]);
-            float b = (float)tb[j0] + fr * (float)(tb[j1] - tb[j0]);
-            dst[i] += (a + ff * (b - a)) * g;
-            ph += dt; if (ph >= 1.0f) ph -= 1.0f;
-        }
+        if (one)
+            for (int i = 0; i < n; i++) {
+                float x = ph * fN;
+                uint32_t i0 = (uint32_t)x;
+                float fr = x - (float)i0;
+                uint32_t j0 = i0 & mask, j1 = (i0 + 1u) & mask;
+                dst[i] += ((float)ta[j0] + fr * (float)(ta[j1] - ta[j0])) * g;
+                ph += dt; if (ph >= 1.0f) ph -= 1.0f;
+            }
+        else
+            for (int i = 0; i < n; i++) {
+                float x = ph * fN;
+                uint32_t i0 = (uint32_t)x;
+                float fr = x - (float)i0;
+                uint32_t j0 = i0 & mask, j1 = (i0 + 1u) & mask;
+                float a = (float)ta[j0] + fr * (float)(ta[j1] - ta[j0]);
+                float b = (float)tb[j0] + fr * (float)(tb[j1] - tb[j0]);
+                dst[i] += (a + ff * (b - a)) * g;
+                ph += dt; if (ph >= 1.0f) ph -= 1.0f;
+            }
         z.wph[o][u] = ph;
     }
 }
 
-int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
+/* 0.9: table readers (unison voices of both oscillators) a BITTAL voice may use when the channel
+ * plays several notes: all of them share 8 (WV_READERS). The larger unison gives way first. */
+inline void cap_readers(int &u1, int &u2, int budget)
+{
+    if (budget <= 0) return;
+    while (u1 + u2 > budget && (u1 > 1 || u2 > 1)) { if (u1 >= u2 && u1 > 1) u1--; else if (u2 > 1) u2--; else u1--; }
+}
+
+int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1, int readers)
 {
     glide(z, prm[BT_GLIDE], n);
     float lamt = pc(prm[BT_LAMT]) + 0.5f * bm_bt_macro(prm, mac, BTM_LFO), lfo = 0.0f;
@@ -373,15 +421,19 @@ int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out
     float pitch = z.note + (ld == BT_D_PITCH ? lfo * lamt * lamt * 12.0f : 0.0f);
     float f0 = hz_of(pitch) / fs_;
     float dets = bm_bt_macro(prm, mac, BTM_DET);
-    float pall = bm_bt_macro(prm, mac, BTM_POS) + (ld == BT_D_POS ? lfo * lamt * 0.5f : 0.0f);
+    /* frame position: macros, LFO and (0.9) ENV 2, the PPG's envelope sweep through the table */
+    float pall = bm_bt_macro(prm, mac, BTM_POS) + (ld == BT_D_POS ? lfo * lamt * 0.5f : 0.0f) + pc(prm[BT_EPOS]) * z.ef.v;
     for (int i = 0; i < n; i++) b1[i] = 0.0f;
+    float lv[2] = {pc(prm[BT_L1]), pc(prm[BT_L2]) + bm_bt_macro(prm, mac, BTM_LVL2)};
+    int un[2] = {lv[0] > 0.0f ? 1 + (prm[BT_U1] & 3) : 0, lv[1] > 0.0f ? 1 + (prm[BT_U2] & 3) : 0};
+    cap_readers(un[0], un[1], readers);
     for (int o = 0; o < 2; o++) {
         const int b = o ? BT_L2 : BT_L1;                             /* L, S, F, P, U, D en orden */
-        float lvl = pc(prm[b + 0]) + (o ? bm_bt_macro(prm, mac, BTM_LVL2) : 0.0f);
-        if (lvl <= 0.0f) continue;
+        float lvl = lv[o];
+        if (lvl <= 0.0f || un[o] <= 0) continue;
         float semi = bip(prm[b + 1]) * 24.0f + bip(prm[b + 2]) * 0.5f;
         float pos = pc(prm[b + 3]) + pall + bm_bt_macro(prm, mac, o ? BTM_POS2 : BTM_POS1);
-        int uni = 1 + (prm[b + 4] & 3);
+        int uni = un[o];
         float det = (pc(prm[b + 5]) + 0.5f * dets) * 0.02f;
         if (det < 0.0f) det = 0.0f;
         wt_osc(z, o, o, f0 * SemitonesToRatioSafe(semi), pos, uni, det, lvl, b1, n);
@@ -437,14 +489,14 @@ int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out
     return z.ea.st != ST_OFF;
 }
 
-int render(Voice &z, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane)
+int render(Voice &z, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane, int flags)
 {
     if (z.ea.st == ST_OFF && z.ef.st == ST_OFF) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }
     float *b1 = SB[lane & 1];
     switch (eng) {
     case ENG_MINI: return render_mini(z, prm, mac, out, n, b1);
-    case ENG_BUNO: return render_buno(z, prm, mac, out, n, b1);
-    default: return render_bittal(z, prm, mac, out, n, b1);
+    case ENG_BUNO: return render_buno(z, prm, mac, out, n, b1, (flags & WV_PARA) != 0);
+    default: return render_bittal(z, prm, mac, out, n, b1, flags & WV_READERS_MASK);
     }
 }
 
@@ -463,17 +515,21 @@ float bm_bt_macro(const uint8_t *prm, const uint8_t mac[4], int dest)
 void bm_wv_init(float fs)
 {
     fs_ = fs;
-    memset(mem_, 0, sizeof mem_);                       /* sin restos de un arranque anterior */
     memset(SB, 0, sizeof SB);
-    for (int v = 0; v < BM_VOICES; v++) {
-        Voice *z = new (mem_[v]) Voice();
-        z->ea.st = z->ef.st = ST_OFF; z->ea.v = z->ef.v = 0.0f;
-    }
+    memset(bus_, 0, sizeof bus_);
+    for (int v = BM_V_POOL0; v < BM_VOICES; v++)        /* sin restos de un arranque anterior: se rearman al tocar */
+        if (mine(v)) bm_vpool_owner[v - BM_V_POOL0] = VP_NONE;
 }
 
 void bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float note, float vel, int legato)
 {
-    if (v < 0 || v >= BM_VOICES) return;
+    if (!bm_vpool_ok(v)) return;
+    if (!bm_vpool_take(v, VP_WAVE)) {                    /* the pool voice held another machine */
+        Voice *n = new (bm_vpool(v)) Voice();
+        memset(n, 0, sizeof *n);
+        n->ea.st = n->ef.st = ST_OFF;
+        legato = 0;
+    }
     Voice &z = V(v);
     (void)mac;
     int gl = eng == ENG_MINI ? prm[MN_GLIDE] : eng == ENG_BITTAL ? prm[BT_GLIDE] : 0;
@@ -484,7 +540,7 @@ void bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float
     if (!sounding || !gl) z.note = note;
     z.vel = vel;
     if (!sounding) {
-        z.f1.Init(); z.f2.Init(); z.lad.Init(); z.hp_z = 0.0f;
+        z.f1.Init(); z.f2.Init(); z.lad.Init();
         z.o[0].ph = 0.0f; z.o[1].ph = 0.31f; z.o[2].ph = 0.67f; z.sub.ph = 0.0f;
         z.rng = 0x9E3779B9u * (uint32_t)(v + 1);
         for (int o = 0; o < 2; o++) for (int u = 0; u < 4; u++) z.wph[o][u] = rnd(z.rng) * 0.5f + 0.5f;
@@ -498,48 +554,96 @@ void bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float
 
 void bm_wv_release(int v)
 {
-    if (v < 0 || v >= BM_VOICES) return;
+    if (!mine(v)) return;
     V(v).ea.Release(); V(v).ef.Release(); V(v).gate = 0;
 }
 
-float bm_wv_level(int v) { return v >= 0 && v < BM_VOICES ? V(v).ea.v : 0.0f; }
+float bm_wv_level(int v) { return mine(v) ? V(v).ea.v : 0.0f; }
 
-int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane)
+int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane, int flags)
 {
-    if (v < 0 || v >= BM_VOICES || n <= 0) return 0;
+    if (n <= 0) return 0;
+    if (!mine(v)) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }
     Voice &z = V(v);
-    int alive = render(z, eng, prm, mac, out, n, lane);
+    int alive = render(z, eng, prm, mac, out, n, lane, flags);
     /* Un NaN en un filtro o una envolvente se queda: la última muestra y los estados, una vez por
      * bloque. Si algo se rompió, la voz vuelve a cero, el bloque sale en silencio y se avisa (-1). */
-    float s = z.ea.v + z.ef.v + z.lad.y4 + z.lad.s[0] + z.lad.s[1] + z.lad.s[2] + z.lad.s[3] + z.hp_z + z.gate_g
+    float s = z.ea.v + z.ef.v + z.lad.y4 + z.lad.s[0] + z.lad.s[1] + z.lad.s[2] + z.lad.s[3] + z.gate_g
             + z.note + z.cut_prev + z.lph;
     if (!(s > -1e9f && s < 1e9f) || !(out[n - 1] > -1e4f && out[n - 1] < 1e4f)) {
         memset(out, 0, sizeof(float) * (size_t)n);
-        z.f1.Init(); z.f2.Init(); z.lad.Init(); z.hp_z = 0.0f; z.gate_g = 0.0f;
+        z.f1.Init(); z.f2.Init(); z.lad.Init(); z.gate_g = 0.0f;
         z.ea.v = z.ef.v = 0.0f; z.ea.st = z.ef.st = ST_OFF;
         z.note = z.target = 60.0f; z.cut_prev = 0.0f; z.lph = 0.0f; z.first = 1;
         return -1;
     }
     /* colas: lo que se apaga solo no baja a los subnormales (lentos), una vez por bloque */
     for (int i = 0; i < 4; i++) z.lad.s[i] = ftz(z.lad.s[i]);
-    z.lad.y4 = ftz(z.lad.y4); z.hp_z = ftz(z.hp_z); z.gate_g = ftz(z.gate_g);
+    z.lad.y4 = ftz(z.lad.y4); z.gate_g = ftz(z.gate_g);
     return alive;
+}
+
+/* ------------------------------------------------------------ BUNO-6: the channel bus */
+int bm_wv_para(const uint8_t *prm, const uint8_t mac[4])
+{
+    return mac[2] == 0 && mac[3] == 0 && prm[BN_KEYT] == 0 && prm[BN_VELF] == 0 && mac[1] < 32;
+}
+
+int bm_wv_bus(int t, const uint8_t *prm, const uint8_t mac[4], int32_t *buf, int n, int any, int para)
+{
+    if (t < 0 || t >= BM_TRACKS) return 0;
+    Bus &b = bus_[t];
+    if (!any || n <= 0) { b.lad.Init(); b.hp = 0.0f; b.para = 0; return 0; }   /* silence: starts clean */
+    /* Juno-60 HPF positions (Electric Druid's and pendragon-andyh's measurements): 6 dB/oct on the sum */
+    static const float HPF_HZ[4] = {0.0f, 154.0f, 339.0f, 720.0f};
+    int hpf = prm[BN_HPF] & 3;
+    if (!para) b.para = 0;
+    if (!para && !hpf) { b.hp = 0.0f; return 0; }
+    const float in = 1.0f / 32768.0f, outg = 32768.0f;
+    if (para) {
+        /* paraphonic fast path: one VCF on the sum (the cutoff is the same for every voice). The sum
+         * goes in at 0.35 so the ladder's input saturation stays about where one voice drives it. */
+        float cut = (float)mac[0] * (120.0f / 127.0f), kres = pc(mac[1]) * 3.9f;
+        if (!b.para) { b.lad.Init(); b.cut_prev = cut; b.para = 1; }
+        float c0 = b.cut_prev, dc = (cut - c0) / (float)n;
+        b.cut_prev = cut;
+        for (int i0 = 0; i0 < n; i0 += BN_COEF_N) {
+            int i1 = i0 + BN_COEF_N < n ? i0 + BN_COEF_N : n;
+            float G = ladder_g(c0 + dc * (float)((i0 + i1) / 2));
+            for (int i = i0; i < i1; i++) buf[i] = (int32_t)(b.lad.Process((float)buf[i] * (in * 0.35f), G, kres) * (outg / 0.35f));
+        }
+    }
+    if (hpf) {
+        float a = expf(-6.2831853f * HPF_HZ[hpf] / fs_), lp = b.hp;
+        for (int i = 0; i < n; i++) { float x = (float)buf[i]; lp = x + a * (lp - x); buf[i] = (int32_t)(x - lp); }
+        b.hp = lp;
+    }
+    float s = b.hp + b.lad.y4 + b.lad.s[0] + b.lad.s[1] + b.lad.s[2] + b.lad.s[3] + b.cut_prev;
+    if (!(s > -1e12f && s < 1e12f)) {                    /* NaN/inf: back to zero, the caller counts it */
+        b.lad.Init(); b.hp = 0.0f; b.cut_prev = 0.0f; b.para = 0;
+        for (int i = 0; i < n; i++) buf[i] = 0;
+        return -1;
+    }
+    for (int i = 0; i < 4; i++) b.lad.s[i] = ftz(b.lad.s[i]);
+    b.lad.y4 = ftz(b.lad.y4); b.hp = ftz(b.hp);
+    return 0;
 }
 
 void bm_wv_bench(const uint8_t *pm, const uint8_t *pb, const uint8_t *pn, const uint8_t mac[4],
                  uint32_t (*now)(void), uint32_t out[3], int reps)
 {
     static float buf[BM_BLOCK];
-    static unsigned char mem[sizeof(Voice)];
+    alignas(8) static unsigned char mem[sizeof(Voice)];
     const uint8_t *P[3] = {pm, pb, pn};
     const int E[3] = {ENG_MINI, ENG_BITTAL, ENG_BUNO};
     for (int m = 0; m < 3; m++) {
         Voice &z = *new (mem) Voice();
+        memset(&z, 0, sizeof z);
         z.ea.st = z.ef.st = ST_OFF;
         z.note = z.target = 48.0f; z.vel = 0.8f; z.rng = 1; z.first = 1; z.gate = 1;
         z.ea.Gate(true); z.ef.Gate(true);
         uint32_t t0 = now();
-        for (int r = 0; r < reps; r++) render(z, E[m], P[m], mac, buf, BM_BLOCK, 0);
+        for (int r = 0; r < reps; r++) render(z, E[m], P[m], mac, buf, BM_BLOCK, 0, 0);
         out[m] = now() - t0;
     }
 }

@@ -18,7 +18,7 @@ export const BN = ['SAW', 'PULSE', 'RANGE', 'SUB', 'NOISE', 'PWMSRC', 'LFODCO', 
   'A', 'D', 'S', 'R', 'VCA', 'LRATE', 'LDELAY', 'CHORUS', 'VELA'];
 export const BT = ['L1', 'S1', 'F1', 'P1', 'U1', 'D1', 'TAB1', 'L2', 'S2', 'F2', 'P2', 'U2', 'D2', 'TAB2',
   'FT', 'CUT', 'RES', 'DRIVE', 'FENV', 'KEYT', 'VELF', 'AA', 'AD', 'AS', 'AR', 'MA', 'MD', 'MS', 'MR',
-  'LSHAPE', 'LRATE', 'LDEST', 'LAMT', 'M1D', 'M1A', 'M2D', 'M2A', 'M3D', 'M3A', 'M4D', 'M4A', 'MODE', 'GLIDE', 'VELA'];
+  'LSHAPE', 'LRATE', 'LDEST', 'LAMT', 'M1D', 'M1A', 'M2D', 'M2A', 'M3D', 'M3A', 'M4D', 'M4A', 'MODE', 'GLIDE', 'VELA', 'EPOS'];
 const BTM = ['NONE', 'CUT', 'RES', 'POS1', 'POS2', 'POS', 'LVL2', 'DET', 'LFO', 'FENV', 'DRIVE', 'REL', 'SPACE'];
 const WAVE = { TRI: 0, SHARK: 1, SAW: 2, SQR: 3, WIDE: 4, NARROW: 5 };
 
@@ -30,7 +30,7 @@ const DEF = {
     A: 10, D: 70, S: 90, R: 60, VCA: 0, LRATE: 60, LDELAY: 0, CHORUS: 1, VELA: 0 },
   'BITTAL': { L1: 100, S1: 64, F1: 64, P1: 0, U1: 0, D1: 20, TAB1: 0, L2: 0, S2: 64, F2: 64, P2: 0, U2: 0, D2: 20, TAB2: 0,
     FT: 0, CUT: 100, RES: 15, DRIVE: 0, FENV: 64, KEYT: 64, VELF: 20, AA: 0, AD: 70, AS: 110, AR: 55, MA: 0, MD: 65, MS: 40, MR: 55,
-    LSHAPE: 1, LRATE: 60, LDEST: 2, LAMT: 0, M1D: 1, M1A: 110, M2D: 5, M2A: 120, M3D: 8, M3A: 120, M4D: 12, M4A: 120, MODE: 0, GLIDE: 0, VELA: 50 },
+    LSHAPE: 1, LRATE: 60, LDEST: 2, LAMT: 0, M1D: 1, M1A: 110, M2D: 5, M2A: 120, M3D: 8, M3A: 120, M4D: 12, M4A: 120, MODE: 0, GLIDE: 0, VELA: 50, EPOS: 0 },
 };
 const MACRO_DEF = { 'B-MINI': [60, 50, 70, 64], 'BUNO-6': [72, 30, 50, 0], 'BITTAL': [64, 0, 0, 0] };
 
@@ -255,7 +255,20 @@ function bittal(s, report, P, mac, picks) {
   P.VELA = r127((s.velocity_track ?? 0.5) * 127);
 }
 
+// presets propios: los ajustes exactos viajan en los comentarios del .vital ("bubba-mini: {...}",
+// "bubba-bittal: {...}", "bubba-buno: {...}"); macro = las 4 macros
+function ownTag(s, name, report, P, mac) {
+  const tag = new RegExp(`bubba-${name}:\\s*(\\{[^}]*\\})`).exec(s.__comments || '');
+  if (!tag) return false;
+  const j = JSON.parse(tag[1]);
+  for (const k of Object.keys(j)) if (k in P) P[k] = j[k];
+  if (j.macro) for (let i = 0; i < 4; i++) mac[i] = j.macro[i];
+  report.kept.push('own settings');
+  return true;
+}
+
 function mini(s, report, P, mac, frames) {
+  if (ownTag(s, 'mini', report, P, mac)) return;
   const W = [], L = [], R = [];
   for (const o of [1, 2, 3]) {
     if (!(s[`osc_${o}_on`] > 0.5) || !frames[o - 1]) { W.push(WAVE.SAW); L.push(0); R.push(1); continue; }
@@ -330,6 +343,7 @@ export function vitalToBsnap(json, opts = {}) {
     const picks = pickOscs(s, frames);
     tables = picks.map(o => packTable(frames[o - 1]));
     bittal(s, report, P, mac, picks);
+    ownTag(s, 'bittal', report, P, mac);
   } else if (machine === 'B-MINI') mini(s, report, P, mac, frames);
   else buno(s, report, P, mac, frames);
   const tabs = tables.filter(Boolean);

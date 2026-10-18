@@ -517,7 +517,7 @@ static void chorus(int minutes)
 /* TWO CORES: the dense scenario with the channels split between "cores" (in turn, as on the PC),
  * the split changing every render; it must give the same samples as one core */
 static void par_go_pc(void *u, uint32_t done, uint32_t n) { bm_audio_par_process((bm_ctx *)u, done, n); }
-static void par_wait_pc(void *u) { (void)u; }
+static int par_wait_pc(void *u) { (void)u; return 0; }
 
 static void dual(int minutes)
 {

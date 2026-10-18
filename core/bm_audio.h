@@ -15,6 +15,14 @@
 #include "bm_types.h"
 #include "bm_pattern.h"
 
+/* frames the engines compute per job (a multiple of BM_BLOCK). The FM-1 renders 256 per half
+ * buffer: with TWO CORES that is 2 hand-offs per half buffer (plus one per sequencer step), down
+ * from 4. 4 * BM_BLOCK (one hand-off) costs 3 KiB more of RAM, which the FM-1 does not have to
+ * spare (the SDK heap must stay at 120 KiB or more). Any multiple gives the same samples. */
+#ifndef BM_CHUNK
+#define BM_CHUNK (2u * BM_BLOCK)
+#endif
+
 /* ------------------------------------------------------------ comandos */
 typedef enum {
     CMD_NONE,
@@ -255,9 +263,15 @@ typedef struct bm_ctx {
     struct { uint8_t t, s, k, fill; uint8_t wait; } dq[16];   /* notas corridas en el tiempo (micro) */
     uint8_t dq_n;
 
-    /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores) */
-    int32_t tbuf[BM_TRACKS][BM_BLOCK];
+    /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores)
+     * 0.8.1: the engines write a whole chunk (up to BM_CHUNK frames, BM_CHUNK / BM_BLOCK mix
+     * blocks) into pbuf, so the other core gets one job per chunk instead of one per 64-frame
+     * block. tbuf[t] points at the BM_BLOCK frames of pbuf[t] being mixed (bm_dsp_mix reads it,
+     * and may filter it in place). */
+    int32_t pbuf[BM_TRACKS][BM_CHUNK];
+    int32_t *tbuf[BM_TRACKS];
     uint8_t tact;                /* canales que sonaron en el bloque (bit t) */
+    uint8_t pdirty;              /* rows of pbuf with engine output since they were last cleared */
     float sc_env;
     int16_t sc_trig_at;
     uint16_t blk_off;
@@ -296,12 +310,16 @@ typedef struct bm_ctx {
     uint8_t pchain[8], pchain_n, pchain_pos;
 
     /* audio en dos núcleos (a prueba): los canales de par_mask los calcula el otro núcleo. par_go
-     * le entrega el tramo [done, done + n) y par_wait espera a que termine. */
+     * le entrega el tramo [done, done + n) del chunk y par_wait espera a que termine: 0 = done.
+     * Anything else means the other core did not answer (or misread the job): its tracks are
+     * left out of the mix (par_quar) until the platform sees that core idle again and clears
+     * par_quar; meanwhile they are not computed anywhere, so nobody touches their voices twice. */
     void (*par_go)(void *u, uint32_t done, uint32_t n);
-    void (*par_wait)(void *u);
+    int (*par_wait)(void *u);
     void *par_user;
     uint8_t par_mask;
-    volatile uint8_t par_on, par_tact, par_defer;
+    volatile uint8_t par_on, par_defer, par_quar;
+    volatile uint8_t par_tsb[BM_CHUNK / BM_BLOCK];   /* tracks of par_mask that sounded, per mix block */
     /* Reparto que se ajusta solo (par_auto, con un reloj en now): cada BM_PAR_MIDE renders se mide
      * lo que costó cada canal y lo fijo del núcleo 0 (comandos, secuenciador, mezcla), y cada
      * BM_PAR_ELIGE se elige el reparto de los 64 posibles que deja más parejos los dos núcleos.

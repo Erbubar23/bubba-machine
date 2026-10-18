@@ -72,26 +72,67 @@ static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3
  * debajo del 70 % y ningún pico durante ALIVIO_CADA bloques (~0.4 s), el tope sube de a una. */
 #define ALIVIO_PROM 70u
 #define ALIVIO_CADA 64u
+/* 0.8.1: with TWO CORES the brake aims lower (~65 %): both cores flat out drew enough current
+ * to make the FM-1 switch itself off while browsing. And when the UI loop is starved by the audio
+ * (bm_app_tick slower than UI_LENTO_US three times within UI_VENTANA renders, ~1 s, while the audio
+ * is above half of its time), the cap goes down one voice too; it only goes back up after a
+ * UI_VENTANA with no slow UI. Fast UI samples (ticks that draw nothing) neither count nor reset
+ * anything; a slow UI with little audio is the UI's own and does not count. */
+#define FRENO2_PICO  80u
+#define FRENO2_PROM  65u
+#define ALIVIO2_PROM 50u
+#define UI_LENTO_US  60000u
+#define UI_VENTANA   172u                   /* renders of 5.8 ms: ~1 s */
+#define UI_AUDIO_MIN 50u                    /* % of the budget: below this a slow UI is the UI's own */
 
-static volatile uint8_t par_sesion = 1;     /* el núcleo 1 gira durante cada render (lab 36 lo apaga) */
+static volatile uint8_t par_sesion;         /* lab 36: the core 1 spins through a whole render (off since 0.8.1) */
 static volatile uint16_t lab_par;           /* lab 36: 0x100 | arg, se aplica al empezar un render */
+static volatile uint32_t ui_us, ui_n;       /* the UI loop's last bm_app_tick and how many there were (ui_medida) */
+
+/* the hook from the main loop: how long the UI took this time */
+static void ui_medida(uint32_t us)
+{
+    ui_us = us;
+    ui_n++;
+}
 
 static void render(int32_t *lr, uint32_t frames)
 {
-    static uint32_t n, freno_n, alivio_n, ses;
+    static uint32_t n, freno_n, alivio_n, ses, ui_visto, ui_lento_n[3], ui_k;
     uint32_t budget = fm1_stat[FM1_STAT_BUDGET];
+    int dos = app.ctx.par_on;
+    uint32_t pico = dos ? FRENO2_PICO : FRENO_PICO, prom = dos ? FRENO2_PROM : FRENO_PROM;
+    uint32_t alivio = dos ? ALIVIO2_PROM : ALIVIO_PROM;
+    int ui_lento = 0;
     n++;
+    if (ui_n != ui_visto) {                  /* a new UI measurement */
+        ui_visto = ui_n;
+        if (ui_us > UI_LENTO_US && budget && fm1_stat[FM1_STAT_RENDER_AVG] * 100u > budget * UI_AUDIO_MIN) {
+            ui_lento_n[ui_k] = n | 1u;
+            ui_k = (ui_k + 1u) % 3u;
+            ui_lento = ui_lento_n[ui_k] && n - ui_lento_n[ui_k] < UI_VENTANA;   /* the third one in the window */
+        }
+    }
+    int ui_bien = !ui_lento_n[(ui_k + 2u) % 3u] || n - ui_lento_n[(ui_k + 2u) % 3u] > UI_VENTANA;
     if (budget && n - freno_n >= FRENO_CADA &&
-        (fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * FRENO_PICO ||
-         fm1_stat[FM1_STAT_RENDER_AVG] * 100u > budget * FRENO_PROM)) {
+        (fm1_stat[FM1_STAT_RENDER_LAST] * 100u > budget * pico ||
+         fm1_stat[FM1_STAT_RENDER_AVG] * 100u > budget * prom || ui_lento)) {
         if (bm_audio_overload(&app.ctx))
             fm1_stat[FM1_STAT_FRENO]++;
+        if (ui_lento) {
+            fm1_stat[FM1_STAT_FRENO_UI]++;
+            ui_lento_n[0] = ui_lento_n[1] = ui_lento_n[2] = 0;
+            ui_lento_n[(ui_k + 2u) % 3u] = n | 1u;      /* the window starts again from this one */
+        }
         freno_n = n;
     } else if (budget && app.ctx.pool_cap && n - freno_n >= ALIVIO_CADA && n - alivio_n >= ALIVIO_CADA &&
-               fm1_stat[FM1_STAT_RENDER_AVG] * 100u < budget * ALIVIO_PROM) {
+               fm1_stat[FM1_STAT_RENDER_AVG] * 100u < budget * alivio && ui_bien) {
         bm_audio_relief(&app.ctx);
         alivio_n = n;
     }
+    /* tracks left to a core 1 that stopped answering: back to this core once it let them go */
+    if (app.ctx.par_quar && fm1_cpu1_idle())
+        app.ctx.par_quar = 0;
     if (lab_par) {                           /* entre renders: ningún núcleo está calculando */
         uint8_t a = (uint8_t)lab_par;
         lab_par = 0;
@@ -138,21 +179,26 @@ static void par_job(uint32_t arg)            /* en el núcleo 1: el tramo [done,
 static void par_go(void *u, uint32_t done, uint32_t n)
 {
     (void)u;
-    fm1_cpu1_run(par_job, done << 16 | n);
+    if (!fm1_cpu1_run(par_job, done << 16 | n))   /* not delivered: done here, and par_wait finds it done */
+        par_job(done << 16 | n);
 }
 
-static void par_wait(void *u)
+static volatile uint8_t par_fallo;          /* core 1 failed during this boot (the main loop writes it down) */
+
+static int par_wait(void *u)
 {
     (void)u;
-    if (fm1_cpu1_wait(PAR_ESPERA_US) != 0) {
-        /* el núcleo 1 no contestó: un núcleo desde el próximo bloque. Si el trabajo todavía corre
-         * allá, se espera a que suelte las voces (hasta ~50 ms) antes de seguir con ellas aquí. */
+    int r = fm1_cpu1_wait(PAR_ESPERA_US);
+    if (r != 0) {
+        /* el núcleo 1 no contestó: un núcleo desde ahora y hasta apagar. Its tracks stay silent
+         * (bm_audio_render, par_quar) until it lets go of them; no waiting here (0.8.1: before, up
+         * to 50 ms spinning). */
         par_ok = 0;
         app.ctx.par_on = 0;
-        for (uint32_t t0 = fm1_scan_now_us(); !fm1_cpu1_idle() && fm1_scan_now_us() - t0 < 50000u; )
-            ;
+        par_fallo = 1;
     }
     fm1_stat[FM1_STAT_PAR_CPU] = (uint32_t)fm1_cpu1_cpu();
+    return r;
 }
 
 /* La primera vez que TWO CORES está prendido (no en cada arranque: si la prueba fallara mal, con
@@ -162,6 +208,11 @@ static void par_init(void)
     static int probado;
     if (probado) return;
     probado = 1;
+    if (fm1_boot_c1_retired()) {             /* an earlier boot retired it and the FM-1 was not off since */
+        fm1_cpu1_retirar();
+        fm1_log("core 1 retired by an earlier boot: TWO CORES uses one core until power-off");
+        return;
+    }
     if (fm1_cpu1_init() != 0) return;
     app.ctx.par_go = par_go; app.ctx.par_wait = par_wait; app.ctx.par_user = NULL;
     app.ctx.par_mask = 0x38;                 /* para empezar T4-T6; después se ajusta solo (bm_audio_par_pick) */
@@ -240,6 +291,8 @@ static void midi_bombear(void)
  * Si el aparato se cuelga, la pantalla se queda mostrando el último (sin USB ni consola, es lo
  * único que se puede leer). Solo desde la tarea principal: es la que usa la pantalla. */
 static int migas_on;
+static uint16_t min_sysvdd, min_vdc14, min_vbat, min_batt, now_sysvdd, now_vdc14, now_vbat, now_batt;
+static int rastro_on;
 
 extern volatile char fm1_miga_act[4];
 
@@ -255,6 +308,8 @@ void fm1_miga(const char *c)
     fm1_miga_act[0] = c[0];
     fm1_miga_act[1] = c[1];
     fm1_miga_act[2] = fm1_miga_act[3] = '-';
+    if (rastro_on)                           /* the breadcrumb in RAM follows the step (fm1_boot.c) */
+        fm1_rastro(c, min_sysvdd, min_vdc14, min_vbat, timer_get_ms());
     if (!migas_on)
         return;
     for (int i = 0; i < 9 * 12; i++)
@@ -299,7 +354,8 @@ static void dibujar_aviso(bm_gfx *g, void *u)
     gfx_text(g, 8, 8, "BUBBA MACHINE", C_YELLOW, 2);
     gfx_text(g, 8, 28, BM_VERSION_STR " - " FM1_IDENT, C_GREY, 1);
     if (seguro) {
-        static const char *const FIN[] = {"-", "APAGADO", "PERRO GUARDIAN", "REINICIO POR FALLA", "OTRO"};
+        static const char *const FIN[] = {"-", "APAGADO", "PERRO GUARDIAN", "REINICIO POR FALLA", "OTRO",
+                                          "VDDIO LOW (BROWNOUT)", "LONG PRESS"};
         char b[48];
         gfx_text(g, 8, 44, "MODO SEGURO", C_ORANGE, 2);
         gfx_text(g, 8, 64, "SIN SONIDO, USB ACTIVO. INSTALADOR WEB:", C_WHITE, 1);
@@ -319,7 +375,7 @@ static void dibujar_aviso(bm_gfx *g, void *u)
             p = b;
             for (const char *q = "  FIN: "; *q;)
                 *p++ = *q++;
-            for (const char *q = ok ? "BIEN" : FIN[fin >= 1 && fin <= 4 ? fin : 0]; *q;)
+            for (const char *q = ok ? "BIEN" : FIN[fin >= 1 && fin <= 6 ? fin : 0]; *q;)
                 *p++ = *q++;
             *p = 0;
             gfx_text(g, 8, 90 + k * 22, b, C_GREY, 1);
@@ -470,11 +526,14 @@ static bm_track lab_trk;                     /* el canal antes de lab 26 */
 static int lab_trk_t = -1;
 static int lab_set;                          /* lab 29: canal*64 + byte de bm_track */
 
+/* one scratch for the console packets (language and sounds): they come one at a time, from the main loop */
+static uint8_t consola_d[256];
+
 int fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
 {
-    static uint8_t d[256];
+    uint8_t *d = consola_d;
     uint32_t n = nn / 2;
-    if (n > sizeof d)
+    if (n > sizeof consola_d)
         return -1;
     for (uint32_t i = 0; i < n; i++)
         d[i] = (uint8_t)((nib[2 * i] & 15u) << 4 | (nib[2 * i + 1] & 15u));
@@ -485,9 +544,9 @@ int fm1_idioma(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
 
 int fm1_sonido(int sub, uint32_t off, const uint8_t *nib, uint32_t nn)
 {
-    static uint8_t d[256];
+    uint8_t *d = consola_d;
     uint32_t n = nn / 2;
-    if (n > sizeof d)
+    if (n > sizeof consola_d)
         return -1;
     for (uint32_t i = 0; i < n; i++)
         d[i] = (uint8_t)((nib[2 * i] & 15u) << 4 | (nib[2 * i + 1] & 15u));
@@ -728,10 +787,73 @@ static void modo_seguro(void)
     }
 }
 
+/* ------------------------------------------------------------------ rails and battery */
+/* Every 10 ms from the main loop (the SDK's ADC scan reads them every few ms): the lowest SYSVDD,
+ * VDC14 and VBAT seen since boot (after the first second: the ADC starts at nothing) go to the
+ * breadcrumb in RAM and to the console. adc_get_voltage gives mV against the chip's band gap;
+ * the VBAT channel is VBAT / 4. PB1 (the battery divider of the board, no curve yet) goes raw. */
+static uint16_t baja(uint16_t m, uint16_t v) { return v && (!m || v < m) ? v : m; }
+
+static void rieles(uint32_t ms)
+{
+    now_sysvdd = (uint16_t)adc_get_voltage(AD_CH_SYSVDD);
+    now_vdc14 = (uint16_t)adc_get_voltage(AD_CH_VDC14);
+    now_vbat = (uint16_t)(adc_get_voltage(AD_CH_VBAT) * 4u);
+    now_batt = (uint16_t)adc_get_value(FM1_ADC_BATT);
+    if (ms < 1000u)
+        return;
+    if (now_sysvdd > 500u) min_sysvdd = baja(min_sysvdd, now_sysvdd);
+    if (now_vdc14 > 500u) min_vdc14 = baja(min_vdc14, now_vdc14);
+    if (now_vbat > 1000u) min_vbat = baja(min_vbat, now_vbat);
+    if (now_batt > 1u) min_batt = baja(min_batt, now_batt);
+    fm1_stat[FM1_STAT_RAIL_MIN] = min_sysvdd | (uint32_t)min_vdc14 << 16;
+    fm1_stat[FM1_STAT_RAIL_NOW] = now_sysvdd | (uint32_t)now_vdc14 << 16;
+    fm1_stat[FM1_STAT_VBAT] = min_vbat | (uint32_t)now_vbat << 16;
+    fm1_stat[FM1_STAT_BATT_ADC] = min_batt | (uint32_t)now_batt << 16;
+}
+
+/* the reset sources, the power setup and the previous run's breadcrumb: console and log */
+static void informe_arranque(void)
+{
+    static const char H[] = "0123456789ABCDEF";
+    uint8_t rst[5], fl = 0, prev = 0, r[8];
+    char l[96], *p;
+    if (fm1_boot_raw(0, rst, &fl)) {
+        fm1_stat[FM1_STAT_RST_RAW] = rst[0] | (uint32_t)rst[1] << 8 | (uint32_t)rst[2] << 16 | (uint32_t)rst[4] << 24;
+        (void)fm1_boot_raw(1, r, &prev);
+        fm1_stat[FM1_STAT_RST_PMU] = rst[3] | (uint32_t)prev << 8 | (uint32_t)fl << 16;
+        p = l;
+        for (const char *q = "reset: P3_RST_SRC "; *q;) *p++ = *q++;
+        *p++ = H[rst[0] >> 4]; *p++ = H[rst[0] & 15];
+        for (const char *q = rst[0] & 2u ? " VDDIO LOW (brownout)" : rst[0] & 4u ? " WDT" : rst[0] & 16u ? " LONG PRESS" :
+                             rst[0] & 1u ? " POWER ON" : " (soft or other)"; *q;) *p++ = *q++;
+        for (const char *q = rst[4] & 0x80u ? ", LVD pending" : ""; *q;) *p++ = *q++;
+        *p = 0;
+        fm1_log(l);
+    }
+    fm1_stat[FM1_STAT_PWR0] = fm1_power_regs[0][0] | (uint32_t)fm1_power_regs[0][1] << 8 |
+                              (uint32_t)fm1_power_regs[0][2] << 16 | (uint32_t)fm1_power_regs[0][3] << 24;
+    fm1_stat[FM1_STAT_PWR1] = fm1_power_regs[1][0] | (uint32_t)fm1_power_regs[1][1] << 8 |
+                              (uint32_t)fm1_power_regs[1][2] << 16 | (uint32_t)fm1_power_regs[1][3] << 24;
+    if (fm1_stat[FM1_STAT_PWR1]) {
+        fm1_boot_flag(FM1_BF_POWER);
+        fm1_log("power: stock rails set (DCDC13, VDC14 1.60 V, SYSVDD 1.38 V)");
+    }
+    if (fm1_rastro_previo(r)) {
+        fm1_stat[FM1_STAT_RASTRO0] = r[0] | (uint32_t)r[1] << 8 | (uint32_t)r[2] << 16 | (uint32_t)r[3] << 24;
+        fm1_stat[FM1_STAT_RASTRO1] = r[4] | (uint32_t)r[5] << 8 | (uint32_t)r[6] << 16 | (uint32_t)r[7] << 24;
+        p = l;
+        for (const char *q = "breadcrumb of the last run: step "; *q;) *p++ = *q++;
+        *p++ = (char)r[2]; *p++ = (char)r[3];
+        *p = 0;
+        fm1_log(l);
+    }
+}
+
 /* ------------------------------------------------------------------ tarea principal */
 static void bubba_task(void *p)
 {
-    int cuelgue = 0, volvio_seguro = 0, lcd_fast = -1;
+    int cuelgue = 0, volvio_seguro = 0, lcd_fast = -1, anotado = 0;
     uint8_t raw[FM1_NCOL];
     uint32_t t0, next_adc = 0, heap_t = 0;
     int ok = 0, id, down, seen = 0;
@@ -747,7 +869,10 @@ static void bubba_task(void *p)
     fm1_midi_init();
     adc_add_sample_ch(FM1_ADC_MASTER);
     adc_add_sample_ch(FM1_ADC_BATT);
+    adc_add_sample_ch(AD_CH_SYSVDD);         /* the rails, for the breadcrumb and the console */
+    adc_add_sample_ch(AD_CH_VDC14);
     fm1_boot_stage(E_PANTALLA);
+    informe_arranque();
     {
         uint32_t pc; uint8_t ce, db;
         if (fm1_excepcion_previa(&pc, &ce, &db)) {   /* antes que el perro: comparten los 8 bytes */
@@ -793,6 +918,7 @@ static void bubba_task(void *p)
     }
 
     migas_on = 1;
+    rastro_on = 1;
     fm1_miga("A0");
     bm_platform pf = {fm1_lcd_blit, led, midi_out, mapa, &FLASH, NULL};
     fm1_flash_plain_window();                /* por si el SDK la volvió a poner desde su almacén */
@@ -804,6 +930,17 @@ static void bubba_task(void *p)
         if (app.set.fast_lcd || app.set.dual_core) fm1_log("pruebas apagadas despues de un fallo");
         app.set.fast_lcd = 0; app.set.dual_core = 0; app.set_dirty = 1;
     }
+    {                                        /* the last boot with TWO CORES did not reach 5 s: off */
+        uint8_t e, fin, ok, rst[5], fl;
+        if (app.set.dual_core && fm1_boot_past(1, &e, &fin, &ok) && fm1_boot_raw(1, rst, &fl) &&
+            (fl & FM1_BF_DUAL) && e < E_5S) {
+            fm1_log("TWO CORES off: the last boot with it did not reach 5 s");
+            app.set.dual_core = 0; app.set_dirty = 1;
+            fm1_stat[FM1_STAT_C1] |= 4u;
+        }
+    }
+    if (fm1_boot_c1_retired())
+        fm1_stat[FM1_STAT_C1] |= 2u;
     fm1_miga("A2");
     fm1_boot_stage(E_NUCLEO);
     fm1_miga("A3");
@@ -859,11 +996,22 @@ static void bubba_task(void *p)
         if ((int32_t)(t - next_adc) >= 0) {
             next_adc = t + 10u;
             bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
+            rieles(t - t0);
         }
         if (lcd_fast != app.set.fast_lcd) { lcd_fast = app.set.fast_lcd; fm1_lcd_speed(lcd_fast); }
         if (app.set.dual_core && !sin_audio)
             par_init();
         app.ctx.par_on = (uint8_t)(par_ok && app.set.dual_core && !sin_audio);
+        if (app.ctx.par_on && !(anotado & 1)) {  /* the boot record: TWO CORES ran in this boot */
+            anotado |= 1;
+            fm1_boot_flag(FM1_BF_DUAL);
+        }
+        if (par_fallo && !(anotado & 2)) {       /* core 1 retired: kept until the FM-1 is off */
+            anotado |= 2;
+            fm1_boot_flag(FM1_BF_C1_RETIRED);
+            fm1_stat[FM1_STAT_C1] |= 1u;
+        }
+        fm1_stat[FM1_STAT_C1] = (fm1_stat[FM1_STAT_C1] & ~8u) | (app.ctx.par_quar ? 8u : 0u);
         if (par_ok) {                        /* para la consola: el reparto y la carga estimada de cada núcleo */
             uint32_t mhz = fm1_scan_ticks_hz() / 1000000u, l0 = app.ctx.cost_over, l1 = 0, m = app.ctx.par_on ? app.ctx.par_mask : 0;
             for (int t = 0; t < BM_TRACKS; t++) { if ((m >> t) & 1u) l1 += app.ctx.cost[t]; else l0 += app.ctx.cost[t]; }
@@ -882,6 +1030,17 @@ static void bubba_task(void *p)
         fm1_stat[FM1_STAT_UI_LAST] = du;
         if (du > fm1_stat[FM1_STAT_UI_MAX])
             fm1_stat[FM1_STAT_UI_MAX] = du;
+        if (du < 1000000u)
+            ui_medida(du);
+        {                                    /* the whole loop, from one turn to the next */
+            static uint32_t lt;
+            uint32_t lu = fm1_scan_now_us(), d = lu - lt;
+            if (lt && d < 10000000u) {
+                fm1_stat[FM1_STAT_LOOP_US] = d;
+                if (d > fm1_stat[FM1_STAT_LOOP_US_MAX]) fm1_stat[FM1_STAT_LOOP_US_MAX] = d;
+            }
+            lt = lu;
+        }
         if (fm1_audio_halves() > 20u && !(seen & 1)) {
             fm1_log("audio: 20 bloques calculados");
             fm1_boot_stage(E_SONANDO);

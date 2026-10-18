@@ -1869,7 +1869,7 @@ static void test_notes(void)
 /* ------------------------------------------------------------ guardado y versiones */
 /* el audio en dos núcleos: repartido (aquí en la misma tarea) suena exactamente igual */
 static void par_go_sim(void *u, uint32_t done, uint32_t n) { bm_audio_par_process((bm_ctx *)u, done, n); }
-static void par_wait_sim(void *u) { (void)u; }
+static int par_wait_sim(void *u) { (void)u; return 0; }
 
 /* el snprintf propio (el del FM-1 no entiende %+d ni %f): igual que el de la biblioteca */
 static void test_printf(void)
@@ -1892,6 +1892,59 @@ static void test_printf(void)
 #undef CMP
     printf("  %d formatos, %d distintos\n", n, bad);
     CHECK(bad == 0);
+}
+
+/* 0.8.1: a kick played live from the keys triggers the sidechain duck (before, the render reset
+ * the trigger after applying the commands, so only sequenced kicks ducked) */
+static void test_live_kick_duck(void)
+{
+    printf("live kick: triggers the sidechain like a sequenced one\n");
+    static int32_t out[BM_BLOCK * 2];
+    boot(1);
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 0; bm_cmd_push(&app.cmdq, &c);
+    for (int i = 0; i < 2000 && (i < 4 || app.ctx.sc_env != 0.0f); i++) bm_app_audio(&app, out, BM_BLOCK);
+    int lane = -1;
+    for (int l = 0; l < BM_LANES && lane < 0; l++) {
+        int m = bm_trk_tr(&app.pat, 0)->lane[l].model % DRM_COUNT;
+        if (m == DRM_BD_ANALOG || m == DRM_BD_SINTE) lane = l;
+    }
+    CHECK(lane >= 0 && app.ctx.sc_env == 0.0f);
+    memset(&c, 0, sizeof c); c.type = CMD_NOTE_ON; c.a = 0; c.b = (uint8_t)(lane < 0 ? 0 : lane); c.c = 110;
+    bm_cmd_push(&app.cmdq, &c);
+    bm_app_audio(&app, out, BM_BLOCK);
+    printf("  sidechain envelope after a live kick: %.3f\n", app.ctx.sc_env);
+    CHECK(app.ctx.sc_env > 0.05f);
+}
+
+/* TWO CORES: the other core does not answer once. Its tracks go silent (no waiting), the render
+ * goes on with one core, and they come back when the platform clears par_quar */
+static int fail_wait_n;
+static void par_go_none(void *u, uint32_t done, uint32_t n) { (void)u; (void)done; (void)n; }
+static int par_wait_fail(void *u) { (void)u; fail_wait_n++; return -1; }
+
+static void test_dual_core_fail(void)
+{
+    printf("two cores: the other core does not answer -> its tracks silent, one core, no wait\n");
+    static int32_t out[256 * 2];
+    boot(1);
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
+    for (int i = 0; i < 40; i++) bm_app_audio(&app, out, 256);
+    app.ctx.par_go = par_go_none; app.ctx.par_wait = par_wait_fail; app.ctx.par_user = &app.ctx;
+    app.ctx.par_mask = 0x3E; app.ctx.par_on = 1; fail_wait_n = 0;
+    bm_app_audio(&app, out, 256);
+    CHECK(fail_wait_n == 1 && app.ctx.par_on == 0 && app.ctx.par_quar == 0x3E);
+    int heard = 0, other = 0;
+    for (int i = 0; i < 200; i++) {
+        bm_app_audio(&app, out, 256);
+        heard |= app.ctx.tact & 1;
+        other |= app.ctx.tact & 0x3E;
+    }
+    printf("  while quarantined: T1 sounds %d, T2-T6 sound %d, waits %d\n", heard, other != 0, fail_wait_n);
+    CHECK(heard && !other && fail_wait_n == 1);
+    app.ctx.par_quar = 0;                     /* the platform saw the other core idle */
+    for (int i = 0; i < 400; i++) { bm_app_audio(&app, out, 256); other |= app.ctx.tact & 0x3E; }
+    CHECK(other != 0);
+    app.ctx.par_go = NULL; app.ctx.par_wait = NULL;
 }
 
 static void test_dual_core(void)
@@ -2529,6 +2582,8 @@ int main(int argc, char **argv)
     test_sounds();
     test_printf();
     test_dual_core();
+    test_dual_core_fail();
+    test_live_kick_duck();
     test_chorus_long();
     test_brake();
     test_steal_at_end();

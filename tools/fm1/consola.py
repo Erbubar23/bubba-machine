@@ -24,12 +24,33 @@ CAMPOS = ['version', 'uptime_ms', 'sys_hz', 'lsb_hz', 'halves', 'late', 'render_
           'render_avg_us', 'budget_us', 'scan_ticks', 'scanisr_max_us', 'ui_us', 'ui_max_us', 'usb', 'fails',
           'past1', 'past2', 'past3', 'past4', 'audio_cpu', 'midi_in', 'midi_out', 'loop_max', 'heap_free', 'heap_min',
           'par_cpu', 'freno', 'par_modo', 'par_espera_max_us', 'par_mask', 'carga0_us', 'carga1_us', 'par_mismo',
-          'voces']
-NUCLEO1 = ['sin probar', 'probando', 'listo', 'no contestó al arrancar', 'lo dejó: no contestó a tiempo',
-           'lo dejó: leyó mal un trabajo']
+          'voces',
+          # 0.8.1
+          'rst_raw', 'rst_pmu', 'rail_min', 'rail_now', 'vbat', 'batt_adc', 'pwr0', 'pwr1', 'rastro0', 'rastro1',
+          'loop_us', 'loop_max_us', 'c1', 'freno_ui', 'nan_fix']
+NUCLEO1 = ['sin probar', 'probando', 'listo', 'no contestó al arrancar', 'retired: did not answer in time',
+           'retired: misread a job', 'retired by an earlier boot (until power-off)']
 ETAPA = ['antes de la pantalla', 'pantalla y USB', 'núcleo listo', 'teclas', 'audio iniciado', 'audio sonando',
          '1 s andando', '5 s andando', '5 s andando']
-FIN = {1: 'apagado', 2: 'perro guardián', 3: 'reinicio por falla', 4: 'otro', 0xFF: '-'}
+FIN = {1: 'POWER ON', 2: 'WDT', 3: 'soft reset (fault or watchdog of the loop)', 4: 'other',
+       5: 'VDDIO LOW (brownout)', 6: 'LONG PRESS', 0xFF: '-'}
+# P3_RST_SRC (apps/common/system/system_reset_reason.c of the SDK)
+RST_BITS = [(0, 'POWER ON'), (1, 'VDDIO LOW (brownout)'), (2, 'WDT'), (3, 'VCM'), (4, 'LONG PRESS'), (5, '12V'),
+            (6, 'soft')]
+BF = [(1, 'TWO CORES on'), (2, 'core 1 retired'), (4, 'stock power rails set'), (8, 'breadcrumb found')]
+
+
+def bits(v, tabla):
+    return ', '.join(n for b, n in tabla if v & (b if tabla is BF else 1 << b)) or 'none'
+
+
+def rastro(lo, hi):
+    b = lo.to_bytes(4, 'little') + hi.to_bytes(4, 'little')
+    paso = b[2:4].decode('ascii', 'replace')
+    mv = lambda x, k, base: '?' if x == 0xFF else '%d mV' % (base + x * k)
+    t = b[7] if b[7] < 128 else (b[7] - 128) * 30
+    return 'step %s, lowest SYSVDD %s, VDC14 %s, VBAT %s, up %s s' % (
+        paso, mv(b[4], 4, 1000), mv(b[5], 4, 1000), mv(b[6], 16, 2000), ('~%d' % t) if b[7] >= 128 else t)
 
 
 def pedir(p, cmd, datos=b''):
@@ -93,11 +114,33 @@ def mostrar(v):
     if v['loop_max']:
         c = v['loop_max'].to_bytes(4, 'little').decode('ascii', 'replace')
         print('cuelgue antes de este arranque (perro guardián): paso %s, sub-paso %s' % (c[:2], c[2:]))
+    if 'rst_raw' in v:
+        r = v['rst_raw']
+        p3, sysr, wk, lvd = r & 0xFF, (r >> 8) & 0xFF, (r >> 16) & 0xFF, r >> 24
+        print('reset before this boot: P3_RST_SRC %02X = %s | RST_SRC %02X | R3_WKUP_SRC %02X | P3_PMU_CON1 %02X | '
+              'P3_VLVD_CON %02X%s' % (p3, bits(p3, RST_BITS), sysr, wk, v['rst_pmu'] & 0xFF, lvd,
+                                      ' (LVD pending)' if lvd & 0x80 else ''))
+        print('this boot: %s | previous boot: %s' % (bits((v['rst_pmu'] >> 16) & 0xFF, BF), bits((v['rst_pmu'] >> 8) & 0xFF, BF)))
+        mn, nw = v['rail_min'], v['rail_now']
+        print('rails: SYSVDD %d mV (lowest %d) | VDC14 %d mV (lowest %d) | VBAT %d mV (lowest %d) | battery ADC PB1 %d (lowest %d)' % (
+            nw & 0xFFFF, mn & 0xFFFF, nw >> 16, mn >> 16, v['vbat'] >> 16, v['vbat'] & 0xFFFF, v['batt_adc'] >> 16, v['batt_adc'] & 0xFFFF))
+        f = lambda w: 'ANA_CON0 %02X CON5 %02X CON6 %02X CON9 %02X' % (w & 0xFF, (w >> 8) & 0xFF, (w >> 16) & 0xFF, w >> 24)
+        print('power setup: before %s | after %s' % (f(v['pwr0']), f(v['pwr1'])) if v['pwr1'] else 'power setup: not done')
+        if v['rastro0']:
+            print('breadcrumb of the last run: ' + rastro(v['rastro0'], v['rastro1']))
+        else:
+            print('breadcrumb of the last run: none (RAM lost, or a watchdog/fault record took its place)')
+        c1 = v['c1']
+        print('UI loop: %d us (longest %d) | brake from a slow UI: %d | core 1: %s%s%s%s, %d wait turns/us | nan reset %d' % (
+            v['loop_us'], v['loop_max_us'], v['freno_ui'], 'retired now' if c1 & 1 else 'not retired now',
+            ', retired by an earlier boot' if c1 & 2 else '', ', TWO CORES turned off (last boot with it < 5 s)' if c1 & 4 else '',
+            ', its tracks waiting (silent)' if c1 & 8 else '', c1 >> 16, v['nan_fix']))
     for k in range(1, 5):
         x = v['past%d' % k]
-        if x >> 24:
-            e, fin, ok = x & 0xFF, (x >> 8) & 0xFF, (x >> 16) & 0xFF
-            print('  arranque -%d: llegó a %s, %s' % (k, ETAPA[min(e, 8)], 'bien' if ok else 'terminó: ' + FIN.get(fin, '?')))
+        if x & 0x80:
+            e, ok, fin, p3, fl = x & 15, (x >> 4) & 1, (x >> 8) & 0xFF, (x >> 16) & 0xFF, x >> 24
+            print('  arranque -%d: llegó a %s, %s | P3_RST_SRC %02X = %s | %s' % (
+                k, ETAPA[min(e, 8)], 'bien' if ok else 'terminó: ' + FIN.get(fin, '?'), p3, bits(p3, RST_BITS), bits(fl, BF)))
 
 
 def main():

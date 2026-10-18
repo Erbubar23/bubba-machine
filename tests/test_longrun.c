@@ -358,8 +358,9 @@ static void run(const char *name, int minutes, event_fn each_second)
     int last = minutes - 1 < 64 ? minutes - 1 : 63;
     for (int t = 0; t < BM_TRACKS; t++) {
         double a = minute_rms_track[0][t], b = minute_rms_track[last][t];
-        printf("  T%d rms: first minute %.4f, last %.4f\n", t + 1, a, b);
-        if (a > 0.002 && b < a * 0.2) PROBLEM("%s: T%d went (almost) silent: rms %.4f -> %.4f", name, t + 1, a, b);
+        int muted = app.pat.trk[t].mute != 0;              /* 0.9: mutes are live console state and survive pattern swaps */
+        printf("  T%d rms: first minute %.4f, last %.4f%s\n", t + 1, a, b, muted ? " (muted at the end)" : "");
+        if (a > 0.002 && b < a * 0.2 && !muted) PROBLEM("%s: T%d went (almost) silent: rms %.4f -> %.4f", name, t + 1, a, b);
     }
 }
 

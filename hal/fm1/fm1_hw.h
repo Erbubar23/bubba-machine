@@ -80,8 +80,25 @@ int  fm1_boot_begin(int keys_safe);       /* devuelve FM1_BOOT_*; puede no volve
 void fm1_boot_ok(void);                   /* llamar cuando el firmware lleva un rato bien */
 uint32_t fm1_boot_fails(void);
 void fm1_boot_stage(int n);               /* etapa n (1..8) alcanzada en este arranque */
-enum { FM1_RST_NONE = 0xFF, FM1_RST_POWER = 1, FM1_RST_WDT = 2, FM1_RST_SOFT = 3, FM1_RST_OTHER = 4 };
+/* why the chip restarted before a boot: POWER = powered on from off, LOWV = VDDIO low (brownout),
+ * LONG = power key long press, WDT = hardware watchdog, SOFT = a software reset */
+enum { FM1_RST_NONE = 0xFF, FM1_RST_POWER = 1, FM1_RST_WDT = 2, FM1_RST_SOFT = 3, FM1_RST_OTHER = 4,
+       FM1_RST_LOWV = 5, FM1_RST_LONG = 6 };
 int  fm1_boot_past(int k, uint8_t *etapa, uint8_t *fin, uint8_t *ok);   /* k = 1: el arranque anterior */
+/* Raw reset sources of boot k (k = 0: this boot): rst[0] P3_RST_SRC, [1] JL_SYSTEM->RST_SRC,
+ * [2] R3_WKUP_SRC, [3] P3_PMU_CON1, [4] P3_VLVD_CON; *flags = FM1_BF_* of that boot (set = happened) */
+int  fm1_boot_raw(int k, uint8_t rst[5], uint8_t *flags);
+enum { FM1_BF_DUAL = 1, FM1_BF_C1_RETIRED = 2, FM1_BF_POWER = 4, FM1_BF_RASTRO = 8 };
+void fm1_boot_flag(uint8_t f);            /* FM1_BF_* happened in this boot (written once, in the flash) */
+int  fm1_boot_c1_retired(void);           /* core 1 was retired and the FM-1 has not been off since */
+/* RAM breadcrumb (the 8 bytes at 0x01C7FDF8, shared with the watchdog and fault records, which win):
+ * the last step of the main loop, the lowest SYSVDD / VDC14 / VBAT seen and the uptime. It survives
+ * a reset that does not cut the RAM; fm1_boot_begin reads the one left by the previous run. */
+void fm1_rastro(const char miga[2], uint16_t sysvdd_mv, uint16_t vdc14_mv, uint16_t vbat_mv, uint32_t ms);
+int  fm1_rastro_previo(uint8_t out[8]);   /* the previous run's breadcrumb, 1 if there was a valid one */
+/* power (hal/fm1/sdk/board.c, before anything else runs): the stock V15 analog setup */
+void fm1_power_boot(void);
+extern uint8_t fm1_power_regs[2][4];      /* P3_ANA_CON0, 5, 6, 9 before and after */
 void fm1_enter_uboot(void);               /* modo de actualización del chip (USB 4C4A:8057); no vuelve */
 
 /* ---------------------------------------------------------------- pantalla */
@@ -134,16 +151,32 @@ enum {
     FM1_STAT_PAR_MASK, FM1_STAT_CARGA0, FM1_STAT_CARGA1,   /* el reparto y lo que estima para cada núcleo, en µs */
     FM1_STAT_PAR_MISMO,                             /* trabajos que corrieron en el núcleo del audio */
     FM1_STAT_VOCES,                                 /* voces sonando de T1..T6 (4 bits cada una) y el tope del pool (bits 24-31) */
+    /* 0.8.1 (tools/fm1/consola.py estado): */
+    FM1_STAT_RST_RAW,       /* this boot: P3_RST_SRC | RST_SRC << 8 | R3_WKUP_SRC << 16 | P3_VLVD_CON << 24 */
+    FM1_STAT_RST_PMU,       /* this boot: P3_PMU_CON1 | previous boot's FM1_BF_* << 8 | this boot's << 16 */
+    FM1_STAT_RAIL_MIN,      /* lowest SYSVDD mV | lowest VDC14 mV << 16 (since boot) */
+    FM1_STAT_RAIL_NOW,      /* SYSVDD mV | VDC14 mV << 16 */
+    FM1_STAT_VBAT,          /* lowest VBAT mV | VBAT mV now << 16 */
+    FM1_STAT_BATT_ADC,      /* PB1 (battery) ADC: lowest | now << 16 */
+    FM1_STAT_PWR0, FM1_STAT_PWR1,   /* P3_ANA_CON0 | CON5 << 8 | CON6 << 16 | CON9 << 24, before and after the power setup */
+    FM1_STAT_RASTRO0, FM1_STAT_RASTRO1,   /* the previous run's breadcrumb (8 bytes), 0 if none */
+    FM1_STAT_LOOP_US, FM1_STAT_LOOP_US_MAX,   /* main loop period (the UI loop), last and longest */
+    FM1_STAT_C1,            /* bit 0 retired now, bit 1 retired by an earlier boot, bit 2 TWO CORES off after a
+                             * boot that did not reach 5 s, bit 3 tracks waiting for core 1 (par_quar);
+                             * bits 16-31 wait turns per microsecond */
+    FM1_STAT_FRENO_UI,      /* brake steps because the UI loop was slower than 60 ms */
+    FM1_STAT_NAN_FIX,       /* NaN resets in the mix (bm_status.nan_fix) */
     FM1_STAT_N
 };
 
 /* ---------------------------------------------------------------- núcleo 1 (fm1_cpu1.c) */
-enum { FM1_C1_SIN_PROBAR, FM1_C1_PRUEBA, FM1_C1_LISTO, FM1_C1_NO, FM1_C1_TARDE, FM1_C1_LEYO_MAL };
+enum { FM1_C1_SIN_PROBAR, FM1_C1_PRUEBA, FM1_C1_LISTO, FM1_C1_NO, FM1_C1_TARDE, FM1_C1_LEYO_MAL, FM1_C1_RETIRADO };
 int  fm1_cpu1_init(void);                           /* registra la interrupción y prueba que conteste */
 int  fm1_cpu1_run(void (*fn)(uint32_t), uint32_t arg);   /* 1 = entregado; luego fm1_cpu1_wait */
 int  fm1_cpu1_wait(uint32_t us);                    /* 0 = terminó; -1 = desde ahora un núcleo */
 int  fm1_cpu1_idle(void);                           /* el último trabajo terminó */
 int  fm1_cpu1_ok(void);
+void fm1_cpu1_retirar(void);                        /* retired by an earlier boot: TWO CORES uses one */
 int  fm1_cpu1_cpu(void);                            /* núcleo que hizo el último trabajo */
 void fm1_cpu1_sesion(uint32_t id);
 uint32_t fm1_cpu1_mismo(void);                      /* trabajos que corrieron en serie (debería ser 0) */                  /* render en curso: el núcleo 1 gira esperando trabajos */

@@ -78,10 +78,16 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         fm1_stat[FM1_STAT_SCAN] = fm1_scan_ticks();
         fm1_stat[FM1_STAT_USB] = (uint32_t)fm1_midi_ready() | (uint32_t)fm1_midi_on() << 1;
         fm1_stat[FM1_STAT_FAILS] = fm1_boot_fails();
-        for (int k = 1; k <= 4; k++) {
-            uint8_t e = 0, fin = 0, ok = 0;
-            fm1_stat[FM1_STAT_PAST1 + k - 1] = fm1_boot_past(k, &e, &fin, &ok) ?
-                (uint32_t)e | (uint32_t)fin << 8 | (uint32_t)ok << 16 | 1u << 24 : 0;
+        for (int k = 1; k <= 4; k++) {                /* 0.8.1: etapa | ok << 4 | 0x80, fin, raw P3_RST_SRC that ended it, FM1_BF_* */
+            uint8_t e = 0, fin = 0, ok = 0, rst[5] = {0}, fl = 0, sig[5] = {0}, f2 = 0;
+            if (fm1_boot_past(k, &e, &fin, &ok)) {
+                fm1_boot_raw(k, rst, &fl);
+                fm1_boot_raw(k - 1, sig, &f2);           /* the reset that ended boot k is written by boot k - 1 */
+                fm1_stat[FM1_STAT_PAST1 + k - 1] = (uint32_t)(e & 15u) | (uint32_t)(ok ? 16u : 0u) | 0x80u |
+                    (uint32_t)fin << 8 | (uint32_t)sig[0] << 16 | (uint32_t)fl << 24;
+            } else {
+                fm1_stat[FM1_STAT_PAST1 + k - 1] = 0;
+            }
         }
         for (int i = 0; i < FM1_STAT_N; i++) {       /* bytes en orden little-endian */
             uint32_t v = fm1_stat[i];
@@ -183,6 +189,7 @@ void fm1_consola(const uint8_t *m, uint32_t n)
     case 0x04:
         fm1_stat[FM1_STAT_RENDER_MAX] = 0;
         fm1_stat[FM1_STAT_UI_MAX] = 0;
+        fm1_stat[FM1_STAT_LOOP_US_MAX] = 0;
         fm1_stat[FM1_STAT_SCANISR_MAX] = 0;
         responder(0x04, NULL, 0, NULL, 0);
         break;

@@ -50,11 +50,13 @@ typedef struct {
     volatile uint32_t check;
     volatile uint32_t sesion;                       /* núcleo 0: render en curso (0 = ninguno) */
     volatile uint32_t desde;                        /* el núcleo del que pide (el del audio, ahora) */
-    uint32_t pad0[10];
+    volatile uint32_t cancel;                       /* núcleo 0: this job must not run any more (it gave up on it) */
+    uint32_t pad0[9];
     volatile uint32_t done, cpu, bad;               /* núcleo 1: el último trabajo terminado */
     volatile uint32_t dentro, dentro_cpu;           /* núcleo 1: la sesión en la que gira, y dónde */
     volatile uint32_t mismo;                        /* trabajos que corrieron en el núcleo del que pidió */
-    uint32_t pad1[10];
+    volatile uint32_t corriendo;                    /* núcleo 1: the job it is inside of (0 = none) */
+    uint32_t pad1[9];
 } c1_mb_t;
 static c1_mb_t mb __attribute__((aligned(64)));
 static volatile uint8_t modo;                       /* FM1_C1_* */
@@ -68,10 +70,17 @@ SEC_USED(.volatile_ram_code) static void c1_uno(void)
     uint32_t job = mb.job;
     if (job == mb.done)                             /* nada nuevo (una interrupción repetida) */
         return;
+    /* First say which job this core is entering, then look at the cancel word: core 0 writes
+     * cancel and then reads corriendo, so either this core sees the cancel and leaves, or core 0
+     * sees it inside and waits (fm1_cpu1_idle). Never both on the same tracks. */
+    mb.corriendo = job;
+    C1_SYNC();
     void (*fn)(uint32_t) = mb.fn;
     uint32_t arg = mb.arg;
-    if (mb.check != C1_CHECK(fn, arg, job)) {       /* leyó mal el buzón: el núcleo 0 lo deja */
-        mb.bad++;
+    if (mb.cancel == job || mb.check != C1_CHECK(fn, arg, job)) {   /* abandoned, or misread: core 0 handles it */
+        if (mb.cancel != job)
+            mb.bad++;
+        mb.corriendo = 0;
         C1_SYNC();
         return;
     }
@@ -85,6 +94,7 @@ SEC_USED(.volatile_ram_code) static void c1_uno(void)
         mb.mismo++;
     C1_SYNC();
     mb.done = job;
+    mb.corriendo = 0;
     C1_SYNC();
 }
 
@@ -135,6 +145,8 @@ int fm1_cpu1_run(void (*fn)(uint32_t), uint32_t arg)
 {
     if (modo != FM1_C1_LISTO && modo != FM1_C1_PRUEBA)
         return 0;
+    if (!fm1_cpu1_idle())                           /* the last job (an abandoned one) is still running there */
+        return 0;
     /* La tarea del audio no tiene núcleo fijo (el planificador del SDK la mueve): el trabajo va al
      * otro, el que no la está corriendo. En 0.6.2 iba siempre al 1 y, con el audio ahí, se hacía en
      * serie dentro de su propia interrupción (o, girando, esperaba a un render que no avanzaba). */
@@ -152,23 +164,60 @@ int fm1_cpu1_run(void (*fn)(uint32_t), uint32_t arg)
     return 1;
 }
 
+/* Core 1 is retired until power-off: no more jobs; the one it may be running is cancelled. The
+ * caller does not touch that job's tracks until fm1_cpu1_idle() (no waiting here). fm1_main.c
+ * writes it in the boot record, and the next boots keep core 1 retired unless the FM-1 was
+ * powered on from off (fm1_boot_c1_retired). */
 static void dejar(uint8_t por, const char *msg)
 {
     modo = por;
+    mb.cancel = mb.job;
+    C1_SYNC();
+    C1_ILAT_CLR = C1_BIT(0) | C1_BIT(1);
     fm1_stat[FM1_STAT_PAR_MODO] = por;
     fm1_log(msg);
 }
 
-/* hasta `vueltas` mirando si terminó, en RAM y sin tocar la flash ni el reloj: el otro núcleo
- * está calculando desde la flash y no hay que quitarle el bus */
-SEC_USED(.volatile_ram_code) static int c1_listo(uint32_t vueltas)
+void fm1_cpu1_retirar(void)                         /* retired by a previous boot: never started */
 {
+    modo = FM1_C1_RETIRADO;
+    fm1_stat[FM1_STAT_PAR_MODO] = FM1_C1_RETIRADO;
+}
+
+/* hasta `vueltas` mirando si terminó, en RAM y sin tocar la flash ni el reloj: el otro núcleo
+ * está calculando desde la flash y no hay que quitarle el bus. salir = 0: the same loads all the
+ * way through (to measure how long a turn takes). */
+SEC_USED(.volatile_ram_code) static int c1_listo(uint32_t vueltas, int salir)
+{
+    uint32_t x = 0;
     for (uint32_t v = 0; v < vueltas; v++) {
         C1_SYNC();
-        if (mb.done == mb.job || mb.bad)
+        x |= (uint32_t)(mb.done == mb.job) | (uint32_t)(mb.bad != 0);
+        if (x && salir)
             return 1;
     }
-    return 0;
+    return (int)x;
+}
+
+/* The time limit is counted in turns of c1_listo, not with the scan clock: that clock advances in
+ * TIMER5 on core 0, and with core 0's interrupts blocked (or the scan paused for the flash) the
+ * limit never came. Turns per microsecond are measured once (fm1_cpu1_init) with nothing else
+ * running; under load a turn only gets slower, so the limit only gets longer. */
+static uint32_t vpus = 14u;                          /* measured on the FM-1 in 0.6.3: ~72 ns per turn */
+
+static void medir_vueltas(void)
+{
+    uint32_t hz = fm1_scan_ticks_hz();
+    if (hz < 1000000u || !fm1_scan_ticks())
+        return;
+    uint32_t t0 = fm1_scan_now_ticks();
+    c1_listo(20000u, 0);
+    uint32_t d = fm1_scan_now_ticks() - t0, us = d / (hz / 1000000u);
+    if (us && d < hz) {
+        uint32_t v = 20000u / us;
+        vpus = v < 4u ? 4u : v > 200u ? 200u : v;
+    }
+    fm1_stat[FM1_STAT_C1] = (fm1_stat[FM1_STAT_C1] & 0xFFFFu) | vpus << 16;
 }
 
 /* 0 = terminó; -1 = no contestó en `us` o leyó mal: desde ahora un núcleo (si el trabajo sigue
@@ -176,36 +225,38 @@ SEC_USED(.volatile_ram_code) static int c1_listo(uint32_t vueltas)
 int fm1_cpu1_wait(uint32_t us)
 {
     uint32_t hz = fm1_scan_ticks_hz(), t0 = fm1_scan_now_ticks();
-    uint32_t lim = hz ? us * (hz / 1000000u) : 0;
-    for (uint32_t vueltas = 0;; vueltas++) {
-        c1_listo(2000u);
+    uint32_t lim = us * vpus;
+    for (uint32_t v = 0; v < lim; v += 512u) {
+        if (!c1_listo(512u, 1))
+            continue;
         C1_SYNC();
         if (mb.done == mb.job) {
             uint32_t d = fm1_scan_now_ticks() - t0;
             /* leído desde otro núcleo, el reloj del barrido puede ir un pelo atrás y la resta da la
              * vuelta (la consola mostró 71 s): eso no es una espera */
-            if (d > espera_max && (!hz || d < hz)) {
+            if (d > espera_max && hz >= 1000000u && d < hz) {
                 espera_max = d;
-                fm1_stat[FM1_STAT_PAR_ESPERA_MAX] = hz ? d / (hz / 1000000u) : 0;
+                fm1_stat[FM1_STAT_PAR_ESPERA_MAX] = d / (hz / 1000000u);
             }
             return 0;
         }
         if (mb.bad) {
-            if (modo == FM1_C1_LISTO) dejar(FM1_C1_LEYO_MAL, "nucleo 1: leyo mal un trabajo, sigo con uno");
-            return -1;
-        }
-        uint32_t d = fm1_scan_now_ticks() - t0;
-        if (d >= 0x80000000u)                       /* el reloj, leído desde otro núcleo, un pelo atrás */
-            d = 0;
-        if (hz ? d > lim : vueltas > us / 16u) {
-            if (modo == FM1_C1_LISTO) dejar(FM1_C1_TARDE, "nucleo 1: no contesto a tiempo, sigo con uno");
+            if (modo == FM1_C1_LISTO) dejar(FM1_C1_LEYO_MAL, "core 1: misread a job, retired until power-off");
+            else { mb.cancel = mb.job; C1_SYNC(); }
             return -1;
         }
     }
+    if (modo == FM1_C1_LISTO) dejar(FM1_C1_TARDE, "core 1: did not answer in time, retired until power-off");
+    else { mb.cancel = mb.job; C1_SYNC(); }
+    return -1;
 }
 
 /* el último trabajo ya terminó (o el núcleo 1 nunca lo tomó) */
-int fm1_cpu1_idle(void) { C1_SYNC(); return mb.done == mb.job; }
+int fm1_cpu1_idle(void)
+{
+    C1_SYNC();
+    return mb.done == mb.job || (mb.cancel == mb.job && mb.corriendo != mb.job);
+}
 int fm1_cpu1_ok(void) { return modo == FM1_C1_LISTO; }
 int fm1_cpu1_cpu(void) { return (int)mb.cpu; }
 uint32_t fm1_cpu1_mismo(void) { return mb.mismo; }
@@ -228,6 +279,9 @@ int fm1_cpu1_init(void)
     char l[80], *p;
     if (modo == FM1_C1_LISTO)
         return 0;
+    if (modo == FM1_C1_RETIRADO)
+        return -1;
+    medir_vueltas();
     request_irq(C1_IDX(0), C1_PRIO, c1_isr, 0);
     request_irq(C1_IDX(1), C1_PRIO, c1_isr, 1);
     modo = FM1_C1_PRUEBA;

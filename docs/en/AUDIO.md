@@ -43,7 +43,7 @@ Measured on the device, the FPU is **1.5× faster** than the 64-bit integer math
 | **BITTAL** | tables built from a 256-harmonic spectrum in **7 levels, one per octave**: each note uses the level whose highest harmonic stays below 19 kHz, so there is **no aliasing** on any note; unison, filter and macros | own; factory sounds from freely licensed Vital presets |
 | **BUNO-6** | one polyBLEP oscillator per voice, high-pass, 24 dB filter and a two-line modulated **stereo chorus**, like a Juno's | own |
 | **6-operator FM** | **msfa**, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms | Apache-2.0 |
-| **ACID** | 4-pole ladder filter with resonance, accent and slide | own |
+| **BB-303** | the TB-303 filter, accent circuit, envelopes and declicker adapted from **Open303** in float, with polyBLEP oscillators | MIT (Open303) |
 
 Accent doesn't just raise the level: it changes the hit, like a real drum machine.
 
@@ -79,7 +79,7 @@ This is a beta. What limits quality today, plainly:
 - **The sampler records at 16 kHz and 8 bits.** Takes share 100 KiB of flash with user sounds (about 6 s in total); at 16 bits it would be half that. With the filter before recording and the dither in `toma.py` it sounds clean, but **it stops around 7 kHz** and has 8-bit noise. It is the weakest point and the next one to solve.
 - **The delay runs at 22 kHz:** repeats reach 11 kHz, like a tape delay. That is on purpose, so 1.5 s fits in RAM, but it isn't hi-fi.
 - **The clipper has no oversampling:** with very high DRIVE it can alias a little.
-- **ACID is our own engine, not Open303.** The plan is to move to Open303 (MIT) in float.
+- **BB-303 runs Open303 without oversampling:** its cutoff stops at 10 kHz to stay clean at 44.1 kHz.
 - **msfa's FM is fixed point**, like the original DX7. That's part of its character, not a flaw, but it isn't float.
 - **The reverb (Dattorro) runs at half rate** to fit the budget: its tails reach 11 kHz. No master compressor yet.
 - **BUNO-6's chorus and high-pass use approximate values** (Juno-6 times and depth from published measurements); they still need an ear check on the device.
@@ -91,8 +91,7 @@ This is a beta. What limits quality today, plainly:
 
 1. **Measure 0.6 on the FM-1:** each machine's load, both cores and even volume across the bank sounds.
 2. **Master effects**: tape delay, compressor and leveler.
-3. **ACID with Open303** in float.
-4. A **higher-quality sampler**, within what the flash allows.
-5. **Measure the analog output** with an audio interface.
+3. A **higher-quality sampler**, within what the flash allows.
+4. **Measure the analog output** with an audio interface.
 
 See also: [sound engines](../MOTORES.md) · [sound research](../INVESTIGACION_SONIDO.md) · [FM-1 measurements](../TRAZA_FM1.md) (Spanish) · [changelog](CHANGELOG.md).

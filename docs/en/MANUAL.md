@@ -1,29 +1,31 @@
-# Bubba Machine 0.8 — Manual
+# Bubba Machine 0.9 — Manual
 
-Bubba Machine turns the FM-1 into a live groovebox with **six tracks**, each one a machine named after the one that inspired it. The drums (**BR-8**) and the pad sampler (**BP-1**) are fixed; **T3-T6 choose their instrument** among **BB-303** (acid bass), **B-MINI** (three-oscillator mono), **BX-7** (6-operator FM), **BITTAL** (wavetable that loads Vital presets) and **BUNO-6** (polysynth with chorus). HOME holds the **BX-1** mixer. Every track has its own length and its own speed.
+Bubba Machine turns the FM-1 into a live groovebox with **six channels**, each one a machine named after the one that inspired it. The drums (**BR-8**) and the pad sampler (**BP-1**) are fixed; **T3-T6 choose their instrument** among **BB-303** (acid bass), **B-MINI** (three-oscillator mono), **BX-7** (6-operator FM), **BITTAL** (wavetable that loads Vital presets) and **BUNO-6** (polysynth with chorus). HOME is the **BX-1** console: patterns, channels, mutes and scenes on the keys. Every channel has its own length and its own speed.
 
-> The names recall famous machines (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6), but Bubba Machine has no relation to their brands or makers.
+> The names recall famous machines (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6, MX-1), but Bubba Machine has no relation to their brands or makers.
 
 The interface fits in two sentences: **four gestures per button, and they mean the same thing on every button. HOME everywhere.**
 
-**Every machine is its own instrument.** On HOME you are at the BX-1 console. Put the cursor on a track and enter it (SEQ or EDIT): from then on **the whole FM-1 belongs to that machine**. Its keys, buttons, knobs and lights work like the real machine it is named after. **HOME is the way out**, back to the console. A global screen you open from inside a machine (TEMPO, SAVE, TIME, SCALE, SONG, SYSTEM) takes you back to that machine when you leave it.
+**Every machine is its own instrument.** On HOME you are at the BX-1 console, like a mixer for live sets: you launch patterns, mute, solo, launch scenes and mix. Enter a channel and **the whole FM-1 belongs to that machine**: its keys, buttons, knobs and lights work like the real machine it is named after, and you only edit a machine from inside it. **HOME is the way out**: a tap always takes you back to the console.
 
 > **The screen is in English.** Names that appear on screen are written here in CAPITALS exactly as you will see them. Other languages are packs you load from the [control platform](../../web/control.html) (see [Screen language](#screen-language)).
 
-> 0.6 changed the pattern format. **It does not read what an earlier version saved**: on first boot it erases the patterns and starts with the demo (takes are kept).
+> 0.9 has **10 patterns**. Coming from 0.8, patterns 01-10 are kept; 11-16 are dropped, and the song and the scenes start empty (their format changed). Until v1 an update may erase what you saved.
 
 ## Four gestures per button
 
 | Gesture | When | What it does |
 |---|---|---|
-| **Tap** | under 300 ms | Opens its page on the track you are on. Again: the next page of the same button |
+| **Tap** | under 300 ms | Opens its page on the channel you are on. Again: the next page of the same button |
 | **Hold** | 300 ms or more | Its **live layer**: while you hold it, the keys do that job and the screen draws the keyboard with what each key does. Let go and you are back |
 | **Hold 2 s** | 2 s without touching anything else | Its settings or its dangerous action. A ring fills at the top with the name of what it opens; touching anything cancels it. Only on HOME, SEQ, EDIT, SAVE and REC |
-| **HOME + button** | with HOME held | The **global version** of the button: for the whole project, not just the track |
+| **HOME + button** | with HOME held | The **global version** of the button: for the whole project, not just the channel |
 
 There are never two layers at once: with a layer open, holding another button does not open its own.
 
-**Questions.** Anything that erases something asks first: **OCT+ = yes**, **HOME = no** (any other button also cancels). While a question is open, only those buttons are lit: OCT+ blinks, HOME is on.
+**Questions.** Anything that erases something asks first, and **the control that asked answers**: keep it held 2 s and a bar fills (**KEEP HOLDING EDIT = YES**); letting it go before, or touching any other control, is no. While a question is open only that control blinks. If a knob asked (for example INIT SOUND in the machine GLO), leaving it 2 s without touching anything else is yes.
+
+![A question: keep holding the key that asked](../../assets/screens/46-ask.png)
 
 ## The lights
 
@@ -32,26 +34,28 @@ The FM-1's lights are white only: they never say *what* a key or button does (th
 | Light | Keys | Buttons |
 |---|---|---|
 | **Off** | Does nothing here: no function, an empty instrument, outside the length | Does nothing on this screen |
-| **Dim** | Available but empty, or has something but is silenced (a muted instrument or track) | Available |
-| **Medium** | Has something and will play: an instrument with steps, a saved pattern, the root note | Has a special job right now (with HOME held, the ones that have a HOME + function) |
+| **Dim** | Available but empty, or has something but is silenced (a muted instrument or channel) | Available |
+| **Medium** | Has something and will play: an instrument with steps, a saved pattern or scene, the root note | Has a special job right now (with HOME held, the ones that have a HOME + function) |
 | **On** | Selected, held, active now, or **a flash on every hit** | Where you are, or a state that stays (octave shifted, note REC) |
-| **Blink** | The playhead, or something queued | Needs you now: OCT+ on a question, REC capturing, HOME with a pattern or scene in the queue |
-| **Breath** | A step with P-Lock, the EXIT key of a layer opened with a tap | Armed or pending: REC armed, the layer you hold, SAVE with unsaved changes (on the console), PLAY waiting for external clock |
+| **Blink** | The playhead, or something queued (a pattern, a scene, a mute on CUE) | Needs you now: the control that asked a question, REC capturing, HOME with a pattern or scene in the queue |
+| **Breath** | A step with P-Lock, the EXIT key of a layer opened with a tap, CUE armed, the channel card you hold | Armed or pending: REC armed, the layer you hold, SAVE with unsaved changes (on the console), PLAY waiting for external clock |
 
 **PLAY** flashes on with the first beat of each bar and medium on the other beats. On the screen's key strip, an off key has a dark name, dim has a grey name with a border, medium a white name and on is filled.
 
 ## The knobs
 
-| Knob | On HOME | Inside a track |
+| Knob | On HOME (the console) | Inside a machine |
 |---|---|---|
-| **SELECT** | The **cursor**: picks the mixer track | The page (its name and dots at the top) or the row of a list. With a step held, its accent |
-| **ALGORITHM** | The **tempo** (HOME + ALGORITHM: in tenths) | The machine's **mode** (table below). On a list, it changes the highlighted value |
-| **PRESETS** | **MOVE**: one knob that moves the whole mix (below). Patterns are on the white keys | The sound: kit, patch or a sound from the bank |
-| **K1-K4** | The cursor track as a mixer strip: **LEVEL** · **FILTER** (DJ: left low-pass, right high-pass) · **DELAY** · **REVERB** | Whatever the four dials at the bottom say. With HOME held: BPM, swing, master length and drive |
+| **SELECT** | The **cursor**: picks the channel (on FX and GLO: the page or the row) | The page (its name and dots at the top) or the row of a list. With a step held, its accent |
+| **ALGORITHM** | The **tempo** (HOME + ALGORITHM: in tenths). On GLO, the value of the row | The machine's **mode** (table below). On a list, it changes the highlighted value |
+| **PRESETS** | On MIX: the cursor channel's **sound** (kit, patch or sound). On FX and GLO: **MOVE** (below) | The sound: kit, patch or a sound from the bank |
+| **K1-K4** | On MIX, the cursor channel as a mixer strip: **LEVEL** · **FILTER** (DJ: left low-pass, right high-pass) · **DELAY** · **REVERB**. On FX and GLO, what the page shows | Whatever the four dials at the bottom say |
 
-**Entering a track:** on HOME, SELECT moves the cursor to the track and **SEQ** or **EDIT** enter it. From any screen, **HOME + SELECT** shows a box with the target track and you enter when you let go of HOME.
+With **HOME held** from any screen: SELECT moves the cursor, ALGORITHM sets the BPM in tenths, PRESETS picks a pattern that loads when you let go, and K1-K4 are the cursor's mixer strip.
 
-**ALGORITHM inside a track (the mode):**
+**Entering a machine:** on HOME, put the cursor on the channel (SELECT, or tap its white key 11-16) and tap **SEQ**, **EDIT**, **ENV**, **LFO** or **ARP**: you enter on that page. Or hold the channel's white key and let go (the [channel card](#the-channel-card)). From any screen, **HOME + white 11-16** takes you to that machine when you let go of HOME.
+
+**ALGORITHM inside a machine (the mode):**
 
 | Machine | ALGORITHM |
 |---|---|
@@ -60,13 +64,12 @@ The FM-1's lights are white only: they never say *what* a key or button does (th
 | BB-303 | The waveform: SAW or SQUARE |
 | B-MINI | MONO or LEGATO |
 | BX-7 | The algorithm, 1 to 32 |
-| On the MACHINE page | Picks the instrument (see below) |
 | BITTAL | Oscillator 1's table: its own or another bank sound's |
 | BUNO-6 | The chorus: OFF, I, II or I+II |
 
-**Priority:** REC on a note track > held step > list > track > HOME.
+**Priority:** a question > the channel card > a layer > REC on a note channel > held step > list > channel > HOME.
 
-**The big knobs say what they do:** the bottom line of the screen reads **SEL · ALG · PRE** with their job on that screen (for example SEL PAGE · ALG INSTR · PRE KIT), and "-" when the knob does nothing there.
+**The big knobs say what they do:** the bottom line of the screen reads **SEL · ALG · PRE** with their job on that screen (for example SEL TRACK · ALG BPM · PRE KIT on MIX), and "-" when the knob does nothing there.
 
 **How they feel:**
 - **Turning fast speeds up** continuous values (BPM, cutoff, start); **lists move one item per click**, never skipping.
@@ -79,13 +82,13 @@ The FM-1's lights are white only: they never say *what* a key or button does (th
 
 Four strips, always in the same place:
 
-1. **Header:** the machine you are on (BX-1 on HOME; inside a track or a screen you opened from it, "<" and its name: HOME goes back), PLAY/REC, pattern and bar and the tempo in its own yellow.
+1. **Header:** the machine you are on (BX-1 on the console; inside a channel, "<" and its name: HOME goes back), PLAY/REC, pattern and bar and the tempo in its own yellow.
    - A queued pattern reads **A01>A05**, with 4 blocks counting the beats down to the change.
-   - **Six tiny cells** show the tracks: their color = playing, red = muted, white = a hit, outline = solo.
+   - **Six tiny cells** show the channels: their color = playing, red = muted, white = a hit, outline = solo.
    - **SONG** when the song is on; a **green dot** = autosaved; "CPU!" only if the audio does not keep up; while recording notes, the gate they are recorded with (TIE or G75%).
    - The 2 s ring, with the name of what it opens, and the battery.
-2. **Viewport:** what each screen shows. Inside a track, the page name and one dot per page, **O+1 / O-1** when the octave is shifted and **AGAIN: ...** with what tapping the page's button again does; on HOME, BX-1's pages. The usage hints show for the first 4 seconds; **the line that says how to exit stays**. A layer opened with a tap says **LATCHED**.
-3. **Keyboard:** the 11 black and 16 white keys with what each one does and the same state as its light. On SEQ **the white keys are the 16 steps**; on a note track, a mint bar marks long notes. Short fixed names: drums BD, SD, CH, OH, CP, LT...; HI / LO = the other section; O- / O+ = octave; FIL = fill; X = exit.
+2. **Viewport:** what each screen shows. On the console, its pages **MIX · FX · GLO** at the top (on FX and GLO, their sub-pages on the right). Inside a machine, the page name and one dot per page, **O+1 / O-1** when the octave is shifted and **AGAIN: ...** with what tapping the page's button again does. The usage hints show for the first 4 seconds; **the line that says how to exit stays**. A layer opened with a tap says **LATCHED**.
+3. **Keyboard:** the 11 black and 16 white keys with what each one does and the same state as its light. On the console: 01-10, T1-T6, M1-M6, A-D and CUE. On SEQ **the white keys are the 16 steps**; on a note channel, a mint bar marks long notes. Short fixed names: drums BD, SD, CH, OH, CP, LT...; HI / LO = the other section; < / > = step page; FIL = fill; X = exit.
 4. **Knobs:** K1-K4 as four dials with their value and name, in physical order; under them, what SELECT, ALGORITHM and PRESETS do.
 
 The palette: blue-black background, **cyan** for what is active, **amber** for values and the playing step, **laser red** for REC and mutes, **mint green** for long notes. A **red border** = the mix clipped.
@@ -94,79 +97,135 @@ The palette: blue-black background, **cyan** for what is active, **amber** for v
 
 | Button | Tap | Again | Hold (layer) | 2 s | HOME + |
 |---|---|---|---|---|---|
-| **HOME** | Inside a machine: back to the BX-1 console. On the console: MIX | MIX › FX › TEMPO › SCENES › SONG | **Controller** (see below) | SYSTEM | (it is the modifier) |
-| **SEQ** | The track's steps | Notes: LOOP · sampler: BREAK | **Length and speed** | TIME of the 6 tracks | Song |
-| **EDIT** | SOUND (BP-1: PADS) | The editor's next page | **Erase** | Sampler: TAKES · others: initial sound | Copy the track to another |
+| **HOME** | Back to the console, always on **MIX** | — | **The console** from any screen (see below) | SYSTEM | (it is the modifier) |
+| **SEQ** | The channel's steps (on the console: enters the cursor's machine) | Notes: LOOP · sampler: BREAK | **Length and speed** | TIME of the 6 channels | Console GLO › SONG |
+| **EDIT** | SOUND (BP-1: PADS) | The editor's next page | **Erase** (on the console, black 7-10 clear a scene) | Sampler: TAKES · others: INIT SOUND (asks) | Copy the channel to another |
 | **ENV** | The machine's envelope · INSTR (drums) | The other envelope | **Accent** | — | — |
 | **LFO** | The machine's LFO (B-MINI, BITTAL, BUNO-6). On machines without an LFO it **latches its layer**: repeat (BR-8, BP-1) or tie (BB-303, BX-7); LFO again or HOME closes it | — | **Repeat** (grids) · **tie** (notes) | — | — |
-| **FX** | The track's MIX | DUCK (sidechain) | **Punch-in** | — | Master FX: delay; again: reverb |
-| **SCL** | The track's SCALE | CHORDS | Live **chords** | — | Project scale |
-| **ARP** | Notes: the track's ARP. BR-8 and BP-1: the **ROLL** screen, kept open (ARP again or HOME closes it) | — | **Arpeggio** (notes) · **ROLL** while held (grids) | — | — |
+| **FX** | Inside: the channel's MIX. On the console: the **FX** page | Inside: DUCK. Console: CHANNEL › DELAY › REVERB › MASTER | **Punch-in** | — | The console's FX page |
+| **SCL** | Inside: the channel's SCALE. On the console: GLO › SCALE | CHORDS | Live **chords** | — | Console GLO › SCALE |
+| **ARP** | Notes: the channel's ARP. BR-8 and BP-1: the **ROLL** screen, kept open (ARP again or HOME closes it) | — | **Arpeggio** (notes) · **ROLL** while held (grids) | — | — |
 | **SAVE** | Save menu | Run it | **Copy pattern** | Quick save | Save as |
-| **GLO** | Global list | Close | **Pitch** and TAP tempo | — | — |
-| **REC** | Record (on the sampler: the recorder) | Looper: overdub › play | Record only while held | **Erase the track at once, no question** (for live use; HOME + OCT− undoes it). Not while anything is recording, nor on RECORD or TAKES. LOOP page: erase the loop | SONG REC |
+| **GLO** | Inside: the **machine GLO**. On the console: the **console GLO** | Machine: back to the page you were on. Console: TEMPO › MACHINES › SCALE › SONG | **Transpose** and TAP tempo | — | Console GLO |
+| **REC** | Record. On the console: **SLOOP-REC**. On the sampler: the recorder | Looper: overdub › play | Record only while held (on the console: SLOOP while held) | **Erase the channel at once, no question** (for live use; HOME + OCT− undoes it). Not while anything is recording, nor on RECORD or TAKES. LOOP page: erase the loop | SONG REC |
 | **PLAY** | Play / stop | — | — | — | Back to step 1 without stopping |
-| **OCT − / +** | Octave · step page · on questions OCT+ = yes | — | — | — | Undo / redo |
+| **OCT − / +** | **Octave** of the keys on note machines (on the console too, for SLOOP). Nothing on drums and pads | — | — | — | Undo / redo |
 
-## HOME everywhere
+## HOME: the console
+
+![HOME: the BX-1 console](../../assets/screens/00-home.png)
 
 The FM-1 has no SHIFT, so HOME does three jobs:
 
-1. **The BX-1 mixer:** HOME is a machine of its own, with five pages: **MIX › FX › TEMPO › SCENES › SONG** (HOME again goes to the next one). MIX has one row per track with its machine, its sequence (pulses for hits, mint blocks for long notes), LP or HP when its filter is on, and its volume with the peak. SELECT moves the cursor, K1-K4 mix it (see the knobs table) and SEQ or EDIT enter that machine; HOME brings you back.
-2. **A controller that follows you:** holding HOME brings the controller to any screen. You edit the bass and, without leaving, mute or queue the next pattern.
+1. **The BX-1 console:** HOME is a machine of its own, with three pages: **MIX**, **FX** and **GLO**. A HOME tap always goes to MIX; FX opens FX and GLO opens the console GLO. MIX has one row per channel with its machine, its sequence (pulses for hits, mint blocks for long notes), LP or HP when its filter is on, and its volume with the peak.
+2. **The console that follows you:** holding HOME brings the console keys to any screen. You edit the bass and, without leaving, mute, launch a scene or queue the next pattern.
 3. **Modifier:** HOME + button = its global version (table above).
 
-If you used HOME as a modifier, letting go does **not** take you to the home screen: HOME only navigates on a clean tap.
+If you used HOME as a modifier, letting go does **not** take you to the console: HOME only navigates on a clean tap. While you hold HOME, only the buttons with a HOME + function are lit (OCT−/+ only when there is something to undo or redo).
 
-**Where a HOME tap goes:** inside a machine, to the console. On a screen you opened from a machine (GLO, HOME + FX, SAVE, TIME, SCALE, SONG, SYSTEM), back to that machine and page. On the console, to the next console page. While you hold HOME, only the buttons with a HOME + function are lit (OCT−/+ only when there is something to undo or redo), and turning PRESETS picks a pattern that loads when you let go.
+To clear a channel: REC held 2 s (instant; on the console, the cursor channel) or EDIT held + black 3 (CLR); HOME + OCT− undoes either.
 
-To clear a track: REC held 2 s (instant) or EDIT held + black 3 (CLR); HOME + OCT− undoes either.
-
-**Keys with HOME (on the HOME screen or while holding HOME):**
+**Keys on the console (on HOME, or while holding HOME anywhere):**
 
 | Key | What it does |
 |---|---|
-| **White 1-16** | Queue that pattern (when stopped: switches right away). Hold one and tap another: **chain** from the first to the second |
-| **Black 1-6** | Tap: mute T1-T6. Hold: **solo** while you hold it |
-| **Black 7-10** | Launch scenes A-D |
-| **Black 11** | FILL while you hold it |
+| **White 1-10** | Patterns **01-10**. Tap = queue it for the next cycle (when stopped: switches right away). Hold one and tap another: **chain** from the first to the second. On = playing, blink = queued, medium = saved, dim = empty |
+| **White 11-16** | Channels **T1-T6**. Tap = the cursor. Hold = the **channel card** (below). With HOME held: go to that machine when you let go of HOME |
+| **Black 1-6** | Mute T1-T6. Hold = **solo** while you hold it |
+| **Black 7-10** | **Scenes A-D** (see [Scenes and song](#scenes-and-song)) |
+| **Black 11** | **CUE**: hold it (or tap it to keep it on) and the mutes you tap change together on the next bar |
 
-**MOVE** (PRESETS on HOME): at 0 the mix is untouched. To the left the master low-pass closes and the whole mix goes into the echo (darker, more repeats); to the right the master high-pass opens and the mix washes into the reverb. It is a live control: it is not saved. The tempo box is yellow and its four blocks flash with the beat.
+Mutes are live: they stay when the pattern changes.
 
-**FX page** (HOME › FX): FX again goes **DELAY › REVERB › MASTER**. MASTER has the master **FILTER** (open in the middle; left low-pass, right high-pass), **BEAT FX** (one of the 16 punch-in effects stays on until you turn it back to OFF) and **DRIVE**.
+### The channel card
+
+![The channel card: release = enter](../../assets/screens/67-card.png)
+
+**Hold a channel's white key (11-16)** on the console and its card opens: its machine, its sound and, on T3-T6, the five machines it can be. **Let go = enter** that machine, on the page you last used. While you hold it:
+
+- **ALGORITHM changes the machine** (T3-T6). Turn to one and leave it **2 seconds**: a bar fills ("LOAD IN 1.4 S") and the channel becomes that machine. Moving away, or letting go of the key, cancels it. The notes, length, loop, ARP, scale and mix stay; the sound goes to the machine's first preset and per-note P-Locks are cleared. The machine is saved with the pattern.
+- **PRESETS changes its sound** (kit, patch or sound).
+- Turning any knob means **letting go stays on the console** (RELEASE = STAY ON MIX).
+
+**Heavy machines, one at a time:** **BUNO-6** (it uses about a third of the processor) and **BITTAL** (its wavetables fill the memory) can only be on one channel. On another channel they show dimmed with "ON T6" and the screen says "BUNO-6 ALREADY ON T6". BB-303, B-MINI and BX-7 can repeat (a BX-7 on T3 is polyphonic too). The same rule applies when copying a channel or loading a pattern.
+
+The same change is in **GLO › MACHINES** (below).
+
+### MIX
+
+SELECT moves the cursor, ALGORITHM is the tempo (the tempo box is yellow and its four blocks flash with the beat), PRESETS changes the cursor channel's sound (a kit change can be undone with HOME + OCT−) and K1-K4 are its **LEVEL**, **FILTER**, **DELAY** and **REVERB**.
+
+### FX
+
+FX on the console opens the FX page; FX again (or SELECT) goes **CHANNEL › DELAY › REVERB › MASTER**. ALGORITHM is still the tempo and **PRESETS is MOVE**.
+
+![FX › CHANNEL: drive, pan, duck and BEAT FX per channel](../../assets/screens/39a-home-fx-channel.png)
+
+| Page | K1 | K2 | K3 | K4 |
+|---|---|---|---|---|
+| **CHANNEL** (the cursor; white 11-16 change it) | **DRIVE** (the channel's soft-clip; 0 = off) | **PAN** | **DUCK** (sidechain from the T1 kick; T1 is the source) | **BEAT FX** ON/OFF: whether the BEAT FX and the punch-ins touch this channel |
+| **DELAY** | TIME (1/16, 1/8, 3/16, 1/4) | FEEDBACK | MIX | SIDECHAIN RELEASE |
+| **REVERB** | SIZE | DAMP | MIX | SIDECHAIN RELEASE |
+| **MASTER** | **FILTER** (open in the middle; left low-pass, right high-pass) | **BEAT FX** (one of the 16 punch-in effects stays on until you turn it back to OFF) | **DRIVE** (saturation of the mix) | — |
+
+**MOVE** (PRESETS on FX and GLO): at 0 the mix is untouched. To the left the master low-pass closes and the whole mix goes into the echo (darker, more repeats); to the right the master high-pass opens and the mix washes into the reverb. It is a live control: it is not saved.
+
+### GLO (the console's)
+
+GLO on the console opens its global list; GLO again goes **TEMPO › MACHINES › SCALE › SONG**. SELECT picks the row, ALGORITHM changes it and PRESETS is MOVE.
+
+| Page | Rows | K1-K4 |
+|---|---|---|
+| **TEMPO** | BPM · SWING · MASTER LENGTH · TRANSPOSE · **AUTO FILL** (OFF, every 2, 4 or 8 bars) | BPM · SWING · MASTER · TRANSPOSE |
+| **MACHINES** | T1-T6 and their machine. SELECT picks T3-T6 and ALGORITHM changes its machine, with the same 2 s wait and heavy-machine rule as the card | — |
+| **SCALE** | ROOT · SCALE · **KEYS IN SCALE** · BASE CHORD (the project's) | the same four |
+| **SONG** | The song's entries (see [Scenes and song](#scenes-and-song)) | PATTERN · TIMES · — · SONG ON/OFF |
+
+SCL on the console (or HOME + SCL) opens GLO › SCALE; HOME + SEQ opens GLO › SONG.
+
+## SLOOP-REC: play any channel from the console
+
+![SLOOP-REC on the BB-303](../../assets/screens/71-sloop-note.png)
+
+**REC on the console** (MIX or FX) arms the cursor channel and **the keys stop being the console: they play that machine**, without entering it. The viewport shows the channel as a piano roll, with **SLOOP T3 BB-303** in red at the top. REC again (or entering a machine) gives the keys back to the console. **Holding REC** = SLOOP only while you hold it.
+
+- **Note machines:** the 27 keys are chromatic from **F**; bass machines (BB-303, B-MINI) play an octave lower. OCT−/+ shift the octave (shown at the top right). With **KEYS IN SCALE** on (GLO › SCALE), the white keys play the scale and the black keys its chords.
+- **Drums and pads:** the white keys are the 16 instruments or pads; hold **black 1 (ACC)** and the hits you play go with accent.
+- **Recording:** while playing, what you play is written with the [expressive REC](#expressive-rec); the notes of this pass show in **red**. On an **empty** note channel it is a **FREE REC** (the length closes when you leave SLOOP or change channel). Stopped, the keys only play.
+- **SELECT** changes channel and the keyboard follows it. **Holding HOME** gives you the console keys (mutes, scenes, patterns) while you hold it.
+
+![SLOOP-REC on the BR-8: B1 = accent](../../assets/screens/72-sloop-drums.png)
 
 ## The six machines
 
-| Track | Machine | What it is | Tabs |
+| Channel | Machine | What it is | Tabs |
 |---|---|---|---|
-| **T1** | **BR-8** | Drums: TR grid of 16 **modeled** instruments (computed live); kits 808, 909 and SYNTH | SEQ · SOUND · INSTR · MIX · MORE |
-| **T2** | **BP-1** | 16 pads made from your takes, on a grid | SEQ · PADS · BREAK · TAKES · MIX · MORE |
-| **T3-T6** | **your choice** | BB-303, B-MINI, BX-7, BITTAL or BUNO-6 (factory: BB-303, BX-7, BITTAL, BUNO-6) | SEQ · MACHINE · SOUND · MIX · ARP · LOOP · MORE |
+| **T1** | **BR-8** | Drums: TR grid of 16 **modeled** instruments (computed live); kits 808, 909 and SYNTH | SEQ · SOUND · INSTR · MIX |
+| **T2** | **BP-1** | 16 pads made from your takes, on a grid | SEQ · PADS · BREAK · TAKES · MIX |
+| **T3-T6** | **your choice** | BB-303, B-MINI, BX-7, BITTAL or BUNO-6 (factory: BB-303, BX-7, BITTAL, BUNO-6) | SEQ · SOUND · MIX · ARP · LOOP |
 
-**Choosing the instrument (T3-T6).** The **MACHINE** page sits just before SOUND (SELECT to the left of SOUND, or MORE › MACHINE). It lists the five machines with what inspired each one. **Turn ALGORITHM to a machine and leave it there 2 seconds**: a bar fills ("LOAD IN 1.4 S") and the track becomes that machine. Moving away cancels it. The notes, length, loop, ARP, scale and mix stay; the sound goes to the machine's first preset and per-note P-Locks are cleared. The machine is saved with the pattern, like the sound.
+The machine is changed from the console: the [channel card](#the-channel-card) or GLO › MACHINES. Inside, **GLO** opens the [machine GLO](#the-machine-glo).
 
-**Heavy machines, one at a time:** **BUNO-6** (it uses about a third of the processor) and **BITTAL** (its wavetables fill the memory) can only be on one track. On another track they show dimmed with "ON T6" and the screen says "BUNO-6 ALREADY ON T6". BB-303, B-MINI and BX-7 can repeat (a BX-7 on T3 is polyphonic too). The same rule applies when copying a track or loading a pattern.
-
-**MORE** is the list with everything about the track: machine (T3-T6, it opens MACHINE), accent, length, speed, transpose, **MIDI OUT** (the track also sends its notes over MIDI) and its MIDI channel, and initial sound (on the sampler also: interpolation). SELECT picks the row and ALGORITHM changes it.
-
-**Black keys follow a single grammar in SEQ:** 1-8 are the track's elements, 9 and 10 modify them and **11 breaks the pattern** (FILL).
+**Black keys follow a single grammar in SEQ:** 1-8 are the channel's elements (instruments, pads or scale degrees), **9 and 10 turn the step page** (< and >, lit when there is a page that way) and **11** is the other section on drums and pads (HI/LO) or FILL on note machines.
 
 ## The sound of each machine
 
-Everything is computed live; the sampler uses your takes. Until v1 each version may change the format: patterns from an earlier version are erased on first boot.
+Everything is computed live; the sampler uses your takes.
 
 | Machine | What it is | K1-K4 on SEQ | PRESETS |
 |---|---|---|---|
 | **BR-8** | 16 modeled instruments, each with its own **model**: BD 808, BD 909, SD 808, SD 909, HAT 808, METAL, clap, TOM (and congas), cowbell, RESON (rim, clave, block), noise or FM | TONE · TUNE · DECAY · COLOR | Kits 808, 909 and SYNTH |
-| **BB-303** | 303-style mono: 4-pole ladder filter, accent opens the filter, slide with TIE | CUTOFF · RESO · ENV MOD · DECAY | 8 sounds: CLASSIC, SQUELCH, DEEP SAW, RUBBER, SQUARE, SCREAM, DUB, PLUCK |
-| **B-MINI** | Three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, two envelopes (CONTOUR and LOUDNESS), LFO and glide | CUTOFF · EMPHASIS · CONTOUR · F DECAY | 6 basses from the bank |
-| **BX-7** | 6 operators (msfa, the core of Dexed); the DX7's 32 algorithms | MOD LVL · FEEDBACK · DECAY · RELEASE | 16 original patches and the voices of your .syx banks |
-| **BITTAL** | Two wavetable oscillators (up to 8 frames, alias-free on every note) with up to 4-voice unison, filter (LP 24/12, BP, HP or ladder) with drive, two ADSRs, LFO and 4 macros | The sound's 4 macros (their name says where they go: CUTOFF, POSITION, LFO, SPACE…) | 19 bank sounds and yours |
-| **BUNO-6** | One oscillator per voice (saw, pulse with PWM, sub one octave down and noise), 4-position high-pass, 24 dB resonant filter, one ADSR, delayed LFO and stereo chorus | FREQ · RES · ENV · LFO | 12 original sounds |
+| **BB-303** | TB-303 bass after **Open303**: the 303's filter, the accent circuit (accented notes open the filter more and more), slide with TIE and the knob ranges of the TB-303 | CUTOFF · RESO · ENV MOD · DECAY | 12 sounds: the owner's manual sounds (E.BASS A and B, UPRIGHT, SYNTH BASS, INIT 1982) and acid classics |
+| **B-MINI** | Three oscillators (TRI, SHARK, SAW, SQUARE, WIDE, NARROW) in 32' to 2' ranges, noise, ladder filter with drive, two envelopes (CONTOUR and LOUDNESS), LFO and glide | CUTOFF · EMPHASIS · CONTOUR · F DECAY | 18 sounds: Minimoog sound charts (basses, brass, leads) and recreations of famous Minimoog parts |
+| **BX-7** | 6 operators (msfa, the core of Dexed); the DX7's 32 algorithms | MOD LVL · FEEDBACK · DECAY · RELEASE | 20 patches from published DX7 recipes (e-piano, basses, bells, brass, organs…) and the voices of your .syx banks |
+| **BITTAL** | Two wavetable oscillators (up to 8 frames, alias-free on every note) with up to 4-voice unison, filter (LP 24/12, BP, HP or ladder) with drive, two ADSRs (ENV 2 can sweep the table, as on a PPG), LFO and 4 macros | The sound's 4 macros (their name says where they go: CUTOFF, POSITION, LFO, SPACE…) | 26 sounds: PPG-style wavetables and community Vital presets, plus yours |
+| **BUNO-6** | One oscillator per voice (saw, pulse with PWM, sub one octave down and noise), 4-position high-pass, 24 dB resonant filter, one ADSR, delayed LFO and stereo chorus | FREQ · RES · ENV · LFO | 16 sounds: Juno factory patches as starting points (strings, brass, pads, basses) and a few originals |
 
-BR-8's kicks, snares and hats are the **Plaits** models (Mutable Instruments), which imitate the 808 circuits and 909-style synthetic versions. With **accent** they hit differently, not just louder.
+BR-8's kicks, snares and hats are the **Plaits** models (Mutable Instruments), which imitate the 808 circuits and 909-style synthetic versions. With **accent** they hit differently, not just louder. The factory kicks are voiced to cut through the mix.
 
-**The sound bank.** B-MINI, BITTAL and BUNO-6 load **sounds** (.bsnap): their settings, their macros and, on BITTAL, their tables. The factory ones come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0; credits in [CREDITS.md](CREDITS.md)) and from original BUNO-6 presets made in Vital. Yours are added from the web editor ([sounds](../../web/sonidos.html)): PRESETS goes through the factory ones first and then yours. The sound's fingerprint (#A4F9) shows at the top right of SOUND.
+**Historic sounds.** Many factory sounds recreate the machine they are named after: published panel settings, sound charts and recipes translated to our parameters, plus sounds inspired by famous records. No audio was sampled and no factory data was copied. Their names only allude (CHICAGO 86, COLD FRIEND, POP RIFF…): no artist names or trademarks. Where each one comes from is in [`assets/presets/SOURCES.md`](../../assets/presets/SOURCES.md).
+
+**The sound bank.** B-MINI, BITTAL and BUNO-6 load **sounds** (.bsnap): their settings, their macros and, on BITTAL, their tables. Some factory ones come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0; credits in [CREDITS.md](CREDITS.md)). Yours are added from the web editor ([sounds](../../web/sonidos.html)): PRESETS goes through the factory ones first and then yours. The sound's fingerprint (#A4F9) shows at the top right of SOUND.
 
 ### Editing the sound
 
@@ -177,10 +236,10 @@ BR-8's kicks, snares and hats are the **Plaits** models (Mutable Instruments), w
 | **BB-303** | **VCO VCF** (TUNING, CUTOFF, RESO, ENV MOD) · **ENV** (DECAY, ACCENT, SLIDE, WAVE) |
 | **B-MINI** | **CONTROL** (TUNE, GLIDE, MOD RATE, MOD AMT: left = oscillators, right = filter) · **OSC 1-3** (RANGE, FREQ, WAVE) · **MIXER** (OSC 1, OSC 2, OSC 3, NOISE) · **FILTER** (CUTOFF, EMPHASIS, CONTOUR, KBD CTRL) · **F CONTOUR** and **L CONTOUR** (ATTACK, DECAY, SUSTAIN, RELEASE) · **OUTPUT** (DRIVE, MODE, VEL FILT, VEL LVL) |
 | **BX-7** | **ALGORITHM** (ALG, FEEDBACK, MOD LVL, KEY VEL) · **EG** (R1 ATK, R2-3 DEC, R4 REL) · **VOICE** (PORTA, TRANSP) · **LFO** (SPEED, DELAY, PMD, AMD; on top of the patch's own LFO) |
-| **BITTAL** | **OSC 1 / OSC 1 +** · **OSC 2 / OSC 2 +** (LEVEL, TRANSP, FRAME, UNISON · DETUNE, FINE, TABLE) · **FILTER** (MODEL, CUTOFF, RESO, DRIVE) · **FILTER +** · **ENV 1 / ENV 2** (A, D, S, R) · **LFO 1** (SHAPE, RATE, DEST, AMOUNT) · **MACRO 1-2 / 3-4** · **VOICE**. The oscillator pages draw the table in 2.5D, with the playing frame in cyan |
+| **BITTAL** | **OSC 1 / OSC 1 +** · **OSC 2 / OSC 2 +** (LEVEL, TRANSP, FRAME, UNISON · DETUNE, FINE, TABLE) · **FILTER** (MODEL, CUTOFF, RESO, DRIVE) · **FILTER +** (ENV2 AMT, KEYTRK, VELO, **ENV2 POS**: envelope 2 sweeps the table position) · **ENV 1 / ENV 2** (A, D, S, R) · **LFO 1** (SHAPE, RATE, DEST, AMOUNT) · **MACRO 1-2 / 3-4** · **VOICE**. The oscillator pages draw the table in 2.5D, with the playing frame in cyan |
 | **BUNO-6** | **LFO** (RATE, DELAY) · **DCO** (LFO, PWM, PWM MODE, RANGE) · **DCO WAVE** (PULSE, SAW, SUB, NOISE) · **HPF VCF** (HPF, FREQ, RES, ENV) · **VCF MOD** (ENV +/-, LFO, KYBD, VELO) · **VCA** (ENV/GATE, VELO) · **ENV** (A, D, S, R) · **CHORUS** |
 
-**K1-K4** change the page's 4 settings; above them, a drawing of what they do (the wave, the table, the filter curve, the envelope or the LFO). **SELECT** changes page (at the first or last one it moves to the next tab). **EDIT** again = next page (EDIT never lands on MACHINE, so you can't change the instrument by accident). **ENV** opens the machine's first envelope (again: the second one). **LFO** opens the LFO page; the BB-303 has none, so LFO keeps its tie layer. The macros (K1-K4 on SEQ) take P-Locks per note.
+**K1-K4** change the page's 4 settings; above them, a drawing of what they do (the wave, the table, the filter curve, the envelope or the LFO). **SELECT** changes page (at the first or last one it moves to the next tab). **EDIT** again = next page. **ENV** opens the machine's first envelope (again: the second one). **LFO** opens the LFO page; the BB-303 has none, so LFO keeps its tie layer. The macros (K1-K4 on SEQ) take P-Locks per note.
 
 ### BX-7: the algorithm
 
@@ -188,7 +247,7 @@ SOUND draws the **algorithm as on a DX7**: carriers at the bottom, modulators ab
 
 ### Editing a drum instrument
 
-**INSTR** (EDIT again, or ENV) has two pages: **HIT** (TUNE, DECAY, TONE and COLOR, named after what it does in that model) and **INSTRUMENT** (MODEL, LEVEL, CHOKE group and line LENGTH). EDIT again changes page. Black 1-8 and 9 pick the instrument.
+**INSTR** (EDIT again, or ENV) has two pages: **HIT** (TUNE, DECAY, TONE and COLOR, named after what it does in that model) and **INSTRUMENT** (MODEL, LEVEL, CHOKE group and line LENGTH). EDIT again changes page. Black 1-8 pick the instrument and black 11 the other section.
 
 ## Drums (BR-8)
 
@@ -198,12 +257,13 @@ The SEQ screen is a matrix: 16 instruments × the 16 steps of the page. Each lin
 |---|---|
 | **White keys** | Steps of the selected instrument: tap = set or clear |
 | **Black 1-8** | Select (and play) an instrument of the section |
-| **Black 9** | Switch section (1-8 / 9-16) |
-| **Black 10** | **MUTES** screen: a tap keeps it open (white keys mute or unmute each instrument; leave with black 10 or HOME); hold = only while held. **Only instruments with steps are lit:** medium and flashing on every hit = plays, dim = muted, off = empty. On screen a muted instrument turns red. The knobs keep their SEQ jobs |
-| **Black 11** | **FILL** screen: while open the fill plays and the white keys set a hit **only for the fill** (again: removes it; on = fill only, medium = normal, dim = not in the fill). K1 = automatic fill (every 2, 4 or 8 bars). Tap = stays open; hold = only while held. The fill stops when the screen closes |
-| **OCT − / +** | Page |
+| **Black 9 · 10** | Step page < and > (when the line is longer than 16) |
+| **Black 11** | Tap: the other section (instruments 1-8 / 9-16, HI / LO). **Hold: MUTES** while you hold it: the white keys mute or unmute each instrument. **Only instruments with steps are lit:** medium and flashing on every hit = plays, dim = muted, off = empty. On screen a muted instrument turns red |
+| **OCT − / +** | Nothing (off) |
 
 **Hold a step + turn:** K1-K4 = P-Lock of TONE, TUNE, DECAY or COLOR on that step only · SELECT = accent · ALGORITHM = repeat ×1 to ×4 or FLAM · PRESETS = condition (ALWAYS, FILL ONLY, NO FILL).
+
+**Fills:** a step with FILL ONLY plays only in the fill, NO FILL only outside it. The fill plays with **AUTO FILL** (console GLO › TEMPO: every 2, 4 or 8 bars) or while you hold black 11 inside ROLL (FILL + ROLL).
 
 **INSTR** (EDIT again, or ENV): level, tuning, decay and **line length** of each instrument. For example, a 12-step hi-hat against a 16-step kick.
 
@@ -235,7 +295,7 @@ T2 is a **16-pad sampler**, like a KO II or the drum sampler of an OP-1 field: e
 4. In **PADS** you tune each pad: where it starts and ends, its pitch, its level, how it answers the key and its envelope.
 5. In **SEQ** you program the pads like the drums, and **BREAK** varies them bar by bar.
 
-The tabs: **SEQ · PADS · BREAK · TAKES · MIX · MORE**. The kit lives in the pattern, like the drum kit; the takes, in the library.
+The tabs: **SEQ · PADS · BREAK · TAKES · MIX**. The kit lives in the pattern, like the drum kit; the takes, in the library.
 
 ### SEQ: the pad grid
 
@@ -245,7 +305,7 @@ Just like the drums: one line per pad, 8 on screen. Each pad has its own length.
 |---|---|
 | **White keys** | Steps of the selected pad: tap = set or clear |
 | **Black 1-8** | Select and play a pad of the section |
-| **Black 9 · 10 · 11** | Other section (pads 1-8 / 9-16) · MUTES · FILL |
+| **Black 9 · 10 · 11** | Step page < and > · other section (pads 1-8 / 9-16); hold 11 = MUTES |
 | **K1-K4** | **FILTER** (low-pass) · **PITCH** (±12 semitones) · **DECAY** · **START** (shifts the start of every pad) |
 | **Held step + K1-K4** | P-Lock on that step: a pad higher, shorter or from further in, only there |
 
@@ -308,28 +368,51 @@ Recording, keeping and building the kit are separate steps.
 1. **RECORD:** REC on T2 opens the recorder **armed** (on PADS, REC records what you play into the grid). It starts at the next bar (K1 = START: BAR or NOW). A big number says the seconds **left**: the smaller of the recording RAM (3 s) and the free take memory. White lines mark how many bars fit and the amber one is the limit. REC again = stop; it also stops by itself at the limit. Holding REC on the recorder records only while held.
    - Below the number: the free take memory in seconds and KB, and the maximum per take (3 s).
    - While recording **the keys are silent** and the delay and buffer-based punch-ins pause (they share the memory).
-   - The take stays **UNSAVED**: the white keys play it in 16 parts. **It is saved when you stop** the transport, because writing flash stops the audio, and if the kit was empty, it builds it. HOME asks before discarding it (OCT+ = discard; HOME = keep it and go to the console).
-2. **TAKES** (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). **Black 1 (HIT)** = kit on the hits, **black 2 (16)** = 16 equal parts, **black 3 (8)** = 8, **black 4 (PAD)** = the whole take on the selected pad, **black 11 (DEL)** = delete (asks; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
+   - The take stays **UNSAVED**: the white keys play it in 16 parts. **It is saved when you stop** the transport, because writing flash stops the audio, and if the kit was empty, it builds it. HOME asks before discarding it: **hold HOME 2 s = discard**; a HOME tap keeps it and goes to the console.
+2. **TAKES** (EDIT 2 s on T2, or the tab): the library, with the waveform of the marked take. ALGORITHM picks; K1-K3 = the take's BPM, bars and gain; white keys play it in 16 parts (held: it keeps going). **Black 1 (HIT)** = kit on the hits, **black 2 (16)** = 16 equal parts, **black 3 (8)** = 8, **black 4 (PAD)** = the whole take on the selected pad, **black 11 (DEL)** = delete (asks: keep it held 2 s; its pads become empty). If the kit already has pads, building a new one asks. A yellow dot = the kit uses that take.
 
 **How much fits:** up to **6 s of takes in total** (8 bits at 16 kHz = 16 KB per second, up to 3 s per take). They live in the 100 KiB flash zone shared with your bank sounds: takes from the bottom and sounds from the top. TAKES shows what is free of the 6 s and how many of your sounds are on top; the [control platform](../../web/control.html) shows all the memory and warns before it fills up.
 
-## Note tracks (T3-T6)
+## Note machines (T3-T6)
 
-- **SEQ:** the page is only about this track. On top, the page's 16 steps as a **piano roll**: each note at its pitch and with its length (long ones in mint, early or late ones shifted from their step). White keys are those steps (up to 4 notes per step). Below, the track's bars and the playhead. **Hold a step** and play **black 1-8** to write those notes of the track's scale (the same one again removes it). Black 9 and 10 move their octave down or up; 11 = FILL.
+- **SEQ:** the page is only about this channel. On top, the page's 16 steps as a **piano roll**: each note at its pitch and with its length (long ones in mint, early or late ones shifted from their step). White keys are those steps (up to 4 notes per step). Below, the channel's bars and the playhead. **Hold a step** and play **black 1-8** to write those notes of the channel's scale (the same one again removes it). Black 9 and 10 turn the step page; 11 = FILL.
+- **OCT − / +** shift the octave of everything the keys play, also the scale degrees on black 1-8 in SEQ (O+1 / O-1 at the top).
 - **Long note with two white keys:** hold the step where it starts and tap the white key where it ends: the note lasts from one to the other. The lights of the keys it covers stay dimmed, like a trail.
-- **Free recording, like a looper:** on an **empty** note track, REC records with no fixed length (the screen says FREE REC and counts the bars). REC again closes it: the track keeps the whole bars you played (1 to 4) and every note keeps how long you held it (up to 4 bars). If the track already has notes, REC records over it with its length.
+- **Free recording, like a looper:** on an **empty** note channel, REC records with no fixed length (the screen says FREE REC and counts the bars). REC again closes it: the channel keeps the whole bars you played (1 to 4) and every note keeps how long you held it (up to 4 bars). If the channel already has notes, REC records over it with its length.
 - **Length in bars:** SEQ held + black 7-10 = 1, 2, 3 or 4 bars.
 - **Held step + knobs:** K1-K4 = P-Lock · SELECT = hit (NORMAL › ACCENT › GHOST) · ALGORITHM = probability or fill · PRESETS = length or TIE (glide).
+- **FILL (black 11):** a tap keeps the screen open (black 11 again or HOME closes it), holding shows it only while held. While open the fill plays, and the white keys make notes fill-only (again: back to normal); black 9 / 10 turn the page.
 - **LOOP (SEQ again):** unquantized looper. K1 ON/OFF · K2 bars (1, 2 or 4). **REC** arms (starts at the bar) › when the loop closes it goes to PLAY › REC again: OVERDUB › REC: PLAY. **REC 2 s** erases the loop.
-- **MIDI OUT** (in MORE): the track plays and also sends its notes over MIDI on its channel.
+- **Outside SEQ** the keys play the machine chromatically; with **KEYS IN SCALE** (console GLO › SCALE) the white keys play the scale and the black keys its chords.
+- **MIDI OUT** (in the machine GLO): the channel plays and also sends its notes over MIDI on its channel.
+
+### PIANO ROLL view
+
+![PIANO ROLL: the whole loop](../../assets/screens/73-pianoroll.png)
+
+**Machine GLO › VIEW = PIANO ROLL** (ALGORITHM to the right; to the left, NOTES) shows SEQ as the **whole loop** (1 to 4 bars) instead of one page: the pitch rows fit the notes the channel has, a vertical keyboard on the left flashes with what plays, and a white bracket marks the 16 steps the white keys edit (black 9 / 10 move it). With REC on, the notes recorded in this pass are **red**. The keys work exactly as in the normal view. VIEW is a setting of each channel: it stays after power-off.
 
 ### Expressive REC
 
-With **REC** on a note track, what you play stays as you played it:
+With **REC** on a note channel (inside it, or with [SLOOP-REC](#sloop-rec-play-any-channel-from-the-console) from the console), what you play stays as you played it:
 
 - **The note keeps its real timing:** the start with its **micro-timing** (how early or late you were, in ticks) and the end with its **gate** (how much of the last step sounded). If the note is still held when the bar ends, it is **cut at the bar**.
 - **The knobs stay on the note:** while you hold a note while recording, whatever you turn on K1-K4 stays on that note (P-Lock).
 - **Editing the step with REC:** **SELECT** picks a step (red box), **ALGORITHM** its gate (from 10 % staccato to 95 % = the whole step, and 100 % = **TIE**, tied to the next one) and **PRESETS** its micro-timing (−11 to +11 ticks). The header shows the gate you are recording with.
+
+## The machine GLO
+
+![The machine GLO](../../assets/screens/45-machine-glo.png)
+
+**GLO inside a machine** opens its list; GLO again goes back to the page you were on. SELECT picks the row and ALGORITHM changes it.
+
+| Machine | Rows | K1-K4 |
+|---|---|---|
+| **Note machines** | VIEW (NOTES or PIANO ROLL) · LENGTH · SPEED · TRANSPOSE · ACCENT · MIDI OUT (and its MIDI CHANNEL) · INIT SOUND | LENGTH · SPEED · ACCENT · TRANSPOSE |
+| **BR-8** | LENGTH · SPEED · ACCENT · INIT KIT | LENGTH · SPEED · ACCENT |
+| **BP-1** | LENGTH · SPEED · ACCENT · INTERPOLATION (LINEAR or HERMITE) · INIT | LENGTH · SPEED · ACCENT |
+
+On INIT, ALGORITHM to the right asks; leave it 2 s and the sound goes back to its initial settings. To change the machine itself, go to the console (the screen says so: CHANGE: HOLD T4 ON HOME + ALG).
 
 ## The layers (hold)
 
@@ -337,61 +420,79 @@ While you hold, the screen draws the keyboard with what each key does and its LE
 
 | Hold | Layer | The keys |
 |---|---|---|
-| **HOME** | Controller | White = queue pattern · black 1-6 = mute / solo · 7-10 = scenes · 11 = FILL. SELECT = go to a track when you let go · ALGORITHM = BPM in tenths |
-| **SEQ** | Length and speed | White = track length (1-16; OCT−/+ = 17-64): the length is on, inside it medium, outside dim · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars (1BR-4BR) |
-| **EDIT** | Erase | Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the track · sampler: black 4 = CAPT (what BREAK does goes into the grid) · OCT−/+ = undo / redo |
-| **ENV** | Accent | White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACCENT › GHOST). K1 = how much accent |
-| **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide). On machines without an LFO page a tap on LFO keeps this layer open |
+| **HOME** | The console | White 1-10 = patterns · white 11-16 = go to that machine when you let go · black 1-6 = mute / solo · 7-10 = scenes · 11 = CUE. SELECT = cursor · ALGORITHM = BPM in tenths · PRESETS = pattern (loads when you let go) · K1-K4 = the cursor's mix |
+| **SEQ** | Length and speed | White = length (1-16): the length is on, inside it medium, outside dim · **black 11 = +16** (17-32, 33-48, 49-64) · black 1-6 = speed ×2 to ×1/4 · black 7-10 = 1-4 bars (1BR-4BR). K1 = length, K2 = speed |
+| **EDIT** | Erase | Playing: holding a white key erases what passes under the playhead; stopped: erases the line or the step · black 1-3 = copy, paste, clear the channel · sampler: black 4 = CAPT (what BREAK does goes into the grid) · **black 6 / 7 = undo / redo** · notes: black 9 / 10 = page · on the console: **black 7-10 clear a scene** |
+| **ENV** | Accent | White = accent on / off (empty step = new one with accent; on notes: NORMAL › ACCENT › GHOST) · black 9 / 10 = page. K1 = how much accent |
+| **LFO** | Repeat · tie | Grids: white = ×1 › ×2 › ×3 › ×4 › FLAM. Notes: white = tie the note to the next one (K1 = glide). Black 9 / 10 = page. On machines without an LFO page a tap on LFO keeps this layer open |
 | **FX** | Punch-in | White = 16 effects quantized to 1/16 · black 1-6 still mute |
 | **SCL** | Chords | White = 16 chords · black 1-4 = +7, +9, SUS2, SUS4 |
 | **ARP** | Arpeggio · ROLL | Notes: what you play is arpeggiated · grids: the ROLL screen (see Drums): white = roll, black 1-6 = rate, 7-8 = CRESC / DECRESC, 11 = FILL; with REC it is recorded as repeats |
-| **SAVE** | Copy pattern | White = paste the pattern there · black (1-6) + white = only that track. If the target has notes, it asks |
-| **GLO** | Pitch | The whole keyboard transposes the project (C4 = 0) · **PLAY = TAP tempo** without stopping · K1 = BPM, K2 = SWING, K3 = transpose, K4 = octave |
+| **SAVE** | Copy pattern | White 1-10 = paste the pattern there · black (1-6) + white = only that channel. If the target has notes, it asks: keep the white key held 2 s |
+| **GLO** | Transpose | The whole keyboard transposes the project (C4 = 0) · **PLAY = TAP tempo** without stopping · K1 = BPM, K2 = SWING, K3 = transpose, K4 = octave |
 
 ## Time (SEQ 2 s)
 
-Shows the 6 tracks as bars of their real duration, each with its playhead: polymeter at a glance. SELECT or ALGORITHM pick the track; K1 = length (1-64); K2 = speed (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4); K3 and K4 (grids): an instrument and its length.
+Shows the 6 channels as bars of their real duration, each with its playhead: polymeter at a glance. SELECT or ALGORITHM pick the channel; K1 = length (1-64); K2 = speed (×2, ×3/2, ×1, ×3/4, ×1/2, ×1/4); K3 and K4 (grids): an instrument and its length.
 
-The **master length** (HOME + K3: 16, 32, 48, 64, 128 or INF) restarts all tracks together. That is where patterns and scenes change.
+The **master length** (console GLO › TEMPO, K3: 16, 32, 48, 64, 128 or INF) restarts all channels together. Queued patterns change there.
 
 ## Scales and chords
 
-- **SCALE** (SCL): each note track can have its **own scale** (K2: PROJECT, or one of 9 scales; K1 = ROOT). **HOME + SCL** changes the project scale, used by tracks without their own.
+- **SCALE** (SCL inside a note machine): each note channel can have its **own scale**. K1 = ROOT, K2 = scale (PROJECT, or one of 9 scales), K3 = BASE CHORD, K4 = KEYS IN SCALE.
+- **Project scale:** console GLO › SCALE (SCL on the console, or HOME + SCL): ROOT, SCALE, KEYS IN SCALE and BASE CHORD, used by channels without their own.
 - **CHORDS** (SCL again): 16 chords on a 4×4 grid with their degree and name. The color tells their function: **blue** rest (I, iii, vi), **green** preparation (ii, IV), **orange** tension (V, vii). K1 = set (DIATONIC, PROGRESSIONS, NEO SOUL), K2 = voicing (CLOSED, OPEN or LED, voice-led), K3 = octave, K4 = strum.
 
 ## Scenes and song
 
-**SCENES** (HOME, HOME, HOME): a scene = pattern + mutes. White 1-4 launch A-D at the next master cycle (when stopped: right away); 5-8 store what is playing into A-D; hold one of 1-4 and tap others for a **chain**. From any screen, with HOME, black 7-10 also launch them. **REC** on SCENES (or HOME + REC) = SONG REC.
+**A scene is a set of mutes**: the six channels' mutes and the instrument mutes of BR-8 and BP-1. Scenes belong to the project, not to a pattern, so a scene works on any pattern. They live on **black 7-10** (A-D) of the console, and with HOME held from any screen.
 
-**SONG** (HOME + SEQ): a white key adds a pattern (01-16; the ones with notes are medium), black 9 (DEL) deletes; K1 = step, K2 = repeats, K4 = song ON/OFF.
+![A scene: hold 2 s to store over it](../../assets/screens/69-scene-store-ring.png)
+
+| Gesture | What it does |
+|---|---|
+| **Tap an empty scene** (dim) | Stores the mutes as they are now |
+| **Tap a stored scene** (medium) | Launches it on the next bar (stopped: right away). On = the active one, blink = queued |
+| **Hold 2 s** | Stores over it (a ring fills: STORE SCENE A) |
+| **EDIT held + scene** (on the console) | Clears it |
+| **Hold one + tap others** | A **chain**: the first launches on the next bar, the next one at each master cycle |
+
+**CUE** (black 11): hold it, or tap it to keep it on (it breathes). With CUE, the mutes you tap don't change at once: they blink and **drop together on the next bar**. Stopped, they change right away. Tap CUE again to turn it off.
+
+![CUE: mutes waiting for the next bar](../../assets/screens/70-cue.png)
+
+**SONG** (console GLO › SONG, or HOME + SEQ): a list of entries, each one **a pattern and an optional scene**. White 1-10 add a pattern; black 7-10 put that scene on the selected entry (again: remove it); black 11 deletes the selected entry. SELECT picks the entry, ALGORITHM or K1 its pattern, K2 how many times it plays, K4 = song ON/OFF.
+
+**SONG REC** (REC on GLO › SONG, or HOME + REC): play live and the song writes itself: every pattern change and every scene you launch becomes an entry. Stopped, it is armed and starts with PLAY.
 
 ## Effects
 
-- **Each track's MIX** (FX): level, pan, **delay** send and **reverb** send. FX again: **duck** (sidechain from the T1 kick).
+- **Each channel's MIX** (FX inside a machine): level, pan, **delay** send and **reverb** send. FX again: **duck** (sidechain from the T1 kick).
+- **On the console:** each channel's **filter** (K2 on MIX), and on **FX › CHANNEL** its **DRIVE**, **PAN**, **DUCK** and whether **BEAT FX** touches it.
+- **FX › DELAY:** time, feedback and mix (up to 0.80 s, so 1/4 gets shorter below 75 BPM) and the sidechain release. **FX › REVERB:** size, damping and mix.
+- **FX › MASTER:** the **master filter**, **BEAT FX** and **DRIVE** (saturation of the mix). **MOVE** is PRESETS on FX and GLO.
 - **BUNO-6** has its own stereo **chorus** (I, II or I+II, with ALGORITHM). BITTAL's **SPACE** macro adds reverb send.
-- **HOME + FX:** the delay (time, feedback, mix; up to 0.80 s, so 1/4 gets shorter below 75 BPM) and the sidechain release. HOME + FX again: the **reverb** (size, damping, mix).
-- **On HOME:** each track's **filter** (K2) and **MOVE** (PRESETS). The **master filter**, **BEAT FX** and **DRIVE** are on HOME › FX › MASTER.
-- **FX held:** 16 punch-ins (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high).
-- **DRIVE** (HOME › FX › MASTER, or HOME + K4): saturation of the mix.
+- **FX held:** 16 punch-ins (stutter, reverse, tape stop, gate, sweeps, bitcrush, SR down, delay throw, echo freeze, kill low/high). A channel with BEAT FX OFF is left out of them.
 
 ## Saving
 
+- There are **10 patterns** (01-10), on the console's white keys.
 - The flash is **only written when stopped** (writing pauses the audio for a moment).
-- **Autosave:** when stopped, after 10 s without touching anything.
+- **Autosave:** when stopped, after 10 s without touching anything (patterns, song and scenes, and settings).
 - **SAVE:** save · save as · save song and scenes · erase pattern (SAVE twice) · count events. **SAVE 2 s:** quick save. **HOME + SAVE:** save as.
-- **Copying:** SAVE held + white key copies the pattern; HOME + EDIT copies a track onto another one in the same pattern (notes to notes, hits to hits; ALGORITHM picks the target, OCT+ pastes). Machines don't change.
+- **Copying:** SAVE held + white key copies the pattern; HOME + EDIT copies a channel onto another one in the same pattern (notes to notes, hits to hits): ALGORITHM picks the target and **EDIT held 2 s pastes**. Machines don't change.
 
 ## System (HOME 2 s)
 
 Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle **button** brightness (OFF, DIM or MEDIUM; the keys are not affected) · **FAST SCREEN** (test, off by default) and **TWO CORES** (test, off by default) · takes, sounds and free memory · **LANGUAGE** · version.
 
-**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** computes T4-T6 on the FM-1's second core (on the computer it gives exactly the same samples). Since 0.6.2 the second core works through an interrupt: the first time you turn it on it is checked to answer, and if it does not answer or is late, it goes on with one. They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on and which core ran the second job.
+**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** shares the machines between the FM-1's two cores (on the computer it gives exactly the same samples). The first time you turn it on it is checked to answer; if it hangs, its channels go silent and it retires until you power off, and if a boot with TWO CORES does not reach 5 seconds, it is off on the next boot. They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on.
 
 ## MIDI
 
-- **Input** (USB and TRS): channels 1-6 = Bubba Machine's tracks. On grids, the note picks the instrument (0-15); on the sampler, the pad.
+- **Input** (USB and TRS): channels 1-6 = Bubba Machine's channels. On grids, the note picks the instrument (0-15); on the sampler, the pad.
 - **External clock:** follows MIDI Clock and Start/Stop.
-- **Output:** MIDI Clock when the clock is internal, and the notes of tracks with **MIDI OUT**.
+- **Output:** MIDI Clock when the clock is internal, and the notes of channels with **MIDI OUT**.
 
 ## Control platform
 

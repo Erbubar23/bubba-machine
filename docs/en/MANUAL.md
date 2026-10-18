@@ -2,6 +2,8 @@
 
 Bubba Machine turns the FM-1 into a live groovebox with **six channels**, each one a machine named after the one that inspired it. The drums (**BR-8**) and the pad sampler (**BP-1**) are fixed; **T3-T6 choose their instrument** among **BB-303** (acid bass), **B-MINI** (three-oscillator mono), **BX-7** (6-operator FM), **BITTAL** (wavetable that loads Vital presets) and **BUNO-6** (polysynth with chorus). HOME is the **BX-1** console: patterns, channels, mutes and scenes on the keys. Every channel has its own length and its own speed.
 
+**The goal is a hi-fi machine:** every machine and the mix are computed live at 44.1 kHz / 24-bit in floating point, each machine has its own engine modeled on the real one, and both cores of the FM-1 can share the work (TWO CORES). See [Audio quality](AUDIO.md).
+
 > The names recall famous machines (TR-8, OP-1, TB-303, Minimoog, DX7, Vital, Juno-6, MX-1), but Bubba Machine has no relation to their brands or makers.
 
 The interface fits in two sentences: **four gestures per button, and they mean the same thing on every button. HOME everywhere.**

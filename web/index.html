@@ -5,9 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bubba Machine · firmware libre para el M-VAVE FM-1</title>
-<meta name="description" content="Bubba Machine: firmware libre (GPL-3.0) de groovebox de seis máquinas para el M-VAVE FM-1. Batería, sampler de pads, bajo, FM, wavetable y polifónico. Pruébalo en el navegador.">
+<meta name="description" content="Bubba Machine: firmware libre (GPL-3.0) de groovebox hi-fi para el M-VAVE FM-1. Seis máquinas calculadas en vivo a 44,1 kHz y 24 bits: batería, sampler de pads, bajo, FM, wavetable y polifónico. Pruébalo en el navegador.">
 <meta property="og:title" content="Bubba Machine">
-<meta property="og:description" content="Firmware libre de groovebox para el M-VAVE FM-1. Pruébalo en el navegador.">
+<meta property="og:description" content="Firmware libre de groovebox hi-fi para el M-VAVE FM-1. Pruébalo en el navegador.">
 <meta property="og:image" content="img/logo.png">
 <link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/">
 <link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/">
@@ -45,7 +45,7 @@ try {
     <div>
       <img class="logo" src="img/logo.png" alt="Bubba Machine">
       <h1>Firmware libre para tu M-VAVE FM-1</h1>
-      <p class="lead">Convierte el FM-1 en una groovebox de directo con seis máquinas: batería, sampler de pads, bajo, FM, wavetable y un polifónico con chorus, cada una con su propio largo y su propia velocidad. Código libre, con licencia GPL-3.0.</p>
+      <p class="lead">Convierte el FM-1 en una groovebox de directo <b>hi-fi</b>: el objetivo es el mejor sonido que puede dar una máquina pequeña. Seis máquinas (batería, sampler de pads, bajo, FM, wavetable y un polifónico con chorus) calculadas en vivo a 44,1 kHz y 24 bits, cada una con su propio largo y su propia velocidad. Código libre, con licencia GPL-3.0.</p>
       <div class="cta">
         <a class="btn primary" href="emulador.html?lang=es">Probar en el navegador</a>
         <a class="btn" href="docs/manual.html">Leer el manual</a>
@@ -59,6 +59,19 @@ try {
     <b>0.9.0-beta · HOME ES LA CONSOLA</b>
     <span>Corre en el FM-1 y se instala desde el navegador, plug and play. Es una <b>beta</b> (la 0.9, todavía sin probar del todo en el aparato): se probó en un solo aparato y una actualización puede borrar lo que guardaste (patrones, canción, ajustes y tomas). <a href="docs/instalar.html">Más detalles</a>.</span>
   </div>
+
+  <section class="band">
+    <div class="kicker">El objetivo</div>
+    <h2 class="big">Una máquina hi-fi que cabe en la mano</h2>
+    <p class="sub">Bubba Machine busca una sola cosa: el mejor sonido que puede dar el hardware del FM-1, sin atajos que se oigan. Cada versión se mide en el aparato contra ese objetivo.</p>
+    <div class="cards">
+      <div class="card"><h3>44,1 kHz y 24 bits de punta a punta</h3><p>Todas las máquinas y la mezcla entera corren a la frecuencia real del códec, en coma flotante. Los agudos llegan a 20 kHz y la afinación es exacta.</p></div>
+      <div class="card"><h3>Calculado en vivo, nunca en baja resolución</h3><p>Batería, bajos y sintes se sintetizan nota a nota, no se reproducen desde grabaciones de 8 bits. No se recorta nada para que quepa.</p></div>
+      <div class="card"><h3>El circuito real, no un preset</h3><p>Cada máquina tiene su propio motor modelado sobre la que la inspira (el BB-303 usa el filtro y el acento de la TB-303 de Open303), páginas ordenadas como su panel y sonidos históricos recreados a partir de hojas de patches.</p></div>
+      <div class="card"><h3>Todo el hardware trabajando</h3><p>Con TWO CORES los dos núcleos de 360 MHz se reparten las voces, el kick atraviesa la mezcla con sidechain y la placa corre con sus voltajes de fábrica para no apagarse mientras tocas.</p></div>
+      <div class="card"><h3>Medido, no adivinado</h3><p>CPU, memoria y sonido se comprueban en el FM-1 y en horas de juego simulado, y lo que todavía falta queda por escrito.</p><a class="more" href="docs/audio.html">Cómo suena y por qué</a></div>
+    </div>
+  </section>
 
   <section class="band">
     <div class="kicker">Así se ve</div>

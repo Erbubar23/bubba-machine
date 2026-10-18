@@ -1,6 +1,6 @@
 # Bubba Machine's audio
 
-Bubba Machine has one goal: **the best audio quality the FM-1 allows**. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, **what isn't there yet**.
+Bubba Machine has one goal: **a hi-fi machine, the best audio quality the FM-1 allows**: studio-grade sound computed live on a small groovebox, with no shortcut you can hear. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, **what isn't there yet**.
 
 All CPU figures were measured on the author's FM-1 with the firmware console (`tools/fm1/traza.py`). The details of each measurement are in [`TRAZA_FM1.md`](../TRAZA_FM1.md) and [`MOTORES.md`](../MOTORES.md) (Spanish).
 

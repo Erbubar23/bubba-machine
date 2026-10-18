@@ -1984,6 +1984,62 @@ static void test_chorus_long(void)
     CHECK(a > 0 && b < a * 3.0);
 }
 
+/* The kick's sidechain: BUNO-6 with its chorus skipped the duck (the biggest pad was never ducked)
+ * and the duck let go on the same sample it hit. Now the chorus is ducked too and the duck holds
+ * 30 ms. And a NaN in a shared state of the mix is reset (and counted) instead of silencing all. */
+static double rms_of(const int32_t *b, int from, int to)
+{
+    double e = 0;
+    for (int i = from; i < to; i++) { double x = (b[2 * i] + (double)b[2 * i + 1]) * 0.5; e += x * x; }
+    return sqrt(e / (to - from));
+}
+
+static void note(int t, int n, int on);
+
+static void test_duck_and_guard(void)
+{
+    printf("sidechain: BUNO-6 with chorus ducks and holds; a NaN in the mix comes back\n");
+    static int32_t b[344 * 64 * 2];
+    const int N = 344 * 64, MS = 44;
+    boot(1);
+    for (int t = 1; t < 5; t++) app.pat.trk[t].mute = 1;
+    for (int l = 0; l < BM_LANES; l++) app.pat.tr[0].lane[l].level = 0;    /* T1 only fires the sidechain (the demo's kick) */
+    bm_track_clear_events(&app.pat, 5);                                     /* T6: a held note instead of the demo's */
+    app.pat.trk[5].macro[0] = 70; app.pat.trk[5].macro[1] = 0; app.pat.trk[5].duck = 64;
+    app.pat.prm[5][BN_CHORUS] = BN_CH_I; app.pat.prm[5][BN_S] = 127; app.pat.prm[5][BN_VCA] = 1;
+    app.pat.trk[5].rsend = 0; app.pat.trk[5].send = 0; app.pat.meta.rv_mix = 0; app.pat.meta.sc_release = 50;
+    note(5, 57, 1);
+    for (int i = 0; i < 20; i++) bm_app_audio(&app, b, 2048);                 /* the pad settles */
+    bm_app_audio(&app, b, 40 * MS);
+    double pre = rms_of(b, 0, 40 * MS);
+    bm_cmd c; memset(&c, 0, sizeof c); c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);   /* the kick on the first step */
+    for (int o = 0; o < N; o += 64) bm_app_audio(&app, b + 2 * o, 64);
+    double hit = rms_of(b, 2 * MS, 12 * MS), hold = rms_of(b, 18 * MS, 28 * MS), back = rms_of(b, 200 * MS, 240 * MS);
+    printf("  pad rms: before %.0f, 2-12 ms %.2fx, 18-28 ms %.2fx, 200-240 ms %.2fx\n", pre, hit / pre, hold / pre, back / pre);
+    CHECK(pre > 1000.0);
+    CHECK(hit < pre * 0.65 && hold < pre * 0.65);                          /* ducked ~50 % and still down at 28 ms */
+    CHECK(back > pre * 0.85);                                              /* and back after the release */
+
+    /* the delay heals by itself (it rereads its line); the master filter (closed a bit), a DJ
+     * filter and the sidechain keep a NaN forever without the guard */
+    c.a = 0; bm_cmd_push(&app.cmdq, &c);
+    app.pat.meta.mfilt = 50;
+    bm_app_audio(&app, b, 2048);
+    double pre2 = rms_of(b, 1024, 2048);
+    uint32_t fix0 = app.ctx.st.nan_fix;
+    app.ctx.d_cur = NAN; app.ctx.mf_ic1[0] = INFINITY; app.ctx.dj_ic2[3] = NAN; app.ctx.sc_env = NAN;
+    bm_app_audio(&app, b, 128);
+    bm_app_audio(&app, b, 2048);
+    int ok = 1;
+    for (int i = 0; i < 2048 * 2; i++) if (b[i] > 8388607 || b[i] < -8388608) ok = 0;
+    printf("  NaN in the delay, master filter, DJ filter and sidechain: %u fixed, pad rms after %.2fx\n",
+           app.ctx.st.nan_fix - fix0, rms_of(b, 1024, 2048) / pre2);
+    CHECK(app.ctx.st.nan_fix - fix0 == 3 && ok && isfinite(app.ctx.d_cur) && isfinite(app.ctx.mf_ic1[0]) && isfinite(app.ctx.sc_env));
+    CHECK(pre2 > 1000.0 && rms_of(b, 1024, 2048) > pre2 * 0.5);
+    app.pat.meta.mfilt = 64;
+    note(5, 57, 0);
+}
+
 /* 0.7.1: the brake lowers a cap on the pool. Before, each overload faded a voice and the next notes
  * started anyway (and were faded again): with the load high all the time the poly machines went
  * quiet (on the device, 6 voices a second after 9 minutes). Now new notes steal inside the cap
@@ -2530,6 +2586,7 @@ int main(int argc, char **argv)
     test_printf();
     test_dual_core();
     test_chorus_long();
+    test_duck_and_guard();
     test_brake();
     test_steal_at_end();
     test_engines();

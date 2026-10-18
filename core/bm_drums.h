@@ -37,7 +37,8 @@ extern const uint16_t bm_drm_base_hz[DRM_COUNT];      /* tono con AFINA en el ce
 void bm_drm_init(float fs);
 /* Voz v (0..BM_VOICES-1). hz = tono; tone, decay, color 0..1; accent 0..1 (golpe y nivel). */
 void bm_drm_trigger(int v, int model, float hz, float tone, float decay, float color, float accent);
-/* Escribe n muestras (n <= 64) en out, en ±1. Devuelve 0 cuando el golpe terminó. */
+/* Escribe n muestras (n <= 64) en out, en ±1. Devuelve 0 cuando el golpe terminó y -1 si tenía
+ * NaN/inf (out queda en silencio y el golpe se termina). */
 int  bm_drm_render(int v, float *out, int n);
 
 #ifdef __cplusplus

@@ -35,6 +35,8 @@ static float fs_ = 44118.0f;
 /* ------------------------------------------------------------ modelos propios */
 static inline float noise() { return Random::GetFloat() * 2.0f - 1.0f; }
 static inline float decay_coef(float seconds, float fs) { return 1.0f - 1.0f / (seconds * fs + 1.0f); }
+/* las envolventes que caen solas no bajan a los subnormales (lentos): una vez por bloque */
+static inline float ftz(float x) { return (x > -1e-15f && x < 1e-15f) ? 0.0f : x; }
 
 /* Palmas 808: tres ráfagas cortas de ruido pasa-banda y una cola más larga. COLOR separa las
  * ráfagas (de palmas juntas a un aplauso abierto). */
@@ -56,6 +58,7 @@ struct Clap {
             env *= kb; tail *= kt;
             out[i] = bp.Process<FILTER_MODE_BAND_PASS_NORMALIZED>(noise()) * (env + tail) * 1.6f;
         }
+        env = ftz(env); tail = ftz(tail);
     }
 };
 
@@ -80,6 +83,7 @@ struct Cowbell {
             env *= env > 0.35f ? k1 : k2;
             out[i] = bp.Process<FILTER_MODE_BAND_PASS_NORMALIZED>(s) * env * 1.4f;
         }
+        env = ftz(env);
     }
 };
 
@@ -128,6 +132,7 @@ struct Noise {
             float s = noise();
             out[i] = (hp ? f.Process<FILTER_MODE_HIGH_PASS>(s) : f.Process<FILTER_MODE_LOW_PASS>(s)) * env;
         }
+        env = ftz(env);
     }
 };
 
@@ -153,6 +158,7 @@ struct FmPerc {
             out[i] = Sine(p) * env;
             env *= kenv; sweep *= ksw;
         }
+        env = ftz(env); sweep = ftz(sweep);
     }
 };
 
@@ -261,6 +267,10 @@ int bm_drm_render(int v, float *out, int n)
         out[i] *= g;
         float a = out[i] < 0.0f ? -out[i] : out[i];
         if (a > pk) pk = a;
+    }
+    if (!(out[n - 1] > -1e4f && out[n - 1] < 1e4f)) {   /* NaN/inf en el modelo: silencio y se termina */
+        memset(out, 0, sizeof(float) * (size_t)n);
+        return -1;
     }
     d.t += (uint32_t)n;
     if (d.t > (uint32_t)(0.02f * fs_) && pk < 3.0e-5f) { if (++d.quiet >= 3) return 0; } else d.quiet = 0;

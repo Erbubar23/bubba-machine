@@ -167,11 +167,13 @@ const bm_ppage bm_lane_pages[BM_LANE_PAGES] = {
                         P("CHOKE", LN_CHOKE, 0, 3, PF_LIST, CHOKES), P("LENGTH", LN_LEN, 16, 64, PF_INT, 0)}},
 };
 
-/* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz) */
+/* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz).
+ * Los bombos: TONO y COLOR arriba (más click y más FM de ataque) y más nivel, para que
+ * pasen por encima del bajo y los pads; el 909 con un poco más de cuerpo (DECAY 66). */
 #define L(n, m, tu, de, to, co, le, ch) {n, m, tu, de, to, co, le, ch}
 const bm_kit bm_kits[BM_KITS_N] = {
     {"808", {
-        L("KICK", DRM_BD_ANALOG, 64, 70, 40, 40, 110, 0), L("KICK2", DRM_BD_ANALOG, 72, 40, 70, 90, 100, 0),
+        L("KICK", DRM_BD_ANALOG, 64, 70, 64, 62, 120, 0), L("KICK2", DRM_BD_ANALOG, 72, 40, 70, 90, 100, 0),
         L("CL HH", DRM_HH_ANALOG, 64, 25, 100, 20, 80, 1), L("OP HH", DRM_HH_ANALOG, 64, 85, 100, 20, 75, 1),
         L("SNARE", DRM_SD_ANALOG, 64, 55, 70, 75, 95, 0), L("CLAP", DRM_CLAP, 64, 50, 60, 50, 95, 0),
         L("RIM", DRM_RESON, 8, 15, 100, 76, 85, 0), L("TOM L", DRM_TOM, 51, 70, 50, 30, 100, 0),
@@ -180,7 +182,7 @@ const bm_kit bm_kits[BM_KITS_N] = {
         L("SHAKE", DRM_NOISE, 64, 25, 100, 50, 80, 0), L("CLAVE", DRM_RESON, 82, 40, 0, 0, 127, 0),
         L("CONGA", DRM_TOM, 106, 45, 40, 10, 95, 0), L("ZAP", DRM_FM, 90, 35, 80, 20, 85, 0)}},
     {"909", {
-        L("KICK", DRM_BD_SINTE, 64, 60, 50, 50, 110, 0), L("KICK2", DRM_BD_SINTE, 70, 35, 80, 110, 100, 0),
+        L("KICK", DRM_BD_SINTE, 64, 66, 72, 64, 127, 0), L("KICK2", DRM_BD_SINTE, 70, 35, 80, 110, 100, 0),
         L("CL HH", DRM_HH_METAL, 64, 20, 110, 60, 80, 1), L("OP HH", DRM_HH_METAL, 64, 80, 110, 60, 75, 1),
         L("SNARE", DRM_SD_SINTE, 64, 50, 60, 80, 95, 0), L("CLAP", DRM_CLAP, 64, 60, 70, 70, 95, 0),
         L("RIM", DRM_RESON, 12, 12, 110, 70, 85, 0), L("TOM L", DRM_TOM, 56, 62, 80, 50, 100, 0),
@@ -189,7 +191,7 @@ const bm_kit bm_kits[BM_KITS_N] = {
         L("SHAKE", DRM_NOISE, 64, 20, 110, 40, 75, 0), L("CLAVE", DRM_RESON, 82, 35, 10, 0, 127, 0),
         L("CONGA", DRM_TOM, 104, 40, 60, 20, 95, 0), L("ZAP", DRM_FM, 96, 30, 100, 30, 85, 0)}},
     {"SYNTH", {
-        L("KICK", DRM_BD_SINTE, 56, 90, 30, 80, 110, 0), L("SUB", DRM_BD_ANALOG, 52, 110, 40, 10, 127, 0),
+        L("KICK", DRM_BD_SINTE, 56, 90, 56, 84, 124, 0), L("SUB", DRM_BD_ANALOG, 52, 110, 40, 10, 127, 0),
         L("HAT", DRM_HH_ANALOG, 70, 15, 110, 90, 80, 1), L("OHAT", DRM_HH_METAL, 66, 70, 100, 40, 75, 1),
         L("SNARE", DRM_SD_SINTE, 76, 40, 100, 100, 95, 0), L("CLAP", DRM_CLAP, 70, 70, 90, 110, 95, 0),
         L("BLIP", DRM_FM, 100, 10, 50, 80, 85, 0), L("ZAP", DRM_FM, 70, 30, 120, 40, 90, 0),

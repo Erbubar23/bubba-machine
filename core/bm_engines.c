@@ -325,6 +325,7 @@ static bool drum_process(bm_engine *e, int32_t *buf, uint16_t frames)
         if (!v->active || v->track != e->track) continue;
         any = true;
         int alive = bm_drm_render(vi, tmp, frames);
+        if (alive < 0) { c->st.nan_fix++; alive = 0; }             /* NaN en el golpe: sale en silencio y se termina */
         float g = DRUM_GAIN * (float)v->gain / 100.0f, pk = 0.0f;
         for (uint16_t i = 0; i < frames; i++) pk = fmaxf(pk, fabsf(tmp[i]));
         if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * g);
@@ -672,6 +673,7 @@ static bool wv_process(bm_engine *e, int32_t *buf, uint16_t frames)
         uint8_t m[4];
         wv_macros(v, t, m);
         int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames, lane);
+        if (alive < 0) { c->st.nan_fix++; alive = 0; }             /* NaN en la voz: ya volvió a cero, sale en silencio */
         if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * WV_GAIN);
         else
             for (uint16_t i = 0; i < frames; i++) {

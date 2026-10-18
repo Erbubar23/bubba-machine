@@ -180,7 +180,8 @@ struct DVoice {
     alignas(8) unsigned char odm[sizeof(Overdrive)];   /* sin constructores globales */
     alignas(8) unsigned char mem[kModelBytes];
 };
-static DVoice dv_[BM_VOICES];
+static DVoice dv_[BM_V_DRUM_N];     /* only T1 plays drums: its voices are BM_V_DRUM0..+BM_V_DRUM_N-1 */
+static inline bool drum_voice(int v) { return v >= BM_V_DRUM0 && v < BM_V_DRUM0 + BM_V_DRUM_N; }
 
 /* Nivel de cada modelo, para que todos peguen parecido con los valores del kit (tests/test_core.c). */
 static const float kGain[DRM_COUNT] = {2.0f, 1.0f, 1.0f, 1.0f, 1.6f, 1.1f, 1.8f, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f};
@@ -194,8 +195,8 @@ void bm_drm_init(float fs)
 
 void bm_drm_trigger(int v, int model, float hz, float tone, float decay, float color, float accent)
 {
-    if (v < 0 || v >= BM_VOICES) return;
-    DVoice &d = dv_[v];
+    if (!drum_voice(v)) return;
+    DVoice &d = dv_[v - BM_V_DRUM0];
     d.model = (uint8_t)(model < 0 || model >= DRM_COUNT ? 0 : model);
     d.f0 = hz / fs_; d.tone = tone; d.decay = decay; d.color = color; d.accent = accent;
     d.gain = kGain[d.model];
@@ -219,8 +220,9 @@ void bm_drm_trigger(int v, int model, float hz, float tone, float decay, float c
 
 int bm_drm_render(int v, float *out, int n)
 {
-    if (v < 0 || v >= BM_VOICES || n <= 0) return 0;
-    DVoice &d = dv_[v];
+    if (n <= 0) return 0;
+    if (!drum_voice(v)) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }
+    DVoice &d = dv_[v - BM_V_DRUM0];
     bool tr = d.trig != 0;
     d.trig = 0;
     void *m = d.mem;
@@ -261,7 +263,8 @@ int bm_drm_render(int v, float *out, int n)
     case DRM_FM: static_cast<FmPerc *>(m)->Render(out, n); break;
     }
     /* nivel por el acento (los modelos de Plaits ya pegan más fuerte con él) y fin del golpe:
-     * pasados 20 ms, tres bloques seguidos por debajo de -90 dB */
+     * pasados 20 ms, tres bloques seguidos por debajo de -70 dB (0.9; antes -90: los hats y las colas
+     * largas seguían calculándose sin oírse) */
     float g = d.gain * (0.45f + 0.55f * d.accent), pk = 0.0f;
     for (int i = 0; i < n; i++) {
         out[i] *= g;
@@ -273,6 +276,6 @@ int bm_drm_render(int v, float *out, int n)
         return -1;
     }
     d.t += (uint32_t)n;
-    if (d.t > (uint32_t)(0.02f * fs_) && pk < 3.0e-5f) { if (++d.quiet >= 3) return 0; } else d.quiet = 0;
+    if (d.t > (uint32_t)(0.02f * fs_) && pk < 3.0e-4f) { if (++d.quiet >= 3) return 0; } else d.quiet = 0;
     return d.t < (uint32_t)(8.0f * fs_);
 }

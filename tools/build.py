@@ -27,7 +27,7 @@ SRC = 'core/*.c core/gen/*.c hal/bm_hal_sim.c'
 MSFA = ['dx7note', 'env', 'exp2', 'fm_core', 'fm_op_kernel', 'freqlut', 'lfo', 'pitchenv', 'porta', 'sin', 'EngineMsfa']
 # Plaits y stmlib (Mutable Instruments, MIT): batería modelada y el núcleo WAVE
 PLAITS = ['third_party/plaits/resources.cc', 'third_party/stmlib/dsp/units.cc', 'third_party/stmlib/utils/random.cc']
-CXX_SRC = ('core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp ' + ' '.join('third_party/msfa/%s.cpp' % f for f in MSFA)
+CXX_SRC = ('core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp core/bm_acid.cpp ' + ' '.join('third_party/msfa/%s.cpp' % f for f in MSFA)
            + ' ' + ' '.join(PLAITS))
 CXXFLAGS = ('-std=c++14 -O2 -fno-exceptions -fno-rtti -Ithird_party/msfa -Ithird_party -Icore -w '
             '-DPLAITS_SAMPLE_RATE=44118.0f -DTEST')   # TEST: stmlib sin ensamblador de ARM

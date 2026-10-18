@@ -10,12 +10,17 @@
 #include "bm_wave.h"
 #include "bm_snap.h"
 #include "bm_params.h"
+#include "bm_vpool.h"
+#include "bm_acid.h"
 #include <math.h>
+
+/* the shared memory of the pool voices (core/bm_vpool.h) */
+unsigned char bm_vpool_mem[BM_V_POOL_N][BM_VPOOL_BYTES] __attribute__((aligned(8)));
+uint8_t bm_vpool_owner[BM_V_POOL_N];
 
 /* Tiempos y constantes que se afinaron con los motores a 22 059 Hz: AT22 pasa n muestras de entonces
  * a muestras de BM_FS, y los coeficientes de un polo (Q15) se recalcularon para el mismo corte. */
 #define AT22(n) ((uint32_t)(n) * BM_FS / 22059u)
-#define ACID_ATK ((int32_t)(((uint64_t)1 << 26) * 22059u / BM_FS))     /* ataque de ~0.7 ms */
 
 /* interpolación lineal en Q15 (cabe en 32 bits con muestras de 16) */
 static inline int32_t lerp15(int32_t a, int32_t b, uint32_t frac16) { return a + (((b - a) * (int32_t)(frac16 >> 1)) >> 15); }
@@ -143,54 +148,35 @@ static int32_t hermite(int32_t xm1, int32_t x0, int32_t x1, int32_t x2, uint32_t
 }
 
 
-/* ------------------------------------------------------------ osciladores con poca alias (polyBLEP) */
-static int32_t blep(uint32_t ph, uint32_t inc)            /* corrección Q15 cerca del salto */
-{
-    if (!inc) return 0;
-    if (ph < inc) {
-        int32_t x = (int32_t)(((uint64_t)ph << 15) / inc);
-        return x + x - ((x * x) >> 15) - 32768;
-    }
-    if (ph > 0xFFFFFFFFu - inc) {
-        int32_t x = -(int32_t)(((uint64_t)(0xFFFFFFFFu - ph) << 15) / inc);
-        return ((x * x) >> 15) + x + x + 32768;
-    }
-    return 0;
-}
-
-static int32_t osc_saw(uint32_t ph, uint32_t inc) { return (int32_t)(ph >> 16) - 32768 - blep(ph, inc); }
-static int32_t osc_pulse(uint32_t ph, uint32_t inc, uint32_t width) { return (osc_saw(ph, inc) - osc_saw(ph + width, inc)) / 2; }
-
-static int32_t soft(int32_t x, int32_t knee)                /* saturación suave, sin divisiones */
-{
-    if (x > knee) x = knee + (x - knee) / 4;
-    else if (x < -knee) x = -knee + (x + knee) / 4;
-    if (x > 46000) x = 46000;
-    if (x < -46000) x = -46000;
-    return x;
-}
-
-/* ------------------------------------------------------------ ACID: monofónico estilo 303
- * Sierra o cuadrada, filtro escalera de 4 polos con resonancia y saturación, envolvente de filtro
- * corta, acento (abre más el filtro y suena más fuerte) y slide con LIGA. */
+/* ------------------------------------------------------------ ACID: monofónico estilo 303 (BB-303)
+ * 0.9: the voice is core/bm_acid.cpp, in float, after Open303 (MIT): TB-303 filter, main envelope
+ * with the measured CUTOFF / ENV MOD mapping, accent circuit, amp envelope and slide with LIGA. The
+ * macros (CUTOFF, RESO, ENV MOD, DECAY) take P-Locks per note; ACCENT and SLIDE are the channel's. */
 const char *const bm_acid_names[2] = {"SAW", "SQUARE"};
+
+static void acid_par(const bm_ctx *c, const bm_voice *v, const bm_track *t, int track, bm_acid_par *p)
+{
+    p->cut = eff(v, t, 0); p->res = eff(v, t, 1); p->env = eff(v, t, 2); p->dec = eff(v, t, 3);
+    p->acc = t->accent; p->slide = t->glide; p->wave = c->pat->prm[track][AC_WAVE] & 1;
+}
 
 static void acid_voice_start(bm_engine *e, bm_voice *v, uint8_t note, uint8_t vel, const uint8_t lk[4], uint8_t legato)
 {
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
     int n = bm_clampi(note + (int)t->transpose - 24 + (int)c->pat->meta.transpose - 24, 0, 127);
-    uint32_t inc = bm_note_inc[n];
+    int slide = legato && v->active && v->track == e->track && v->gate && !v->fade;
+    int fresh = !(v->active && v->track == e->track);
     memcpy(v->lk, lk, 4);
-    if (legato && v->active && v->track == e->track && v->gate && !v->fade) {
-        v->inc_target = inc; v->note = note; v->vel = vel;   /* slide: sin redisparar las envolventes */
-        return;
+    if (!slide) {
+        v->active = 1; v->track = e->track; v->gate = 1;
+        v->stage = ENV_DEC; v->env = 1 << 30; v->fade = 0; v->pend = 0; v->age = ++c->age;
     }
-    v->active = 1; v->track = e->track; v->note = note; v->vel = vel; v->gate = 1;
-    v->stage = ENV_ATK; v->env = 0; v->fenv = 1 << 30; v->fade = 0; v->pend = 0; v->age = ++c->age;
-    v->inc = v->inc_target = inc;
-    if (!v->phase) v->phase = 0x40000000u;
-    v->z[0] = v->z[1] = v->z[2] = v->z[3] = 0;
+    v->note = note; v->vel = vel;
+    bm_acid_par p;
+    acid_par(c, v, t, e->track, &p);
+    float lvl = vel >= 120 ? 1.0f : (float)bm_clampi(vel + 27, 1, 127) * (1.0f / 127.0f);
+    bm_acid_start((int)(v - c->voice), n, vel >= 120, slide ? 1 : fresh ? 2 : 0, lvl, &p);
 }
 
 static void acid_note_on(bm_engine *e, uint8_t note, uint8_t vel)
@@ -213,58 +199,31 @@ static bool acid_process(bm_engine *e, int32_t *buf, uint16_t frames)
     bm_ctx *c = e->ctx;
     const bm_track *t = &c->pat->trk[e->track];
     bool any = false;
+    static float tmp2[2][BM_BLOCK];
+    float *tmp = tmp2[c->par_on ? (c->par_mask >> e->track) & 1 : 0];
     for (int vi = 0; vi < BM_VOICES; vi++) {
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != e->track) continue;
         any = true;
-        if (v->inc != v->inc_target) {                          /* slide (por bloque) */
-            uint32_t gs = (uint32_t)(t->glide + 8) * (BM_FS / 254u);
-            int64_t gk = ((int64_t)65536 * frames) / (gs + frames);
-            int64_t d = (int64_t)v->inc_target - (int64_t)v->inc;
-            int64_t st = (d * gk) >> 16;
-            if (st == 0) v->inc = v->inc_target; else v->inc = (uint32_t)((int64_t)v->inc + st);
-        }
-        int acc = v->vel >= 120;
-        int dec = eff(v, t, 3);                                  /* macros: CUTOFF RESO ENV MOD DECAY */
-        uint32_t c_f = bm_decay_coef[bm_clampi(acc ? dec * 2 / 3 : dec, 0, 127)];
-        uint32_t c_amp = bm_decay_coef[bm_clampi(90 + dec / 4, 0, 127)];
-        uint32_t c_rel = bm_decay_coef[14];
-        int mod = eff(v, t, 2) * (acc ? 127 + t->accent : 127) / 127;
-        int ci = eff(v, t, 0) + (int)((mod * (v->fenv >> 22)) / 340);
-        ci = bm_clampi(ci, 0, 124);
-        int32_t g = bm_onepole_a[ci];
-        int32_t kq = eff(v, t, 1) * 990 / 127;                   /* realimentación Q8: hasta ~3.9 */
-        int sq = c->pat->prm[e->track][AC_WAVE] & 1;
-        int32_t lvl = acc ? 127 : bm_clampi(v->vel + 8, 1, 127);
-        for (uint16_t i = 0; i < frames && v->active; i++) {
-            int32_t o = sq ? osc_pulse(v->phase, v->inc, 0x80000000u) : osc_saw(v->phase, v->inc);
-            v->phase += v->inc;
-            int32_t x = soft(o - (int32_t)(((int64_t)v->z[3] * kq) >> 8), 22000);
-            v->z[0] += (int32_t)(((int64_t)(x - v->z[0]) * g) >> 15);
-            v->z[1] += (int32_t)(((int64_t)(v->z[0] - v->z[1]) * g) >> 15);
-            v->z[2] += (int32_t)(((int64_t)(v->z[1] - v->z[2]) * g) >> 15);
-            v->z[3] += (int32_t)(((int64_t)(v->z[2] - v->z[3]) * g) >> 15);
-            int32_t y = soft(v->z[3] + (int32_t)(((int64_t)v->z[3] * kq) >> 10), 26000);
-            switch (v->stage) {
-            case ENV_ATK: v->env += ACID_ATK; if (v->env >= (1 << 30)) { v->env = 1 << 30; v->stage = ENV_DEC; } break;
-            case ENV_REL:
-                v->env = (int32_t)(((int64_t)v->env * c_rel) >> 30);
-                if (v->env < (1 << 14)) voice_end(c, v);
-                break;
-            default: v->env = (int32_t)(((int64_t)v->env * c_amp) >> 30); if (v->env < (1 << 14)) voice_end(c, v); break;
+        bm_acid_par p;
+        acid_par(c, v, t, e->track, &p);
+        int alive = bm_acid_render(vi, &p, tmp, frames);
+        if (alive < 0) { c->st.nan_fix++; alive = 0; }
+        if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * 32768.0f);
+        else
+            for (uint16_t i = 0; i < frames; i++) {
+                buf[i] += voice_fade_step(c, v, (int32_t)(tmp[i] * 32768.0f));
+                if (!v->fade) { alive = v->active; break; }
             }
-            v->fenv = (int32_t)(((int64_t)v->fenv * c_f) >> 30);
-            int32_t out = (int32_t)(((int64_t)y * (v->env >> 14)) >> 16);
-            out = out * lvl >> 7;
-            int fading = v->fade != 0;
-            buf[i] += voice_fade_step(c, v, out);
-            if ((fading && v->fade == 0) || !v->active || v->track != e->track) break;   /* terminó o cambió de dueño */
+        if (v->active && v->track == e->track) {
+            v->env = (int32_t)(fminf(bm_acid_level(vi), 1.0f) * (float)(1 << 30));
+            if (!alive && !v->pend) v->active = 0;
         }
     }
     return any;
 }
 
-static void acid_init(bm_engine *e) { common_init(e); }
+static void acid_init(bm_engine *e) { common_init(e); bm_acid_init((float)BM_FS); }
 
 /* ------------------------------------------------------------ batería modelada (T1 y canales KIT)
  * Cada instrumento (bm_lane) tiene su modelo (core/bm_drums.h) y su golpe: AFINA, DECAY, TONO y
@@ -666,13 +625,24 @@ static bool wv_process(bm_engine *e, int32_t *buf, uint16_t frames)
     static float tmp2[2][BM_BLOCK];
     int lane = c->par_on ? (c->par_mask >> e->track) & 1 : 0;
     float *tmp = tmp2[lane];
+    /* 0.9: BUNO-6's paraphonic fast path (one VCF on the sum, only when every voice would get the
+     * same cutoff: no P-Lock either) and BITTAL's table readers, shared by the voices */
+    int flags = 0, nv = 0, locks = 0;
+    for (int vi = BM_V_POOL0; vi < BM_VOICES; vi++) {
+        const bm_voice *v = &c->voice[vi];
+        if (!v->active || v->track != e->track) continue;
+        nv++;
+        for (int i = 0; i < 4; i++) locks |= v->lk[i] != BM_LOCK_NONE;
+    }
+    if (t->engine == ENG_BUNO && !locks && bm_wv_para(prm, t->macro)) flags = WV_PARA;
+    if (t->engine == ENG_BITTAL && nv > 1) flags = WV_READERS_ALL / nv;
     for (int vi = 0; vi < BM_VOICES; vi++) {
         bm_voice *v = &c->voice[vi];
         if (!v->active || v->track != e->track) continue;
         any = true;
         uint8_t m[4];
         wv_macros(v, t, m);
-        int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames, lane);
+        int alive = bm_wv_render(vi, t->engine, prm, m, tmp, frames, lane, flags);
         if (alive < 0) { c->st.nan_fix++; alive = 0; }             /* NaN en la voz: ya volvió a cero, sale en silencio */
         if (!v->fade) for (uint16_t i = 0; i < frames; i++) buf[i] += (int32_t)(tmp[i] * WV_GAIN);
         else
@@ -685,6 +655,7 @@ static bool wv_process(bm_engine *e, int32_t *buf, uint16_t frames)
             if (!alive && !v->pend) v->active = 0;
         }
     }
+    if (t->engine == ENG_BUNO && bm_wv_bus(e->track, prm, t->macro, buf, frames, any, flags & WV_PARA) < 0) c->st.nan_fix++;
     return any;
 }
 
@@ -697,7 +668,7 @@ static void acid_note_off(bm_engine *e, uint8_t note)
     for (int i = 0; i < BM_VOICES; i++) {
         bm_voice *v = &c->voice[i];
         if (v->pend && v->pend_track == e->track && v->pend_note == note) v->pend = 0;
-        if (v->active && v->track == e->track && v->note == note && v->gate) { v->gate = 0; v->stage = ENV_REL; }
+        if (v->active && v->track == e->track && v->note == note && v->gate) { v->gate = 0; v->stage = ENV_REL; bm_acid_release(i); }
     }
 }
 const bm_engine_vt bm_eng_acid = {acid_init, acid_note_on, acid_note_off, common_set_macro, acid_process, acid_voice_start};

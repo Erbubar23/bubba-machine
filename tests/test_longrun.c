@@ -7,7 +7,8 @@
  *     held, REC on and off), dense (all six machines, many notes, accents, long notes, ROLL, pads
  *     held, FX sends, knobs moving, a load drop at minutes 11-12), wrap (dense with the 32-bit
  *     counters started near their end), tails (every sound: time until its voices free), chorus
- *     (BUNO-6 chorus noise over time), dual (TWO CORES against one), all (default: everything)
+ *     (BUNO-6 chorus noise over time), dual (TWO CORES against one), bench (each machine alone,
+ *     every sound: its cost), all (default: everything)
  *   py -3 tools/build.py longrun [minutes] [scenario] [asan]
  *
  * Every 64-frame block it checks the output, each channel's buffer, the float state of the mix
@@ -27,6 +28,7 @@
 #include "../core/bm_util.h"
 #include "../core/bm_wave.h"
 #include "../core/bm_params.h"
+#include "../core/bm_drums.h"
 
 static bm_sim sim;
 static bm_app app;
@@ -494,6 +496,7 @@ static void chorus(int minutes)
     printf("\n== chorus: one BUNO-6 note held through CHORUS I for %d minutes\n", minutes);
     boot_with_take();
     for (int t = 0; t < 5; t++) app.pat.trk[t].mute = 1;
+    bm_prm_defaults(&app.pat, 5);                         /* a fixed sound, not whatever factory sound 2 is */
     app.pat.trk[5].macro[0] = 50; app.pat.trk[5].macro[1] = 0;
     app.pat.prm[5][BN_CHORUS] = BN_CH_I; app.pat.prm[5][BN_S] = 127; app.pat.prm[5][BN_VCA] = 1;
     app.pat.trk[5].rsend = 0; app.pat.trk[5].send = 0; app.pat.meta.rv_mix = 0;
@@ -577,6 +580,109 @@ static void play(void)
     cmd(CMD_PLAY, 1, 0, 0, 0);
 }
 
+/* ------------------------------------------------------------ bench: the cost of each machine alone
+ * Sequencer stopped, the brake off, every other channel silent. Each machine plays every one of its
+ * sounds for a few seconds the same way (BR-8: a hit on 1-3 lanes every 16th; BB-303 and B-MINI: a
+ * 16th-note line with accents; BX-7, BITTAL and BUNO-6: chords that change every half second, as many
+ * notes as the machine has voices). Reported: PC time per 256 frames for the whole render, minus the
+ * render with nothing sounding, and the voices that sounded on average. */
+static double bench_render(int frames256, int (*step)(int k, int t), int t, double *voices)
+{
+    static int32_t out[BM_BLOCK * 2];
+    double ns = 0, vs = 0;
+    int k = 0;
+    for (int r = 0; r < frames256; r++) {
+        if (step && (r % 22) == 0) k = step(k, t);        /* every 22 renders ~ a 16th at 120 BPM */
+        double t0 = now_ns();
+        for (int b = 0; b < 4; b++) bm_app_audio(&app, out, BM_BLOCK);
+        ns += now_ns() - t0;
+        if (voices) vs += track_voices(t);
+    }
+    if (voices) *voices = vs / frames256;
+    return ns / frames256;
+}
+
+static int step_drums(int k, int t)
+{
+    static const uint8_t L[6] = {0, 2, 4, 1, 6, 5};
+    cmd(CMD_NOTE_ON, (uint8_t)t, L[k % 6], k % 4 == 0 ? 127 : 100, 0);
+    if (k % 2) cmd(CMD_NOTE_ON, (uint8_t)t, L[(k + 3) % 6], 100, 0);
+    if (k % 4 == 3) cmd(CMD_NOTE_ON, (uint8_t)t, 8 + k % 8, 100, 0);
+    return k + 1;
+}
+
+static int step_one(int k, int t)
+{
+    cmd(CMD_NOTE_ON, (uint8_t)t, 0, k % 4 == 0 ? 127 : 100, 0);
+    return k + 1;
+}
+
+static int step_mono(int k, int t)
+{
+    static const uint8_t N[8] = {36, 36, 48, 39, 41, 36, 43, 46};
+    if (k) cmd(CMD_NOTE_OFF, (uint8_t)t, N[(k - 1) % 8], 0, 0);
+    cmd(CMD_NOTE_ON, (uint8_t)t, N[k % 8], k % 4 == 0 ? 127 : 100, 0);
+    return k + 1;
+}
+
+static int bench_poly_n = 4;
+static int step_poly(int k, int t)
+{
+    static const uint8_t C[4][6] = {{48, 52, 55, 59, 62, 64}, {45, 48, 52, 55, 57, 60}, {41, 45, 48, 52, 55, 57}, {43, 47, 50, 53, 55, 59}};
+    if (k % 8) return k + 1;                               /* a chord every half second */
+    int c = (k / 8) % 4, p = (c + 3) % 4;
+    for (int i = 0; i < 6; i++) cmd(CMD_NOTE_OFF, (uint8_t)t, C[p][i], 0, 0);
+    for (int i = 0; i < bench_poly_n; i++) cmd(CMD_NOTE_ON, (uint8_t)t, C[c][i], 100, 0);
+    return k + 1;
+}
+
+static void bench(int seconds)
+{
+    printf("\n== bench: each machine alone, every sound, %d s each (PC us per 256 frames over silence)\n", seconds);
+    boot_with_take();
+    app.ctx.par_auto = 0;
+    for (int t = 0; t < BM_TRACKS; t++) { app.pat.trk[t].send = 0; app.pat.trk[t].rsend = 0; }
+    app.pat.meta.rv_mix = 0; app.pat.meta.dly_mix = 0;
+    double base = bench_render(400, NULL, 0, NULL);
+    printf("  silence: %.1f us per 256 frames\n", base / 1000.0);
+    static const int ENG[6] = {ENG_DRUM, ENG_ACID, ENG_MINI, ENG_FM, ENG_BITTAL, ENG_BUNO};
+    static const int POLY[6] = {0, 0, 0, 6, 4, 6};
+    int renders = seconds * 44118 / 256;
+    for (int e = 0; e < 6; e++) {
+        int t = ENG[e] == ENG_DRUM ? 0 : -1;
+        for (int k = 2; k < BM_TRACKS && t < 0; k++) if (app.pat.trk[k].engine == ENG[e]) t = k;
+        if (t < 0) { t = 2; cmd(CMD_ENGINE, 2, (uint8_t)ENG[e], 0, 0); bm_app_audio(&app, (int32_t[BM_BLOCK * 2]){0}, BM_BLOCK); }
+        int ns = t == 0 ? 1 : bm_sound_count(&app, t);
+        double sum = 0, vsum = 0, worst = 0; int worst_s = 0;
+        for (int s = 0; s < ns; s++) {
+            cmd(CMD_ALL_OFF, 0, 0, 0, 0);
+            if (t) cmd(CMD_PRESET, (uint8_t)t, (uint8_t)s, 0, 0);
+            for (int k = 0; k < 40; k++) { bm_app_audio(&app, (int32_t[BM_BLOCK * 2]){0}, BM_BLOCK); if (k % 10 == 0) { now_ms += 20; bm_app_tick(&app, now_ms); } }
+            for (int k = 0; k < 2000 && track_voices(t); k++) bm_app_audio(&app, (int32_t[BM_BLOCK * 2]){0}, BM_BLOCK);
+            bench_poly_n = POLY[e];
+            double v = 0, us = (bench_render(renders, t == 0 ? step_drums : POLY[e] ? step_poly : step_mono, t, &v) - base) / 1000.0;
+            sum += us; vsum += v;
+            if (us > worst) { worst = us; worst_s = s; }
+        }
+        cmd(CMD_ALL_OFF, 0, 0, 0, 0);
+        for (int k = 0; k < 4000 && track_voices(t); k++) bm_app_audio(&app, (int32_t[BM_BLOCK * 2]){0}, BM_BLOCK);
+        printf("  %-7s T%d %2d sounds: %6.1f us avg, %6.1f us worst (sound %d), %.1f voices avg\n", bm_engine_names[ENG[e]], t + 1, ns,
+               sum / ns, worst, worst_s, vsum / ns);
+    }
+    /* BR-8 by model: one lane, a hit every 16th (the decay as in the kit) */
+    printf("  BR-8 per model, a hit every 16th:");
+    bm_lane keep = app.pat.tr[0].lane[0];
+    for (int m = 0; m < DRM_COUNT; m++) {
+        app.pat.tr[0].lane[0].model = (uint8_t)m;
+        cmd(CMD_ALL_OFF, 0, 0, 0, 0);
+        for (int k = 0; k < 4000 && track_voices(0); k++) bm_app_audio(&app, (int32_t[BM_BLOCK * 2]){0}, BM_BLOCK);
+        double v = 0, us = (bench_render(renders / 2, step_one, 0, &v) - base) / 1000.0;
+        printf(" %s %.1f (%.1f v)", bm_drm_short[m], us, v);
+    }
+    app.pat.tr[0].lane[0] = keep;
+    printf("\n");
+}
+
 int main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -622,6 +728,7 @@ int main(int argc, char **argv)
     if (all || !strcmp(sc, "tails")) tails();
     if (all || !strcmp(sc, "dual")) dual(minutes < 5 ? minutes : 5);
     if (all || !strcmp(sc, "chorus")) chorus(minutes > 8 ? minutes : 8);
+    if (all || !strcmp(sc, "bench")) bench(4);
     if (wav) {
         uint8_t h[44];
         memcpy(h, "RIFF", 4);

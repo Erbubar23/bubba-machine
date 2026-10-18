@@ -59,6 +59,8 @@ struct Osc {
     inline void step(float dt) { ph += dt; if (ph >= 1.0f) ph -= 1.0f; }
 };
 
+inline float ftz(float x) { return (x > -1e-15f && x < 1e-15f) ? 0.0f : x; }
+
 inline float clip3(float x)
 {
     x = x < -1.5f ? -1.5f : (x > 1.5f ? 1.5f : x);
@@ -505,7 +507,23 @@ float bm_wv_level(int v) { return v >= 0 && v < BM_VOICES ? V(v).ea.v : 0.0f; }
 int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane)
 {
     if (v < 0 || v >= BM_VOICES || n <= 0) return 0;
-    return render(V(v), eng, prm, mac, out, n, lane);
+    Voice &z = V(v);
+    int alive = render(z, eng, prm, mac, out, n, lane);
+    /* Un NaN en un filtro o una envolvente se queda: la última muestra y los estados, una vez por
+     * bloque. Si algo se rompió, la voz vuelve a cero, el bloque sale en silencio y se avisa (-1). */
+    float s = z.ea.v + z.ef.v + z.lad.y4 + z.lad.s[0] + z.lad.s[1] + z.lad.s[2] + z.lad.s[3] + z.hp_z + z.gate_g
+            + z.note + z.cut_prev + z.lph;
+    if (!(s > -1e9f && s < 1e9f) || !(out[n - 1] > -1e4f && out[n - 1] < 1e4f)) {
+        memset(out, 0, sizeof(float) * (size_t)n);
+        z.f1.Init(); z.f2.Init(); z.lad.Init(); z.hp_z = 0.0f; z.gate_g = 0.0f;
+        z.ea.v = z.ef.v = 0.0f; z.ea.st = z.ef.st = ST_OFF;
+        z.note = z.target = 60.0f; z.cut_prev = 0.0f; z.lph = 0.0f; z.first = 1;
+        return -1;
+    }
+    /* colas: lo que se apaga solo no baja a los subnormales (lentos), una vez por bloque */
+    for (int i = 0; i < 4; i++) z.lad.s[i] = ftz(z.lad.s[i]);
+    z.lad.y4 = ftz(z.lad.y4); z.hp_z = ftz(z.hp_z); z.gate_g = ftz(z.gate_g);
+    return alive;
 }
 
 void bm_wv_bench(const uint8_t *pm, const uint8_t *pb, const uint8_t *pn, const uint8_t mac[4],

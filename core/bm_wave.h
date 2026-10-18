@@ -21,7 +21,8 @@ void bm_wv_init(float fs);
  * · 2: mono, redispara las envolventes desde la nota anterior. */
 void  bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float note, float vel, int legato);
 void  bm_wv_release(int v);
-/* lane: 0 o 1, el búfer de trabajo del núcleo que calcula (con el audio en dos núcleos) */
+/* lane: 0 o 1, el búfer de trabajo del núcleo que calcula (con el audio en dos núcleos).
+ * Devuelve 1 si sigue sonando, 0 si terminó, -1 si tenía NaN/inf: la voz volvió a cero y out es silencio. */
 int   bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane);
 float bm_wv_level(int v);
 /* medición en el aparato: ticks de now() para reps bloques de 64 de una voz de cada máquina */

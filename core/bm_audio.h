@@ -140,6 +140,7 @@ typedef struct {
     volatile uint16_t loop_pos[BM_SYN_TRACKS];
     volatile uint16_t edits;            /* el audio editó el patrón (roll/loopera grabando) */
     volatile uint8_t roll_vel[BM_TR_TRACKS];   /* velocidad del último golpe del roll */
+    volatile uint32_t nan_fix;          /* estados del DSP con NaN/inf que se pusieron en cero (mezcla, FX y voces) */
 } bm_status;
 
 /* ------------------------------------------------------------ voces y motores */

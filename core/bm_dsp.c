@@ -31,6 +31,10 @@ static inline int16_t to16(float x)                 /* 1.0 -> 32767, con saturac
 }
 
 static inline float flush(float x) { return (x > -1e-20f && x < 1e-20f) ? 0.0f : x; }
+/* NaN, infinito o un estado que se fue de escala (sin -ffast-math: la comparación con NaN da falso) */
+static inline int bad(float x) { return !(x > -1e15f && x < 1e15f); }
+
+#define SC_HOLD_MS 30    /* el ducking se queda abajo mientras pega el bombo, después suelta con SC REL */
 
 /* SVF (Zavalishin/Simper, trapezoidal) en float: devuelve LP (hp=0) o HP (hp=1). */
 static inline float svf_run(float *ic1, float *ic2, float x, float a1, float a2, float a3, float k, int hp)
@@ -189,6 +193,27 @@ static void dj_filter(bm_ctx *c, int t, uint8_t djf, int32_t *x, uint32_t n)
     c->dj_ic1[t] = flush(c->dj_ic1[t]); c->dj_ic2[t] = flush(c->dj_ic2[t]);
 }
 
+/* Un NaN o un infinito en un estado compartido (delay, reverb, chorus, filtros, sidechain) se
+ * quedaría para siempre y callaría todo hasta reiniciar: una vez por bloque se mira cada grupo
+ * (la suma de un grupo es NaN o enorme si alguno lo es), se pone en cero y se cuenta en st.nan_fix. */
+static void dsp_guard(bm_ctx *c)
+{
+    uint32_t fix = 0;
+    if (bad(c->sc_env)) { c->sc_env = 0.0f; fix++; }
+    if (bad(c->d_acc + c->d_prev + c->d_cur)) { c->d_acc = c->d_prev = c->d_cur = 0.0f; fix++; }
+    if (bad(rv_lp1 + rv_lp2 + rv_bw + rv_fb1 + rv_fb2 + rv_acc + rv_prevL + rv_prevR + rv_curL + rv_curR)) { rv_init(); fix++; }
+    if (bad(ch_lfo + ch_lpL + ch_lpR)) { memset(ch_buf, 0, sizeof ch_buf); ch_lfo = ch_lpL = ch_lpR = 0.0f; fix++; }
+    if (bad(c->mf_ic1[0] + c->mf_ic1[1] + c->mf_ic2[0] + c->mf_ic2[1])) { c->mf_ic1[0] = c->mf_ic1[1] = c->mf_ic2[0] = c->mf_ic2[1] = 0.0f; fix++; }
+    if (bad(c->pf_ic1[0] + c->pf_ic1[1] + c->pf_ic2[0] + c->pf_ic2[1] + c->gate_g + c->sh_l + c->sh_r)) {
+        c->pf_ic1[0] = c->pf_ic1[1] = c->pf_ic2[0] = c->pf_ic2[1] = c->gate_g = c->sh_l = c->sh_r = 0.0f; fix++;
+    }
+    if (bad(c->smp_z[0] + c->smp_z[1] + c->smp_z[2] + c->smp_z[3])) { memset(c->smp_z, 0, sizeof c->smp_z); fix++; }
+    if (bad(c->fade_gain)) { c->fade_gain = 0.0f; fix++; }                   /* vuelve a subir sola */
+    for (int t = 0; t < BM_TRACKS; t++)
+        if (bad(c->dj_ic1[t] + c->dj_ic2[t])) { c->dj_ic1[t] = c->dj_ic2[t] = 0.0f; fix++; }
+    if (fix) c->st.nan_fix += fix;
+}
+
 void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
 {
     static float L[BM_BLOCK], R[BM_BLOCK], S[BM_BLOCK], SC[BM_BLOCK];
@@ -197,16 +222,18 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     int32_t peak[BM_TRACKS] = {0};
     if (n > BM_BLOCK) n = BM_BLOCK;
 
-    /* ---- sidechain: la envolvente del bombo, solo si hace falta */
+    /* ---- sidechain: la envolvente del bombo, solo si hace falta. Con HOLD: el golpe la pone en
+     * k^-N (> 1) y lo que pasa de 1 no cuenta, así queda abajo N muestras sin un estado más. */
     int duck_any = 0;
     for (int t = 1; t < BM_TRACKS; t++) if (c->pat->trk[t].duck && (c->tact & (1u << t))) duck_any = 1;
     {
         float e = c->sc_env, k = (float)bm_decay_coef[m->sc_release / 2] * (1.0f / 1073741824.0f);
         int trig = c->sc_trig_at;
         if (duck_any || trig >= 0 || e > 0.0f) {
+            float top = trig >= 0 && k > 0.9f ? expf(-logf(k) * (float)(SC_HOLD_MS * BM_FS / 1000)) : 1.0f;
             for (uint32_t i = 0; i < n; i++) {
-                if ((int)i == trig) e = 1.0f;
-                SC[i] = e;
+                if ((int)i == trig) e = top;
+                SC[i] = e < 1.0f ? e : 1.0f;
                 e *= k;
             }
             c->sc_env = e < 1e-6f ? 0.0f : e;
@@ -234,29 +261,32 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             for (uint32_t i = 0; i < n; i++) RV[i] += (float)x[i] * grv;
         }
         int32_t pk = 0;
+        float dk = t >= 1 ? (float)tr->duck * (1.0f / 127.0f) : 0.0f;
         int chm = tr->engine == ENG_BUNO ? c->pat->prm[t][BN_CHORUS] % BN_CHORUSES : 0;
-        if (chm) {                                               /* BUNO-6: chorus estéreo */
+        if (chm) {                                               /* BUNO-6: chorus estéreo (con ducking) */
             float rate = CH_RATE[chm] / (float)BM_FS;
             float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
             float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
             const float kl = 0.55f;                                 /* el BBD filtra los agudos */
+            float cl = gl * 0.75f, cr = gr * 0.75f;
             for (uint32_t i = 0; i < n; i++) {
                 int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
                 if (ax > pk) pk = ax;
-                float v = (float)xi;
+                /* ducking a la entrada del chorus: el eco del BBD lo sigue 2-5 ms después (no se
+                 * oye) y cuesta una multiplicación. dk = 0: sin ducking (SC viejo, no importa) */
+                float v = (float)xi * (1.0f - SC[i] * dk);
                 ch_buf[ch_w] = v;
                 ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
                 float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
                 float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
                 ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
                 ch_w = (ch_w + 1u) & (CH_LEN - 1u);
-                L[i] += (v + ch_lpL) * gl * 0.75f; R[i] += (v + ch_lpR) * gr * 0.75f; S[i] += v * gs;
+                L[i] += (v + ch_lpL) * cl; R[i] += (v + ch_lpR) * cr; S[i] += v * gs;
             }
             peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
             continue;
         }
-        if (t >= 1 && tr->duck) {
-            float dk = (float)tr->duck * (1.0f / 127.0f);
+        if (dk > 0.0f) {
             for (uint32_t i = 0; i < n; i++) {
                 int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
                 if (ax > pk) pk = ax;
@@ -481,4 +511,5 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         c->st.peak[t] = (uint8_t)c->peak_acc[t];
     }
     if (c->smp_rec) c->st.smp_len = c->smp_rec_pos;
+    dsp_guard(c);
 }

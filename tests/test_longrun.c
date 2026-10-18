@@ -298,6 +298,11 @@ static void print_minute(int m)
     for (int t = 0; t < BM_TRACKS; t++) if (S.tbig[t]) PROBLEM("minute %d: T%d buffer blew up (%u samples above 64x full scale, peak %.1f)", m, t + 1, S.tbig[t], S.tpk[t]);
     if (S.nan_state) PROBLEM("minute %d: NaN/inf in the mix state (%u blocks)", m, S.nan_state);
     if (S.nan_voice) PROBLEM("minute %d: NaN/inf in a WAVE voice (%u)", m, S.nan_voice);
+    /* the DSP guard resets a NaN/inf state before the checks above can see it: it counts them */
+    static uint32_t fix_seen;
+    if (app.ctx.st.nan_fix < fix_seen) fix_seen = 0;                     /* a new boot */
+    if (app.ctx.st.nan_fix != fix_seen) PROBLEM("minute %d: the DSP guard reset %u states with NaN/inf", m, app.ctx.st.nan_fix - fix_seen);
+    fix_seen = app.ctx.st.nan_fix;
     /* a saturated delay line is the int16 store clipping a hot feedback loop (like tape): reported, not a fault */
     if (S.sat_dly > 1000) printf("  (minute %d: delay line clipped in %u samples)\n", m, S.sat_dly);
 }

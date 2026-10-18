@@ -361,12 +361,31 @@ void bm_loop_cmd(bm_ctx *c, int t, int action, int val)
     c->st.loop_mode[i] = L->mode;
 }
 
-/* ------------------------------------------------------------ escenas, patrones y canción */
+/* ------------------------------------------------------------ escenas, patrones y canción
+ * 0.9: los mutes son de la consola y sobreviven al cambio de patrón (los que guarda un patrón son
+ * solo el punto de partida al arrancar). Una escena = solo mutes; entra en el próximo compás. */
+uint8_t bm_mutes_get(const bm_pattern *p, uint16_t lm[BM_TR_TRACKS])
+{
+    uint8_t tm = 0;
+    for (int t = 0; t < BM_TRACKS; t++) if (p->trk[t].mute) tm |= (uint8_t)(1u << t);
+    for (int t = 0; t < BM_TR_TRACKS; t++) lm[t] = p->tr[t].mute;
+    return tm;
+}
+
+void bm_mutes_set(bm_pattern *p, uint8_t tm, const uint16_t lm[BM_TR_TRACKS])
+{
+    for (int t = 0; t < BM_TRACKS; t++) p->trk[t].mute = (uint8_t)((tm >> t) & 1);
+    for (int t = 0; t < BM_TR_TRACKS; t++) p->tr[t].mute = lm[t];
+}
+
 static void do_swap(bm_ctx *c, int to)
 {
     if (to < 0 || to == c->cur_pat || !c->swap) return;
     syn_gates_off(c);
+    uint16_t lm[BM_TR_TRACKS];
+    uint8_t tm = bm_mutes_get(c->pat, lm);
     if (c->swap(c->swap_user, c->cur_pat, to, c->pat) == 0) {
+        bm_mutes_set(c->pat, tm, lm);
         c->cur_pat = (uint8_t)to;
         bm_seq_set_bpm(c, c->pat->meta.bpm_x10);
         c->st.pattern = (uint8_t)to;
@@ -385,13 +404,17 @@ static void do_swap(bm_ctx *c, int to)
 
 static void apply_scene(bm_ctx *c, int idx)
 {
-    if (!c->song || idx < 0 || idx >= BM_SCENES || !c->song->scene[idx].valid) return;
+    if (!c->song || idx < 0 || idx >= BM_SCENES || !(c->song->scene[idx].flags & SCN_STORED)) return;
     const bm_scene *s = &c->song->scene[idx];
-    do_swap(c, s->pattern);
-    for (int t = 0; t < BM_TRACKS; t++) c->pat->trk[t].mute = (uint8_t)((s->trk_mute >> t) & 1);
-    for (int t = 0; t < BM_TR_TRACKS; t++) c->pat->tr[t].mute = s->lane_mute[t];
+    bm_mutes_set(c->pat, s->trk_mute, s->lane_mute);
     c->st.scene = (uint8_t)idx;
     c->st.edits++;
+}
+
+static void song_entry(bm_ctx *c, uint8_t e)
+{
+    do_swap(c, bm_song_pat(e));
+    if (bm_song_scene(e) >= 0) apply_scene(c, bm_song_scene(e));
 }
 
 static void pchain_status(bm_ctx *c)
@@ -400,26 +423,51 @@ static void pchain_status(bm_ctx *c)
     if (c->pchain_n > 1) c->st.queued = c->pchain[(c->pchain_pos + 1) % c->pchain_n];
 }
 
-static void boundary(bm_ctx *c)
+/* la escena en cola entra; en una cadena, queda en cola la siguiente (para el próximo ciclo maestro) */
+static void scene_step(bm_ctx *c)
 {
-    if (c->scene_q >= 0) {
-        apply_scene(c, c->scene_q);
-        c->scene_q = -1;
-        if (c->chain_n) {
-            c->chain_pos = (uint8_t)((c->chain_pos + 1) % c->chain_n);
-            c->scene_q = (int8_t)c->chain[c->chain_pos];
-            c->st.chain_pos = c->chain_pos;
-        }
-        c->st.scene_q = c->scene_q < 0 ? 0xFF : (uint8_t)c->scene_q;
+    apply_scene(c, c->scene_q);
+    c->scene_bar = 0;
+    if (c->chain_n > 1) {
+        c->chain_pos = (uint8_t)((c->chain_pos + 1) % c->chain_n);
+        c->scene_q = (int8_t)c->chain[c->chain_pos];
+        c->st.chain_pos = c->chain_pos;
+    } else c->scene_q = -1;
+    c->st.scene_q = c->scene_q < 0 ? 0xFF : (uint8_t)c->scene_q;
+}
+
+/* Cada compás: la escena que se lanzó y los mutes de CUE, todo junto (después del cambio de patrón). */
+static void bar(bm_ctx *c)
+{
+    if (c->scene_q >= 0 && c->scene_bar) scene_step(c);
+    if (c->cue_x) {
+        for (int t = 0; t < BM_TRACKS; t++) if ((c->cue_x >> t) & 1) c->pat->trk[t].mute ^= 1;
+        c->cue_x = 0; c->st.cue_x = 0;
+        c->st.edits++;
+    }
+}
+
+void bm_mute_cue_cmd(bm_ctx *c, uint8_t x)
+{
+    x &= (1u << BM_TRACKS) - 1u;
+    if (!c->playing) {                                       /* parado: ya */
+        for (int t = 0; t < BM_TRACKS; t++) if ((x >> t) & 1) c->pat->trk[t].mute ^= 1;
+        c->st.edits++;
         return;
     }
+    c->cue_x ^= x;
+    c->st.cue_x = c->cue_x;
+}
+
+static void boundary(bm_ctx *c)
+{
+    if (c->chain_n > 1 && c->scene_q >= 0 && !c->scene_bar) scene_step(c);   /* cadena de escenas: una por ciclo */
     if (c->song_on && c->song && c->song->n) {
         if (++c->song_rep >= (c->song->rep[c->song_pos] ? c->song->rep[c->song_pos] : 1)) {
             c->song_rep = 0;
             c->song_pos = (uint8_t)((c->song_pos + 1) % c->song->n);
         }
-        uint8_t e = c->song->pat[c->song_pos];
-        if (e & 0x80) apply_scene(c, e & 3); else do_swap(c, e);
+        song_entry(c, c->song->pat[c->song_pos]);
         c->st.song_pos = c->song_pos;
         return;
     }
@@ -452,20 +500,22 @@ void bm_pchain_cmd(bm_ctx *c, const uint8_t *list, int n)
 void bm_scene_cmd(bm_ctx *c, int idx)
 {
     c->chain_n = 0; c->st.chain_n = 0;
-    if (idx == 0xFF) { c->scene_q = -1; c->st.scene_q = 0xFF; return; }
-    if (!c->playing) { apply_scene(c, idx); return; }
-    c->scene_q = (int8_t)idx; c->st.scene_q = (uint8_t)idx;
+    c->scene_q = -1; c->st.scene_q = 0xFF;
+    if (idx == 0xFF) return;
+    if (!c->playing) { apply_scene(c, idx); return; }       /* parado: ya */
+    c->scene_q = (int8_t)idx; c->scene_bar = 1; c->st.scene_q = (uint8_t)idx;   /* sonando: en el próximo compás */
 }
 
+/* Una cadena (A sostenida + C + B): la primera entra en el próximo compás, las demás una por ciclo maestro. */
 void bm_chain_cmd(bm_ctx *c, const uint8_t *chain, int n)
 {
-    if (n < 1 || n > 8) return;
+    if (n < 2 || n > 8) { if (n == 1) bm_scene_cmd(c, chain[0]); return; }
     memcpy(c->chain, chain, (size_t)n);
     c->chain_n = (uint8_t)n; c->chain_pos = 0;
     c->st.chain_n = (uint8_t)n; c->st.chain_pos = 0;
-    if (!c->playing) { apply_scene(c, chain[0]); c->scene_q = n > 1 ? (int8_t)chain[1] : (int8_t)chain[0]; c->chain_pos = n > 1 ? 1 : 0; }
-    else c->scene_q = (int8_t)chain[0];
-    c->st.scene_q = (uint8_t)c->scene_q;
+    c->scene_q = (int8_t)chain[0]; c->scene_bar = 1;
+    if (!c->playing) scene_step(c);                          /* parado: la primera ya, la segunda en cola */
+    c->st.scene_q = c->scene_q < 0 ? 0xFF : (uint8_t)c->scene_q;
 }
 
 /* ------------------------------------------------------------ transporte */
@@ -478,9 +528,9 @@ void bm_seq_start(bm_ctx *c, int restart)
     c->rng = 0xB0BBAu ^ ((uint32_t)c->cur_pat * 7919u);   /* determinista desde PLAY */
     if (c->song_on && c->song && c->song->n) {
         c->song_pos = 0; c->song_rep = 0; c->st.song_pos = 0;
-        uint8_t e = c->song->pat[0];
-        if (e & 0x80) apply_scene(c, e & 3); else do_swap(c, e);
+        song_entry(c, c->song->pat[0]);
     }
+    bar(c);                                                  /* lo que quedó en cola parado entra ya */
     for (int i = 0; i < BM_SYN_TRACKS; i++) {
         loop_release(c, i);
         const bm_loop *d = &c->pat->loop[i];
@@ -714,5 +764,6 @@ void bm_seq_tick(bm_ctx *c)
         c->st.loops++;
         boundary(c);
     }
+    if (c->btick % BM_BAR_TICKS == 0) bar(c);                /* escenas y CUE: después del cambio de patrón */
     c->st.rtick = c->rtick;
 }

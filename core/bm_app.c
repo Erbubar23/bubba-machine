@@ -137,9 +137,14 @@ void app_overlay(bm_app *a, int enc, const char *title, const char *val, const c
     o->until = a->now + UI_OVERLAY_MS;
 }
 
+/* La pregunta la hace el control que se está atendiendo: sostenerlo (o volver a apretarlo) 2 s = sí. */
 void app_ask(bm_app *a, int kind, int arg, int arg2, const char *l1, const char *l2)
 {
     a->ask = (uint8_t)kind; a->ask_arg = (uint8_t)arg; a->ask_arg2 = (uint8_t)arg2;
+    a->ask_ctl = a->cur_ctl; a->ask_t0 = a->now;
+    if (a->ask_ctl == ASK_ENC) a->ask_live = 1;
+    else if (a->ask_ctl & ASK_KEY) a->ask_live = a->keys_down[(a->ask_ctl & 0x7F) % BM_KEYS];
+    else a->ask_live = (uint8_t)bm_gesture_is_down(&a->ges, a->ask_ctl);
     snprintf(a->ask_text[0], sizeof a->ask_text[0], "%s", l1);
     snprintf(a->ask_text[1], sizeof a->ask_text[1], "%s", l2 ? l2 : "");
     a->ov.on = 0;
@@ -641,11 +646,11 @@ static int exec_job(bm_app *a, int type, int arg)
     case JOB_COPY_PAT: return copy_to(a, arg, -1);
     case JOB_COPY_TRK: return copy_to(a, arg & 15, arg >> 4);
     case JOB_SAVE_SONG: {
-        uint8_t buf[1 + 2 * BM_SONG_MAX + sizeof a->song.scene];
-        buf[0] = a->song.n;
-        memcpy(buf + 1, a->song.pat, BM_SONG_MAX);
-        memcpy(buf + 1 + BM_SONG_MAX, a->song.rep, BM_SONG_MAX);
-        memcpy(buf + 1 + 2 * BM_SONG_MAX, a->song.scene, sizeof a->song.scene);
+        uint8_t buf[2 + 2 * BM_SONG_MAX + sizeof a->song.scene];
+        buf[0] = BM_SONG_VER; buf[1] = a->song.n;
+        memcpy(buf + 2, a->song.pat, BM_SONG_MAX);
+        memcpy(buf + 2 + BM_SONG_MAX, a->song.rep, BM_SONG_MAX);
+        memcpy(buf + 2 + 2 * BM_SONG_MAX, a->song.scene, sizeof a->song.scene);
         if (bm_store_write(&a->store, BM_OBJ_SONG, buf, sizeof buf)) return -1;
         a->song_dirty = 0;
         return 0;
@@ -790,10 +795,11 @@ static void demo_pattern(bm_pattern *p, bm_song *song, const bm_take *tk, uint8_
     p->trk[0].level = 84; p->trk[2].level = 66; p->trk[3].level = 32; p->trk[4].level = 36; p->trk[5].level = 26;
     p->meta.rv_mix = 70;
     memset(song->scene, 0, sizeof song->scene);
-    song->scene[0].valid = 1; song->scene[0].pattern = 0;                                  /* A: todo */
-    song->scene[1].valid = 1; song->scene[1].pattern = 0; song->scene[1].trk_mute = 0x38;  /* B: batería, voces y acid */
-    song->scene[2].valid = 1; song->scene[2].pattern = 0; song->scene[2].trk_mute = 0x01;  /* C: sin batería */
-    song->scene[3].valid = 1; song->scene[3].pattern = 0; song->scene[3].trk_mute = 0x3A;  /* D: batería y acid */
+    for (int s = 0; s < BM_SCENES; s++) song->scene[s].flags = SCN_STORED;
+    song->scene[0].trk_mute = 0x00;                                                        /* A: todo */
+    song->scene[1].trk_mute = 0x38;                                                        /* B: batería, voces y acid */
+    song->scene[2].trk_mute = 0x01;                                                        /* C: sin batería */
+    song->scene[3].trk_mute = 0x3A;                                                        /* D: batería y acid */
 }
 
 /* 0.4: sin loops de fábrica. El sampler toca tomas: las que se graban o se suben con
@@ -837,6 +843,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->pend_obj = -1; a->undo_track = -1; a->redo_track = -1; a->held_step = -1; a->held_white = -1;
     a->slice_sens = 64; a->pad_key = -1; a->rec_gate = 100; a->tie_from = -1; a->rec_step = -1;
     a->pat_sel = -1; a->punch_key = -1; a->last_pad = -1; a->solo_key = -1; a->solo_track = -1;
+    a->song_rec_scene = 0xFF; a->mach_trk = BM_TR_TRACKS; a->ask_ctl = 0xFF; a->cur_ctl = 0xFF;
     a->roll_rate = 1; a->roll_len = 2; a->roll_swing = 50;   /* 1/16, rampa de un compás: lo mismo que arranca el audio */
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
@@ -862,12 +869,13 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
             ok = 0;
         }
         if (ok) a->set = s;
-        uint8_t b[1 + 2 * BM_SONG_MAX + sizeof a->song.scene];
-        if (ok && bm_store_read(&a->store, BM_OBJ_SONG, b, sizeof b) == (int)sizeof b) {
-            a->song.n = b[0] > BM_SONG_MAX ? BM_SONG_MAX : b[0];
-            memcpy(a->song.pat, b + 1, BM_SONG_MAX);
-            memcpy(a->song.rep, b + 1 + BM_SONG_MAX, BM_SONG_MAX);
-            memcpy(a->song.scene, b + 1 + 2 * BM_SONG_MAX, sizeof a->song.scene);
+        uint8_t b[2 + 2 * BM_SONG_MAX + sizeof a->song.scene];   /* otra versión (0.8: escenas con patrón): se ignora */
+        if (ok && bm_store_read(&a->store, BM_OBJ_SONG, b, sizeof b) == (int)sizeof b && b[0] == BM_SONG_VER) {
+            a->song.n = b[1] > BM_SONG_MAX ? BM_SONG_MAX : b[1];
+            memcpy(a->song.pat, b + 2, BM_SONG_MAX);
+            memcpy(a->song.rep, b + 2 + BM_SONG_MAX, BM_SONG_MAX);
+            memcpy(a->song.scene, b + 2 + 2 * BM_SONG_MAX, sizeof a->song.scene);
+            for (int i = 0; i < a->song.n; i++) if (bm_song_pat(a->song.pat[i]) >= BM_PATTERNS) a->song.pat[i] = 0;
         }
         for (int i = 0; i < BM_PATTERNS; i++) if (bm_store_has(&a->store, (uint8_t)i)) fresh = 0;
         int len = 0;
@@ -909,11 +917,11 @@ void bm_app_master(bm_app *a, uint16_t adc)
 }
 
 /* ------------------------------------------------------------ navegación */
-static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE};
-static const uint8_t TABS_PADS[] = {PG_SEQ, PG_PADS, PG_BREAK, PG_TAKES, PG_MIX, PG_MORE};
-/* T3-T6: MACHINE es la primera de SOUND (SELECT pasa por ella antes de las páginas del sonido); ENV
- * y LFO están en SOUND */
-static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_MACH, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP, PG_MORE};
+/* 0.9: sin MACHINE (la máquina se cambia desde HOME) y sin MORE (es el GLO de la máquina) */
+static const uint8_t TABS_TR[] = {PG_SEQ, PG_SOUND, PG_INST, PG_MIX};
+static const uint8_t TABS_PADS[] = {PG_SEQ, PG_PADS, PG_BREAK, PG_TAKES, PG_MIX};
+/* T3-T6: ENV y LFO están en SOUND */
+static const uint8_t TABS_NOTE[] = {PG_SEQ, PG_SOUND, PG_MIX, PG_ARP, PG_LOOP};
 
 int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 {
@@ -927,14 +935,14 @@ int bm_app_tabs(const bm_app *a, int t, uint8_t out[8])
 
 const char *bm_page_name(int page)
 {
-    static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "MORE", "BREAK", "TAKES", "MACHINE", "ARP", "LOOP",
+    static const char *const N[PG_COUNT] = {"SEQ", "SOUND", "INSTR", "MIX", "GLO", "BREAK", "TAKES", "ARP", "LOOP",
                                             "MIDI", "SCALE", "CHORDS", "RECORD", "PADS"};
     return page < PG_COUNT ? N[page] : "";
 }
 
 int app_page_ok(const bm_app *a, int t, int page)
 {
-    if (page == PG_SCL || page == PG_CHORDS) return 1;
+    if (page == PG_SCL || page == PG_CHORDS || page == PG_MORE) return 1;
     if (page == PG_REC) return t == 1;
     uint8_t tabs[8];
     int n = bm_app_tabs(a, t, tabs);
@@ -942,17 +950,10 @@ int app_page_ok(const bm_app *a, int t, int page)
     return 0;
 }
 
-/* A dónde vuelve HOME (prev_view, V_BOOT = a ningún lado: HOME recorre sus páginas). Una pantalla
- * global abierta desde un canal recuerda el canal y su página; abierta desde otra pantalla (una
- * página de HOME, por ejemplo), recuerda esa. Entrar a un canal o a HOME lo olvida. Los pasos de
- * HOME por sus páginas lo borran después (bm_input.c). */
+/* 0.9: HOME siempre vuelve a MIX; no hay "volver" a otra pantalla. Salir de la consola apaga SLOOP. */
 void app_set_view(bm_app *a, int v)
 {
-    if (v != a->view) {
-        if (v == V_CH || v == V_HOME) a->prev_view = V_BOOT;
-        else if (a->view == V_CH) { a->prev_view = V_CH; a->prev_page = a->page; }
-        else if (a->prev_view == V_BOOT && a->view != V_BOOT) a->prev_view = a->view;
-    }
+    if (v != V_HOME && v != V_FXG && a->sloop) app_sloop(a, 0);
     a->view = (uint8_t)v;
     a->ov.on = 0;
     a->clear_armed = 0;
@@ -965,9 +966,9 @@ void app_enter(bm_app *a, int t, int page)
     if (a->view == V_CH && a->page == PG_PADS && page != PG_PADS && a->take_dirty)   /* la ganancia de la toma se guarda al salir */
         for (int i = 0; i < BM_TAKES; i++) if (a->take_dirty & (1u << i)) app_job(a, JOB_TAKE_META, i);
     a->page = (uint8_t)page;
-    if (page != PG_REC) a->ch_page[a->track] = (uint8_t)(page == PG_MACH ? PG_SOUND : page);   /* volver no pasa por MACHINE */
+    if (page != PG_REC && page != PG_MORE) a->ch_page[a->track] = (uint8_t)page;   /* volver no pasa por su GLO */
     a->held_step = -1; a->held_white = -1;
-    a->mach_sel = a->pat.trk[a->track].engine; a->mach_arm = 0;   /* MACHINE: empieza en la que suena, sin cuenta */
+    a->mach_arm = 0;
     app_set_view(a, V_CH);
 }
 
@@ -976,7 +977,7 @@ void app_select_track(bm_app *a, int t, int keep_page)
     if (t < 0 || t >= BM_TRACKS) return;
     a->track = (uint8_t)t;
     a->held_step = -1; a->held_white = -1;
-    a->mach_sel = a->pat.trk[t].engine; a->mach_arm = 0;
+    a->mach_arm = 0;
     if (a->view == V_CH) {
         int pg = keep_page && app_page_ok(a, t, a->page) && a->page != PG_REC ? a->page : a->ch_page[t];
         if (!app_page_ok(a, t, pg)) pg = PG_SEQ;
@@ -1100,6 +1101,21 @@ void app_select_pattern(bm_app *a, int idx)
     app_toast(a, b);
 }
 
+/* SONG REC: cada ciclo que empieza queda escrito (el patrón y, si se lanzó una escena, la escena).
+ * El mismo patrón sin escena nueva suma una vuelta a la entrada de antes. */
+void app_song_rec_note(bm_app *a)
+{
+    const bm_status *st = &a->ctx.st;
+    uint8_t sc = st->scene_q != 0xFF ? st->scene_q : st->scene;   /* la que entra en el primer compás también cuenta */
+    int fresh = sc != 0xFF && sc != a->song_rec_scene;
+    uint8_t e = (uint8_t)((st->pattern & 15) | (fresh ? (sc + 1) << 4 : 0));
+    if (fresh) a->song_rec_scene = sc;
+    uint8_t *last = a->song.n ? &a->song.pat[a->song.n - 1] : NULL;
+    if (last && !fresh && bm_song_pat(*last) == bm_song_pat(e) && a->song.rep[a->song.n - 1] < 16) a->song.rep[a->song.n - 1]++;
+    else if (a->song.n < BM_SONG_MAX) { a->song.pat[a->song.n] = e; a->song.rep[a->song.n] = 1; a->song.n++; }
+    a->song_dirty = 1; a->t_edit = a->now;
+}
+
 /* ------------------------------------------------------------ tick */
 void bm_app_tick(bm_app *a, uint32_t now)
 {
@@ -1141,13 +1157,8 @@ void bm_app_tick(bm_app *a, uint32_t now)
             }
         }
     }
-    if (a->song_rec && app_playing(a) && st->loops != a->song_rec_loops && st->scene != 0xFF) {   /* SONG REC */
-        a->song_rec_loops = st->loops;
-        uint8_t e = (uint8_t)(0x80 | st->scene);
-        if (a->song.n && a->song.pat[a->song.n - 1] == e && a->song.rep[a->song.n - 1] < 16) a->song.rep[a->song.n - 1]++;
-        else if (a->song.n < BM_SONG_MAX) { a->song.pat[a->song.n] = e; a->song.rep[a->song.n] = 1; a->song.n++; }
-        a->song_dirty = 1; a->t_edit = now;
-    }
+    if (a->song_rec == 2 && app_playing(a)) { a->song_rec = 1; a->song_rec_loops = st->loops; app_song_rec_note(a); }   /* SONG REC armado: empieza con PLAY */
+    else if (a->song_rec == 1 && app_playing(a) && st->loops != a->song_rec_loops) { a->song_rec_loops = st->loops; app_song_rec_note(a); }
     if (st->smp_unsaved && !st->smp_rec && !app_playing(a) && !a->njob && a->pf.flash) {   /* toma nueva: al parar */
         app_job(a, JOB_SAVE_TAKE, 0);
         app_toast(a, "SAVING THE TAKE");

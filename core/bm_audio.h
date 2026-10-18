@@ -73,7 +73,8 @@ typedef enum {
     CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
     CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
     CMD_ROLL_CFG,       /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
-    CMD_CLONE           /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
+    CMD_CLONE,          /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
+    CMD_MUTE_CUE        /* a=bits de los canales cuyo mute cambia en el próximo compás (CUE de HOME; parado: ya) */
 } bm_cmd_type;
 
 typedef struct {
@@ -129,6 +130,7 @@ typedef struct {
     volatile uint8_t clip;
     volatile uint8_t pattern, queued;
     volatile uint8_t scene, scene_q, chain_n, chain_pos;
+    volatile uint8_t cue_x;             /* CUE: los mutes que cambian en el próximo compás (bit = canal) */
     volatile uint8_t song_on, song_pos;
     volatile uint8_t fill;
     volatile uint8_t smp_rec, smp_armed, smp_unsaved;
@@ -248,6 +250,8 @@ typedef struct bm_ctx {
     uint32_t rtick, btick;
     int8_t queued;
     int8_t scene_q;
+    uint8_t scene_bar;           /* 1 = scene_q entra en el próximo compás (si no, al ciclo maestro: cadenas) */
+    uint8_t cue_x;               /* CUE: mutes que cambian en el próximo compás */
     uint8_t chain[8], chain_n, chain_pos;
     uint8_t song_pos, song_rep, cur_pat;
     uint32_t rng;
@@ -370,6 +374,9 @@ int bm_track_tps(const bm_ctx *c, int t);
 void bm_loop_cmd(bm_ctx *c, int t, int action, int val);
 void bm_scene_cmd(bm_ctx *c, int idx);
 void bm_chain_cmd(bm_ctx *c, const uint8_t *chain, int n);
+void bm_mute_cue_cmd(bm_ctx *c, uint8_t x);       /* CUE: estos mutes cambian juntos en el próximo compás */
+uint8_t bm_mutes_get(const bm_pattern *p, uint16_t lm[BM_TR_TRACKS]);   /* mutes de canal (bits) e instrumentos */
+void bm_mutes_set(bm_pattern *p, uint8_t tm, const uint16_t lm[BM_TR_TRACKS]);
 void bm_strum_cmd(bm_ctx *c, int t, const uint8_t *notes, int n, uint8_t vel);
 void bm_engines_sync(bm_ctx *c);                  /* motor de cada canal según el patrón */
 void bm_gen_decide(bm_ctx *c, uint32_t blk);      /* BREAK del sampler: decide un bloque de 16 pasos */

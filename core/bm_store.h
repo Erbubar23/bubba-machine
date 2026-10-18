@@ -12,7 +12,7 @@ typedef struct {
     int (*program)(uint32_t addr, const void *src, uint32_t n); /* <= 256 B, sin cruzar página */
 } bm_flash_ops;
 
-#define BM_OBJ_PATTERN0  0       /* 0..15 */
+#define BM_OBJ_PATTERN0  0       /* 0..BM_PATTERNS-1 (10..15 se ignoran al montar) */
 #define BM_OBJ_SONG      16
 #define BM_OBJ_COUNT     17
 #define BM_STORE_SLOTS   ((BM_STORE_HI - BM_STORE_LO) / BM_SLOT_SIZE)

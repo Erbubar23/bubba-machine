@@ -214,13 +214,18 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_PUNCH: c->punch_req = k->a; break;
     case CMD_FILL: c->fill = k->a; break;
     case CMD_QUEUE: c->queued = (k->a == 0xFF) ? -1 : k->a; c->st.queued = k->a; c->pchain_n = 0; c->st.pchain_n = 0; break;
-    case CMD_LOAD:
+    case CMD_LOAD: {
+        uint16_t lm[BM_TR_TRACKS];
+        uint8_t tm = bm_mutes_get(c->pat, lm);                 /* los mutes de la consola quedan */
         if (c->swap && c->swap(c->swap_user, c->cur_pat, k->a, c->pat) == 0) {
+            bm_mutes_set(c->pat, tm, lm);
             c->cur_pat = k->a; c->st.pattern = k->a; bm_seq_set_bpm(c, c->pat->meta.bpm_x10);
             bm_engines_sync(c);
             c->gen_blk = 0;
         }
         break;
+    }
+    case CMD_MUTE_CUE: bm_mute_cue_cmd(c, k->a); break;
     case CMD_PCHAIN: if (k->u.ptr) bm_pchain_cmd(c, (const uint8_t *)k->u.ptr, k->a); break;
     case CMD_SONG: c->song_on = k->a; c->st.song_on = k->a; c->song_pos = 0; c->song_rep = 0; break;
     case CMD_SCENE: bm_scene_cmd(c, k->a); break;

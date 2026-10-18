@@ -193,6 +193,76 @@ static void dj_filter(bm_ctx *c, int t, uint8_t djf, int32_t *x, uint32_t n)
     c->dj_ic1[t] = flush(c->dj_ic1[t]); c->dj_ic2[t] = flush(c->dj_ic2[t]);
 }
 
+/* DRIVE de un canal (HOME FX > CHANNEL K1): soft-clip mono antes de la mezcla, con la ganancia
+ * compensada (a todo, unos +9 dB de saturación). 0 = no pasa por aquí. */
+static void ch_drive(int32_t *x, uint32_t n, uint8_t drive)
+{
+    float g = 1.0f + (float)drive * (7.0f / 127.0f), kin = g * K15, kout = 32768.0f * sqrtf(g) / (1.5f * g);
+    for (uint32_t i = 0; i < n; i++) {
+        float u = (float)x[i] * kin;
+        u = u >= 1.0f ? 1.0f : u <= -1.0f ? -1.0f : u * (1.5f - 0.5f * u * u);
+        x[i] = (int32_t)(u * kout);
+    }
+}
+
+/* Un canal a la mezcla: L/R (con su chorus si es BUNO-6) si lr, y el envío al delay y su pico si snd.
+ * Con el BEAT FX (o el PUNCH) sonando, un canal con BEAT FX OFF pasa dos veces: el envío antes
+ * del efecto y L/R después, así el efecto no lo toca (como el BEAT FX por canal de un MX-1). */
+static int32_t mix_track(bm_ctx *c, int t, uint32_t n, float *L, float *R, float *S, const float *SC, int lr, int snd)
+{
+    const bm_track *tr = &c->pat->trk[t];
+    const int32_t *x = c->tbuf[t];
+    float g = (float)tr->level * (1.0f / 400.0f) * K15;      /* nivel 100 = -12 dB de headroom en el bus */
+    float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
+    float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
+    float gs = snd ? g * (float)tr->send * (1.0f / 128.0f) : 0.0f;
+    int32_t pk = 0;
+    float dk = t >= 1 ? (float)tr->duck * (1.0f / 127.0f) : 0.0f;
+    int chm = tr->engine == ENG_BUNO ? c->pat->prm[t][BN_CHORUS] % BN_CHORUSES : 0;
+    if (chm && lr) {                                         /* BUNO-6: chorus estéreo (con ducking) */
+        float rate = CH_RATE[chm] / (float)BM_FS;
+        float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
+        float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
+        const float kl = 0.55f;                                 /* el BBD filtra los agudos */
+        float cl = gl * 0.75f, cr = gr * 0.75f;
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+            if (ax > pk) pk = ax;
+            /* ducking a la entrada del chorus: el eco del BBD lo sigue 2-5 ms después (no se
+             * oye) y cuesta una multiplicación. dk = 0: sin ducking (SC viejo, no importa) */
+            float v = (float)xi * (1.0f - SC[i] * dk);
+            ch_buf[ch_w] = v;
+            ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
+            float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
+            float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
+            ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
+            ch_w = (ch_w + 1u) & (CH_LEN - 1u);
+            L[i] += (v + ch_lpL) * cl; R[i] += (v + ch_lpR) * cr; S[i] += v * gs;
+        }
+    } else if (!lr) {                                        /* solo el envío (BEAT FX OFF, antes del efecto) */
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+            if (ax > pk) pk = ax;
+            S[i] += (float)xi * (1.0f - SC[i] * dk) * gs;
+        }
+    } else if (dk > 0.0f) {
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+            if (ax > pk) pk = ax;
+            float v = (float)xi * (1.0f - SC[i] * dk);
+            L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
+        }
+    } else {
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
+            if (ax > pk) pk = ax;
+            float v = (float)xi;
+            L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
+        }
+    }
+    return (int32_t)((int64_t)pk * tr->level / 400);
+}
+
 /* Un NaN o un infinito en un estado compartido (delay, reverb, chorus, filtros, sidechain) se
  * quedaría para siempre y callaría todo hasta reiniciar: una vez por bloque se mira cada grupo
  * (la suma de un grupo es NaN o enorme si alguno lo es), se pone en cero y se cuenta en st.nan_fix. */
@@ -244,15 +314,14 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
     static float RV[BM_BLOCK];
     for (uint32_t i = 0; i < n; i++) L[i] = R[i] = S[i] = RV[i] = 0.0f;
     int rv_any = 0;
+    uint8_t late = 0;                                            /* BEAT FX OFF: L/R después del efecto */
     for (int t = 0; t < BM_TRACKS; t++) {
         if (!(c->tact & (1u << t))) continue;
         const bm_track *tr = &c->pat->trk[t];
         int32_t *x = c->tbuf[t];
         dj_filter(c, t, tr->djf, x, n);
-        float g = (float)tr->level * (1.0f / 400.0f) * K15;      /* nivel 100 = -12 dB de headroom en el bus */
-        float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
-        float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
-        float gs = g * (float)tr->send * (1.0f / 128.0f);
+        if (tr->drive) ch_drive(x, n, tr->drive);
+        float g = (float)tr->level * (1.0f / 400.0f) * K15;
         float rs = (float)tr->rsend * (1.0f / 128.0f);
         if (tr->engine == ENG_BITTAL) rs += bm_bt_macro(c->pat->prm[t], tr->macro, BTM_SPACE) * 0.8f;   /* macro SPACE */
         float grv = g * (rs < 0.0f ? 0.0f : rs);
@@ -260,48 +329,9 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             rv_any = 1;
             for (uint32_t i = 0; i < n; i++) RV[i] += (float)x[i] * grv;
         }
-        int32_t pk = 0;
-        float dk = t >= 1 ? (float)tr->duck * (1.0f / 127.0f) : 0.0f;
-        int chm = tr->engine == ENG_BUNO ? c->pat->prm[t][BN_CHORUS] % BN_CHORUSES : 0;
-        if (chm) {                                               /* BUNO-6: chorus estéreo (con ducking) */
-            float rate = CH_RATE[chm] / (float)BM_FS;
-            float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
-            float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
-            const float kl = 0.55f;                                 /* el BBD filtra los agudos */
-            float cl = gl * 0.75f, cr = gr * 0.75f;
-            for (uint32_t i = 0; i < n; i++) {
-                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
-                if (ax > pk) pk = ax;
-                /* ducking a la entrada del chorus: el eco del BBD lo sigue 2-5 ms después (no se
-                 * oye) y cuesta una multiplicación. dk = 0: sin ducking (SC viejo, no importa) */
-                float v = (float)xi * (1.0f - SC[i] * dk);
-                ch_buf[ch_w] = v;
-                ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
-                float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
-                float wl = ch_read(mid + dep * tri), wr = ch_read(mid - dep * tri);
-                ch_lpL += kl * (wl - ch_lpL); ch_lpR += kl * (wr - ch_lpR);
-                ch_w = (ch_w + 1u) & (CH_LEN - 1u);
-                L[i] += (v + ch_lpL) * cl; R[i] += (v + ch_lpR) * cr; S[i] += v * gs;
-            }
-            peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
-            continue;
-        }
-        if (dk > 0.0f) {
-            for (uint32_t i = 0; i < n; i++) {
-                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
-                if (ax > pk) pk = ax;
-                float v = (float)xi * (1.0f - SC[i] * dk);
-                L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
-            }
-        } else {
-            for (uint32_t i = 0; i < n; i++) {
-                int32_t xi = x[i], ax = xi < 0 ? -xi : xi;
-                if (ax > pk) pk = ax;
-                float v = (float)xi;
-                L[i] += v * gl; R[i] += v * gr; S[i] += v * gs;
-            }
-        }
-        peak[t] = (int32_t)((int64_t)pk * tr->level / 400);
+        int dry = pc >= 0 && tr->bfx_off;
+        if (dry) late |= (uint8_t)(1u << t);
+        peak[t] = mix_track(c, t, n, L, R, S, SC, !dry, 1);
     }
 
     /* ---- MOVE a la derecha: la mezcla entera también entra a la reverb (se lava) */
@@ -429,6 +459,8 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
             }
         }
         for (int ch = 0; ch < 2; ch++) { c->pf_ic1[ch] = flush(c->pf_ic1[ch]); c->pf_ic2[ch] = flush(c->pf_ic2[ch]); }
+        for (int t = 0; t < BM_TRACKS; t++)                      /* los canales con BEAT FX OFF, sin el efecto */
+            if ((late >> t) & 1) mix_track(c, t, n, L, R, S, SC, 1, 0);
     }
 
     /* ---- filtro del master (K3 de HOME): 64 abierto, a la izquierda pasa-bajos, a la derecha pasa-altos */

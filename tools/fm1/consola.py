@@ -97,7 +97,7 @@ def mostrar(v):
         x = v['past%d' % k]
         if x >> 24:
             e, fin, ok = x & 0xFF, (x >> 8) & 0xFF, (x >> 16) & 0xFF
-            print('  arranque -%d: llegó a %s, %s' % (k, ETAPA[min(e, 8)], 'bien' if ok else 'terminó: ' + FIN.get(fin, '?')))
+            print('  arranque -%d: llegó a %s, %s, terminó: %s' % (k, ETAPA[min(e, 8)], 'bien' if ok else 'sin marca de bien', FIN.get(fin, '?')))
 
 
 def main():

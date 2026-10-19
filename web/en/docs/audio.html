@@ -18,6 +18,7 @@
       <a href="../../emulador.html?lang=en">Emulator</a>
       <a href="manual.html">Manual</a>
       <a href="install.html">Install</a>
+      <a href="../../control.html?lang=en">Control</a>
       <a href="roadmap.html">Roadmap</a>
       <a href="contributing.html">Contribute</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
@@ -45,7 +46,7 @@
     <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
   <main class="doc">
 <h1 id="bubba-machines-audio">Bubba Machine's audio</h1>
-<p>Bubba Machine has one goal: <strong>the best audio quality the FM-1 allows</strong>. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, <strong>what isn't there yet</strong>.</p>
+<p>Bubba Machine has one goal: <strong>a hi-fi machine, the best audio quality the FM-1 allows</strong>: studio-grade sound computed live on a small groovebox, with no shortcut you can hear. This page covers what changed in 0.4.0-beta to get there, what each part costs on the device and, just as plainly, <strong>what isn't there yet</strong>.</p>
 <p>All CPU figures were measured on the author's FM-1 with the firmware console (<code>tools/fm1/traza.py</code>). The details of each measurement are in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/TRAZA_FM1.md"><code>TRAZA_FM1.md</code></a> and <a href="https://github.com/Erbubar23/bubba-machine/blob/main/docs/MOTORES.md"><code>MOTORES.md</code></a> (Spanish).</p>
 <h2 id="the-device">The device</h2>
 <div class="tbl"><table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Processor</td><td>JieLi AC791N, two cores at 360 MHz with a single-precision FPU</td></tr><tr><td>Output</td><td>external codec over I2S, <strong>24-bit stereo at 44,117.6 Hz</strong> (24 MHz / 544, fixed by hardware)</td></tr><tr><td>Memory for recorded sound</td><td>100 KiB of flash shared between takes (up to 3 s each) and user sounds</td></tr></tbody></table></div>
@@ -58,7 +59,7 @@
 <p>Measured on the device, the FPU is <strong>1.5× faster</strong> than the 64-bit integer math 0.3 used, so moving to float was both faster and cleaner.</p>
 <h3 id="3-sounds-computed-live-no-low-resolution-recordings">3. Sounds computed live, no low-resolution recordings</h3>
 <p>0.3 had drum kits recorded at 22 kHz in 8-bit μ-law (nothing above 11 kHz) and low-resolution wavetables. <strong>They are all gone.</strong> Every sound is now computed on the spot with proven synthesis libraries:</p>
-<div class="tbl"><table><thead><tr><th>Engine</th><th>What it uses</th><th>License</th></tr></thead><tbody><tr><td><strong>Modeled drums</strong></td><td>kick, snare and hi-hat models from <strong>Plaits</strong> (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion</td><td>MIT</td></tr><tr><td><strong>B-MINI</strong></td><td>three <strong>polyBLEP</strong> oscillators (anti-aliasing), ladder filter with drive, two envelopes and LFO</td><td>own and MIT (Plaits/stmlib)</td></tr><tr><td><strong>BITTAL</strong></td><td>tables built from a 256-harmonic spectrum in <strong>7 levels, one per octave</strong>: each note uses the level whose highest harmonic stays below 19 kHz, so there is <strong>no aliasing</strong> on any note; unison, filter and macros</td><td>own; factory sounds from freely licensed Vital presets</td></tr><tr><td><strong>BUNO-6</strong></td><td>one polyBLEP oscillator per voice, high-pass, 24 dB filter and a two-line modulated <strong>stereo chorus</strong>, like a Juno's</td><td>own</td></tr><tr><td><strong>6-operator FM</strong></td><td><strong>msfa</strong>, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms</td><td>Apache-2.0</td></tr><tr><td><strong>ACID</strong></td><td>4-pole ladder filter with resonance, accent and slide</td><td>own</td></tr></tbody></table></div>
+<div class="tbl"><table><thead><tr><th>Engine</th><th>What it uses</th><th>License</th></tr></thead><tbody><tr><td><strong>Modeled drums</strong></td><td>kick, snare and hi-hat models from <strong>Plaits</strong> (Mutable Instruments), in float, plus our own clap, cowbell, resonator, noise and FM percussion</td><td>MIT</td></tr><tr><td><strong>B-MINI</strong></td><td>three <strong>polyBLEP</strong> oscillators (anti-aliasing), ladder filter with drive, two envelopes and LFO</td><td>own and MIT (Plaits/stmlib)</td></tr><tr><td><strong>BITTAL</strong></td><td>tables built from a 256-harmonic spectrum in <strong>7 levels, one per octave</strong>: each note uses the level whose highest harmonic stays below 19 kHz, so there is <strong>no aliasing</strong> on any note; unison, filter and macros</td><td>own; factory sounds from freely licensed Vital presets</td></tr><tr><td><strong>BUNO-6</strong></td><td>one polyBLEP oscillator per voice, high-pass, 24 dB filter and a two-line modulated <strong>stereo chorus</strong>, like a Juno's</td><td>own</td></tr><tr><td><strong>6-operator FM</strong></td><td><strong>msfa</strong>, the engine of Dexed and the same base as the factory firmware; all 32 DX7 algorithms</td><td>Apache-2.0</td></tr><tr><td><strong>BB-303</strong></td><td>the TB-303 filter, accent circuit, envelopes and declicker adapted from <strong>Open303</strong> in float, with polyBLEP oscillators</td><td>MIT (Open303)</td></tr></tbody></table></div>
 <p>Accent doesn't just raise the level: it changes the hit, like a real drum machine.</p>
 <h3 id="4-an-output-without-clicks-or-steps">4. An output without clicks or steps</h3>
 <ul><li>
@@ -87,7 +88,7 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 </li><li>
 <strong>The clipper has no oversampling:</strong> with very high DRIVE it can alias a little.
 </li><li>
-<strong>ACID is our own engine, not Open303.</strong> The plan is to move to Open303 (MIT) in float.
+<strong>BB-303 runs Open303 without oversampling:</strong> its cutoff stops at 10 kHz to stay clean at 44.1 kHz.
 </li><li>
 <strong>msfa's FM is fixed point</strong>, like the original DX7. That's part of its character, not a flaw, but it isn't float.
 </li><li>
@@ -106,8 +107,6 @@ No-interpolation playback (DROP) became <strong>LINEAR</strong>, and the sampler
 <strong>Measure 0.6 on the FM-1:</strong> each machine's load, both cores and even volume across the bank sounds.
 </li><li>
 <strong>Master effects</strong>: tape delay, compressor and leveler.
-</li><li>
-<strong>ACID with Open303</strong> in float.
 </li><li>
 A <strong>higher-quality sampler</strong>, within what the flash allows.
 </li><li>

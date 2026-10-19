@@ -16,9 +16,13 @@
  * Los registros y la interrupción salen de los encabezados del SDK AC79 (Apache-2.0).
  *
  * La interrupción solo anota qué mitad quedó libre y despierta a la tarea "audio" (prioridad
- * alta), que calcula el bloque del núcleo. Si un bloque tarda más que lo que dura una mitad,
- * la tarea lo cuenta como tarde, deja silencio y cede un tick: así el resto del sistema nunca
- * se queda sin tiempo (ni el perro guardián reinicia el chip) aunque el audio no alcance. */
+ * 30, above the SDK's sys_event at 29: the highest one FreeRTOS allows here, the one the SDK's own
+ * audio_decoder uses), que calcula el bloque del núcleo. A block that took longer than a half
+ * (late): the half that is playing is not touched and nobody sleeps; the next free half is
+ * computed right away (0.8.1: before, both halves went silent and the task slept a 10 ms tick, so
+ * each late block was an audible gap). Only after LATE_SEGUIDOS late blocks in a row (the audio
+ * cannot keep up at all) does the task leave the free half silent and give up one tick, so the
+ * rest of the system (and the watchdog) still get time. */
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -57,8 +61,12 @@ static ___interrupt void alnk0_isr(void)
     os_sem_post(&sem);
 }
 
+#define LATE_SEGUIDOS 8u                                  /* ~46 ms without keeping up */
+#define AUDIO_PRIO    30                                  /* configMAX_PRIORITIES - 1 */
+
 static void audio_task(void *p)
 {
+    uint32_t seguidos = 0;
     (void)p;
     for (;;) {
         if (mudo) {                                       /* sin salida: el núcleo corre igual, callado */
@@ -88,9 +96,16 @@ static void audio_task(void *p)
         fm1_stat[FM1_STAT_AUDIO_CPU] = current_cpu_id();
         if (seq != s) {                                   /* se liberó otra mitad mientras calculaba */
             late++;
-            os_sem_set(&sem, 0);
-            memset(buf, 0, half_words * 2u * 4u);
-            os_time_dly(1);
+            if (seq - s > 1u)                             /* more than one behind: only the next one counts */
+                os_sem_set(&sem, 1);
+            if (++seguidos >= LATE_SEGUIDOS) {
+                seguidos = 0;
+                os_sem_set(&sem, 0);
+                memset(buf + (uint32_t)libre * half_words, 0, half_words * 4u);   /* the free half only */
+                os_time_dly(1);
+            }
+        } else {
+            seguidos = 0;
         }
     }
 }
@@ -129,7 +144,7 @@ void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb
     JL_ALNK0->CON2 = 0x0Fu;                               /* avisos viejos fuera */
     if (!tarea) {
         os_sem_create(&sem, 0);
-        os_task_create(audio_task, NULL, 25, 4096, 0, "audio");
+        os_task_create(audio_task, NULL, AUDIO_PRIO, 4096, 0, "audio");
         tarea = 1;
     }
     request_irq(IRQ_ALNK_IDX, 1, alnk0_isr, 0);
@@ -147,7 +162,7 @@ void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_rend
     en_marcha = 1;
     if (!tarea) {
         os_sem_create(&sem, 0);
-        os_task_create(audio_task, NULL, 25, 4096, 0, "audio");
+        os_task_create(audio_task, NULL, AUDIO_PRIO, 4096, 0, "audio");
         tarea = 1;
     }
 }

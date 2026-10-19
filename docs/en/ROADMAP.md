@@ -2,7 +2,7 @@
 
 Everything planned for Bubba Machine. **All of it will be done, step by step**, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.
 
-Items marked ✓ are already in the current version (0.6.0-beta); items marked **in testing** are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see [install](INSTALL.md)).
+Items marked ✓ are already in the current version (0.9.0-beta); items marked **in testing** are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see [install](INSTALL.md)).
 
 ## Audio
 
@@ -14,12 +14,13 @@ The goal is the best quality the FM-1 allows. What improved, what it costs and w
 - ✓ 32 KiB data cache and audio compiled for speed.
 - ✓ **The 0.6 machines:** B-MINI, BITTAL (alias-free wavetable, from Vital presets) and BUNO-6 (with stereo chorus).
 - ✓ **Reverb** with per-track send, **master filter** and **BEAT FX**.
+- ✓ **BB-303 on Open303** (MIT) in floating point: the TB-303 filter, accent circuit and envelopes.
 - **In testing:** audio on both cores (T4-T6 on the second; on the computer it gives the same samples) and the screen with SPI at 30 MHz.
 
 **Planned**
 1. **Measure 0.6 on the FM-1:** each machine's sound and load, BUNO-6's chorus and high-pass (approximate values today) and even volume across BITTAL sounds. Then turn both cores and the fast screen on by default.
 2. **Master effects:** tape delay, compressor and leveler.
-3. **ACID 2.0:** Open303 in floating point, with an acid line generator.
+3. **An acid line generator** for the BB-303.
 4. **A higher-quality sampler with more seconds**, within what the flash allows (today it records at 16 kHz and 8 bits).
 5. **A/B morph per drum instrument:** two versions of each hit and a knob that moves from one to the other.
 6. **CUERDA (string) and MODAL engines** (Plaits physical modeling): they already have a place in the format, they just aren't selectable yet.
@@ -41,16 +42,16 @@ The interface organizes the FM-1 into two places: **playing live** (HOME and its
 
 **Planned: playing live (HOME again = the next page)**
 1. **MORPH A·B:** move from one sound state to another with a knob (HOME's fourth macro).
-2. **SCENES AND SONG:** build and play the song with the scenes.
+2. ✓ **SCENES AND SONG:** scenes as mutes on the console, CUE, and song entries with a pattern and a scene (0.9).
 
 **Planned: working on a track (the button again = the next page)**
 1. **SEQ › LOOP › DICE:** controlled random variations, and the ACID generator for bass lines.
 2. **EDIT › SOUND › INSTR:** the A/B drum instrument.
 3. **LFO › MOTION:** a modulation sequencer and knob-movement recording.
-4. **FX › TRACK:** per-track mix and effects.
+4. ✓ **Per-channel mix and effects:** the console's FX › CHANNEL (drive, pan, duck, BEAT FX) (0.9).
 
 **Other**
-- **Pattern banks:** more than 20 patterns, by growing the flash map or shrinking the patterns.
+- **Pattern banks:** more than 10 patterns, by growing the flash map or shrinking the patterns.
 - **Ghost notes on drums:** a level P-Lock or a bigger format.
 
 ## Tools and ecosystem

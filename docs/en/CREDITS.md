@@ -16,20 +16,17 @@ Bubba Machine is a new project by [Erbubar23](https://github.com/Erbubar23), rel
 | **msfa** ("music synthesizer for android", by Google, maintained by [Dexed](https://codeberg.org/dcoredump/Synth_Dexed)) | BX-7's 6-operator engine | Apache-2.0 |
 | **Plaits** ([Mutable Instruments](https://github.com/pichenettes/eurorack), by Emilie Gillet) | BR-8's kicks, snares and hats, the variable-shape oscillator, the sine and the overdrive | MIT |
 | **stmlib** (Mutable Instruments) | State-variable filter, polyBLEP, interpolator | MIT |
+| **Open303** ([RobinSchmidt/Open303](https://github.com/RobinSchmidt/Open303), by Robin Schmidt) | BB-303: the TB-303 filter, accent circuit, envelopes, declicker and fixed filters, adapted in float in `core/bm_acid.cpp` | MIT |
 
 Details (commits, changes) are in [`third_party/README.md`](../../third_party/README.md). The reverb follows the algorithm published by Jon Dattorro (1997); the implementation is original.
 
 ## Factory sounds
 
-BR-8, BX-7 and BUNO-6 sounds are original to the project (BUNO-6's 12 were made in Vital). The 25 B-MINI and BITTAL sounds come from **community Vital presets** under free licenses: they are downloaded at a pinned commit, converted to the Bubba Machine format (`tools/gen_snaps.mjs`, `assets/presets/banco.json`) and given our own name. Credit and license belong to their authors:
+BR-8 kits are original to the project. Many factory sounds recreate historic machines from published settings (the TB-303 owner's manual, Minimoog sound charts, DX7 recipes, PPG manual tables): no audio was sampled and no factory data was copied; each source is listed in [`assets/presets/SOURCES.md`](../../assets/presets/SOURCES.md). Several BUNO-6 sounds start from Roland Juno factory patches as decoded by [Ultramaster KR-106](https://github.com/kayrockscreenprinting/ultramaster_kr106) (GPL). 21 B-MINI and BITTAL sounds come from **community Vital presets** under free licenses: they are downloaded at a pinned commit, converted to the Bubba Machine format (`tools/gen_snaps.mjs`, `assets/presets/banco.json`) and given our own name. Credit and license belong to their authors:
 
 | Sound | Machine | Original preset | Author | License |
 |---|---|---|---|---|
 | SUB ONE | B-MINI | Sub 1 | [nahush2321](https://github.com/nahush2321/Vitalium-presets) | GPL-3.0 |
-| SUB GROWL | B-MINI | Sub 56 | [nahush2321](https://github.com/nahush2321/Vitalium-presets) | GPL-3.0 |
-| CURIOUS | B-MINI | Curious Bass | [Abstraction Mage](https://github.com/abstractionmage/Vital-Presets) | CC0-1.0 |
-| 808 BASS | B-MINI | bad 808 | [Mxm40b (mxmfrpr)](https://github.com/Mxm40b/vital-presets) | Unlicense |
-| HEAVY LOW | B-MINI | low part of heavy bass | [Mxm40b (mxmfrpr)](https://github.com/Mxm40b/vital-presets) | Unlicense |
 | REESE | B-MINI | reese bass | [Mxm40b (mxmfrpr)](https://github.com/Mxm40b/vital-presets) | Unlicense |
 | SAW MOTION | BITTAL | Saw Movement 45 | [nahush2321](https://github.com/nahush2321/Vitalium-presets) | GPL-3.0 |
 | WIDE SYNTH | BITTAL | i have an itch | [Mxm40b (mxmfrpr)](https://github.com/Mxm40b/vital-presets) | Unlicense |

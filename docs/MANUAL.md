@@ -131,7 +131,7 @@ Todo se calcula en vivo; el sampler usa tus tomas. Hasta la v1 cada versión pue
 
 Bombos, cajas y hats de BR-8 son los modelos de **Plaits** (Mutable Instruments), que imitan los circuitos de la 808 y versiones sintéticas al estilo de la 909. Con el **acento** pegan distinto, no solo más fuerte.
 
-**El banco de sonidos.** B-MINI, BITTAL y BUNO-6 cargan **sonidos** (.bsnap): sus ajustes, sus macros y, en BITTAL, sus tablas. Los de fábrica vienen de presets de Vital con licencia libre (CC0, Unlicense y GPL-3.0; los créditos están en [CREDITOS.md](../CREDITOS.md)) y de presets propios de BUNO-6 hechos en Vital. Los tuyos se agregan desde el editor web ([sonidos](../web/sonidos.html)): PRESETS recorre primero los de fábrica y después los tuyos. La huella del sonido (#A4F9) se ve arriba a la derecha en SONIDO.
+**El banco de sonidos.** B-MINI, BITTAL y BUNO-6 cargan **sonidos** (.bsnap): sus ajustes, sus macros y, en BITTAL, sus tablas. Los de fábrica vienen de presets de Vital con licencia libre (CC0, Unlicense y GPL-3.0; los créditos están en [CREDITOS.md](../CREDITOS.md)) y de presets propios de BUNO-6 hechos en Vital. Los tuyos se agregan desde el editor web ([sonidos](../web/control.html#sounds)): PRESETS recorre primero los de fábrica y después los tuyos. La huella del sonido (#A4F9) se ve arriba a la derecha en SONIDO.
 
 ### Editar el sonido (B-MINI, BITTAL, BUNO-6)
 

@@ -15,6 +15,14 @@
 #include "bm_types.h"
 #include "bm_pattern.h"
 
+/* frames the engines compute per job (a multiple of BM_BLOCK). The FM-1 renders 256 per half
+ * buffer: with TWO CORES that is 2 hand-offs per half buffer (plus one per sequencer step), down
+ * from 4. 4 * BM_BLOCK (one hand-off) costs 3 KiB more of RAM, which the FM-1 does not have to
+ * spare (the SDK heap must stay at 120 KiB or more). Any multiple gives the same samples. */
+#ifndef BM_CHUNK
+#define BM_CHUNK (2u * BM_BLOCK)
+#endif
+
 /* ------------------------------------------------------------ comandos */
 typedef enum {
     CMD_NONE,
@@ -65,7 +73,8 @@ typedef enum {
     CMD_SMP_IMPORT,     /* toma desde afuera (consola): a=0 prepara la arena · a=1 lista: i=muestras, b<<8|c = bpm_x10 */
     CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
     CMD_ROLL_CFG,       /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
-    CMD_CLONE           /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
+    CMD_CLONE,          /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
+    CMD_MUTE_CUE        /* a=bits de los canales cuyo mute cambia en el próximo compás (CUE de HOME; parado: ya) */
 } bm_cmd_type;
 
 typedef struct {
@@ -121,6 +130,7 @@ typedef struct {
     volatile uint8_t clip;
     volatile uint8_t pattern, queued;
     volatile uint8_t scene, scene_q, chain_n, chain_pos;
+    volatile uint8_t cue_x;             /* CUE: los mutes que cambian en el próximo compás (bit = canal) */
     volatile uint8_t song_on, song_pos;
     volatile uint8_t fill;
     volatile uint8_t smp_rec, smp_armed, smp_unsaved;
@@ -140,6 +150,7 @@ typedef struct {
     volatile uint16_t loop_pos[BM_SYN_TRACKS];
     volatile uint16_t edits;            /* el audio editó el patrón (roll/loopera grabando) */
     volatile uint8_t roll_vel[BM_TR_TRACKS];   /* velocidad del último golpe del roll */
+    volatile uint32_t nan_fix;          /* estados del DSP con NaN/inf que se pusieron en cero (mezcla, FX y voces) */
 } bm_status;
 
 /* ------------------------------------------------------------ voces y motores */
@@ -239,6 +250,8 @@ typedef struct bm_ctx {
     uint32_t rtick, btick;
     int8_t queued;
     int8_t scene_q;
+    uint8_t scene_bar;           /* 1 = scene_q entra en el próximo compás (si no, al ciclo maestro: cadenas) */
+    uint8_t cue_x;               /* CUE: mutes que cambian en el próximo compás */
     uint8_t chain[8], chain_n, chain_pos;
     uint8_t song_pos, song_rep, cur_pat;
     uint32_t rng;
@@ -255,9 +268,15 @@ typedef struct bm_ctx {
     struct { uint8_t t, s, k, fill; uint8_t wait; } dq[16];   /* notas corridas en el tiempo (micro) */
     uint8_t dq_n;
 
-    /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores) */
-    int32_t tbuf[BM_TRACKS][BM_BLOCK];
+    /* mezcla y FX (bus en coma flotante, 1.0 = 32768 de los motores)
+     * 0.8.1: the engines write a whole chunk (up to BM_CHUNK frames, BM_CHUNK / BM_BLOCK mix
+     * blocks) into pbuf, so the other core gets one job per chunk instead of one per 64-frame
+     * block. tbuf[t] points at the BM_BLOCK frames of pbuf[t] being mixed (bm_dsp_mix reads it,
+     * and may filter it in place). */
+    int32_t pbuf[BM_TRACKS][BM_CHUNK];
+    int32_t *tbuf[BM_TRACKS];
     uint8_t tact;                /* canales que sonaron en el bloque (bit t) */
+    uint8_t pdirty;              /* rows of pbuf with engine output since they were last cleared */
     float sc_env;
     int16_t sc_trig_at;
     uint16_t blk_off;
@@ -296,12 +315,16 @@ typedef struct bm_ctx {
     uint8_t pchain[8], pchain_n, pchain_pos;
 
     /* audio en dos núcleos (a prueba): los canales de par_mask los calcula el otro núcleo. par_go
-     * le entrega el tramo [done, done + n) y par_wait espera a que termine. */
+     * le entrega el tramo [done, done + n) del chunk y par_wait espera a que termine: 0 = done.
+     * Anything else means the other core did not answer (or misread the job): its tracks are
+     * left out of the mix (par_quar) until the platform sees that core idle again and clears
+     * par_quar; meanwhile they are not computed anywhere, so nobody touches their voices twice. */
     void (*par_go)(void *u, uint32_t done, uint32_t n);
-    void (*par_wait)(void *u);
+    int (*par_wait)(void *u);
     void *par_user;
     uint8_t par_mask;
-    volatile uint8_t par_on, par_tact, par_defer;
+    volatile uint8_t par_on, par_defer, par_quar;
+    volatile uint8_t par_tsb[BM_CHUNK / BM_BLOCK];   /* tracks of par_mask that sounded, per mix block */
     /* Reparto que se ajusta solo (par_auto, con un reloj en now): cada BM_PAR_MIDE renders se mide
      * lo que costó cada canal y lo fijo del núcleo 0 (comandos, secuenciador, mezcla), y cada
      * BM_PAR_ELIGE se elige el reparto de los 64 posibles que deja más parejos los dos núcleos.
@@ -351,6 +374,9 @@ int bm_track_tps(const bm_ctx *c, int t);
 void bm_loop_cmd(bm_ctx *c, int t, int action, int val);
 void bm_scene_cmd(bm_ctx *c, int idx);
 void bm_chain_cmd(bm_ctx *c, const uint8_t *chain, int n);
+void bm_mute_cue_cmd(bm_ctx *c, uint8_t x);       /* CUE: estos mutes cambian juntos en el próximo compás */
+uint8_t bm_mutes_get(const bm_pattern *p, uint16_t lm[BM_TR_TRACKS]);   /* mutes de canal (bits) e instrumentos */
+void bm_mutes_set(bm_pattern *p, uint8_t tm, const uint16_t lm[BM_TR_TRACKS]);
 void bm_strum_cmd(bm_ctx *c, int t, const uint8_t *notes, int n, uint8_t vel);
 void bm_engines_sync(bm_ctx *c);                  /* motor de cada canal según el patrón */
 void bm_gen_decide(bm_ctx *c, uint32_t blk);      /* BREAK del sampler: decide un bloque de 16 pasos */

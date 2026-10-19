@@ -90,7 +90,7 @@ OWN_C := hal/fm1/sdk/board.c hal/fm1/sdk/wl82_debug.c core/bm_printf.c hal/fm1/f
 ifeq ($(APP),diag)
 OWN_C += hal/fm1/fm1_diag.c
 else
-OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_bench.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	hal/fm1/fm1_cpu1.c $(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
+OWN_C := $(sort $(OWN_C) hal/fm1/fm1_main.c hal/fm1/fm1_consola.c hal/fm1/fm1_bench.c hal/fm1/fm1_audio.c hal/fm1/fm1_scanhw.c hal/fm1/fm1_scan.c 	hal/fm1/fm1_cpu1.c hal/fm1/fm1_power.c $(patsubst $(REPO)/%,%,$(wildcard $(REPO)/core/*.c $(REPO)/core/gen/*.c)))
 endif
 
 LIBS := --start-group $(SDK)/include_lib/newlib/pi32v2-lib/libm.a $(SDK)/include_lib/newlib/pi32v2-lib/libc.a \
@@ -122,7 +122,7 @@ SDK_OBJS := $(addprefix $(OUT)/sdk/,$(SDK_C:.c=.o) $(SDK_S:.S=.o))
 # C++ (motores de terceros): sin excepciones, RTTI ni biblioteca de C++ (hal/fm1/compat).
 ifeq ($(APP),bubba)
 MSFA := dx7note env exp2 fm_core fm_op_kernel freqlut lfo pitchenv porta sin EngineMsfa
-OWN_CXX := core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp $(addprefix third_party/msfa/,$(addsuffix .cpp,$(MSFA)))
+OWN_CXX := core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp core/bm_acid.cpp $(addprefix third_party/msfa/,$(addsuffix .cpp,$(MSFA)))
 # Plaits y stmlib (Mutable Instruments, MIT): batería modelada y el núcleo WAVE
 OWN_CC := third_party/plaits/resources.cc third_party/stmlib/dsp/units.cc third_party/stmlib/utils/random.cc
 endif

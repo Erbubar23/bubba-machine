@@ -65,7 +65,8 @@ int bm_store_mount(bm_store *s, const bm_flash_ops *f)
         hdr_t h;
         if (read_hdr(f, a, &h)) return -1;
         if (h.obj >= BM_OBJ_COUNT || !valid(f, a, &h, BM_SLOT_BODY)) continue;
-        if (s->live[h.obj] < 0 || h.seq > s->live_seq[h.obj]) {
+        bool gone = h.obj >= BM_PATTERNS && h.obj < BM_OBJ_SONG;   /* 0.9: los patrones 11-16 ya no existen (su slot se reusa) */
+        if (!gone && (s->live[h.obj] < 0 || h.seq > s->live_seq[h.obj])) {
             s->live[h.obj] = (int16_t)i; s->live_seq[h.obj] = h.seq; s->live_len[h.obj] = h.len;
         }
         if (h.seq >= best) { best = h.seq; best_slot = (int)i; }

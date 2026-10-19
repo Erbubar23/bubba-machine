@@ -34,6 +34,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     memset(c, 0, sizeof *c);
     c->pat = pat; c->song = song; c->cmdq = q;
     c->mem = mem;
+    for (int t = 0; t < BM_TRACKS; t++) c->tbuf[t] = c->pbuf[t];
     memset(mem, 0, sizeof *mem);
     c->smp_base_inc = (uint32_t)(((uint64_t)BM_SMP_RATE << 16) / BM_FS);
     bm_fm_init((float)BM_FS);
@@ -213,13 +214,18 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_PUNCH: c->punch_req = k->a; break;
     case CMD_FILL: c->fill = k->a; break;
     case CMD_QUEUE: c->queued = (k->a == 0xFF) ? -1 : k->a; c->st.queued = k->a; c->pchain_n = 0; c->st.pchain_n = 0; break;
-    case CMD_LOAD:
+    case CMD_LOAD: {
+        uint16_t lm[BM_TR_TRACKS];
+        uint8_t tm = bm_mutes_get(c->pat, lm);                 /* los mutes de la consola quedan */
         if (c->swap && c->swap(c->swap_user, c->cur_pat, k->a, c->pat) == 0) {
+            bm_mutes_set(c->pat, tm, lm);
             c->cur_pat = k->a; c->st.pattern = k->a; bm_seq_set_bpm(c, c->pat->meta.bpm_x10);
             bm_engines_sync(c);
             c->gen_blk = 0;
         }
         break;
+    }
+    case CMD_MUTE_CUE: bm_mute_cue_cmd(c, k->a); break;
     case CMD_PCHAIN: if (k->u.ptr) bm_pchain_cmd(c, (const uint8_t *)k->u.ptr, k->a); break;
     case CMD_SONG: c->song_on = k->a; c->st.song_on = k->a; c->song_pos = 0; c->song_rep = 0; break;
     case CMD_SCENE: bm_scene_cmd(c, k->a); break;
@@ -384,24 +390,44 @@ void bm_audio_relief(bm_ctx *c)
 /* ticks entre dos lecturas del reloj; leído desde el otro núcleo puede ir un pelo atrás: cero */
 static inline uint32_t span(uint32_t a, uint32_t b) { uint32_t d = b - a; return d >= 0x80000000u ? 0 : d; }
 
-/* el canal t calcula [done, done + n); midiendo, suma lo que tardó (el otro núcleo también) */
+/* el canal t calcula [done, done + n) del chunk; midiendo, suma lo que tardó (el otro núcleo también) */
 static bool track_process(bm_ctx *c, int t, uint32_t done, uint32_t n, int mide)
 {
     uint32_t t0 = mide ? c->now() : 0;
-    bool r = c->eng[t].vt->process(&c->eng[t], &c->tbuf[t][done], (uint16_t)n);
+    bool r = c->eng[t].vt->process(&c->eng[t], &c->pbuf[t][done], (uint16_t)n);
     if (mide) c->cost_acc[t] += span(t0, c->now());
     return r;
 }
 
 static int midiendo(const bm_ctx *c) { return c->now && c->par_auto && (c->par_n % BM_PAR_MIDE) == 0; }
 
+/* The tracks of mask over [a, b) of the chunk, in pieces that never cross a BM_BLOCK edge and
+ * piece by piece (all the tracks of a piece, then the next piece): every engine gets exactly the
+ * calls it got with one core and one job per 64-frame block. tsb[k] |= the tracks that sounded in
+ * mix block k. prof: this is the audio core (the profile is not shared with the other one). */
+static void run_tracks(bm_ctx *c, uint8_t mask, uint32_t a, uint32_t b, int mide, uint8_t *tsb, int prof)
+{
+    BM_PROF_T0();
+    (void)prof;
+    while (a < b) {
+        uint32_t k = a / BM_BLOCK, e = (k + 1u) * BM_BLOCK;
+        if (e > b) e = b;
+        for (int t = 0; t < BM_TRACKS; t++) {
+            if (!((mask >> t) & 1u)) continue;
+            if (track_process(c, t, a, e - a, mide)) tsb[k] |= (uint8_t)(1u << t);
+#ifdef BM_PROF
+            if (prof) BM_PROF_LAP(BM_P_T0 + t);
+#endif
+        }
+        a = e;
+    }
+}
+
 void bm_audio_par_process(bm_ctx *c, uint32_t done, uint32_t n)
 {
-    uint8_t act = 0;
-    int mide = midiendo(c);
-    for (int t = 0; t < BM_TRACKS; t++)
-        if (((c->par_mask >> t) & 1) && track_process(c, t, done, n, mide)) act |= (uint8_t)(1u << t);
-    c->par_tact = act;
+    uint8_t tsb[BM_CHUNK / BM_BLOCK] = {0};
+    run_tracks(c, c->par_mask, done, done + n, midiendo(c), tsb, 0);
+    for (unsigned k = 0; k < BM_CHUNK / BM_BLOCK; k++) c->par_tsb[k] = tsb[k];
 }
 
 uint8_t bm_audio_par_pick(const uint32_t cost[BM_TRACKS], uint32_t over, uint8_t cur)
@@ -433,6 +459,29 @@ static void par_balance(bm_ctx *c)
     c->over_acc = 0;
 }
 
+/* Mix every block of the chunk that ends at or before `upto` and is not mixed yet (`*mixed`
+ * blocks are). A sequencer step at frame p of the chunk runs after the blocks that end at or
+ * before p are mixed and before the rest: the same order as when each 64-frame block was
+ * computed and mixed in turn (a step on a block edge runs after the mix of the block before). */
+static void mix_upto(bm_ctx *c, int32_t *out, const uint8_t *tsb, uint32_t *mixed, uint32_t upto, uint32_t len, int mide)
+{
+    BM_PROF_T0();
+    for (;;) {
+        uint32_t s0 = *mixed * BM_BLOCK, n = len - s0;
+        if (s0 >= len) return;
+        if (n > BM_BLOCK) n = BM_BLOCK;
+        if (s0 + n > upto) return;
+        c->tact = tsb[*mixed];
+        for (int t = 0; t < BM_TRACKS; t++) c->tbuf[t] = &c->pbuf[t][s0];
+        uint32_t m0 = mide ? c->now() : 0;
+        bm_dsp_mix(c, out + s0 * 2u * BM_OVERSAMPLE, n);
+        if (mide) c->over_acc += span(m0, c->now());
+        BM_PROF_LAP(BM_P_MIX);
+        c->sc_trig_at = -1;              /* the next block starts without a kick */
+        (*mixed)++;
+    }
+}
+
 void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
 {
     bm_cmd k;
@@ -443,6 +492,9 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
     int mide = midiendo(c);
     uint32_t o0 = mide ? c->now() : 0;
     BM_PROF_T0();
+    /* live notes (and strums) start at frame 0 of the first block: a kick played from the keys
+     * triggers the sidechain duck like a sequenced one (before, the block reset it afterwards) */
+    c->blk_off = 0;
     while (guard++ < BM_CMDQ_LEN && bm_cmd_pop(c->cmdq, &k)) apply(c, &k);
     BM_PROF_LAP(BM_P_CMD);
 
@@ -451,17 +503,19 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
     BM_PROF_LAP(BM_P_SEQ);
     if (mide) c->over_acc += span(o0, c->now());
     while (n_eng) {
-        uint32_t n = n_eng < BM_BLOCK ? n_eng : BM_BLOCK;
-        for (int t = 0; t < BM_TRACKS; t++) if (c->tact & (1u << t)) memset(c->tbuf[t], 0, sizeof c->tbuf[t]);   /* solo los que sonaron */
-        c->tact = 0;
-        c->sc_trig_at = -1;
-        uint32_t done = 0;
-        while (done < n) {
+        uint32_t len = n_eng < BM_CHUNK ? n_eng : BM_CHUNK;
+        for (int t = 0; t < BM_TRACKS; t++)            /* only the rows the engines wrote */
+            if ((c->pdirty | c->par_quar) & (1u << t)) memset(c->pbuf[t], 0, sizeof c->pbuf[t]);
+        c->pdirty = c->par_quar;                       /* a row the other core may still write: clear it again */
+        uint8_t tsb[BM_CHUNK / BM_BLOCK] = {0};
+        uint32_t done = 0, mixed = 0;     /* sc_trig_at: -1 after each mix (mix_upto) and at init */
+        while (done < len) {
             bool can_tick = !c->ext_clock || c->ext_budget > 0;
             if (can_tick && c->acc_q16 >= c->spt_q16) {
+                mix_upto(c, out, tsb, &mixed, done, len, mide);
                 c->acc_q16 -= c->spt_q16;
                 if (c->ext_clock) c->ext_budget--;
-                c->blk_off = (uint16_t)done;
+                c->blk_off = (uint16_t)(done % BM_BLOCK);
                 BM_PROF_RESTART();
                 uint32_t s0 = mide ? c->now() : 0;
                 bm_seq_tick(c);
@@ -469,23 +523,25 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
                 BM_PROF_LAP(BM_P_SEQ);
                 continue;
             }
-            uint32_t k2 = n - done;
+            uint32_t k2 = len - done;
             if (can_tick) {
                 uint32_t until = (c->spt_q16 - c->acc_q16 + 65535u) >> 16;
                 if (until < 1) until = 1;
                 if (until < k2) k2 = until;
             }
-            BM_PROF_RESTART();
             int par = c->par_on && c->par_mask && c->par_go && c->par_wait;
+            uint8_t mine = (uint8_t)((par ? ~c->par_mask : 0x3Fu) & ~c->par_quar & 0x3Fu);
             if (par) c->par_go(c->par_user, done, k2);            /* los canales de par_mask, en el otro núcleo */
-            for (int t = 0; t < BM_TRACKS; t++) {
-                if (par && ((c->par_mask >> t) & 1)) continue;
-                if (track_process(c, t, done, k2, mide)) c->tact |= (uint8_t)(1u << t);
-                BM_PROF_LAP(BM_P_T0 + t);
-            }
+            run_tracks(c, mine, done, done + k2, mide, tsb, 1);
             if (par) {
-                c->par_wait(c->par_user);
-                c->tact |= c->par_tact;
+                if (c->par_wait(c->par_user) == 0) {
+                    for (unsigned b = 0; b < BM_CHUNK / BM_BLOCK; b++) tsb[b] |= c->par_tsb[b];
+                } else {
+                    /* the other core did not answer: its tracks stay out (silent) until the
+                     * platform sees it idle; no waiting here */
+                    c->par_quar |= c->par_mask;
+                    c->par_on = 0;
+                }
                 if (c->par_defer) {                                  /* voces que cambiaron de núcleo */
                     c->par_defer = 0;
                     for (int i = 0; i < BM_VOICES; i++) {
@@ -502,13 +558,10 @@ void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
             c->sample_clock += k2;
             done += k2;
         }
-        BM_PROF_RESTART();
-        uint32_t m0 = mide ? c->now() : 0;
-        bm_dsp_mix(c, out, n);
-        if (mide) c->over_acc += span(m0, c->now());
-        BM_PROF_LAP(BM_P_MIX);
-        out += n * 2u * BM_OVERSAMPLE;
-        n_eng -= n;
+        for (unsigned b = 0; b < BM_CHUNK / BM_BLOCK; b++) c->pdirty |= tsb[b];
+        mix_upto(c, out, tsb, &mixed, len, len, mide);
+        out += len * 2u * BM_OVERSAMPLE;
+        n_eng -= len;
     }
     if (mide) par_balance(c);
 }

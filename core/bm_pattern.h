@@ -7,8 +7,8 @@
  *               y P-Locks en una lista dispersa.
  *   T2 BP-1:    16 pads (trozos de las tomas, como un KO II o un OP-1 field) en una rejilla TR
  *               como la de T1: una línea por pad. La página BREAK varía lo que suena.
- *   T3-T6: una máquina de notas cada uno (de fábrica BB-303, BX-7, BITTAL, BUNO-6; se elige en
- *               MACHINE): pasos con hasta 4 notas de 8 bytes + loopera.
+ *   T3-T6: una máquina de notas cada uno (de fábrica BB-303, BX-7, BITTAL, BUNO-6; se elige desde
+ *               HOME): pasos con hasta 4 notas de 8 bytes + loopera.
  * Cada canal tiene su largo y su velocidad; cada instrumento TR, su largo. */
 #ifndef BM_PATTERN_H
 #define BM_PATTERN_H
@@ -82,7 +82,7 @@ typedef struct {
 } bm_loop;
 
 /* ------------------------------------------------------------ motores y tipos de canal */
-/* Cada canal es una máquina. T3-T6 eligen la suya en la página MACHINE (por patrón). */
+/* Cada canal es una máquina. T3-T6 eligen la suya desde HOME (la tarjeta del canal o GLO > MACHINES; por patrón). */
 enum { ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_MINI, ENG_FM, ENG_BITTAL, ENG_BUNO, ENG_COUNT };
 enum { KIND_TR, KIND_NOTE };
 extern const char *const bm_engine_names[ENG_COUNT];     /* nombres de las máquinas: BR-8, BP-1, BB-303... */
@@ -117,7 +117,9 @@ typedef struct {
     uint8_t rsend;         /* envío a la reverb (el delay es send) */
     uint8_t midi_out;      /* 1 = además manda sus notas por MIDI (canal midi_ch) */
     uint8_t djf;           /* filtro DJ del canal (K2 de HOME): 0 abierto, 1-63 pasa-bajos, 65-127 pasa-altos */
-    uint8_t rsv[6];
+    uint8_t drive;         /* HOME FX > CHANNEL K1: soft-clip mono del canal (0 = apagado, no cuesta nada) */
+    uint8_t bfx_off;       /* HOME FX > CHANNEL K4: 1 = el BEAT FX (y el PUNCH) no toca este canal (0 = sí, como siempre) */
+    uint8_t rsv[4];
 } bm_track;
 
 /* ------------------------------------------------------------ metadatos: 64 bytes */
@@ -152,14 +154,19 @@ typedef struct {
     uint8_t  prm[BM_TRACKS][BM_PRM];                 /* parámetros del motor de cada canal (bm_params.h) */
 } bm_pattern;
 
-/* Escenas y canción. Una escena = patrón + mutes. */
-typedef struct { uint8_t valid, pattern, trk_mute, rsv; uint16_t lane_mute[BM_TR_TRACKS]; } bm_scene;
+/* Escenas y canción (0.9): una escena = solo mutes (los 6 canales y los instrumentos de BR-8 y
+ * BP-1), del proyecto. Una entrada de la canción = patrón | (escena + 1) << 4 (0 = sin escena). */
+#define SCN_STORED 0x01u
+typedef struct { uint8_t flags, trk_mute; uint16_t lane_mute[BM_TR_TRACKS]; } bm_scene;
 typedef struct {
     uint8_t n;
-    uint8_t pat[BM_SONG_MAX];      /* 0..15 patrón · 0x80|s escena */
+    uint8_t pat[BM_SONG_MAX];      /* patrón (bits 0-3) | (escena + 1) << 4 */
     uint8_t rep[BM_SONG_MAX];
     bm_scene scene[BM_SCENES];
 } bm_song;
+#define BM_SONG_VER   2            /* el objeto canción + escenas en la flash: otro número se ignora (sin conversión) */
+static inline int bm_song_pat(uint8_t e) { return e & 15; }
+static inline int bm_song_scene(uint8_t e) { return (e >> 4) - 1; }   /* -1 = sin escena */
 
 /* ------------------------------------------------------------ acceso según el tipo de canal */
 static inline int bm_kind(const bm_pattern *p, int t)

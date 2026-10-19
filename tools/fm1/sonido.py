@@ -8,7 +8,7 @@
   py -3 tools/fm1/sonido.py --borrar BITTAL 19   borra el sonido 20 de BITTAL en PRESETS (del usuario)
   py -3 tools/fm1/sonido.py --borrar BX-7 0      borra el primer banco .syx
 
-Un .bsnap se arma desde un preset de Vital con el editor web (web/sonidos.html) o con
+Un .bsnap se arma desde un preset de Vital con el editor web (web/control.html#sounds) o con
 `node tools/vital2bsnap.mjs preset.vital --machine BITTAL`. Un .syx se convierte aquí mismo.
 Queda en la zona que comparten tomas y sonidos (100 KiB): las tomas desde abajo, los sonidos desde
 arriba. En el FM-1, PRESETS en el canal de la máquina lo elige (después de los de fábrica).

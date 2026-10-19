@@ -8,6 +8,7 @@
 #include "bm_drums.h"
 #include "bm_snap.h"
 #include "bm_util.h"
+#include "bm_acid.h"
 
 /* ------------------------------------------------------------ valores físicos */
 float bm_cut_hz(int v) { return 20.0f * exp2f((float)v * (10.0f / 127.0f)); }
@@ -29,19 +30,26 @@ const bm_ppage bm_ac_pages[BM_AC_PAGES] = {
     {"VCO VCF", 4, {P("TUNING", PS_TRK(transpose), 24, 48, PF_TRSP, 0), P("CUTOFF", PS_M0 + 0, 40, 127, PF_OHZ, 0),
                     P("RESO", PS_M0 + 1, 96, 127, PF_PCT, 0), P("ENV MOD", PS_M0 + 2, 90, 127, PF_PCT, 0)}},
     {"ENV", 4, {P("DECAY", PS_M0 + 3, 56, 127, PF_DMS, 0), P("ACCENT", PS_TRK(accent), 100, 127, PF_PCT, 0),
-                P("SLIDE", PS_TRK(glide), 40, 127, PF_GLIDE, 0), P("WAVE", AC_WAVE, 0, 1, PF_LIST, AC_WAVES)}},
+                P("SLIDE", PS_TRK(glide), 7, 127, PF_GLIDE, 0), P("WAVE", AC_WAVE, 0, 1, PF_LIST, AC_WAVES)}},
 };
 
-/* los sonidos de fábrica del BB-303 (PRESETS) */
+/* los sonidos de fábrica del BB-303 (PRESETS). 0.9: the knobs of the TB-303 (0..127 = the pot from
+ * 7:00 to 5:00; SLIDE 7 = the 303's fixed ~60 ms). The owner's manual's "Sample Sounds" and "Initial
+ * Settings" as drawn; the rest, sounds of famous acid records tuned by ear (assets/presets/SOURCES.md). */
 const bm_ac_preset bm_ac_presets[BM_AC_PRESETS] = {
-    {"CLASSIC", 40, 96, 90, 56, 100, 40, 0},
-    {"SQUELCH", 28, 112, 110, 60, 115, 45, 0},
-    {"DEEP SAW", 22, 70, 60, 70, 80, 40, 0},
-    {"RUBBER", 34, 100, 75, 40, 100, 60, 1},
-    {"SQUARE", 45, 90, 85, 50, 100, 40, 1},
-    {"SCREAM", 55, 120, 120, 75, 127, 35, 0},
-    {"DUB", 18, 60, 40, 90, 70, 50, 1},
-    {"PLUCK", 50, 80, 100, 25, 110, 30, 0},
+    /* name          CUT  RES  ENV  DEC  ACC  SLIDE WAVE */
+    {"CLASSIC",       38, 105,  90,  55,  90,  7, 0},     /* own: the classic acid squelch */
+    {"E.BASS A",      44,  76, 102,  44,  25,  7, 0},     /* manual: Electric Bass Type A */
+    {"E.BASS B",      76,  38,  95,   4,  44,  7, 0},     /* manual: Electric Bass Type B */
+    {"UPRIGHT",       25,   0,  73,  73,  44,  7, 0},     /* manual: Acoustic Bass */
+    {"SYNTH BASS",    51, 102, 102,  83,  64,  7, 1},     /* manual: Synthesized Bass */
+    {"INIT 1982",     44,  19, 102,  48,  25,  7, 0},     /* manual: Initial Settings */
+    {"CHICAGO 86",    30, 115,  85,  70, 100,  7, 0},     /* acid house's first jam, by ear */
+    {"PHILLY 95",     50, 122, 110,  60, 127,  7, 0},     /* the screaming sweeps, by ear */
+    {"ROBOT FUNK",    60,  70,  70,  45,  90,  7, 0},     /* the French riff (add DRIVE), by ear */
+    {"BIG BEAT",      45, 110, 100,  60, 110,  7, 0},     /* "everybody needs" one, by ear */
+    {"WINDSOR 93",    25,  95,  60,  35,  60,  7, 1},     /* minimal and sparse, by ear */
+    {"BOMBAY 82",     55,  50,  55,  50,  60,  7, 0},     /* raga lines on a disco beat, by ear */
 };
 
 /* B-MINI: CONTROLLERS, OSCILLATOR BANK, MIXER, MODIFIERS y OUTPUT. MOD AMT lleva el destino: a la
@@ -120,8 +128,8 @@ const bm_ppage bm_bt_pages[BM_BT_PAGES] = {
                     P("TABLE", BT_TAB2, 0, 63, PF_INT, 0)}},
     {"FILTER", 4, {P("MODEL", BT_FT, BT_F_LP24, BT_FILTERS - 1, PF_LIST, BT_FILTERS_N), P("CUTOFF", BT_CUT, 100, 127, PF_HZ, 0),
                    P("RESO", BT_RES, 15, 127, PF_PCT, 0), P("DRIVE", BT_DRIVE, 0, 127, PF_PCT, 0)}},
-    {"FILTER +", 3, {P("ENV2 AMT", BT_FENV, 64, 127, PF_BIP, 0), P("KEYTRK", BT_KEYT, 64, 127, PF_PCT, 0),
-                     P("VELO", BT_VELF, 20, 127, PF_PCT, 0)}},
+    {"FILTER +", 4, {P("ENV2 AMT", BT_FENV, 64, 127, PF_BIP, 0), P("KEYTRK", BT_KEYT, 64, 127, PF_PCT, 0),
+                     P("VELO", BT_VELF, 20, 127, PF_PCT, 0), P("ENV2 POS", BT_EPOS, 0, 127, PF_PCT, 0)}},
     {"ENV 1", 4, {P("A", BT_AA, 0, 127, PF_TIME, 0), P("D", BT_AD, 70, 127, PF_TIME, 0),
                   P("S", BT_AS, 110, 127, PF_PCT, 0), P("R", BT_AR, 55, 127, PF_TIME, 0)}},
     {"ENV 2", 4, {P("A", BT_MA, 0, 127, PF_TIME, 0), P("D", BT_MD, 65, 127, PF_TIME, 0),
@@ -167,11 +175,13 @@ const bm_ppage bm_lane_pages[BM_LANE_PAGES] = {
                         P("CHOKE", LN_CHOKE, 0, 3, PF_LIST, CHOKES), P("LENGTH", LN_LEN, 16, 64, PF_INT, 0)}},
 };
 
-/* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz) */
+/* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz).
+ * Los bombos: TONO y COLOR arriba (más click y más FM de ataque) y más nivel, para que
+ * pasen por encima del bajo y los pads; el 909 con un poco más de cuerpo (DECAY 66). */
 #define L(n, m, tu, de, to, co, le, ch) {n, m, tu, de, to, co, le, ch}
 const bm_kit bm_kits[BM_KITS_N] = {
     {"808", {
-        L("KICK", DRM_BD_ANALOG, 64, 70, 40, 40, 110, 0), L("KICK2", DRM_BD_ANALOG, 72, 40, 70, 90, 100, 0),
+        L("KICK", DRM_BD_ANALOG, 64, 70, 64, 62, 120, 0), L("KICK2", DRM_BD_ANALOG, 72, 40, 70, 90, 100, 0),
         L("CL HH", DRM_HH_ANALOG, 64, 25, 100, 20, 80, 1), L("OP HH", DRM_HH_ANALOG, 64, 85, 100, 20, 75, 1),
         L("SNARE", DRM_SD_ANALOG, 64, 55, 70, 75, 95, 0), L("CLAP", DRM_CLAP, 64, 50, 60, 50, 95, 0),
         L("RIM", DRM_RESON, 8, 15, 100, 76, 85, 0), L("TOM L", DRM_TOM, 51, 70, 50, 30, 100, 0),
@@ -180,7 +190,7 @@ const bm_kit bm_kits[BM_KITS_N] = {
         L("SHAKE", DRM_NOISE, 64, 25, 100, 50, 80, 0), L("CLAVE", DRM_RESON, 82, 40, 0, 0, 127, 0),
         L("CONGA", DRM_TOM, 106, 45, 40, 10, 95, 0), L("ZAP", DRM_FM, 90, 35, 80, 20, 85, 0)}},
     {"909", {
-        L("KICK", DRM_BD_SINTE, 64, 60, 50, 50, 110, 0), L("KICK2", DRM_BD_SINTE, 70, 35, 80, 110, 100, 0),
+        L("KICK", DRM_BD_SINTE, 64, 66, 72, 64, 127, 0), L("KICK2", DRM_BD_SINTE, 70, 35, 80, 110, 100, 0),
         L("CL HH", DRM_HH_METAL, 64, 20, 110, 60, 80, 1), L("OP HH", DRM_HH_METAL, 64, 80, 110, 60, 75, 1),
         L("SNARE", DRM_SD_SINTE, 64, 50, 60, 80, 95, 0), L("CLAP", DRM_CLAP, 64, 60, 70, 70, 95, 0),
         L("RIM", DRM_RESON, 12, 12, 110, 70, 85, 0), L("TOM L", DRM_TOM, 56, 62, 80, 50, 100, 0),
@@ -189,7 +199,7 @@ const bm_kit bm_kits[BM_KITS_N] = {
         L("SHAKE", DRM_NOISE, 64, 20, 110, 40, 75, 0), L("CLAVE", DRM_RESON, 82, 35, 10, 0, 127, 0),
         L("CONGA", DRM_TOM, 104, 40, 60, 20, 95, 0), L("ZAP", DRM_FM, 96, 30, 100, 30, 85, 0)}},
     {"SYNTH", {
-        L("KICK", DRM_BD_SINTE, 56, 90, 30, 80, 110, 0), L("SUB", DRM_BD_ANALOG, 52, 110, 40, 10, 127, 0),
+        L("KICK", DRM_BD_SINTE, 56, 90, 56, 84, 124, 0), L("SUB", DRM_BD_ANALOG, 52, 110, 40, 10, 127, 0),
         L("HAT", DRM_HH_ANALOG, 70, 15, 110, 90, 80, 1), L("OHAT", DRM_HH_METAL, 66, 70, 100, 40, 75, 1),
         L("SNARE", DRM_SD_SINTE, 76, 40, 100, 100, 95, 0), L("CLAP", DRM_CLAP, 70, 70, 90, 110, 95, 0),
         L("BLIP", DRM_FM, 100, 10, 50, 80, 85, 0), L("ZAP", DRM_FM, 70, 30, 120, 40, 90, 0),
@@ -343,12 +353,12 @@ void bm_prm_fmt(const bm_pdef *d, int v, char *b, int cap)
     case PF_ONOFF: snprintf(b, (size_t)cap, "%s", v ? "YES" : "NO"); break;
     case PF_TRSP: snprintf(b, (size_t)cap, "%+d ST", v - 24); break;
     case PF_OHZ: {
-        unsigned hz = (unsigned)bm_cutoff_hz(v);
+        unsigned hz = (unsigned)(bm_acid_cut_hz(v) + 0.5f);
         if (hz < 1000) snprintf(b, (size_t)cap, "%u HZ", hz); else snprintf(b, (size_t)cap, "%u.%u KHZ", hz / 1000, hz % 1000 / 100);
         break;
     }
     case PF_DMS: {
-        unsigned ms = (unsigned)bm_decay_ms(v);
+        unsigned ms = (unsigned)(bm_acid_decay_ms(v) + 0.5f);
         if (ms < 1000) snprintf(b, (size_t)cap, "%u MS", ms); else snprintf(b, (size_t)cap, "%u.%u S", ms / 1000, ms % 1000 / 100);
         break;
     }

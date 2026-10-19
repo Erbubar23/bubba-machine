@@ -209,6 +209,8 @@ def manifiesto(pub):
         nums = [int(p) for p in x['archivo'].split('-')[2].split('.') if p.isdigit()]
         return nums
     lista.sort(key=lambda x: ('-diag-' in x['archivo'], [-k for k in ver(x)]))
+    # solo la última publicada de cada una (firmware y diagnóstico); las anteriores están en las releases de GitHub
+    lista = [x for k, x in enumerate(lista) if k == 0 or ('-diag-' in x['archivo']) != ('-diag-' in lista[k - 1]['archivo'])]
     with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(lista, f, ensure_ascii=False, indent=1)
         f.write('\n')

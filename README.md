@@ -39,7 +39,7 @@ Bubba Machine convierte el FM-1 en una groovebox de directo con **seis canales**
 - **T1 BR-8, batería estilo TR:** 16 instrumentos con su propia línea y su propio largo (polímetro), acento, repetición, flam, P-Locks y pasos que solo suenan en el fill. Roll y borrado estilo TR mientras suena.
 - **T2 BP-1, sampler de pads:** 16 pads hechos con tus tomas, como un KO II o un OP-1 field. Cada pad tiene su inicio, su largo, su tono y su modo de tecla (sostenido puede seguir por la toma). Una rejilla como la de la batería los toca y BREAK la varía compás a compás. Grabadora propia y biblioteca de tomas.
 - **Pantalla en inglés**, para que se entienda en todo el mundo, con el español como paquete de idioma que se carga aparte ([cómo](docs/MANUAL.md#idioma-de-la-pantalla)).
-- **T3-T6 eligen su máquina:** **BB-303** (bajo ácido sobre Open303), **B-MINI** (tres osciladores con filtro escalera), **BX-7** (FM de 6 operadores, lee bancos .syx de la DX7), **BITTAL** (wavetable que carga presets de Vital) y **BUNO-6** (polifónico con chorus). Banco de 92 sonidos, muchos históricos, y un [editor web](https://erbubar23.github.io/bubba-machine/sonidos.html) para sumar los tuyos. Arpegiador, loopera, escala propia y MIDI OUT por canal.
+- **T3-T6 eligen su máquina:** **BB-303** (bajo ácido sobre Open303), **B-MINI** (tres osciladores con filtro escalera), **BX-7** (FM de 6 operadores, lee bancos .syx de la DX7), **BITTAL** (wavetable que carga presets de Vital) y **BUNO-6** (polifónico con chorus). Banco de 92 sonidos, muchos históricos, y un [editor web](https://erbubar23.github.io/bubba-machine/control.html#sounds) para sumar los tuyos. Arpegiador, loopera, escala propia y MIDI OUT por canal.
 - **HOME es la consola BX-1:** 10 patrones, los seis canales, mutes, solo, escenas y CUE en las teclas, y la mezcla y los efectos de cada canal. REC en la consola graba cualquier canal sin entrar (estilo SLOOP).
 - **REC expresivo:** cada nota guarda su micro-tiempo, su largo y lo que moviste mientras la tocabas.
 - **Tiempo por pista:** cada pista tiene su largo (1-64) y su velocidad (×2 a ×1/4).
@@ -57,7 +57,7 @@ Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) 
 |---|---|
 | [Manual](docs/MANUAL.md) | Cómo se toca, botón por botón |
 | [Instalar](docs/INSTALAR.md) | El instalador web, plug and play, y cómo volver al de fábrica |
-| [Control](https://erbubar23.github.io/bubba-machine/control.html) | Con el FM-1 conectado: memoria, tomas, sonidos de Vital y DX7, idioma |
+| [Control](https://erbubar23.github.io/bubba-machine/control.html) | Tomas, sonidos de Vital y DX7, idioma y memoria: preparas los cambios y los mandas al FM-1 |
 | [Desarrollo](docs/DESARROLLO.md) | Compilar, probar, generar los sonidos y el sitio |
 | [Hoja de ruta](docs/HOJA_DE_RUTA.md) | Todo lo contemplado, de audio y de interfaz |
 | [Diseño 0.6](docs/DISENO_0.6.md) | Las seis máquinas, la cara nueva y el banco de sonidos |

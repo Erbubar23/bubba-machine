@@ -5,102 +5,267 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bubba Machine · Control</title>
-<link rel="icon" href="img/icon.svg">
+<meta name="description" content="Administra tu FM-1 con Bubba Machine desde el navegador: tomas del sampler, sonidos de Vital y de la DX7, el idioma de la pantalla y el estado del aparato.">
+<link rel="icon" href="icon.png">
 <link rel="stylesheet" href="site.css">
 <style>
-:root { --void: #0a0b10; --grid: #161925; --cy: #00f0ff; --amb: #ff8a00; --las: #ff0055; --mint: #70ff98; }
-body { background: var(--void); }
-main { max-width: 1060px; margin: 0 auto; padding: 20px; }
-h1 { font: 700 30px/1.1 var(--display); color: var(--cy); margin: 18px 0 6px; }
-h2 { font: 700 20px/1.2 var(--display); margin: 0 0 10px; }
-.lead { color: var(--mut); margin: 0 0 18px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
-.card { background: #10121a; border: 1px solid var(--grid); border-radius: 12px; padding: 16px 18px; }
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; }
-select, button, input[type=number], input[type=text] { min-height: 40px; border-radius: 10px; border: 1px solid #2a3044; background: #161925; color: var(--txt); padding: 0 12px; font: 600 14px var(--body); }
-input[type=number] { width: 90px; } input[type=text] { width: 150px; }
-button.go { background: var(--cy); color: #071016; border: 0; }
-button.del { color: var(--las); border-color: #4a1428; min-height: 32px; padding: 0 10px; }
-button:disabled { opacity: .4; cursor: not-allowed; }
-.drop { border: 2px dashed #2a3044; border-radius: 12px; padding: 18px; text-align: center; color: var(--mut); cursor: pointer; }
-.drop.on { border-color: var(--cy); color: var(--txt); }
-.bar { height: 10px; background: #1b1f2c; border-radius: 6px; overflow: hidden; display: flex; margin: 4px 0 2px; }
-.bar i { display: block; height: 100%; }
-.m { display: flex; justify-content: space-between; font-size: 14px; color: var(--mut); }
-.m b { color: var(--txt); font-weight: 600; }
-#estado { font: 600 15px var(--body); }
-.ok { color: var(--mint); } .warn { color: var(--amb); } .bad { color: var(--las); } .c { color: var(--cy); }
-ul.av { list-style: none; padding: 0; margin: 6px 0 0; }
-ul.av li { padding: 6px 10px; border-radius: 8px; margin: 4px 0; font-size: 14px; background: #161925; border-left: 3px solid var(--mint); }
-ul.av li.warn { border-color: var(--amb); } ul.av li.bad { border-color: var(--las); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--grid); }
-th { color: var(--mut); font-weight: 600; }
-.log { white-space: pre-wrap; font: 13px var(--mono); color: var(--mut); min-height: 1.4em; margin: 6px 0 0; }
-progress { width: 100%; height: 8px; }
-.off { opacity: .45; pointer-events: none; }
-.small { font-size: 13px; color: var(--mut); }
+/* la plataforma de control: los colores y la tipografía son los de site.css */
+.top { position: static; }
+body { --tk: var(--orange); --sn: var(--cyan); --pd: var(--yellow); --ok: var(--green); --warn: var(--orange); --bad: var(--red); }
+.bar { position: sticky; top: 0; z-index: 20; background: rgba(11, 12, 14, .95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar .in { max-width: 1160px; margin: 0 auto; padding: 10px 20px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; gap: 8px 24px; align-items: center; }
+.conn { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; min-width: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
+.dot.on { background: var(--ok); } .dot.wait { background: var(--yellow); } .dot.bad { background: var(--bad); }
+#estado { font-weight: 600; font-size: 15px; min-width: 0; flex: 1 1 12em; }
+#estado small { display: block; font-weight: 400; color: var(--mut); font-size: 13px; line-height: 1.4; }
+.hint-new { font-size: 13px; }
+.meter { height: 12px; border-radius: 6px; background: var(--panel2); overflow: hidden; display: flex; border: 1px solid var(--line); }
+.meter i { display: block; height: 100%; transition: width .3s; }
+.meter .tk { background: var(--tk); } .meter .sn { background: var(--sn); }
+.meter .fr { background: repeating-linear-gradient(135deg, #3a3f47 0 4px, transparent 4px 8px); }
+.meter .pd { background: repeating-linear-gradient(135deg, var(--pd) 0 4px, #8a6a00 4px 8px); }
+.mtxt { font-size: 13px; color: var(--mut); margin-top: 4px; line-height: 1.45; }
+.mtxt b { color: var(--txt); font-weight: 600; }
+.mtxt .g { white-space: nowrap; }
+.key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: 0; }
+.pend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; max-width: 400px; }
+.pend .count { font-weight: 700; font-size: 14px; }
+.why { flex-basis: 100%; text-align: right; font-size: 13px; color: var(--warn); }
+.why:empty { display: none; }
+#prog { grid-column: 1 / -1; width: 100%; height: 6px; accent-color: var(--yellow); }
+#plist { grid-column: 1 / -1; }
+#plist summary { cursor: pointer; font-size: 13px; color: var(--mut); width: max-content; }
+#plist ol { margin: 6px 0 2px; padding-left: 22px; max-height: 30vh; overflow: auto; font-size: 14px; }
+#plist li { margin: 4px 0; }
+#plist li .badge { margin: 0 0 0 4px; vertical-align: 1px; }
+button, select, input[type=number], input[type=text] { font: 600 14px var(--body); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 0 14px; }
+button { cursor: pointer; }
+button:hover:not(:disabled) { background: #262a31; }
+button.primary { background: var(--yellow); color: #111; border-color: var(--yellow); }
+button.primary:hover:not(:disabled) { background: #ffd54f; }
+button.small { min-height: 32px; padding: 0 10px; font-size: 13px; }
+button.del { color: #ff8a8a; border-color: #4a2020; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+input[type=number] { width: 96px; } input[type=text] { width: 170px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.ctl { padding-top: 8px; }
+.ctl h1 { font: 700 clamp(30px, 4.5vw, 42px)/1.08 var(--display); margin: 22px 0 8px; }
+.ctl .lead { color: var(--mut); max-width: 46em; margin: 0 0 22px; }
+.sec { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 0 0 18px; scroll-margin-top: 140px; }
+.sec > .head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 12px; }
+.sec h2 { font: 700 26px/1.1 var(--display); margin: 0; letter-spacing: .02em; }
+.sec .sub { color: var(--mut); font-size: 15px; }
+.sec .head .act { margin-left: auto; }
+.how { font-size: 14px; color: var(--mut); margin: 14px 0 0; }
+.how b { color: var(--txt); }
+.slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.slot { position: relative; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-height: 132px; display: flex; flex-direction: column; gap: 2px; }
+.slot .n { font: 700 13px/1 var(--mono); letter-spacing: .06em; color: var(--mut); }
+.slot .v { font: 700 24px/1.15 var(--display); }
+.slot .m { font-size: 13px; color: var(--mut); }
+.slot .acts { margin-top: auto; padding-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.slot.empty { border-style: dashed; background: transparent; }
+.slot.empty .v { color: var(--dim); font-size: 18px; }
+.sec.on, .slot.on, .drop.on, .mach.on { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow) inset; }
+.slot.gone .v, .slot.gone .m { text-decoration: line-through; color: var(--dim); }
+.slot.new { border-color: #8a6a00; background: #1d1906; }
+.badge { align-self: flex-start; font: 700 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 5px 7px; border-radius: 999px; border: 1px solid currentColor; margin: 4px 0 0; }
+.badge.p { color: var(--yellow); } .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); } .badge.run { color: var(--cyan); }
+.err { font-size: 13px; color: #ff8a8a; }
+.editor { margin-top: 14px; border: 1px solid #5a4a12; background: #15130b; border-radius: 12px; padding: 16px; }
+.editor h3 { margin: 0 0 4px; font: 700 19px/1.2 var(--display); overflow-wrap: anywhere; }
+.editor .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 12px 0 0; }
+.editor label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--mut); }
+.wave { width: 100%; height: 110px; display: block; margin-top: 10px; border-radius: 8px; background: #0d0e10; border: 1px solid var(--line); touch-action: none; cursor: ew-resize; --sel: #2a2410; --wave: #ffc618; --wave-off: #4b5058; --edge: #ffffff; }
+.note { font-size: 14px; margin: 10px 0 0; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: #ff7070; } .mut { color: var(--mut); }
+.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 16px; text-align: center; color: var(--mut); margin: 0 0 12px; }
+.drop button { margin: 8px 6px 0; }
+.machines { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.mach { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mach h3 { margin: 0; font: 700 19px/1.1 var(--display); }
+.mach .k { font-size: 12px; color: var(--mut); margin-top: -4px; }
+.mach ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mach li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.mach li .nm { font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.mach li .sz { color: var(--mut); font-size: 12px; }
+.mach li button { margin-left: auto; }
+.mach li.new { border-color: #8a6a00; background: #1d1906; }
+.mach li.gone .nm { text-decoration: line-through; color: var(--dim); }
+.mach .none { color: var(--dim); font-size: 13px; }
+.mach .add { margin-top: auto; }
+.mach.factory { opacity: .8; }
+ul.rep { list-style: none; padding: 0; margin: 8px 0 0; font: 13px/1.5 var(--mono); }
+ul.rep .k { color: var(--ok); } ul.rep .a { color: var(--yellow); } ul.rep .d { color: #ff7070; } ul.rep .c { color: var(--cyan); }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.opt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.opt input { accent-color: var(--yellow); width: 18px; height: 18px; }
+.opt .t { font-weight: 700; } .opt .d { color: var(--mut); font-size: 14px; }
+.opt .badge { margin: 0 0 0 auto; }
+details.sec > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: "▸"; color: var(--yellow); font-size: 20px; }
+details.sec[open] > summary::before { content: "▾"; }
+dl.info { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; margin: 16px 0 0; font-size: 15px; }
+dl.info dt { color: var(--mut); } dl.info dd { margin: 0; }
+pre.log { background: #0d0e10; border: 1px solid var(--line); border-radius: 10px; padding: 12px; max-height: 320px; overflow: auto; font: 12px/1.5 var(--mono); color: var(--mut); white-space: pre-wrap; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 980px) {
+  .bar .in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pend { grid-column: 1 / -1; justify-content: flex-start; max-width: none; }
+  .why { text-align: left; }
+  .machines { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .bar .in { grid-template-columns: minmax(0, 1fr); padding: 8px 16px; gap: 6px; }
+  .pend .count { flex-basis: 100%; }
+  .pend button { flex: 1; }
+  .pend.none button { display: none; }
+  .wrap.ctl { padding: 0 16px; }
+  .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .slot { min-height: 118px; padding: 10px; }
+  .slot .v { font-size: 21px; }
+  .sec { padding: 16px; scroll-margin-top: 190px; }
+  .machines { grid-template-columns: minmax(0, 1fr); }
+  .top .in { padding: 8px 16px; gap: 6px 14px; }
+  .top nav { gap: 2px 14px; }
+  dl.info { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.info dd { margin-bottom: 8px; }
+}
 </style>
 </head>
 <body>
-<header class="top"><div class="in"><a class="brand" href="index.html"><img src="img/icon.svg" alt="">Bubba Machine</a>
-<nav><a href="instalar.html" data-t="nav.inst">Instalar</a><a href="emulador.html" data-t="nav.emu">Emulador</a><a href="docs/manual.html" data-t="nav.man">Manual</a><a href="#" id="langsw" class="lang">English</a></nav></div></header>
-<main>
-<h1 data-t="h1">Control del FM-1</h1>
-<p class="lead" data-t="lead">Conecta tu FM-1 con Bubba Machine por USB y adminístralo desde aquí: tomas del sampler, sonidos (presets de Vital y bancos de la DX7), el idioma de la pantalla y la memoria. Todo pasa por la consola USB-MIDI; sin el FM-1 conectado, esta página no hace nada.</p>
 
-<div class="card">
-  <div class="row"><span id="estado" data-t="st.wait">Buscando el FM-1…</span><button id="conectar" class="go" data-t="b.connect">Conectar</button></div>
-  <ul class="av" id="avisos"></ul>
-</div>
-
-<div id="panel" class="off">
-<div class="grid" style="margin-top:14px">
-  <div class="card">
-    <h2 data-t="h.mem">Memoria</h2>
-    <div class="m"><span data-t="m.ram">RAM libre (montón del sistema)</span><b id="mram">—</b></div><div class="bar"><i id="bram"></i></div>
-    <div class="m"><span data-t="m.cpu">Carga del audio</span><b id="mcpu">—</b></div><div class="bar"><i id="bcpu"></i></div>
-    <div class="m"><span data-t="m.takes">Tomas (tope 6 s)</span><b id="mtak">—</b></div><div class="bar"><i id="btak"></i></div>
-    <div class="m"><span data-t="m.zone">Zona de tomas y sonidos (100 KiB)</span><b id="mzon">—</b></div><div class="bar" id="bzon"></div>
-    <div class="m"><span data-t="m.lang">Paquete de idioma (16 KiB)</span><b id="mlan">—</b></div><div class="bar"><i id="blan"></i></div>
-    <p class="small" id="minfo"></p>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="index.html" data-en="en/index.html"><img src="img/icon.svg" alt="">Bubba Machine</a>
+    <nav aria-label="Sitio" data-t-aria="nav">
+      <a href="emulador.html?lang=es" data-en="emulador.html?lang=en" data-t="nav.emu">Emulador</a>
+      <a href="docs/manual.html" data-en="en/docs/manual.html">Manual</a>
+      <a href="docs/instalar.html" data-en="en/docs/install.html" data-t="nav.inst">Instalar</a>
+      <a href="control.html" aria-current="page">Control</a>
+      <a href="docs/hoja-de-ruta.html" data-en="en/docs/roadmap.html" data-t="nav.road">Hoja de ruta</a>
+      <a href="docs/contribuir.html" data-en="en/docs/contributing.html" data-t="nav.contrib">Contribuir</a>
+      <a href="https://github.com/Erbubar23/bubba-machine" data-t="nav.code">Código</a>
+      <a class="lang" href="#" id="langsw">English</a>
+    </nav>
   </div>
+</header>
 
-  <div class="card">
-    <h2 data-t="h.takes">Tomas del sampler</h2>
-    <table><thead><tr><th>#</th><th data-t="t.len">Largo</th><th>BPM</th><th data-t="t.pads">Pads</th><th></th></tr></thead><tbody id="ltak"></tbody></table>
-    <div class="drop" id="dtak" tabindex="0" data-t="d.take" style="margin-top:12px">Suelta un audio (WAV, MP3, FLAC…) o haz clic</div>
-    <input type="file" id="ftak" accept="audio/*,.wav,.mp3,.flac,.ogg,.aiff" hidden>
-    <div id="tprev" hidden>
-      <div class="row"><label data-t="t.from">Desde (s)</label><input type="number" id="tfrom" min="0" step="0.01" value="0">
-        <label data-t="t.dur">Largo (s)</label><input type="number" id="tdur" min="0.1" step="0.001" value="3">
-        <label>BPM</label><input type="number" id="tbpm" min="40" max="240" step="0.1" value="120"></div>
-      <div class="row"><button id="tplay" data-t="b.listen">Escuchar como en el FM-1</button><button id="tsend" class="go" data-t="b.sendtake">Mandar al FM-1</button></div>
-      <p class="small" id="tinfo"></p>
+<div class="bar" id="bar">
+  <div class="in">
+    <div class="conn">
+      <span class="dot" id="dot" aria-hidden="true"></span>
+      <span id="estado" role="status" aria-live="polite">Sin conectar</span>
+      <button id="conectar" class="primary" type="button" data-t="b.connect">Conectar</button>
+      <a id="nueva" class="hint-new" href="instalar.html" hidden></a>
     </div>
+    <div class="mem">
+      <div class="meter" id="meter" role="img"><i class="tk"></i><i class="sn"></i><i class="fr"></i><i class="pd"></i></div>
+      <div class="mtxt" id="mtxt"></div>
+    </div>
+    <div class="pend">
+      <span class="count" id="pcount"></span>
+      <button id="send" class="primary" type="button" data-t="b.send">Mandar al FM-1</button>
+      <button id="discard" type="button" data-t="b.discard">Descartar</button>
+      <button id="keep" type="button" hidden data-t="b.keep">No, conservarlos</button>
+      <span class="why" id="why"></span>
+    </div>
+    <details id="plist" hidden><summary data-t="p.list">Ver los cambios</summary><ol id="pitems"></ol></details>
+    <progress id="prog" max="1" value="0" hidden></progress>
   </div>
+</div>
 
-  <div class="card">
-    <h2 data-t="h.snd">Sonidos</h2>
-    <table><thead><tr><th data-t="s.mach">Máquina</th><th data-t="s.name">Nombre</th><th data-t="s.auth">Autor</th><th>KB</th><th></th></tr></thead><tbody id="lsnd"></tbody></table>
-    <div class="row"><label for="smach" data-t="s.mach">Máquina</label>
-      <select id="smach"><option value="BITTAL">BITTAL · T5</option><option value="B-MINI">B-MINI · T3</option><option value="BUNO-6">BUNO-6 · T6</option></select>
-      <input type="text" id="sname" maxlength="12" placeholder="NOMBRE" data-tp="s.ph"></div>
-    <div class="drop" id="dsnd" tabindex="0" data-t="d.snd">Suelta un preset de Vital (.vital), un banco de la DX7 (.syx) o un .bsnap</div>
+<main class="wrap ctl">
+  <h1 data-t="h1">Control del FM-1</h1>
+  <p class="lead" data-t="lead">Lo que cambias aquí queda pendiente hasta que lo mandas: prepara tomas, sonidos y el idioma (hasta sin el FM-1), mira cuánta memoria va a quedar y después pulsa <b>Mandar al FM-1</b>. Funciona en Chrome o Edge, con el FM-1 conectado por USB y Bubba Machine instalado.</p>
+
+  <section class="sec" id="takes" aria-labelledby="h-takes">
+    <div class="head">
+      <h2 id="h-takes">TAKES</h2>
+      <span class="sub" data-t="t.sub">Las tomas del sampler (T2 · BP-1)</span>
+      <button class="act" id="tpick" type="button" data-t="t.pick">Agregar audio…</button>
+    </div>
+    <div class="slots" id="slots"></div>
+    <input type="file" id="ftake" accept="audio/*,.wav,.aif,.aiff,.mp3,.flac,.ogg" hidden>
+    <div class="editor" id="ted" hidden>
+      <h3 id="tname"></h3>
+      <div class="mut" id="tmeta"></div>
+      <canvas class="wave" id="wave" tabindex="0" data-t-aria="t.wave"></canvas>
+      <div class="row">
+        <label><span data-t="t.from">Empieza (s)</span><input type="number" id="tfrom" min="0" step="0.01" value="0"></label>
+        <label><span data-t="t.len">Dura (s)</span><input type="number" id="tlen" min="0.05" step="0.01" value="1"></label>
+        <label><span>BPM</span><input type="number" id="tbpm" min="40" max="240" step="0.1" value="120"></label>
+        <span class="mut" id="tbars"></span>
+      </div>
+      <p class="note" id="tnote"></p>
+      <div class="row">
+        <button type="button" id="tplay" data-t="t.play">▶ Escúchala como la toca el FM-1</button>
+        <button type="button" id="tok" class="primary" data-t="t.add">Agregar la toma</button>
+        <button type="button" id="tcancel" data-t="b.cancel">Cancelar</button>
+      </div>
+    </div>
+    <p class="how" data-t="t.how">Suelta un audio (WAV, AIFF, MP3, FLAC u OGG) en un lugar libre, o sobre una toma para reemplazarla. Aquí se convierte a lo que graba el FM-1: mono, 16 kHz y 8 bits, hasta 3 s por toma y 6 s entre todas. En el FM-1: <b>T2 › TAKES</b>; si el kit está vacío, la toma nueva lo arma.</p>
+  </section>
+
+  <section class="sec" id="sounds" aria-labelledby="h-sounds">
+    <div class="head">
+      <h2 id="h-sounds">SOUNDS</h2>
+      <span class="sub" id="scount"></span>
+    </div>
+    <div class="drop" id="sdrop">
+      <span data-t="s.drop">Suelta aquí un preset de Vital (.vital), un banco de la DX7 (.syx) o un .bsnap.</span><br>
+      <button type="button" id="spick" data-t="s.pick">Elegir un archivo…</button>
+    </div>
     <input type="file" id="fsnd" accept=".vital,.syx,.bsnap" hidden>
-    <div id="sprev" hidden><p class="small" id="sinfo"></p><button id="ssend" class="go" data-t="b.sendsnd">Mandar al FM-1</button></div>
-  </div>
+    <div class="editor" id="sed" hidden>
+      <h3 id="sfile"></h3>
+      <div class="row">
+        <label id="smachl"><span data-t="s.mach">Máquina</span><select id="smach"><option>B-MINI</option><option selected>BITTAL</option><option>BUNO-6</option></select></label>
+        <label><span data-t="s.name">Nombre</span><input type="text" id="sname" maxlength="12" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <p class="note" id="snote"></p>
+      <ul class="rep" id="srep"></ul>
+      <div class="row">
+        <button type="button" id="sok" class="primary" data-t="s.add">Agregar el sonido</button>
+        <button type="button" id="sdl" data-t="s.dl">Bajar el .bsnap</button>
+        <button type="button" id="scancel" data-t="b.cancel">Cancelar</button>
+      </div>
+    </div>
+    <div class="machines" id="machines"></div>
+    <p class="how" data-t="s.how">En el FM-1: en HOME mantén la tecla blanca del canal (T3-T6) y gira <b>ALGORITHM</b> hasta la máquina (déjala 2 s). Sin soltar la tecla, <b>PRESETS</b> recorre primero los sonidos de fábrica y después los tuyos. Los presets de Vital de fábrica no se pueden redistribuir: usa los tuyos o los de licencia libre.</p>
+  </section>
 
-  <div class="card">
-    <h2 data-t="h.lang">Idioma de la pantalla</h2>
-    <p class="small" data-t="l.txt">La pantalla viene en inglés. El paquete de idioma es un agregado aparte: vive en su propia zona de 16 KiB y no ocupa memoria de tomas ni de sonidos. Se cambia aquí.</p>
-    <div class="row"><button id="les" class="go" data-t="b.es">Cargar español</button><button id="lfile" data-t="b.lfile">Otro paquete (.bmlang)…</button><button id="loff" data-t="b.loff">Quitar (inglés)</button></div>
-    <input type="file" id="flan" accept=".bmlang" hidden>
-  </div>
-</div>
-<div class="card" style="margin-top:14px"><progress id="bar" max="100" value="0"></progress><p class="log" id="log"></p></div>
-</div>
+  <section class="sec" id="language" aria-labelledby="h-lang">
+    <div class="head">
+      <h2 id="h-lang">SCREEN LANGUAGE</h2>
+      <span class="sub" data-t="l.sub">El idioma de la pantalla del FM-1</span>
+    </div>
+    <fieldset id="lopts">
+      <legend class="sr" data-t="l.legend">Idioma de la pantalla</legend>
+      <label class="opt"><input type="radio" name="lang" value="off"><span class="t">English</span><span class="d" data-t="l.en">viene en el firmware</span><span id="lb-off"></span></label>
+      <label class="opt"><input type="radio" name="lang" value="es"><span class="t">Español</span><span class="d" data-t="l.es">paquete incluido</span><span id="lb-es"></span></label>
+      <label class="opt"><input type="radio" name="lang" value="file"><span class="t" data-t="l.file">Tu paquete (.bmlang)</span><span class="d" id="lfname"></span><button type="button" class="small" id="lpick" data-t="l.pick">Elegir…</button><span id="lb-file"></span></label>
+    </fieldset>
+    <input type="file" id="flang" accept=".bmlang" hidden>
+    <p class="how" data-t="l.how">El paquete vive en su propia memoria de 16 KB: no ocupa lugar de tomas ni de sonidos. Después, en el FM-1, <b>SYSTEM › LANGUAGE</b> cambia entre el inglés y el paquete.</p>
+  </section>
+
+  <details class="sec" id="device">
+    <summary><h2>DEVICE</h2><span class="sub" data-t="d.sub">Detalles del FM-1</span><span class="sub warn" id="dwarn"></span></summary>
+    <dl class="info" id="dinfo"></dl>
+    <div class="row" style="margin-top:14px"><button type="button" id="dlog" data-t="d.log">Ver el registro del aparato</button></div>
+    <pre class="log" id="logtxt" hidden></pre>
+  </details>
 </main>
-<script type="module" src="control.js?v=1"></script>
+
+<footer>
+  <div class="in">
+    <p>© 2026 Erbubar23 · GPL-3.0-or-later.</p>
+    <p data-t="foot">M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afiliado a M-VAVE ni respaldado por ellos.</p>
+  </div>
+</footer>
+<script type="module" src="control.js?v=3"></script>
 </body>
 </html>

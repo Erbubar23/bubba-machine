@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erbubar23
 // Bubba Machine — de un preset de Vital (.vital, JSON) a un snapshot del FM-1 (.bsnap).
-// docs/DISENO_0.6.md §4. Lo usan el editor web (web/sonidos.html) y el banco de fábrica
+// docs/DISENO_0.6.md §4. Lo usan la plataforma de control (web/control.html) y el banco de fábrica
 // (tools/gen_snaps.mjs, con node). Todo el cálculo pesado pasa aquí: el FM-1 solo carga.
 //
 //   vitalToBsnap(json, {machine, name, author, lic}) -> {bytes, report}
@@ -421,4 +421,27 @@ export function syxToBsnap(syx, opts = {}) {
   report.names = names;
   report.cpu = 'BX-7: ~3% of a core per voice (measured)';
   return { bytes: out, report };
+}
+
+// ------------------------------------------------------------ .bsnap ya armados
+// Lee la cabecera de un .bsnap con las reglas de bm_snap_ok (core/bm_snap.c): {eng, size, id, name, author}
+// o un Error. eng: 3 B-MINI, 4 BX-7, 5 BITTAL, 6 BUNO-6 (BB-303 no carga sonidos del usuario).
+export function readBsnap(u8) {
+  const u = u8 instanceof Uint8Array ? u8 : new Uint8Array(u8);
+  if (u.length < 88 || u[0] !== 0x42 || u[1] !== 0x4E || u[2] !== 0x53 || u[3] !== 0x31) throw new Error('not a Bubba Machine sound (.bsnap)');
+  const eng = u[4], size = u[10] | u[11] << 8;
+  if (size < 88 || size > u.length || size > 8800) throw new Error('damaged .bsnap (size)');
+  if (eng === 4 ? (u[5] !== 0 || size !== 88 + 32 * 156) : ![3, 5, 6].includes(eng)) throw new Error('not a sound for B-MINI, BX-7, BITTAL or BUNO-6');
+  if (eng !== 4 && eng !== 5 && u[7] < 2) throw new Error('made for an older Bubba Machine: convert the preset again');
+  const txt = (o) => String.fromCharCode(...u.subarray(o, o + 12)).replace(/ .*$/s, '').trim();
+  return { eng, size, id: (u[8] | u[9] << 8).toString(16).toUpperCase().padStart(4, '0'), name: txt(12), author: txt(24) };
+}
+
+// el mismo sonido con otro nombre (la huella cambia con el nombre: se calcula de nuevo)
+export function renameBsnap(u8, name) {
+  const size = u8[10] | u8[11] << 8, out = u8.slice(0, size);
+  out.set(ascii(name, 12), 12);
+  const id = fnv16(out);
+  out[8] = id & 255; out[9] = id >> 8;
+  return out;
 }

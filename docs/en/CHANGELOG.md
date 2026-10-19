@@ -22,6 +22,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - `py -3 tools/fm1/consola.py estado` shows the power rails, how each boot ended (power on, brownout, long press, watchdog) and where the firmware was.
 
 ### Changed
+- **Web control rebuilt:** one page that mirrors the FM-1 (TAKES, SOUNDS, SCREEN LANGUAGE, DEVICE) with pending changes and **Send to FM-1**: a memory meter shows what will be left before you send, anything that does not fit is flagged, Send waits for STOP, and each change is verified on the FM-1 afterwards. You can prepare everything without the device. The sound editor (`sonidos.html`) is now part of it.
 - **Scenes are mutes only** (channel mutes and BR-8 / BP-1 instrument mutes), kept with the project, not with a pattern. Tap an empty one = store; tap = launch on the next bar; hold 2 s = store over it (a ring fills); EDIT held + scene = clear; hold one + tap others = chain. Live mutes stay when the pattern changes.
 - **Song entries** are a pattern plus an optional scene; SONG REC records pattern changes and scene launches.
 - **HOME tap always goes to MIX.** HOME's pages are MIX, FX (CHANNEL › DELAY › REVERB › MASTER) and GLO. On MIX, PRESETS changes the cursor channel's sound; on FX and GLO it is MOVE. HOME held + K1-K4 = the cursor's mix strip.

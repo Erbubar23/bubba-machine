@@ -227,7 +227,7 @@ BR-8's kicks, snares and hats are the **Plaits** models (Mutable Instruments), w
 
 **Historic sounds.** Many factory sounds recreate the machine they are named after: published panel settings, sound charts and recipes translated to our parameters, plus sounds inspired by famous records. No audio was sampled and no factory data was copied. Their names only allude (CHICAGO 86, COLD FRIEND, POP RIFF…): no artist names or trademarks. Where each one comes from is in [`assets/presets/SOURCES.md`](../../assets/presets/SOURCES.md).
 
-**The sound bank.** B-MINI, BITTAL and BUNO-6 load **sounds** (.bsnap): their settings, their macros and, on BITTAL, their tables. Some factory ones come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0; credits in [CREDITS.md](CREDITS.md)). Yours are added from the web editor ([sounds](../../web/sonidos.html)): PRESETS goes through the factory ones first and then yours. The sound's fingerprint (#A4F9) shows at the top right of SOUND.
+**The sound bank.** B-MINI, BITTAL and BUNO-6 load **sounds** (.bsnap): their settings, their macros and, on BITTAL, their tables. Some factory ones come from freely licensed Vital presets (CC0, Unlicense and GPL-3.0; credits in [CREDITS.md](CREDITS.md)). Yours are added from the web editor ([sounds](../../web/control.html#sounds)): PRESETS goes through the factory ones first and then yours. The sound's fingerprint (#A4F9) shows at the top right of SOUND.
 
 ### Editing the sound
 
@@ -488,7 +488,7 @@ The **master length** (console GLO › TEMPO, K3: 16, 32, 48, 64, 128 or INF) re
 
 Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN and latency · autosave · idle **button** brightness (OFF, DIM or MEDIUM; the keys are not affected) · **FAST SCREEN** (test, off by default) and **TWO CORES** (test, off by default) · takes, sounds and free memory · **LANGUAGE** · version.
 
-**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** shares the machines between the FM-1's two cores (on the computer it gives exactly the same samples). The first time you turn it on it is checked to answer; if it hangs, its channels go silent and it retires until you power off, and if a boot with TWO CORES does not reach 5 seconds, it is off on the next boot. They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform says whether TWO CORES is on.
+**The two tests:** **FAST SCREEN** raises the screen's SPI to 30 MHz (measured: a full frame goes from 85 to 39 ms). **TWO CORES** shares the machines between the FM-1's two cores (on the computer it gives exactly the same samples). The first time you turn it on it is checked to answer; if it hangs, its channels go silent and it retires until you power off, and if a boot with TWO CORES does not reach 5 seconds, it is off on the next boot. They are being tested: if the FM-1 hangs or boots into safe mode, both switch themselves off. The control platform shows TWO CORES under DEVICE when it is on or switched itself off.
 
 ## MIDI
 
@@ -498,15 +498,15 @@ Internal or external clock · Split Sync (L = pulse, R = mono mix) · pulse PPQN
 
 ## Control platform
 
-The [control platform](../../web/control.html) manages the FM-1 from Chrome or Edge, over USB. **It only works with the FM-1 connected** and Bubba Machine 0.6.1-beta or newer; there is no emulator mode.
+The [control platform](../../web/control.html) manages the FM-1 from Chrome or Edge, over USB (Bubba Machine 0.6.1-beta or newer). It is one page that mirrors the FM-1, and **every change waits until you send it**: you can prepare everything without the FM-1 and send it later.
 
-- **Memory:** free system RAM, audio load, the 6 s of takes, the 100 KiB zone shared by takes and sounds, and the language pack. It refreshes every 2 s.
-- **Warnings based on what you are doing:** low RAM (the FM-1 could hang), high audio load or late blocks (dropouts), takes or zone nearly full, the 12-sound maximum, whether TWO CORES is on and, before sending anything, whether it fits or what to delete.
-- **Takes:** drop an audio file (WAV, MP3, FLAC…); the page turns it into 16 kHz, 8 bits as the FM-1 records, you pick where it starts and how long, listen to it exactly as it will sound and send it with its BPM. You can delete them too.
-- **Sounds:** Vital presets (.vital) for BITTAL, B-MINI or BUNO-6, DX7 banks (.syx) for BX-7 and .bsnap files. You can delete yours too.
-- **Language:** load Spanish, another .bmlang pack, or go back to English.
+- **The bar on top** (it stays in view): whether the FM-1 is connected and which version it runs (with a link to the installer when a newer one is out), the **memory** that takes and sounds share (100 KB: what is used, what your pending changes add or free, and what will be left, in KB and in seconds of take), and the **pending changes** with **Send to FM-1** and **Discard**. Anything that would not fit is marked in red and Send stays off until you fix it.
+- **TAKES:** the 8 take places as the FM-1 numbers them, with length, bars and BPM. Drop an audio file (WAV, AIFF, MP3, FLAC or OGG) on a free place, or on a take to replace it. Trim the start and end on the waveform, check the BPM (read from the file name, or guessed) and press **▶ Hear it as the FM-1 plays it**: 16 kHz, 8 bits with dither, exactly what is sent. Up to 3 s per take and 6 s in total.
+- **SOUNDS:** one column per machine. Vital presets (.vital) go to B-MINI, BITTAL or BUNO-6 (you pick; changing the machine or the name converts it again), DX7 banks (.syx) to BX-7, and .bsnap files to their own machine. You see what was kept, approximated or left out, can rename it and download the .bsnap. Up to 12 of your sounds; BB-303 only has factory sounds. On the FM-1: on HOME hold the channel's white key (T3-T6), turn ALGORITHM to the machine, then PRESETS.
+- **SCREEN LANGUAGE:** English (built in), Español (pack included) or your own .bmlang.
+- **DEVICE** (folded): firmware, audio load, system memory, how long it has been on, how it last started, the lowest voltages, TWO CORES when it matters, and the device log.
 
-To write (send or delete) the transport has to be stopped: writing flash cuts the audio. The page says so and keeps the buttons off while it plays.
+**Send** waits for the transport to stop (writing flash cuts the audio: the page says "Press STOP on the FM-1"). Deletions go first, so they make room; then the rest in order, with a progress bar. Afterwards the page reads the FM-1 again and marks each change **Verified on the FM-1**; anything that failed stays pending with the reason. Without a device, `control.html?mock=1` talks to a simulated FM-1 for development.
 
 ## Screen language
 

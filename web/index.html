@@ -5,9 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bubba Machine · firmware libre para el M-VAVE FM-1</title>
-<meta name="description" content="Bubba Machine: firmware libre (GPL-3.0) de groovebox de seis máquinas para el M-VAVE FM-1. Batería, sampler de pads, bajo, FM, wavetable y polifónico. Pruébalo en el navegador.">
+<meta name="description" content="Bubba Machine: firmware libre (GPL-3.0) de groovebox hi-fi para el M-VAVE FM-1. Seis máquinas calculadas en vivo a 44,1 kHz y 24 bits: batería, sampler de pads, bajo, FM, wavetable y polifónico. Pruébalo en el navegador.">
 <meta property="og:title" content="Bubba Machine">
-<meta property="og:description" content="Firmware libre de groovebox para el M-VAVE FM-1. Pruébalo en el navegador.">
+<meta property="og:description" content="Firmware libre de groovebox hi-fi para el M-VAVE FM-1. Pruébalo en el navegador.">
 <meta property="og:image" content="img/logo.png">
 <link rel="alternate" hreflang="es" href="https://erbubar23.github.io/bubba-machine/">
 <link rel="alternate" hreflang="en" href="https://erbubar23.github.io/bubba-machine/en/">
@@ -45,27 +45,40 @@ try {
     <div>
       <img class="logo" src="img/logo.png" alt="Bubba Machine">
       <h1>Firmware libre para tu M-VAVE FM-1</h1>
-      <p class="lead">Convierte el FM-1 en una groovebox de directo con seis máquinas: batería, sampler de pads, bajo, FM, wavetable y un polifónico con chorus, cada una con su propio largo y su propia velocidad. Código libre, con licencia GPL-3.0.</p>
+      <p class="lead">Convierte el FM-1 en una groovebox de directo <b>hi-fi</b>: el objetivo es el mejor sonido que puede dar una máquina pequeña. Seis máquinas (batería, sampler de pads, bajo, FM, wavetable y un polifónico con chorus) calculadas en vivo a 44,1 kHz y 24 bits, cada una con su propio largo y su propia velocidad. Código libre, con licencia GPL-3.0.</p>
       <div class="cta">
         <a class="btn primary" href="emulador.html?lang=es">Probar en el navegador</a>
         <a class="btn" href="docs/manual.html">Leer el manual</a>
         <a class="btn" href="https://github.com/Erbubar23/bubba-machine">Ver el código</a>
       </div>
     </div>
-    <div class="shot"><div class="screen"><img src="img/00-home.png" width="240" height="240" alt="HOME: el mezclador BX-1 con las seis máquinas"></div></div>
+    <div class="shot"><div class="screen"><img src="img/00-home.png" width="240" height="240" alt="HOME: la consola BX-1 con las seis máquinas"></div></div>
   </section>
 
   <div class="status" role="note">
-    <b>0.8.0-beta · ELIGE TU INSTRUMENTO</b>
-    <span>Corre en el FM-1 y se instala desde el navegador, plug and play. Es una <b>beta</b> (la 0.6, todavía sin probar en el aparato): se probó en un solo aparato y una actualización puede borrar lo que guardaste (patrones, canción, ajustes y tomas). <a href="docs/instalar.html">Más detalles</a>.</span>
+    <b>0.9.0-beta · HOME ES LA CONSOLA</b>
+    <span>Corre en el FM-1 y se instala desde el navegador, plug and play. Es una <b>beta</b> (la 0.9, todavía sin probar del todo en el aparato): se probó en un solo aparato y una actualización puede borrar lo que guardaste (patrones, canción, ajustes y tomas). <a href="docs/instalar.html">Más detalles</a>.</span>
   </div>
+
+  <section class="band">
+    <div class="kicker">El objetivo</div>
+    <h2 class="big">Una máquina hi-fi que cabe en la mano</h2>
+    <p class="sub">Bubba Machine busca una sola cosa: el mejor sonido que puede dar el hardware del FM-1, sin atajos que se oigan. Cada versión se mide en el aparato contra ese objetivo.</p>
+    <div class="cards">
+      <div class="card"><h3>44,1 kHz y 24 bits de punta a punta</h3><p>Todas las máquinas y la mezcla entera corren a la frecuencia real del códec, en coma flotante. Los agudos llegan a 20 kHz y la afinación es exacta.</p></div>
+      <div class="card"><h3>Calculado en vivo, nunca en baja resolución</h3><p>Batería, bajos y sintes se sintetizan nota a nota, no se reproducen desde grabaciones de 8 bits. No se recorta nada para que quepa.</p></div>
+      <div class="card"><h3>El circuito real, no un preset</h3><p>Cada máquina tiene su propio motor modelado sobre la que la inspira (el BB-303 usa el filtro y el acento de la TB-303 de Open303), páginas ordenadas como su panel y sonidos históricos recreados a partir de hojas de patches.</p></div>
+      <div class="card"><h3>Todo el hardware trabajando</h3><p>Con TWO CORES los dos núcleos de 360 MHz se reparten las voces, el kick atraviesa la mezcla con sidechain y la placa corre con sus voltajes de fábrica para no apagarse mientras tocas.</p></div>
+      <div class="card"><h3>Medido, no adivinado</h3><p>CPU, memoria y sonido se comprueban en el FM-1 y en horas de juego simulado, y lo que todavía falta queda por escrito.</p><a class="more" href="docs/audio.html">Cómo suena y por qué</a></div>
+    </div>
+  </section>
 
   <section class="band">
     <div class="kicker">Así se ve</div>
     <h2 class="big">La pantalla de 240×240, tal cual</h2>
     <p class="sub">Estas son capturas reales del firmware, generadas por las pruebas automáticas. La pantalla viene en inglés; el español es un paquete de idioma que se carga aparte.</p>
     <div class="gallery">
-      <figure><div class="screen"><img src="img/00-home.png" width="240" height="240" alt="HOME: el mezclador BX-1 con las seis máquinas"></div><figcaption><b>BX-1.</b> HOME es el mezclador: volumen, reverb, filtro y BEAT FX a mano.</figcaption></figure>
+      <figure><div class="screen"><img src="img/00-home.png" width="240" height="240" alt="HOME: la consola BX-1 con las seis máquinas"></div><figcaption><b>BX-1.</b> HOME es la consola: patrones, mutes, escenas y la mezcla a mano.</figcaption></figure>
       <figure><div class="screen"><img src="img/02-seq-tr.png" width="240" height="240" alt="BR-8: la rejilla de batería TR"></div><figcaption><b>BR-8.</b> 16 instrumentos modelados, cada uno con su largo.</figcaption></figure>
       <figure><div class="screen"><img src="img/37-pads.png" width="240" height="240" alt="BP-1: la onda de la toma con el pad elegido entre corchetes"></div><figcaption><b>BP-1.</b> Un sampler de 16 pads, como un KO II: cada pad es un trozo de tus tomas.</figcaption></figure>
       <figure><div class="screen"><img src="img/52-seq-long-note.png" width="240" height="240" alt="Piano roll con una nota larga en verde"></div><figcaption><b>Notas largas.</b> Mantén un paso y toca dónde termina.</figcaption></figure>
@@ -84,8 +97,8 @@ try {
       <div class="card track" style="--c: var(--orange)"><span class="tag" style="color: var(--orange)">T1</span><h3>BR-8</h3><p>Batería modelada (808, 909 y SINTE), calculada en vivo. Acento, repetición, flam, P-Locks por paso y pasos que solo suenan en el fill.</p></div>
       <div class="card track" style="--c: var(--yellow)"><span class="tag" style="color: var(--yellow)">T2</span><h3>BP-1</h3><p>16 pads hechos con tus tomas, como en un KO II o un OP-1 field, con loop de sustain y BREAK para variar la rejilla compás a compás.</p></div>
       <div class="card track" style="--c: var(--green)"><span class="tag" style="color: var(--green)">T3</span><h3>BB-303 · B-MINI</h3><p>Bajo ácido con slide y acento, o tres osciladores con filtro escalera. Se cambia con una perilla y las notas se quedan.</p></div>
-      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>BX-7 · BITTAL · BUNO-6</h3><p>FM de 6 operadores con bancos .syx, wavetable que carga presets de Vital y un polifónico con chorus. 37 sonidos de fábrica y los tuyos.</p></div>
-      <div class="card track" style="--c: var(--violet)"><span class="tag" style="color: var(--violet)">HOME</span><h3>Mezclador BX-1</h3><p>Volumen, envío a la reverb, filtro del master y BEAT FX. Cuatro gestos por botón; HOME sostenido es el controlador en cualquier pantalla.</p></div>
+      <div class="card track" style="--c: var(--blue)"><span class="tag" style="color: var(--blue)">T4-T6</span><h3>BX-7 · BITTAL · BUNO-6</h3><p>FM de 6 operadores con bancos .syx, wavetable que carga presets de Vital y un polifónico con chorus. 92 sonidos de fábrica en total y los tuyos.</p></div>
+      <div class="card track" style="--c: var(--violet)"><span class="tag" style="color: var(--violet)">HOME</span><h3>Consola BX-1</h3><p>Diez patrones, mutes, solo, escenas y CUE en las teclas, y la mezcla de cada canal. HOME sostenido trae la consola a cualquier pantalla.</p></div>
       <div class="card track" style="--c: var(--pink)"><span class="tag" style="color: var(--pink)">DIRECTO</span><h3>Escenas y efectos</h3><p>REC expresivo, cuatro escenas con cadenas y grabación de la canción, fills automáticos, reverb, delay y 16 efectos punch-in.</p></div>
     </div>
   </section>
@@ -133,7 +146,7 @@ try {
       <a href="docs/conducta.html">Código de conducta</a>
       <a href="https://github.com/Erbubar23/bubba-machine/blob/main/LICENSE">Licencia GPL-3.0</a>
     </div>
-    <p>Bubba Machine 0.8.0-beta · © 2026 Erbubar23 · GPL-3.0-or-later.</p>
+    <p>Bubba Machine 0.9.0-beta · © 2026 Erbubar23 · GPL-3.0-or-later.</p>
     <p>M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afiliado a M-VAVE ni respaldado por ellos. Instalar firmware no oficial es bajo tu propio riesgo.</p>
   </div>
 </footer>

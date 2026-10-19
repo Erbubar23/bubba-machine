@@ -27,7 +27,7 @@ SRC = 'core/*.c core/gen/*.c hal/bm_hal_sim.c'
 MSFA = ['dx7note', 'env', 'exp2', 'fm_core', 'fm_op_kernel', 'freqlut', 'lfo', 'pitchenv', 'porta', 'sin', 'EngineMsfa']
 # Plaits y stmlib (Mutable Instruments, MIT): batería modelada y el núcleo WAVE
 PLAITS = ['third_party/plaits/resources.cc', 'third_party/stmlib/dsp/units.cc', 'third_party/stmlib/utils/random.cc']
-CXX_SRC = ('core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp ' + ' '.join('third_party/msfa/%s.cpp' % f for f in MSFA)
+CXX_SRC = ('core/bm_fm.cpp core/bm_drums.cpp core/bm_wave.cpp core/bm_acid.cpp ' + ' '.join('third_party/msfa/%s.cpp' % f for f in MSFA)
            + ' ' + ' '.join(PLAITS))
 CXXFLAGS = ('-std=c++14 -O2 -fno-exceptions -fno-rtti -Ithird_party/msfa -Ithird_party -Icore -w '
             '-DPLAITS_SAMPLE_RATE=44118.0f -DTEST')   # TEST: stmlib sin ensamblador de ARM
@@ -209,6 +209,8 @@ def manifiesto(pub):
         nums = [int(p) for p in x['archivo'].split('-')[2].split('.') if p.isdigit()]
         return nums
     lista.sort(key=lambda x: ('-diag-' in x['archivo'], [-k for k in ver(x)]))
+    # solo la última publicada de cada una (firmware y diagnóstico); las anteriores están en las releases de GitHub
+    lista = [x for k, x in enumerate(lista) if k == 0 or ('-diag-' in x['archivo']) != ('-diag-' in lista[k - 1]['archivo'])]
     with open(os.path.join(pub, 'versiones.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(lista, f, ensure_ascii=False, indent=1)
         f.write('\n')

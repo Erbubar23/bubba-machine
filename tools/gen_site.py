@@ -52,14 +52,14 @@ ES_ONLY_EN = {'design06': 'Design 0.6 (ES)', 'spec': 'Specification (ES)', 'memo
 TXT = {
     'es': {
         'groups': {'use': 'Usar', 'project': 'Proyecto', 'tech': 'Técnico'},
-        'nav': [('emu', 'Emulador'), ('manual', 'Manual'), ('install', 'Instalar'), ('roadmap', 'Hoja de ruta'), ('contrib', 'Contribuir')],
+        'nav': [('emu', 'Emulador'), ('manual', 'Manual'), ('install', 'Instalar'), ('control', 'Control'), ('roadmap', 'Hoja de ruta'), ('contrib', 'Contribuir')],
         'code': 'Código', 'site': 'Sitio', 'docs': 'Documentación', 'other': ('en', 'English'),
         'src': 'Esta página se genera desde <a href="%s">%s</a>. ¿Ves un error? Edita el archivo y manda un pull request.',
         'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE y FM-1 son marcas de sus respectivos dueños; este proyecto no está afiliado a M-VAVE.',
     },
     'en': {
         'groups': {'use': 'Use', 'project': 'Project', 'tech': 'Technical'},
-        'nav': [('emu', 'Emulator'), ('manual', 'Manual'), ('install', 'Install'), ('roadmap', 'Roadmap'), ('contrib', 'Contribute')],
+        'nav': [('emu', 'Emulator'), ('manual', 'Manual'), ('install', 'Install'), ('control', 'Control'), ('roadmap', 'Roadmap'), ('contrib', 'Contribute')],
         'code': 'Code', 'site': 'Site', 'docs': 'Documentation', 'other': ('es', 'Español'),
         'src': 'This page is generated from <a href="%s">%s</a>. Spotted a mistake? Edit the file and send a pull request.',
         'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.',
@@ -87,6 +87,9 @@ def resolve_link(url, src, cur_dir):
     tail = '#' + frag if frag else ''
     if full in BY_SRC:
         return rel(out_file(*BY_SRC[full]), cur_dir) + tail
+    if full.split(os.sep)[0] == 'web' and full.endswith('.html'):    # una página del sitio (control.html…)
+        en = os.path.normpath(cur_dir).startswith(os.path.join(WEB, 'en'))
+        return rel(os.path.join(ROOT, full), cur_dir) + ('?lang=en' if en else '') + tail
     return REPO + full.replace(os.sep, '/') + tail
 
 
@@ -254,6 +257,8 @@ def page(lang, key, title, body, src):
     for k, label in T['nav']:
         if k == 'emu':
             nav.append('<a href="%s/emulador.html?lang=%s">%s</a>' % (up, lang, label))
+        elif k == 'control':
+            nav.append('<a href="%s/control.html?lang=%s">%s</a>' % (up, lang, label))
         else:
             nav.append('<a href="%s"%s>%s</a>' % (href(k), cur(k), label))
     nav.append('<a href="https://github.com/Erbubar23/bubba-machine">%s</a>' % T['code'])

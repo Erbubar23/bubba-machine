@@ -18,6 +18,7 @@
       <a href="../../emulador.html?lang=en">Emulator</a>
       <a href="manual.html">Manual</a>
       <a href="install.html">Install</a>
+      <a href="../../control.html?lang=en">Control</a>
       <a href="roadmap.html" aria-current="page">Roadmap</a>
       <a href="contributing.html">Contribute</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
@@ -46,7 +47,7 @@
   <main class="doc">
 <h1 id="roadmap">Roadmap</h1>
 <p>Everything planned for Bubba Machine. <strong>All of it will be done, step by step</strong>, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.</p>
-<p>Items marked ✓ are already in the current version (0.6.0-beta); items marked <strong>in testing</strong> are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
+<p>Items marked ✓ are already in the current version (0.9.0-beta); items marked <strong>in testing</strong> are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>The goal is the best quality the FM-1 allows. What improved, what it costs and what limits it today: <a href="audio.html">audio</a>.</p>
 <p><strong>Done</strong></p>
@@ -61,6 +62,8 @@
 </li><li>
 ✓ <strong>Reverb</strong> with per-track send, <strong>master filter</strong> and <strong>BEAT FX</strong>.
 </li><li>
+✓ <strong>BB-303 on Open303</strong> (MIT) in floating point: the TB-303 filter, accent circuit and envelopes.
+</li><li>
 <strong>In testing:</strong> audio on both cores (T4-T6 on the second; on the computer it gives the same samples) and the screen with SPI at 30 MHz.
 </li></ul>
 <p><strong>Planned</strong></p>
@@ -69,7 +72,7 @@
 </li><li>
 <strong>Master effects:</strong> tape delay, compressor and leveler.
 </li><li>
-<strong>ACID 2.0:</strong> Open303 in floating point, with an acid line generator.
+<strong>An acid line generator</strong> for the BB-303.
 </li><li>
 <strong>A higher-quality sampler with more seconds</strong>, within what the flash allows (today it records at 16 kHz and 8 bits).
 </li><li>
@@ -103,7 +106,7 @@
 <ol><li>
 <strong>MORPH A·B:</strong> move from one sound state to another with a knob (HOME's fourth macro).
 </li><li>
-<strong>SCENES AND SONG:</strong> build and play the song with the scenes.
+✓ <strong>SCENES AND SONG:</strong> scenes as mutes on the console, CUE, and song entries with a pattern and a scene (0.9).
 </li></ol>
 <p><strong>Planned: working on a track (the button again = the next page)</strong></p>
 <ol><li>
@@ -113,11 +116,11 @@
 </li><li>
 <strong>LFO › MOTION:</strong> a modulation sequencer and knob-movement recording.
 </li><li>
-<strong>FX › TRACK:</strong> per-track mix and effects.
+✓ <strong>Per-channel mix and effects:</strong> the console's FX › CHANNEL (drive, pan, duck, BEAT FX) (0.9).
 </li></ol>
 <p><strong>Other</strong></p>
 <ul><li>
-<strong>Pattern banks:</strong> more than 20 patterns, by growing the flash map or shrinking the patterns.
+<strong>Pattern banks:</strong> more than 10 patterns, by growing the flash map or shrinking the patterns.
 </li><li>
 <strong>Ghost notes on drums:</strong> a level P-Lock or a bigger format.
 </li></ul>

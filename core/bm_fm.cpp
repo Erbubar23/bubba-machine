@@ -10,6 +10,7 @@
 #include <string.h>
 #include "bm_config.h"
 #include "bm_fm.h"
+#include "bm_vpool.h"
 #include "synth.h"
 #include "sin.h"
 #include "exp2.h"
@@ -46,12 +47,12 @@ int32_t gain_for(int alg)
     return G[n];
 }
 
-alignas(8) unsigned char mem_voz[BM_VOICES][sizeof(Voz)];
+static_assert(sizeof(Voz) <= BM_VPOOL_BYTES && alignof(Voz) <= 8, "BX-7 voice does not fit the shared pool (bm_vpool.h)");
 alignas(8) unsigned char mem_ctl[BM_TRACKS][sizeof(Controllers)];
 alignas(8) unsigned char mem_core[sizeof(EngineMsfa)];
 bool listo;
 
-inline Voz &voz(int v) { return *reinterpret_cast<Voz *>(mem_voz[v]); }
+inline Voz &voz(int v) { return *reinterpret_cast<Voz *>(bm_vpool(v)); }   /* the shared pool (bm_vpool.h) */
 inline Controllers &ctl(int t) { return *reinterpret_cast<Controllers *>(mem_ctl[t]); }
 
 }  // namespace
@@ -77,7 +78,8 @@ void bm_fm_init(float fs)
         Env::init_sr(fs);
         Porta::init_sr(fs);
     }
-    memset(mem_voz, 0, sizeof mem_voz);                   /* las voces, en cada arranque del audio */
+    for (int v = BM_V_POOL0; v < BM_VOICES; v++)          /* las voces, en cada arranque del audio */
+        if (bm_vpool_is(v, VP_FM)) bm_vpool_owner[v - BM_V_POOL0] = VP_NONE;
     FmCore *core = new (mem_core) EngineMsfa();
     for (int t = 0; t < BM_TRACKS; t++) {
         Controllers *c = new (mem_ctl[t]) Controllers();
@@ -93,11 +95,6 @@ void bm_fm_init(float fs)
         c->portamento_gliss_cc = false;
         c->core = core;
         c->refresh();
-    }
-    for (int v = 0; v < BM_VOICES; v++) {
-        Voz *z = new (mem_voz[v]) Voz();
-        z->pos = _N_;
-        z->track = -1;
     }
     listo = true;
 }
@@ -141,6 +138,12 @@ uint8_t bm_fm_carriers(int alg)
 
 void bm_fm_start(int v, int t, const uint8_t *patch, int note, int vel, int src, int porta)
 {
+    if (!bm_vpool_ok(v)) return;
+    if (!bm_vpool_take(v, VP_FM)) {                       /* the pool voice held another machine: a new one */
+        Voz *n = new (bm_vpool(v)) Voz();
+        n->pos = _N_;
+        n->track = -1;
+    }
     Voz &z = voz(v);
     z.track = (int8_t)t;
     z.alg = patch[BM_FM_ALG] & 31;
@@ -154,6 +157,7 @@ void bm_fm_start(int v, int t, const uint8_t *patch, int note, int vel, int src,
 
 void bm_fm_update(int v, const uint8_t *patch, int note, int vel, int porta)
 {
+    if (!bm_vpool_is(v, VP_FM)) return;
     Voz &z = voz(v);
     if (z.track < 0) return;
     z.alg = patch[BM_FM_ALG] & 31;
@@ -163,6 +167,7 @@ void bm_fm_update(int v, const uint8_t *patch, int note, int vel, int porta)
 
 void bm_fm_release(int v)
 {
+    if (!bm_vpool_is(v, VP_FM)) return;
     Voz &z = voz(v);
     if (z.track < 0 || z.suelta) return;
     z.note.keyup();
@@ -171,6 +176,7 @@ void bm_fm_release(int v)
 
 int bm_fm_render(int v, int32_t *dst, int n)
 {
+    if (!bm_vpool_is(v, VP_FM)) return 0;
     Voz &z = voz(v);
     if (z.track < 0) return 0;
     while (n > 0) {

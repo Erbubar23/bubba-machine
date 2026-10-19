@@ -25,6 +25,7 @@ extern "C" {
 #define BM_WT_LEVELS  7
 #define BM_WT_TOT     2032        /* 1024 + 512 + ... + 16 */
 #define BM_WT_SLOTS   2
+#define BM_WT_POOL    12          /* frames in RAM for both slots (0.9; was 2 x 8): 8 + 8 tables keep 6 + 6 */
 
 /* Tabla en espectro (dentro de un snapshot): nf (1..8), nh (1..255, 0 = 256), luego nf * nh pares
  * (magnitud, fase). Magnitud 0 = nada; v > 0 = (v - 255) * 0.375 dB. Fase = v * 2 pi / 256. */

@@ -2,6 +2,52 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.9.0-beta] - 2026-10-18
+
+**HOME is the console.** Ten patterns, six channels, mutes, scenes and CUE on the keys, like an MX-1; REC plays and records any channel without leaving the console; each machine keeps its own GLO. Beta: not fully tried on the device yet.
+
+> 0.9 has only 10 patterns: on first boot patterns 11-16 are dropped, and the song and the scenes start empty (their format changed). Patterns 01-10, settings, takes and your sounds are kept.
+
+### Added
+- **The console (HOME › MIX):** white 1-10 = patterns 01-10 (hold one + tap another = chain), white 11-16 = channels T1-T6 (tap = cursor), black 1-6 = mutes (hold = solo), black 7-10 = scenes A-D, black 11 = **CUE**.
+- **Channel card:** hold a channel's white key on the console. Let go = enter the machine. While you hold it, ALGORITHM changes the machine (T3-T6, leave it 2 s on one; BUNO-6 and BITTAL one at a time) and PRESETS its sound; turning a knob means letting go stays on the console.
+- **CUE:** hold black 11 (or tap it to keep it on) and the mutes you tap drop together on the next bar.
+- **SLOOP-REC:** REC on the console arms the cursor channel and the keys play it without entering: notes chromatic from F (bass machines an octave down, KEYS IN SCALE respected), drums and pads on the white keys with black 1 = accent. It records with the expressive REC (FREE REC on an empty channel) and draws the channel as a piano roll. Hold REC = only while held.
+- **PIANO ROLL view** (machine GLO › VIEW): the whole loop of a note channel with pitch rows fitted to its notes, a keyboard that flashes with what plays and the notes recorded this pass in red. Same keys as the normal view.
+- **FX › CHANNEL** on the console: per-channel **DRIVE** (soft-clip), **PAN**, **DUCK** and **BEAT FX** on/off (whether the BEAT FX and the punch-ins touch that channel). Saved with the pattern.
+- **Console GLO:** TEMPO (BPM, SWING, MASTER LENGTH, TRANSPOSE, AUTO FILL), MACHINES (the machine of T3-T6), SCALE (ROOT, SCALE, KEYS IN SCALE, BASE CHORD) and SONG.
+- **HOME + white 11-16** from any screen: go to that machine when you let go of HOME.
+- **Historic factory sounds** (92 in all): the TB-303 owner's manual sounds and acid classics on BB-303 (12), Minimoog sound charts and recreations on B-MINI (18), DX7 recipes on BX-7 (20), Juno factory patches as starting points on BUNO-6 (16) and PPG-style wavetables on BITTAL (26), plus sounds inspired by famous records. Names only allude: no artist names or trademarks. Sources in [`assets/presets/SOURCES.md`](../../assets/presets/SOURCES.md).
+- **BITTAL ENV2 POS** (FILTER + page): envelope 2 sweeps the wavetable position, as on a PPG.
+- `py -3 tools/fm1/consola.py estado` shows the power rails, how each boot ended (power on, brownout, long press, watchdog) and where the firmware was.
+
+### Changed
+- **Web control rebuilt:** one page that mirrors the FM-1 (TAKES, SOUNDS, SCREEN LANGUAGE, DEVICE) with pending changes and **Send to FM-1**: a memory meter shows what will be left before you send, anything that does not fit is flagged, Send waits for STOP, and each change is verified on the FM-1 afterwards. You can prepare everything without the device. The sound editor (`sonidos.html`) is now part of it.
+- **Scenes are mutes only** (channel mutes and BR-8 / BP-1 instrument mutes), kept with the project, not with a pattern. Tap an empty one = store; tap = launch on the next bar; hold 2 s = store over it (a ring fills); EDIT held + scene = clear; hold one + tap others = chain. Live mutes stay when the pattern changes.
+- **Song entries** are a pattern plus an optional scene; SONG REC records pattern changes and scene launches.
+- **HOME tap always goes to MIX.** HOME's pages are MIX, FX (CHANNEL › DELAY › REVERB › MASTER) and GLO. On MIX, PRESETS changes the cursor channel's sound; on FX and GLO it is MOVE. HOME held + K1-K4 = the cursor's mix strip.
+- **Machine GLO replaces MORE:** GLO inside a machine opens its list (VIEW, LENGTH, SPEED, TRANSPOSE, ACCENT, MIDI OUT, INIT…); GLO again goes back. Machines are changed from the console (the card or GLO › MACHINES); the machine is still saved with the pattern.
+- **OCT−/+ always change the octave** on note machines, also in SEQ and in SLOOP (they do nothing on drums and pads). Step pages moved to **black 9 / 10** (SEQ and the ACCENT, REPEAT / TIE, ERASE and FILL screens); the LENGTH layer uses **black 11 = +16**; ERASE has **UNDO / REDO on black 6 / 7**.
+- **Drums and pads: black 11** = other section (HI/LO); hold it = instrument MUTES while held.
+- **Questions:** keep holding the control that asked for 2 s (a bar fills) to say yes; letting go, or any other control, is no. OCT+ no longer answers yes. Copy track (HOME + EDIT) pastes with EDIT held 2 s.
+- **BB-303 rebuilt on Open303** (MIT): the TB-303 filter, the accent circuit, the amp envelope and declicker, and the knob ranges of the TB-303. 12 sounds.
+- **BUNO-6 about 15 % lighter** (the Juno-60 high-pass once on the channel sum, a 12 dB low-pass before the chorus) and **BITTAL about 25 % lighter**. Voices share one memory pool: the FM-1 system has 151 KiB free instead of 121.
+- **The kick cuts through:** the factory 808, 909 and SYNTH kicks were revoiced (about +6 dB over the rest of the mix in their first 30 ms) and the duck holds 30 ms before it releases.
+- **Lighter screen:** curves are computed once per change, big redraws are spread over three frames, the display is sent in the background and capped at 25 fps.
+
+### Fixed
+- **The FM-1 switched off during fast navigation with TWO CORES** (0.8): it was a brownout. The firmware now sets the stock power rails at boot, logs the exact reset cause and keeps the hardware watchdog on.
+- **TWO CORES safety:** if the second core hangs, its channels go silent and it retires until power-off; a TWO CORES boot that did not reach 5 s turns TWO CORES off on the next boot.
+- **The duck did nothing on a BUNO-6 with chorus**, and kicks played live from the keys did not trigger it.
+- **An effect that broke (NaN) went silent** for good; it is now reset on the spot.
+- BR-8 hits stop at −70 dB (was −90): hats and long tails were still being computed when you could no longer hear them.
+
+### Removed
+- Patterns 11-16 (10 patterns now).
+- The **MACHINE** page inside a channel and **MORE** (now the machine GLO).
+- **FILL on HOME** (black 11 is CUE). On drums and pads the FILL screen is gone: use AUTO FILL (GLO › TEMPO), FILL + ROLL or the FILL ONLY / NO FILL step conditions. Note channels keep their FILL screen on black 11.
+- Scenes with a pattern, HOME's TEMPO, SCENES and SONG pages (now in GLO), HOME + SELECT with its box (use HOME + white 11-16), HOME + K1-K4 for BPM, swing, master length and drive (now in GLO › TEMPO and FX › MASTER), and OCT+ = yes.
+
 ## [0.8.0-beta] - 2026-10-16
 
 **Choose your instrument.** The drums and the pad sampler stay fixed; T3-T6 pick their machine, and every machine is laid out like the real one.

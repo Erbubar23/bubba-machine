@@ -4,7 +4,7 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.8.0-beta"
+#define BM_VERSION_STR "0.9.0-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
 #define BM_PAT_FMT       8        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
 #define BM_PRM           48       /* parámetros de sonido por canal, además de las 4 macros (= BM_SNAP_PRM) */
@@ -24,7 +24,7 @@
 #define BM_EVENTS        4        /* eventos por paso */
 #define BM_PPQN          96
 #define BM_TICKS_STEP    24       /* 96 PPQN / 4 semicorcheas */
-#define BM_PATTERNS      16
+#define BM_PATTERNS      10       /* 0.9: W1-W10 en HOME (los objetos 10-15 de la flash se ignoran) */
 #define BM_SONG_MAX      64
 #define BM_PAT_MAX_EVENTS 768
 #define BM_LANES         16       /* instrumentos de las pistas TR (T1 batería, T2 sampler) */

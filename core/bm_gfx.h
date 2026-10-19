@@ -3,7 +3,8 @@
 /* Bubba Machine — gráficos para la TFT de 240x240 RGB565 sin framebuffer.
  *
  * Se dibuja en modo inmediato por franjas de BM_STRIP_H filas: toda la escena
- * se vuelve a "dibujar" para cada franja con recorte. Cada franja se divide en
+ * se vuelve a "dibujar" para cada franja con recorte (las primitivas salen enseguida si no tocan la
+ * franja; las curvas caras se calculan una vez y se guardan). Cada franja se divide en
  * tiles de BM_TILE_W px; solo se envían por SPI los tiles cuyo hash cambió
  * (SPEC_V3 §6.3: presupuesto de ~37 KB por frame a 12 MHz). */
 #ifndef BM_GFX_H
@@ -35,6 +36,8 @@ typedef struct {
     uint16_t *buf;          /* BM_LCD_W x BM_STRIP_H */
     int y0;                 /* primera fila de la franja */
     int cx0, cy0, cx1, cy1; /* recorte activo (coordenadas de pantalla, exclusivo) */
+    uint32_t frame;         /* número de cuadro (distinto en cada bm_screen_render): lo que el dibujo
+                             * calcula una vez por cuadro y no una vez por franja se guarda con él */
 } bm_gfx;
 
 void gfx_clip(bm_gfx *g, int x, int y, int w, int h);
@@ -65,12 +68,27 @@ extern const uint8_t bm_logo_rle[];
 typedef void (*bm_draw_fn)(bm_gfx *g, void *user);
 typedef void (*bm_blit_fn)(void *user, int x, int y, int w, int h, const uint16_t *px);
 
+/* Un cuadro manda como mucho `budget` bytes (0 = sin límite): un redibujo entero (entrar a una
+ * página, ~115 KB = ~77 ms de SPI a 12 MHz) se reparte en varios cuadros en vez de una sola ráfaga.
+ * Lo que no entró queda pendiente (su hash no se actualiza) y el cuadro siguiente sigue desde esa
+ * franja, sin esperar el tope de cuadros por segundo. */
+#define BM_SCR_BUDGET   (40u * BM_TILE_W * BM_STRIP_H * 2u)   /* 40 tiles = 38400 B: ~26 ms a 12 MHz */
+#define BM_SCR_FRAME_MS 40u                                   /* la pantalla a 25 cuadros por segundo */
+
 typedef struct {
     uint32_t hash[BM_LCD_H / BM_STRIP_H][BM_LCD_W / BM_TILE_W];
+    uint8_t stale[BM_LCD_H / BM_STRIP_H];   /* tiles que van aunque el hash coincida (force) */
     uint8_t force;
+    uint8_t next;            /* franja donde empieza el próximo cuadro */
+    uint8_t pending;         /* el último cuadro no alcanzó a mandar todo */
+    uint32_t budget;         /* bytes por cuadro (0 = todo de una vez) */
     uint32_t bytes_last;     /* bytes enviados en el último frame (para medir el SPI) */
+    uint32_t frames;         /* cuadros dibujados: el HAL sabe si un tick dibujó (y cuánto tardó el cuadro) */
+    uint32_t t_next;         /* bm_screen_due: cuándo toca el próximo cuadro */
 } bm_screen;
 
 void bm_screen_render(bm_screen *s, bm_draw_fn draw, void *user, bm_blit_fn blit, void *blit_user);
+/* ¿Toca dibujar? Sí con force, con un cuadro a medias, o pasados BM_SCR_FRAME_MS del anterior. */
+bool bm_screen_due(bm_screen *s, uint32_t now);
 
 #endif

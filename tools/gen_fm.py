@@ -44,21 +44,43 @@ def voice(name, alg, ops, fb=0, lfo=(35, 0, 0, 0, 1, 0, 0), pr=(99, 99, 99, 99),
 
 
 V = [
-    # piano eléctrico de lengüetas: tres pares; el OP2 a 14:1 es el «tine» que la velocidad abre
-    voice('E.PIANO', 5, [
+    # piano eléctrico de lengüetas de los 80 (receta publicada del E.PIANO 1, sin datos de la ROM):
+    # algoritmo 5, tres pares; moduladores a 1, 1 y 14 (el 14:1 es el «tine», cortado arriba de D3),
+    # niveles 81 / 91 / 60, sensibilidad a la velocidad alta en los moduladores, detune ±7 entre pares,
+    # realimentación 6; los moduladores caen antes que las portadoras, sustain 0
+    voice('TINEKEYS', 5, [
         op(1, 99, (96, 25, 25, 67), (99, 75, 0, 0), kvs=2, rs=3),
-        op(14, 58, (95, 50, 35, 78), (99, 75, 0, 0), kvs=7, rs=3),
-        op(1, 99, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=6),
-        op(1, 89, (95, 29, 20, 50), (99, 95, 0, 0), kvs=6, rs=3),
-        op(1, 79, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=8),
-        op(1, 79, (95, 29, 20, 50), (99, 95, 0, 0), kvs=5, rs=3)], fb=6),
-    # bajo sólido: portadora a 0.5 con dos moduladores que se cierran rápido
-    voice('FM BASS', 16, [
-        op(0.5, 99, (99, 60, 30, 70), (99, 85, 0, 0), kvs=2, rs=2),
-        op(0.5, 82, (99, 72, 30, 60), (99, 60, 0, 0), kvs=5),
-        op(1, 74, (99, 76, 35, 60), (99, 45, 0, 0), kvs=4),
-        op(3, 62, (99, 85, 40, 60), (99, 0, 0, 0), kvs=6),
+        op(14, 60, (95, 50, 35, 78), (99, 75, 0, 0), kvs=7, rs=3, bp=41, rd=50, rc=0),
+        op(1, 99, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=0),
+        op(1, 81, (95, 45, 25, 50), (99, 80, 0, 0), kvs=6, rs=3),
+        op(1, 99, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=14),
+        op(1, 91, (95, 45, 25, 50), (99, 80, 0, 0), kvs=7, rs=3)], fb=6),
+    # Rhodes con tine (Rhodey de la STK): dos pares sumados, 1:0.5 y 1:15, niveles 99 / 90 / 99 / 67,
+    # caídas de 1.5 / 1.5 / 1.0 / 0.25 s, sustain 0
+    voice('FULLTINE', 5, [
+        op(1, 99, (99, 38, 30, 55), (99, 0, 0, 0), kvs=2, rs=3),
+        op(0.5, 90, (99, 38, 30, 55), (99, 0, 0, 0), kvs=4, rs=3),
+        op(1, 99, (99, 45, 30, 55), (99, 0, 0, 0), kvs=2, rs=3, dt=8),
+        op(15, 67, (99, 65, 40, 55), (99, 0, 0, 0), kvs=6, rs=3),
         OFF, OFF], fb=0),
+    # bajo de sintetizador de los 80 (el BASS 1 de muchos discos; receta genérica publicada: un par
+    # 1:1 con el modulador alto que cae rápido, y otro a 2:1 para el golpe)
+    voice('POP BASS', 5, [
+        op(0.5, 99, (99, 45, 30, 70), (99, 75, 0, 0), kvs=2, rs=2),
+        op(0.5, 86, (99, 70, 40, 70), (99, 35, 0, 0), kvs=5, rs=2),
+        op(0.5, 90, (99, 45, 30, 70), (99, 75, 0, 0), kvs=2, rs=2, dt=9),
+        op(2, 72, (99, 80, 40, 70), (99, 0, 0, 0), kvs=6, rs=2),
+        OFF, OFF], fb=0),
+    # bajo de house de fines de los 80, inspirado en un preset de 4 operadores, rehecho para 6 (receta de
+    # MusicTech con Dexed): algoritmo 14, portadora a 0.5; OP4 a 0.5 (74), OP5 a 0.5 un poco bajo (66,
+    # solo ataque), OP6 a 1 (83) con realimentación 6; se apaga en unos 2 s
+    voice('HOUSE BS', 14, [
+        op(1, 0, (99, 99, 99, 99), (0, 0, 0, 0)),
+        op(1, 0, (99, 99, 99, 99), (0, 0, 0, 0)),
+        op(0.5, 99, (99, 30, 25, 60), (99, 85, 0, 0), kvs=2, rs=2),
+        op(0.5, 74, (99, 30, 25, 60), (99, 80, 0, 0), kvs=3, rs=2),
+        op(0.5, 66, (99, 99, 99, 60), (99, 99, 99, 0), kvs=3, dt=6),
+        op(1, 83, (99, 40, 30, 60), (99, 70, 0, 0), kvs=4)], fb=6),
     # bajo sub: casi senoidal, con un golpe de brillo al principio
     voice('SUB BASS', 5, [
         op(0.5, 99, (99, 55, 40, 70), (99, 92, 85, 0), kvs=1),
@@ -66,22 +88,32 @@ V = [
         op(1, 68, (99, 85, 50, 70), (99, 0, 0, 0), kvs=3),
         op(1, 70, (99, 88, 50, 70), (99, 0, 0, 0), kvs=5),
         OFF, OFF], fb=0),
-    # campana tubular: modulador inarmónico 3.5:1, colas largas
-    voice('BELL', 5, [
-        op(1, 99, (99, 28, 20, 30), (99, 60, 0, 0), kvs=2, rs=3),
-        op(3.5, 80, (99, 34, 25, 30), (99, 50, 0, 0), kvs=4, rs=3),
-        op(1, 90, (99, 30, 22, 30), (99, 55, 0, 0), kvs=2, rs=3, dt=10),
-        op(7.07, 66, (99, 40, 25, 30), (99, 40, 0, 0), kvs=4, rs=3),
-        op(2, 72, (99, 45, 25, 30), (99, 30, 0, 0), kvs=2, rs=3),
-        op(5.19, 58, (99, 50, 30, 30), (99, 20, 0, 0), kvs=4)], fb=3),
-    # metales: tres portadoras desafinadas y un modulador con ataque lento (el «bwaa»)
-    voice('BRASS', 22, [
-        op(1, 98, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, rs=2),
-        op(1, 86, (62, 51, 29, 71), (82, 95, 96, 0), kvs=4),
-        op(1, 96, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, dt=5),
-        op(1, 95, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, dt=9),
-        op(1, 92, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, dt=7),
-        op(1, 84, (55, 50, 30, 71), (85, 95, 92, 0), kvs=4)], fb=6,
+    # campana tubular (TubeBell de la STK): pares a 0.995:1.407 y 1.005:1.414 (casi 1:raíz de 2),
+    # niveles 94 / 76 / 99 / 71, caídas de unos 4 s, sustain 0
+    voice('TUBECHIM', 5, [
+        op(0.995, 94, (99, 30, 30, 30), (99, 0, 0, 0), kvs=2, rs=2),
+        op(1.41, 76, (99, 30, 30, 30), (99, 0, 0, 0), kvs=3, rs=2),
+        op(1, 99, (99, 30, 30, 30), (99, 0, 0, 0), kvs=2, rs=2, dt=9),
+        op(1.41, 71, (99, 32, 30, 30), (99, 0, 0, 0), kvs=3, rs=2, dt=10),
+        OFF, OFF], fb=0),
+    # campanitas («Practically FM», Sound On Sound 1988): pares 1:3, 2:4 y 4:8, sin realimentación,
+    # portadoras a 99, envolventes percusivas, rate scaling 2
+    voice('CHIMES', 5, [
+        op(1, 99, (99, 45, 30, 45), (99, 0, 0, 0), kvs=2, rs=2),
+        op(3, 70, (99, 55, 30, 45), (99, 0, 0, 0), kvs=4, rs=2),
+        op(2, 99, (99, 45, 30, 45), (99, 0, 0, 0), kvs=2, rs=2),
+        op(4, 66, (99, 55, 30, 45), (99, 0, 0, 0), kvs=4, rs=2),
+        op(4, 99, (99, 45, 30, 45), (99, 0, 0, 0), kvs=2, rs=2),
+        op(8, 60, (99, 55, 30, 45), (99, 0, 0, 0), kvs=4, rs=2)], fb=0),
+    # metales («Practically FM» parte 4, Sound On Sound): algoritmo 13, pares 1:1, moduladores a 85
+    # (OP5 a 75), realimentación 3, detunes -1 / -3 / +4 / +7 / +5; los moduladores entran más lento
+    voice('BRASS 80', 13, [
+        op(1, 99, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, rs=2, dt=6),
+        op(1, 85, (55, 51, 29, 71), (82, 95, 96, 0), kvs=4, dt=4),
+        op(1, 99, (72, 76, 99, 71), (99, 88, 96, 0), kvs=2, dt=11),
+        op(1, 85, (55, 51, 29, 71), (82, 95, 96, 0), kvs=4, dt=14),
+        op(1, 75, (55, 51, 29, 71), (82, 95, 96, 0), kvs=4, dt=12),
+        op(1, 85, (55, 51, 29, 71), (82, 95, 96, 0), kvs=4)], fb=3,
         lfo=(32, 40, 6, 0, 0, 4, 3)),
     # cuerdas: tres pares a 1:1, desafinados, ataque y salida lentos, vibrato con retardo
     voice('STRINGS', 5, [
@@ -92,71 +124,14 @@ V = [
         op(1, 95, (46, 30, 25, 40), (99, 95, 90, 0), kvs=1, dt=10),
         op(2, 60, (40, 30, 25, 40), (90, 85, 80, 0), kvs=2)], fb=4,
         lfo=(30, 50, 9, 0, 0, 4, 3)),
-    # órgano de barras: los seis operadores suenan (algoritmo 32), con un clic de percusión
-    voice('ORGAN', 32, [
-        op(0.5, 86, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
-        op(1, 99, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
-        op(1.5, 78, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
-        op(2, 88, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
-        op(4, 74, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
-        op(3, 76, (99, 70, 99, 80), (99, 0, 0, 0), kvs=2, rs=0)], fb=0,
-        lfo=(70, 0, 4, 0, 0, 4, 2)),
-    # clavinet: modulador a 3:1 que se cierra rápido, ataque seco
-    voice('CLAVI', 5, [
-        op(1, 99, (99, 70, 40, 85), (99, 60, 0, 0), kvs=3, rs=3),
-        op(3, 84, (99, 80, 45, 85), (99, 40, 0, 0), kvs=5, rs=3),
-        op(1, 86, (99, 72, 40, 85), (99, 55, 0, 0), kvs=3, rs=3, dt=9),
-        op(1, 76, (99, 75, 45, 85), (99, 50, 0, 0), kvs=5),
-        op(3, 70, (99, 75, 40, 85), (99, 30, 0, 0), kvs=3),
-        op(5, 60, (99, 85, 45, 85), (99, 0, 0, 0), kvs=5)], fb=5),
-    # marimba: golpe de mazo, el armónico 4 se apaga primero
+    # marimba: pares a 1:3.5, los moduladores caen en 0.1-0.15 s y las portadoras más cortas que una
+    # campana (receta publicada de DecentSampler, acortada)
     voice('MARIMBA', 5, [
-        op(1, 99, (99, 50, 30, 60), (99, 0, 0, 0), kvs=3, rs=4),
-        op(3.5, 72, (99, 75, 40, 60), (99, 0, 0, 0), kvs=5, rs=4),
-        op(4, 72, (99, 68, 40, 60), (99, 0, 0, 0), kvs=3, rs=4),
-        op(1, 62, (99, 80, 40, 60), (99, 0, 0, 0), kvs=4),
+        op(1, 99, (99, 55, 35, 60), (99, 0, 0, 0), kvs=3, rs=4),
+        op(3.5, 75, (99, 85, 40, 60), (99, 0, 0, 0), kvs=5, rs=4),
+        op(1, 90, (99, 58, 35, 60), (99, 0, 0, 0), kvs=3, rs=4, dt=9),
+        op(3.5, 66, (99, 88, 40, 60), (99, 0, 0, 0), kvs=5, rs=4),
         OFF, OFF], fb=0),
-    # pulsado: kalimba o arpa de juguete
-    voice('PLUCKED', 5, [
-        op(1, 99, (99, 45, 30, 55), (99, 0, 0, 0), kvs=3, rs=4),
-        op(6, 70, (99, 78, 40, 55), (99, 0, 0, 0), kvs=6, rs=4),
-        op(5.01, 66, (99, 60, 30, 55), (99, 0, 0, 0), kvs=3, rs=4),
-        op(1, 58, (99, 82, 40, 55), (99, 0, 0, 0), kvs=5),
-        op(2, 60, (99, 55, 30, 55), (99, 0, 0, 0), kvs=3, dt=9),
-        op(2, 50, (99, 70, 40, 55), (99, 0, 0, 0), kvs=5)], fb=2),
-    # solista: una pila de cuatro con realimentación (casi diente de sierra) y vibrato
-    voice('LEAD', 1, [
-        op(1, 95, (99, 60, 99, 60), (99, 92, 92, 0), kvs=1),
-        op(2, 70, (90, 60, 99, 60), (99, 80, 80, 0), kvs=3),
-        op(1, 99, (99, 60, 99, 60), (99, 95, 95, 0), kvs=1, dt=8),
-        op(1, 78, (99, 60, 99, 60), (99, 88, 88, 0), kvs=3),
-        op(1, 74, (99, 60, 99, 60), (99, 85, 85, 0), kvs=2),
-        op(1, 80, (99, 60, 99, 60), (99, 90, 90, 0), kvs=2)], fb=7,
-        lfo=(38, 45, 8, 0, 0, 4, 4)),
-    # pad de vidrio: moduladores inarmónicos suaves, entra y sale despacio
-    voice('GLASS', 5, [
-        op(1, 96, (40, 25, 20, 32), (99, 92, 85, 0), kvs=1),
-        op(3.5, 62, (35, 25, 20, 32), (99, 80, 70, 0), kvs=2),
-        op(1, 92, (42, 25, 20, 32), (99, 92, 85, 0), kvs=1, dt=10),
-        op(7.07, 52, (35, 25, 20, 32), (99, 75, 60, 0), kvs=2),
-        op(2, 82, (44, 25, 20, 32), (99, 90, 80, 0), kvs=1, dt=4),
-        op(1, 60, (35, 25, 20, 32), (99, 80, 70, 0), kvs=2)], fb=3,
-        lfo=(25, 30, 5, 0, 0, 4, 2)),
-    # super FM: tres portadoras con realimentación, ancho, para acordes
-    voice('SUPER FM', 22, [
-        op(1, 94, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1),
-        op(1, 74, (80, 40, 99, 50), (99, 85, 85, 0), kvs=2),
-        op(1, 92, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=3),
-        op(1, 92, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=11),
-        op(2, 84, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=6),
-        op(1, 80, (80, 40, 99, 50), (99, 88, 88, 0), kvs=2)], fb=7,
-        lfo=(28, 20, 4, 0, 0, 4, 2)),
-    # tom FM: caída de tono con la envolvente de pitch
-    voice('TOM FM', 16, [
-        op(1, 99, (99, 58, 40, 60), (99, 0, 0, 0), kvs=3, rs=3),
-        op(1.41, 72, (99, 70, 40, 60), (99, 0, 0, 0), kvs=5),
-        op(1, 60, (99, 80, 40, 60), (99, 0, 0, 0), kvs=4),
-        OFF, OFF, OFF], fb=0, pr=(99, 60, 99, 99), pl=(72, 50, 50, 50)),
     # flauta: soplido con un poco de ruido de la realimentación
     voice('FLUTE', 5, [
         op(1, 99, (60, 40, 99, 60), (99, 95, 95, 0), kvs=2),
@@ -166,6 +141,77 @@ V = [
         op(4, 46, (70, 60, 99, 60), (99, 30, 30, 0), kvs=2),
         op(7, 70, (70, 60, 99, 60), (99, 40, 40, 0), kvs=2)], fb=7,
         lfo=(34, 50, 6, 0, 0, 4, 3)),
+    # órgano de tubos (receta publicada, algoritmo 19): OP1 y OP2 a 0.5, OP3 a 1, OP4 a 4, OP5 a 2,
+    # OP6 a 10; niveles a oído
+    voice('PIPE ORG', 19, [
+        op(0.5, 99, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0),
+        op(0.5, 60, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0),
+        op(1, 55, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0),
+        op(4, 80, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0),
+        op(2, 88, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0),
+        op(10, 45, (70, 99, 99, 60), (99, 99, 99, 0), kvs=0, rs=0)], fb=2,
+        lfo=(60, 0, 3, 0, 0, 4, 2)),
+    # órgano de barras (algoritmo 32, receta publicada: 1 / 2 / 3 / 4 / 6 / 8), con un clic de percusión
+    voice('ORGAN', 32, [
+        op(1, 99, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
+        op(2, 90, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
+        op(3, 84, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
+        op(4, 86, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
+        op(6, 72, (99, 99, 99, 80), (99, 99, 99, 0), kvs=0, rs=0),
+        op(8, 74, (99, 70, 99, 80), (99, 0, 0, 0), kvs=2, rs=0)], fb=0,
+        lfo=(70, 0, 4, 0, 0, 4, 2)),
+    # armónica (diseño propio: no hay receta publicada): un par 1:2 (armónicos impares, de lengüeta),
+    # ataque un poco lento y vibrato con retardo
+    voice('REED HRP', 5, [
+        op(1, 99, (70, 50, 99, 65), (99, 95, 95, 0), kvs=2),
+        op(2, 78, (60, 50, 99, 65), (99, 85, 85, 0), kvs=4),
+        op(1, 80, (70, 50, 99, 65), (99, 95, 95, 0), kvs=2, dt=8),
+        op(1, 60, (60, 50, 99, 65), (99, 80, 80, 0), kvs=3),
+        OFF, OFF], fb=0,
+        lfo=(30, 40, 8, 0, 0, 4, 3)),
+    # clavinet: modulador a 3:1 que se cierra rápido, ataque seco
+    voice('CLAVI', 5, [
+        op(1, 99, (99, 70, 40, 85), (99, 60, 0, 0), kvs=3, rs=3),
+        op(3, 84, (99, 80, 45, 85), (99, 40, 0, 0), kvs=5, rs=3),
+        op(1, 86, (99, 72, 40, 85), (99, 55, 0, 0), kvs=3, rs=3, dt=9),
+        op(1, 76, (99, 75, 45, 85), (99, 50, 0, 0), kvs=5),
+        op(3, 70, (99, 75, 40, 85), (99, 30, 0, 0), kvs=3),
+        op(5, 60, (99, 85, 45, 85), (99, 0, 0, 0), kvs=5)], fb=5),
+    # pulsado: kalimba o arpa de juguete
+    voice('PLUCKED', 5, [
+        op(1, 99, (99, 45, 30, 55), (99, 0, 0, 0), kvs=3, rs=4),
+        op(6, 70, (99, 78, 40, 55), (99, 0, 0, 0), kvs=6, rs=4),
+        op(5.01, 66, (99, 60, 30, 55), (99, 0, 0, 0), kvs=3, rs=4),
+        op(1, 58, (99, 82, 40, 55), (99, 0, 0, 0), kvs=5),
+        op(2, 60, (99, 55, 30, 55), (99, 0, 0, 0), kvs=3, dt=9),
+        op(2, 50, (99, 70, 40, 55), (99, 0, 0, 0), kvs=5)], fb=2),
+    # pad de vidrio: moduladores inarmónicos suaves, entra y sale despacio
+    voice('GLASS', 5, [
+        op(1, 96, (40, 25, 20, 32), (99, 92, 85, 0), kvs=1),
+        op(3.5, 62, (35, 25, 20, 32), (99, 80, 70, 0), kvs=2),
+        op(1, 92, (42, 25, 20, 32), (99, 92, 85, 0), kvs=1, dt=10),
+        op(7.07, 52, (35, 25, 20, 32), (99, 75, 60, 0), kvs=2),
+        op(2, 82, (44, 25, 20, 32), (99, 90, 80, 0), kvs=1, dt=4),
+        op(1, 60, (35, 25, 20, 32), (99, 80, 70, 0), kvs=2)], fb=3,
+        lfo=(25, 30, 5, 0, 0, 4, 2)),
+    # solista: una pila de cuatro con realimentación (casi diente de sierra) y vibrato
+    voice('LEAD', 1, [
+        op(1, 95, (99, 60, 99, 60), (99, 92, 92, 0), kvs=1),
+        op(2, 70, (90, 60, 99, 60), (99, 80, 80, 0), kvs=3),
+        op(1, 99, (99, 60, 99, 60), (99, 95, 95, 0), kvs=1, dt=8),
+        op(1, 78, (99, 60, 99, 60), (99, 88, 88, 0), kvs=3),
+        op(1, 74, (99, 60, 99, 60), (99, 85, 85, 0), kvs=2),
+        op(1, 80, (99, 60, 99, 60), (99, 90, 90, 0), kvs=2)], fb=7,
+        lfo=(38, 45, 8, 0, 0, 4, 4)),
+    # super FM: tres portadoras con realimentación, ancho, para acordes
+    voice('SUPER FM', 22, [
+        op(1, 94, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1),
+        op(1, 74, (80, 40, 99, 50), (99, 85, 85, 0), kvs=2),
+        op(1, 92, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=3),
+        op(1, 92, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=11),
+        op(2, 84, (80, 40, 99, 50), (99, 90, 90, 0), kvs=1, dt=6),
+        op(1, 80, (80, 40, 99, 50), (99, 88, 88, 0), kvs=2)], fb=7,
+        lfo=(28, 20, 4, 0, 0, 4, 2)),
     # zumbido: bajo agresivo para acid y techno (realimentación al máximo)
     voice('BUZZ', 2, [
         op(1, 99, (99, 50, 70, 70), (99, 85, 70, 0), kvs=2),
@@ -178,7 +224,7 @@ V = [
 
 
 def main():
-    assert len(V) == 16, len(V)
+    assert len(V) == 20, len(V)
     rows, names = [], []
     for name, d in V:
         rows.append('    {%s},  /* %s */' % (','.join(str(x) for x in d), name))

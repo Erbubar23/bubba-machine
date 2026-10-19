@@ -18,6 +18,7 @@
       <a href="../../emulador.html?lang=en">Emulator</a>
       <a href="manual.html">Manual</a>
       <a href="install.html" aria-current="page">Install</a>
+      <a href="../../control.html?lang=en">Control</a>
       <a href="roadmap.html">Roadmap</a>
       <a href="contributing.html">Contribute</a>
       <a href="https://github.com/Erbubar23/bubba-machine">Code</a>
@@ -45,8 +46,8 @@
     <a href="../../docs/diseno-0-2.html">Design 0.2 (ES)</a></aside>
   <main class="doc">
 <h1 id="installing-bubba-machine">Installing Bubba Machine</h1>
-<h2 id="current-status-beta-080-beta">Current status: beta (0.8.0-beta)</h2>
-<p>Bubba Machine for the FM-1 has a <strong>full firmware, with sound</strong>, a <strong>diagnostic firmware</strong> and a <strong>web installer</strong>. It runs on the author's FM-1, but it is a <strong>beta</strong>: tested on a single device and still changing a lot. <strong>0.8.0-beta has not been fully tried on the device yet</strong> (it passes the automated tests and the emulator; do not install 0.6.0-beta: it was short of RAM); if something goes wrong, go back to 0.7.0-beta or the stock firmware from the installer. Technical progress is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
+<h2 id="current-status-beta-090-beta">Current status: beta (0.9.0-beta)</h2>
+<p>Bubba Machine for the FM-1 has a <strong>full firmware, with sound</strong>, a <strong>diagnostic firmware</strong> and a <strong>web installer</strong>. It runs on the author's FM-1, but it is a <strong>beta</strong>: tested on a single device and still changing a lot. <strong>0.9.0-beta has not been fully tried on the device yet</strong> (it passes the automated tests and the emulator; do not install 0.6.0-beta: it was short of RAM); if something goes wrong, go back to the stock firmware from the installer, or to 0.8.0-beta: the installer only offers the latest version, so download <code>bubba-machine-0.8.0-beta.fwsc</code> from the <a href="https://github.com/Erbubar23/bubba-machine/releases">GitHub releases</a> and pick it under <strong>More options</strong>. Technical progress is in <a href="https://github.com/Erbubar23/bubba-machine/blob/main/hal/fm1/README_PORT.md"><code>hal/fm1/README_PORT.md</code></a> (Spanish).</p>
 <blockquote><p><strong>What you save may be lost when you update.</strong> There is no backward compatibility until v1: if a new version changes how patterns, the song, settings or takes are stored, the old data is erased on first boot and the demo comes back. If something matters to you, record it from the audio output before updating.</p></blockquote>
 <p>Every version is also published as <code>bubba-machine-&lt;version&gt;.fwsc</code> in the <a href="https://github.com/Erbubar23/bubba-machine/releases">GitHub releases</a>, for installers that use that package (such as the <a href="https://fm1.designburgapps.com/">FM-1 Firmware Hub</a>).</p>
 <p>If you don't want to risk your FM-1, use the emulator (below): it runs the same code.</p>
@@ -58,7 +59,7 @@ Press <strong>Power on</strong>. It starts with a demo.
 </li><li>
 With the computer keyboard:
 <ul><li>
-<strong>Space</strong> is PLAY, <strong>Enter</strong> is REC and <strong>Shift</strong> is HOME (the modifier: hold it and turn SELECT to jump to another track).
+<strong>Space</strong> is PLAY, <strong>Enter</strong> is REC and <strong>Shift</strong> is HOME (the modifier: hold it and press one of the last six white keys, T1-T6, to jump to that machine).
 </li><li>
 Numbers <strong>1-9 and 0</strong> are HOME, SEQ, EDIT, ENV, FX, SCL, ARP, SAVE, LFO and GLO, and the <strong>arrows</strong> are OCT− and OCT+.
 </li><li>
@@ -81,7 +82,7 @@ The page has already picked the newest <strong>Bubba Machine</strong> (you can a
 </li><li>
 Press <strong>Install</strong> and confirm. Don't unplug until it says "Done".
 </li><li>
-Then the <a href="https://github.com/Erbubar23/bubba-machine/blob/main/web/control.html">control platform</a> loads the screen language, takes and sounds, and shows the memory.
+Then the <a href="../../control.html?lang=en">control platform</a> loads the screen language, takes and sounds, and shows the memory.
 </li></ol>
 <p>If the page doesn't find the FM-1, under "Your FM-1" it shows which MIDI ports it sees and what is wrong with them (for example "busy" when REAPER or another app has it open).</p>
 <p>The page downloads <strong>the same <code>.fwsc</code> package as the release</strong> (the one the FM-1 Firmware Hub uses) and checks its SHA-256 before writing anything.</p>

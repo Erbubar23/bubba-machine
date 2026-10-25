@@ -22,40 +22,50 @@ typedef struct {
     void *user;
 } bm_platform;
 
-/* Pantallas (0.9). La consola (BX-1) es HOME: MIX y FX, y su GLO. Los canales usan V_CH con su
- * página (pestaña). */
+/* Pantallas (1.0, etapa 1). HOME es el mezclador de 6 canales; GLO su menú global (SELECT MACHINE);
+ * V_CH es el secuenciador de la batería (el único canal con pantalla propia). PLAY/REC no es una
+ * pantalla: es HOME con el teclado tocando el canal del cursor. */
 typedef enum {
     V_BOOT,
-    V_HOME,                                     /* consola: MIX (HOME siempre vuelve aquí) */
-    V_FXG,                                      /* consola: FX = CHANNEL > DELAY > REVERB > MASTER */
-    V_GLO,                                      /* consola: GLO = TEMPO > MACHINES > SCALE > SONG */
-    V_CH,                                       /* un canal: a->page */
-    V_SYSTEM, V_TIME, V_SAVE, V_COPYCH,         /* HOME 2 s, SEQ 2 s, SAVE, HOME + EDIT */
+    V_HOME,                                     /* el mezclador (y PLAY/REC, si a->sloop) */
+    V_GLO,                                      /* menú global del mezclador: SELECT MACHINE */
+    V_CH,                                       /* el secuenciador de la batería */
+    V_SYSTEM, V_SAVE,                           /* HOME 2 s, SAVE */
+    V_MACH,                                     /* la máquina de un canal de notas (2026-10-21: la BX-7) */
     V_COUNT
 } bm_view;
 
-enum { FXP_CHANNEL, FXP_DELAY, FXP_REVERB, FXP_MASTER, FXP_COUNT };   /* páginas del FX de la consola */
-enum { GP_TEMPO, GP_MACH, GP_SCALE, GP_SONG, GP_COUNT };              /* páginas del GLO de la consola */
+/* Páginas de la BX-7 (V_MACH), como los botones del FM-1 de fábrica: el mismo botón otra vez vuelve a
+ * MAIN; HOME sale a la consola. */
+enum { BXP_MAIN, BXP_SEQ, BXP_FX, BXP_ENV, BXP_LFO, BXP_EDIT, BXP_GLO, BXP_ARP, BXP_SCL, BXP_N };   /* SCL: el BB-303 (ACCENT / SLIDE por paso) */
+enum { BXE_OP1, BXE_OP6 = 5, BXE_PIT, BXE_GLO, BXE_N };   /* qué edita EDIT: un operador, el pitch EG o lo global */
+typedef struct {
+    uint8_t page;                 /* BXP_* */
+    uint8_t sub[BXP_N];           /* la página de cada botón (SELECT) */
+    uint8_t edit;                 /* BXE_* */
+    uint8_t esub[BXE_N];          /* la página de cada cosa de EDIT */
+    uint8_t fxpos, grab;          /* FX: la casilla elegida y si SCL la tomó para moverla */
+    uint8_t armed;                /* REC parado: la primera nota arranca y graba */
+    uint8_t step;                 /* SEQ, paso a paso (REC parado): el paso que se escribe */
+    uint8_t chord, nslot;         /* paso a paso: hay teclas del paso apretadas y cuántas notas lleva */
+    uint8_t blk;                  /* BB-303 SCL: la página de 16 pasos */
+    uint8_t vman, vpage;          /* piano roll: K3 eligió la página que se ve (si no, sigue al cabezal / cursor) */
+    int8_t vy;                    /* piano roll: K4 corre las alturas que se ven (semitonos) */
+    uint8_t szoom, sbars;         /* Slicer, TRIM: el zoom de la onda (0..3) y los compases que graba SAMPLE (1, 2 o 4) */
+} bm_bx7ui;
 
-/* Páginas de un canal. Las pestañas dependen del tipo de canal (bm_app_tabs). PG_MORE es el GLO de
- * la máquina (GLO dentro de ella): no es una pestaña. */
 #define BM_MACH_MS 2000u          /* cambio de máquina: la elegida se carga si se queda 2 s */
-typedef enum {
-    PG_SEQ, PG_SOUND, PG_INST, PG_MIX, PG_MORE, PG_BREAK, PG_TAKES, PG_ARP, PG_LOOP, PG_MIDI,
-    PG_SCL, PG_CHORDS, PG_REC, PG_PADS, PG_COUNT
-} bm_page;
+/* SYSTEM (2026-10-21, más simple): las filas que se ven, de las de siempre (sys_val / system_change):
+ * reloj MIDI, sync, luces en reposo, idioma, versión. Las demás quedan como estaban. */
+#define BM_SYS_VIS 5
+static const uint8_t BM_SYS_ROWS[BM_SYS_VIS] = {0, 1, 5, 9, 10};
+#define BM_SAVE_ROWS 3            /* SAVE: guardar (con las escenas), guardar como, borrar el patrón */
+#define BM_GLO_PAGES 3
+typedef enum { PG_SEQ, PG_COUNT } bm_page;
 
-/* Capas en vivo (mantener un botón). */
-typedef enum {
-    L_NONE, L_HOME, L_LEN, L_ERASE, L_ACC, L_REP, L_PUNCH, L_CHORDS, L_ARP, L_ROLL, L_COPY, L_TONE, L_LANEMUTE, L_FILL,
-    L_COUNT
-} bm_layer;
-
-/* Preguntas (0.9): se aceptan con el tiempo. Sostener 2 s el mismo botón o tecla que preguntó
- * (o volver a apretarlo y sostenerlo); soltarlo antes, u otro control, es no. */
-enum { ASK_NONE, ASK_COPY_PAT, ASK_COPY_TRK, ASK_TAKE_DEL, ASK_INIT, ASK_KIT, ASK_DISCARD, ASK_COPY_CH };
-#define ASK_ENC   0xFEu           /* preguntó una perilla: se acepta sola a los 2 s, otro control es no */
-#define ASK_KEY   0x80u           /* ask_ctl = ASK_KEY | tecla; si no, el botón */
+/* Capas del secuenciador de la batería: un clic en su botón la abre y otro la cierra (o HOME); sostenerlo es lo
+ * mismo que un clic. */
+typedef enum { L_NONE, L_ACC, L_REP, L_HIT, L_INST, L_MUTE, L_LEN, L_COUNT } bm_layer;   /* LFO, la negra 11, ENV, EDIT, SCL y (Slicer) SEQ otra vez: LENGTH AND SPEED */
 
 typedef struct {
     uint8_t ver, clock, sync_mode, sync_ppqn, sync_lat, drive, led_dim, autosave, last_pat;
@@ -63,9 +73,10 @@ typedef struct {
     uint8_t lang;           /* 0 = inglés, 1 = el paquete de idioma de la flash */
     uint8_t fast_lcd;       /* 1 = SPI a 30 MHz con DMA (a prueba; el modo seguro lo apaga) */
     uint8_t dual_core;      /* 1 = el audio en los dos núcleos (a prueba; el modo seguro lo apaga) */
-    uint8_t note_view;      /* bit t = el canal t ve su SEQ como PIANO ROLL (GLO de la máquina > VIEW) */
+    uint8_t factory;        /* los patrones de fábrica que se escribieron (BM_FACTORY_VER); otro número los vuelve a escribir */
     uint8_t rsv[18];
 } bm_settings;
+#define BM_FACTORY_VER 1          /* 1 (2026-10-24): DA FUNK, BLADE, ENJOY THE SILENCE */
 
 typedef struct {
     uint8_t on, enc, pct, ghost;
@@ -84,7 +95,7 @@ typedef struct { char label[6]; uint8_t led, live; uint16_t color; } bm_keyfn;
 
 #define BM_JOBS 10
 enum { JOB_NONE, JOB_FLUSH_PEND, JOB_SAVE_CUR, JOB_SAVE_AS, JOB_SAVE_SONG, JOB_SAVE_GLOB, JOB_LOAD,
-       JOB_SAVE_TAKE, JOB_TAKE_META, JOB_TAKE_ERASE, JOB_COPY_PAT, JOB_COPY_TRK };
+       JOB_SAVE_TAKE, JOB_TAKE_META, JOB_TAKE_ERASE };
 
 typedef union { bm_tr tr; bm_notes nt; } bm_trackbuf;
 
@@ -113,54 +124,32 @@ typedef struct bm_app {
     bm_take take[BM_TAKES];
     bm_smp_src smp_send[1];       /* copia estable que lee el audio: la toma recién guardada */
     bm_smp_src take_send[BM_TAKES];   /* las tomas, para los pads (CMD_SMP_TAKES) */
-    uint8_t wave_cut[2][232];     /* PADS / TAKES: la ventana que se ve (pico y RMS) */
-    uint8_t wave_ov[232];         /* la toma entera, para el mapa de arriba (picos) */
-    uint8_t take_dirty, takes_row, cut_snap, cut_zoom;
+    uint8_t take_dirty, takes_row;
     volatile uint8_t ext_take_del;  /* toma a borrar pedida desde afuera (id + 1), se borra en STOP */
     int8_t pad_key;               /* tecla que sostiene un pad (o una escucha) */
-    const int8_t *cut_wd;         /* lo que ya está dibujado en wave_cut / wave_ov */
-    uint32_t cut_wlen, cut_v0, cut_v1, cut_pk;
     uint8_t slice_sens;           /* sensibilidad de los cortes en los golpes (0..127) */
-    bm_pad pad_clip;              /* COPY / PASTE de un pad (con su nivel y su grupo) */
-    uint8_t pad_clip_on, pad_clip_level, pad_clip_choke;
+    uint8_t len_page;             /* Slicer, LENGTH AND SPEED: los largos que dan las blancas (0: 1-16 ... 3: 49-64) */
 
     /* portapapeles, undo y redo (un canal) */
-    bm_trackbuf clip;
-    bm_track clip_trk;
-    bm_event clip_step[BM_EVENTS];
-    uint8_t clip_type, clip_track;   /* 0 nada, 1 paso, 2 canal */
-    bm_trackbuf undo, redo;
-    int8_t undo_track, redo_track;
+    bm_trackbuf scratch;          /* bolsa de trabajo: un canal entero a medias */
 
     /* UI */
     bm_gesture ges;
     bm_screen scr;
-    uint8_t view, page, layer, track, step_page;
+    uint8_t view, layer, track, step_page;
     uint8_t mach_sel;             /* cambio de máquina: la elegida (ENG_*) */
     uint8_t mach_arm;             /* 1 = la cuenta de 2 s corre (ALGORITHM la movió a otra) */
     uint8_t mach_trk;             /* el canal que cambia de máquina (la tarjeta o GLO > MACHINES) */
     uint32_t mach_t0;             /* cuándo se llegó a la elegida */
-    uint8_t ch_page[BM_TRACKS];   /* última página de cada canal */
-    uint8_t glo_back;             /* GLO de la máquina: la página a la que vuelve GLO otra vez */
-    uint8_t glo_page;             /* GLO de la consola: GP_* */
     uint8_t sel_lane[BM_TRACKS];
-    uint8_t ed_page[BM_TRACKS];   /* página del editor de sonido (ANALOG) o del instrumento (batería) */
     int8_t oct;
-    uint8_t rec, rec_before, rec_hold, fill;
+    uint8_t rec, fill;
     uint8_t sloop;                /* SLOOP-REC (REC en la consola): las teclas tocan el canal del cursor */
-    uint8_t card, card_turn;      /* tarjeta del canal (blanca 11-16 sostenida en HOME): canal + 1 · se giró una perilla */
-    uint8_t cue;                  /* CUE (negra 11 en HOME): 1 sostenida, 2 fija */
-    uint8_t home_go;              /* HOME + blanca 11-16: el canal + 1 al que se entra al soltar HOME */
-    uint8_t scn_chain;            /* escenas: una sostenida ya armó una cadena (soltarla no lanza) */
-    uint8_t song_rec_scene;       /* SONG REC: la escena que ya quedó escrita */
     uint64_t rec_steps;           /* REC de esta pasada: los pasos donde se grabó (las notas se ven en rojo) */
     uint16_t rec_lanes;           /* y los instrumentos (rejillas) */
-    uint16_t home_mod;            /* botones que se apretaron con HOME sostenido */
-    uint8_t home_used;
     uint8_t box_on, box_track, box_hold;
     uint8_t box_mode, box_lane;   /* recuadro de ALGORITHM en INSTR: BOX_LANE (instrumento) */
     uint8_t layer_latch;          /* la capa quedó abierta con un toque (FILL, ROLL, LFO): se cierra con la misma tecla o HOME */
-    uint8_t nav_btn, nav_track, nav_page, nav_sub;   /* botón + 1 que abrió la página del canal (0 = ninguno), para su luz */
     uint32_t box_until;
     int8_t held_step, held_white;
     uint8_t held_edit, held_had_event, held_long, held_notes;
@@ -169,49 +158,24 @@ typedef struct bm_app {
     uint8_t key_notes[BM_KEYS][4], key_nn[BM_KEYS], key_trk[BM_KEYS];
     int8_t key_rec_step[BM_KEYS], key_rec_slot[BM_KEYS];
     uint32_t key_rec_tick[BM_KEYS];
+    uint32_t key_rec_bt[BM_KEYS];   /* btick al grabarla: lo que se sostuvo (rtick vuelve a 0 con el maestro) */
+    uint8_t rec_vel;              /* la fuerza de la última nota tocada: 127 se graba con ACCENT */
+    uint8_t oct_used;             /* el OCT sostenido ya se usó (transposición o los dos): al soltarlo no cambia la octava */
+    uint32_t rec_clr_bt[BM_STEPS];  /* PLAY/REC: btick en que se reescribió cada paso (en la misma vuelta, se suma: un acorde) */
+    uint64_t rec_clr_on;          /* los pasos con rec_clr_bt válido */
+    int8_t rec_clr_trk;           /* de qué canal son */
     uint32_t key_t0[BM_KEYS];
     uint8_t key_role[BM_KEYS];    /* qué hizo la tecla al bajar (para soltarla bien) */
-    uint16_t home_done;
-    uint8_t eng_pending, rec_now, solo_mask;
-    uint8_t hold_play;            /* sampler: un paso sostenido está haciendo sonar el loop */
-    uint8_t rec_free;             /* canal + 1 que graba en libre: el largo se cierra al parar REC */
-    uint32_t rec_free_t0;         /* btick del inicio (0xFFFFFFFF = empieza con PLAY) */
-    uint8_t chord_mod;
-    int8_t last_pad;
-    uint8_t prev_chord[4], prev_chord_n;
-    char chord_name[10], chord_roman[10];
     uint8_t last_note[BM_TRACKS];
-    int8_t pat_sel;
-    uint32_t pat_sel_t;
     uint16_t pat_held;            /* blancas sostenidas en HOME: cadena de patrones */
     uint8_t pchain[8], pchain_n;
     int8_t solo_key, solo_track;
     uint8_t solo_on, solo_saved;
-    uint16_t erase_mask;          /* capa BORRAR sonando: instrumentos que se borran al pasar */
-    uint8_t erase_syn;
     /* ROLL (ARP en T1 y T2): en vivo, no se guarda */
-    uint8_t roll_rate;            /* índice en bm_roll_ticks (0..BM_ROLL_RATES-1) */
-    uint16_t roll_mask;           /* blancas sostenidas que hacen roll */
-    uint8_t roll_ramp;            /* 0 plano, 1 CRESC, 2 DECRESC */
-    uint8_t roll_len;             /* largo de la rampa: índice en bm_roll_len_ticks */
-    uint8_t roll_swing;           /* 50..75 % */
-    uint8_t roll_tail;            /* la cola al soltar: índice en bm_roll_tail_ticks */
     uint8_t brk_live;
-    uint8_t len_page;             /* capa LARGO: OCT +/- = largos 17-64 */
-    uint8_t launch_held, chain[8], chain_n;
-    uint8_t song_rec;
-    uint32_t song_rec_loops;
-    uint32_t tap_t[4];
-    uint8_t tap_n;
-    uint8_t time_row, time_lane;
-    uint8_t menu_row, glo_row, more_row, save_row, save_target, song_cur, clear_armed;
-    uint8_t copy_src, copy_dst, copy_pat_dst, copy_trk;
-    uint8_t ask, ask_arg, ask_arg2;
-    uint8_t ask_ctl, ask_live;    /* el control que preguntó (botón, ASK_KEY | tecla o ASK_ENC) y si está apretado */
-    uint8_t cur_ctl;              /* el control que se está atendiendo (para app_ask) */
-    uint16_t ask_eat;             /* botones cuyo gesto ya usó la pregunta: se ignoran hasta soltarlos */
-    uint32_t ask_t0;              /* desde cuándo se sostiene para el sí */
-    char ask_text[2][30];
+    uint8_t chain[8], chain_n;
+    uint8_t menu_row, save_row, save_target, clear_armed;
+    uint8_t glo_page;             /* GLO de HOME: 0 MACHINES, 1 TEMPO (y escala), 2 MASTER FX (PRESETS la cambia) */
     uint32_t clear_t;
     bm_overlay ov;
     char toast[30];
@@ -223,18 +187,11 @@ typedef struct bm_app {
     uint8_t last_trig[BM_TRACKS];
     uint32_t trig_until[BM_TRACKS];
     uint32_t lane_flash[BM_TRACKS][BM_LANES];
-    int8_t punch_key;
     uint32_t clip_until;
     uint16_t edits_seen;
     uint8_t cpu;                  /* carga del audio en % (la cabecera) */
-    uint8_t rec_gate;             /* REC de notas: el largo con que se graban (10..100 %, 100 = TIE) */
-    int8_t rec_micro;             /* REC de notas: corrimiento en ticks (-12..12) */
-    uint8_t mix_page, fx_page;    /* FX otra vez: DUCK · en la página FX de HOME: DELAY > REVERB > MASTER */
     int8_t move;                  /* MOVE de HOME (PRESETS): -63..63, en vivo, no se guarda */
-    int8_t tie_from;              /* paso sostenido para una nota larga (blanca + otra blanca) */
-    int8_t rec_step;              /* REC en un canal de notas: el paso que editan ALGORITHM (gate) y PRESETS (micro) */
     uint32_t wt_sig[2];           /* BITTAL: qué tablas están armadas en RAM */
-    uint8_t knob_rec;             /* REC: la nota sostenida graba lo que se mueve en K1-K4 */
     /* perillas: aceleración por el tiempo entre giros, detents crudos y la perilla que gira */
     uint32_t enc_t[ENC_COUNT];    /* cuándo giró cada perilla por última vez */
     int8_t enc_raw;               /* detents de este giro, sin acelerar (0 fuera de un giro) */
@@ -244,6 +201,7 @@ typedef struct bm_app {
     uint8_t stick_id;
     uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
     uint16_t snap_len;
+    bm_bx7ui bx;                  /* la BX-7 (core/bm_bx7.c) */
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);
@@ -280,9 +238,6 @@ void bm_app_src_name(const bm_app *a, uint8_t src, char *buf, int cap);
 bool bm_app_src_info(const bm_app *a, uint8_t src, bm_smp_src *out);
 
 /* para el dibujo */
-int  bm_app_layer(const bm_app *a);
-int  bm_app_tabs(const bm_app *a, int t, uint8_t out[8]);   /* pestañas de un canal */
-const char *bm_page_name(int page);
 void bm_app_legend(const bm_app *a, bm_legend out[4]);
 /* Qué hacen ahora las tres perillas grandes (SELECT, ALGORITHM, PRESETS): un nombre corto, o "-"
  * si no hacen nada aquí. Sale del mismo reparto que bm_app_encoder. */
@@ -290,15 +245,7 @@ void bm_app_bigknobs(const bm_app *a, const char **sel, const char **alg, const 
 void bm_app_keymap(const bm_app *a, bm_keyfn out[BM_KEYS], char *title, int cap, uint16_t *color, const char **h1, const char **h2);
 /* qué hace cada tecla ahora (nombre corto) y su luz: lo mismo que se ve en la tira de teclas */
 void bm_app_keys(const bm_app *a, bm_keyfn out[BM_KEYS]);
-const char *bm_pad_mode_name(int mode);                         /* ONESHOT, KEY, THRU, LOOP */
 void bm_app_draw(bm_gfx *g, void *user);
-void bm_fmt_macro(const bm_app *a, int track, int i, int v, char *buf, int cap);
-const char *bm_macro_name(const bm_app *a, int track, int i);
-/* editor de sonido por páginas (ANALOG en SONIDO, el instrumento de batería en INSTR) */
-const bm_ppage *bm_app_ed_pages(const bm_app *a, int t, int *n);
-int  bm_app_ed_on(const bm_app *a);
-int  bm_app_ed_value(const bm_app *a, int t, const bm_pdef *d);
-const char *bm_app_ed_name(const bm_app *a, int t, const bm_pdef *d);
 const char *bm_track_name(const bm_app *a, int t);
 const char *bm_kit_name(int kit);                       /* KO-808, KO-909 (ROM) o SINTE */
 const char *bm_sound_name(const bm_app *a, int t);      /* kit, timbre o banco de ondas del canal */
@@ -307,23 +254,9 @@ uint16_t bm_track_color(int t);
 uint16_t bm_knob_color(int i);
 const char *bm_lane_name(const bm_app *a, int t, int lane);
 int  bm_app_track_step(const bm_app *a, int t, int lane);   /* paso que suena (lane < 0: canal de notas) */
-int  bm_app_chord_track(const bm_app *a);
 int  bm_app_enter_ms(const bm_app *a);                       /* -1 = OFF */
 uint32_t bm_app_rec_room(const bm_app *a);                   /* muestras que caben en la próxima toma */
-uint8_t bm_app_takes_sel(const bm_app *a);                    /* fuente marcada en TOMAS */
-int  bm_app_more_count(const bm_app *a);           /* filas del GLO de la máquina */
-void bm_app_more_row(const bm_app *a, int i, const char **name, char *val, int cap);
-int  bm_app_glo_count(const bm_app *a);            /* filas de la página del GLO de la consola */
-void bm_app_glo_row(const bm_app *a, int i, const char **name, char *val, int cap);
-/* una tecla sostenida que hace algo a los 2 s (escena: guardarla): 0..255 hacia los 2 s, o -1 */
+/* una escena guardada sostenida: el anillo hacia los 2 s en que se borra (0..255), o -1 */
 int  bm_app_key_ring(const bm_app *a, char *label, int cap);
-/* la pregunta: cuánto falta para el sí (0..255) y cómo se dice el control que preguntó */
-int  bm_app_ask_progress(const bm_app *a);
-void bm_app_ask_hint(const bm_app *a, char *buf, int cap);
-static inline bool bm_app_roll_view(const bm_app *a, int t) { return (a->set.note_view >> t) & 1; }
-#define BM_ROLL_RATES 6           /* 1/8 1/16 1/32 1/8T 1/16T 1/32T */
-extern const char *const bm_roll_names[BM_ROLL_RATES];
-extern const char *const bm_roll_len_names[4];
-extern const char *const bm_roll_tail_names[4];
 
 #endif

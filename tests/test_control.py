@@ -223,8 +223,8 @@ def main():
         p.esperar('location.pathname.endsWith("control.html")', 5000)
         check(p.js('location.pathname.endsWith("control.html") && location.hash === "#sounds" && location.search.includes("mock=1")'),
               'sonidos.html lleva a control.html#sounds con la consulta')
-        p.esperar('document.getElementById("estado").innerText.includes("0.9.0-beta")', 8000, 'conectado')
-        check('FM-1 · Bubba Machine 0.9.0-beta' in txt('#estado'), 'conecta y lee la versión')
+        p.esperar('document.getElementById("estado").innerText.includes("0.10.0-beta")', 8000, 'conectado')
+        check('FM-1 · Bubba Machine 0.10.0-beta' in txt('#estado'), 'conecta y lee la versión')
         p.esperar('document.getElementById("slots").innerText.includes("1.49")', 5000)
         check('1.49 s' in txt('#slots') and 'TAKE 03' in txt('#slots') and txt('#slots').count('Libre') == 5, 'TAKES: 3 tomas y 5 lugares libres')
         m = txt('#machines')
@@ -238,7 +238,7 @@ def main():
         check('Se prendió normalmente' in d and 'TWO CORES' not in d and 'batería 3.95 V' in d, 'DEVICE: arranque, tensión y sin TWO CORES')
         p.js('document.getElementById("dlog").click()')
         p.esperar('!document.getElementById("logtxt").hidden', 3000)
-        check('Bubba Machine 0.9.0-beta' in txt('#logtxt'), 'DEVICE: el registro')
+        check('Bubba Machine 0.10.0-beta' in txt('#logtxt'), 'DEVICE: el registro')
         p.js('document.getElementById("device").open = false')
         shot('es-1280-conectado.png', 1280)
 
@@ -292,13 +292,13 @@ def main():
         p.js('document.getElementById("plist").open = true')
         shot('es-1280-pendientes.png', 1280)
         p.ir(base + 'control.html?lang=es&mock=1', 390, movil=True)
-        p.esperar('document.getElementById("estado").innerText.includes("0.9.0")', 8000)
+        p.esperar('document.getElementById("estado").innerText.includes("0.10.0")', 8000)
         check(p.js('document.documentElement.scrollWidth <= 390'), 'ES 390 px: sin barra horizontal')
         shot('es-390-conectado.png', 390, True)
 
         # de vuelta en escritorio: armar todo y mandar, primero sonando
         p.ir(base + 'control.html?lang=en&mock=1', 1280)
-        p.esperar('document.getElementById("estado").innerText.includes("0.9.0")', 8000)
+        p.esperar('document.getElementById("estado").innerText.includes("0.10.0")', 8000)
         p.archivo('#ftake', wav)
         p.esperar('!document.getElementById("tok").disabled', 10000)
         p.js('document.getElementById("tok").click()')
@@ -345,7 +345,7 @@ def main():
         p.js('document.getElementById("discard").click()')
         check('No pending' in txt('#pcount'), 'descartar vacía la lista')
         p.ir(base + 'control.html?lang=en&mock=1', 390, movil=True)
-        p.esperar('document.getElementById("estado").innerText.includes("0.9.0")', 8000)
+        p.esperar('document.getElementById("estado").innerText.includes("0.10.0")', 8000)
         shot('en-390-conectado.png', 390, True)
         errores = [e for e in p.errores if e and 'beforeunload' not in e]   # Chrome avisa que no mostró el aviso de cambios sin mandar
         check(not errores, 'sin errores en la consola: %s' % (errores or 'ninguno'))

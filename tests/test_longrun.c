@@ -438,7 +438,7 @@ static void tweak_live(uint32_t sec)
     case 2: bm_app_button(&app, BTN_SEQ, 1, now_ms); bm_app_button(&app, BTN_SEQ, 0, now_ms + 30); break;
     case 3: if (sec % 64 == 3 || sec % 64 == 35) { bm_app_button(&app, BTN_REC, 1, now_ms); bm_app_button(&app, BTN_REC, 0, now_ms + 30); } break;
     default:
-        live_key = rnd(4) ? bm_white_key((int)rnd(16)) : bm_black_key((int)rnd(11));
+        live_key = rnd(4) ? bm_white_key(BM_CH_W0 + (int)rnd(6)) : bm_black_key((int)rnd(11));   /* canales y mutes: los patrones vacíos callarían el final */
         bm_app_key(&app, live_key, 1, now_ms);
         if (rnd(3) == 0) bm_app_encoder(&app, ENC_K1 + (int)rnd(4), (int)rnd(5) - 2, now_ms);
         break;

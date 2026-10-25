@@ -36,11 +36,11 @@ int main(void)
     id = fm1_scan_next_edge(&s, &down);
     CHECK(id == 20 && down == 1);                  /* 2 frames: presionada */
     matrix[3] = 0; frame(); matrix[3] = 1 << 1; frame(); matrix[3] = 0;   /* rebote al soltar */
-    for (int i = 0; i < 7; i++) frame();
+    for (int i = 0; i < FM1_DEB_RELEASE - 1; i++) frame();
     CHECK(fm1_scan_next_edge(&s, &down) == -1);
     frame();
     id = fm1_scan_next_edge(&s, &down);
-    CHECK(id == 20 && down == 0);                  /* 8 frames abiertos: suelta */
+    CHECK(id == 20 && down == 0);                  /* FM1_DEB_RELEASE frames abiertos: suelta */
 
     printf("cuadratura: 1 detent = 4 transiciones\n");
     static const uint8_t CW[4] = {0, 2, 3, 1};     /* AB: 00 -> 10 -> 11 -> 01 -> 00 */
@@ -63,26 +63,36 @@ int main(void)
     CHECK(v == -2 * dir);
     CHECK(fm1_scan_take_encoder(&s, 1) == 0);
 
-    printf("cuadratura: perilla con dos detents por ciclo\n");
-    for (int i = 1; i <= 2; i++) {                 /* 00 -> 10 -> 11 y se queda */
+    printf("cuadratura: una pausa a medio clic no hace que cuente doble (Felucca #23)\n");
+    for (int i = 1; i <= 2; i++) {                 /* 00 -> 10 -> 11 y una pausa corta ahí */
         uint8_t ab = CW[i];
         matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
         frame();
     }
-    for (int i = 0; i < FM1_REST_FRAMES + 2; i++) frame();
-    CHECK(fm1_scan_take_encoder(&s, 0) == dir);    /* aprendió el detent nuevo y contó el paso */
-    for (int i = 3; i <= 4; i++) {                 /* 11 -> 01 -> 00: otro detent, ya conocido */
+    for (int i = 0; i < 60; i++) frame();
+    CHECK(fm1_scan_take_encoder(&s, 0) == 0);      /* a medio clic: todavía nada */
+    for (int i = 3; i <= 4; i++) {                 /* 11 -> 01 -> 00: termina el clic */
         uint8_t ab = CW[i % 4];
         matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
         frame();
     }
     CHECK(fm1_scan_take_encoder(&s, 0) == dir);
-    for (int i = 3; i >= 2; i--) {                 /* y de vuelta: 00 -> 01 -> 11 */
-        uint8_t ab = CW[i];
-        matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
-        frame();
+    for (int det = 0; det < 2; det++)              /* y los clics de después cuentan uno cada uno */
+        for (int i = 1; i <= 4; i++) {
+            uint8_t ab = CW[i % 4];
+            matrix[0] = (ab >> 1) & 1; matrix[1] = ab & 1;
+            frame();
+        }
+    CHECK(fm1_scan_take_encoder(&s, 0) == 2 * dir);
+
+    printf("cuadratura: giro rápido (saltos de dos estados) no pierde clics\n");
+    for (int det = 0; det < 3; det++) {            /* 00 -> 11 -> 00: cada medio ciclo de un salto */
+        matrix[0] = 1; matrix[1] = 0; frame();     /* uno normal para saber la dirección */
+        matrix[0] = 0; matrix[1] = 1; frame();     /* salto */
+        matrix[0] = 0; matrix[1] = 0; frame();
     }
-    CHECK(fm1_scan_take_encoder(&s, 0) == -dir);
+    v = fm1_scan_take_encoder(&s, 0);
+    CHECK(v == 3 * dir);
 
     printf("\n%d comprobaciones, %d fallos\n", checks, fails);
     return fails ? 1 : 0;

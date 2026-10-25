@@ -4,10 +4,11 @@
 #ifndef BM_CONFIG_H
 #define BM_CONFIG_H
 
-#define BM_VERSION_STR "0.9.0-beta"
+#define BM_VERSION_STR "0.10.0-beta"
 #define BM_FMT           3        /* generación de ajustes y tomas (0.3 no lee los de 0.2) */
-#define BM_PAT_FMT       8        /* formato de patrones. Hasta la v1 no se leen formatos anteriores */
-#define BM_PRM           48       /* parámetros de sonido por canal, además de las 4 macros (= BM_SNAP_PRM) */
+#define BM_PAT_FMT       10       /* formato de patrones (10: prm de 56). Hasta la v1 solo se lee además el anterior (9) */
+#define BM_FMV_BYTES     156      /* la voz de la BX-7 en el patrón (= BM_FM_PATCH, VCED de la DX7) */
+#define BM_PRM           56       /* parámetros de sonido por canal, además de las 4 macros (los snapshots guardan los 48 primeros) */
 
 /* ---- Audio (SPEC_V3 §1.4, §3.1) ---- */
 #define BM_FS_OUT        44118u   /* ≈ 24 MHz / 544, fijo por hardware */
@@ -24,7 +25,8 @@
 #define BM_EVENTS        4        /* eventos por paso */
 #define BM_PPQN          96
 #define BM_TICKS_STEP    24       /* 96 PPQN / 4 semicorcheas */
-#define BM_PATTERNS      10       /* 0.9: W1-W10 en HOME (los objetos 10-15 de la flash se ignoran) */
+#define BM_PATTERNS      9        /* HOME: W1-W9 (los objetos 9-15 de la flash se ignoran) */
+#define BM_CH_W0         10       /* HOME: las blancas 11-16 son los canales; la 10, espacio de seguridad sin función */
 #define BM_SONG_MAX      64
 #define BM_PAT_MAX_EVENTS 768
 #define BM_LANES         16       /* instrumentos de las pistas TR (T1 batería, T2 sampler) */
@@ -68,14 +70,19 @@
 /* ---- Pantalla (§1.2, §6.3) ---- */
 #define BM_LCD_W         240
 #define BM_LCD_H         240
-/* 0.6: cuatro franjas (docs/DISENO_0.6.md §5.2) */
+/* 2026-10-22: cada perilla se dibuja una sola vez. Donde la pantalla ya muestra K1-K4 (un panel,
+ * una lista) no va la franja de perillas y el visor llega hasta el teclado; si no, la franja va
+ * entre el visor y el teclado. El teclado y la fila de las perillas grandes, siempre abajo. */
 #define BM_STATUS_H      24       /* cabecera: máquina, PLAY/REC, patrón, BPM, CPU */
 #define BM_CTX_Y         24       /* visor: lo propio de cada pantalla */
-#define BM_CTX_H         112
-#define BM_KEYS_Y        136      /* teclado: negras 136-149, blancas = pasos 151-167 */
+#define BM_CTX_H         112      /* con la franja de perillas (24..135) */
+#define BM_CTX_H_TALL    170      /* sin ella (24..193) */
+#define BM_LEGEND_Y      136      /* perillas K1-K4: dial, valor y nombre (cuando la pantalla no las muestra) */
+#define BM_LEGEND_H      58
+#define BM_KEYS_Y        194      /* teclado: negras 194-207, blancas = pasos 209-225 */
 #define BM_KEYS_H        32
-#define BM_LEGEND_Y      168      /* perillas K1-K4: dial, valor y nombre */
-#define BM_LEGEND_H      72
+#define BM_FOOT_Y        226      /* SELECT, ALGORITHM y PRESETS: qué hacen aquí */
+#define BM_FOOT_H        14
 #define BM_STRIP_H       8        /* franja de render */
 #define BM_TILE_W        60       /* 4 tiles por franja: solo se envía lo que cambió */
 

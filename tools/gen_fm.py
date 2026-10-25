@@ -220,11 +220,101 @@ V = [
         op(2, 70, (99, 65, 70, 70), (99, 60, 40, 0), kvs=4),
         op(1, 74, (99, 65, 70, 70), (99, 60, 40, 0), kvs=4),
         op(1, 74, (99, 65, 70, 70), (99, 60, 40, 0), kvs=4)], fb=7),
+    # ---- inspirados en canciones hechas con la DX7 (2026-10-21; investigación con fuentes en
+    # docs/INVESTIGACION_SONIDO.md al publicar). Voces propias con nuestras recetas: no son los presets
+    # de Yamaha. Los nombres aluden sin nombrar artista ni título.
+    # bajo redondo y percusivo, sin cola (el bajo de un éxito de 1983 hecho con un preset de fábrica; SOS)
+    voice('QUERY BS', 5, [
+        op(0.5, 99, (99, 50, 35, 75), (99, 70, 0, 0), kvs=2, rs=2),
+        op(0.5, 82, (99, 72, 45, 75), (99, 30, 0, 0), kvs=5, rs=2),
+        op(0.5, 88, (99, 52, 35, 75), (99, 70, 0, 0), kvs=2, rs=2, dt=9),
+        op(1, 60, (99, 80, 45, 75), (99, 0, 0, 0), kvs=5),
+        OFF, OFF], fb=2),
+    # metales brillantes con un golpe de brillo al atacar y sustain pleno (el mismo tema)
+    voice('QUERYBRS', 13, [
+        op(1, 99, (80, 70, 99, 70), (99, 92, 96, 0), kvs=2, rs=2, dt=6),
+        op(1, 88, (75, 45, 30, 70), (99, 80, 82, 0), kvs=4, dt=4),
+        op(1, 97, (80, 70, 99, 70), (99, 92, 96, 0), kvs=2, dt=10),
+        op(1, 88, (75, 45, 30, 70), (99, 80, 82, 0), kvs=4, dt=12),
+        op(1, 74, (75, 45, 30, 70), (99, 78, 80, 0), kvs=4, dt=9),
+        op(1, 86, (75, 45, 30, 70), (99, 80, 82, 0), kvs=4)], fb=4),
+    # bajo slap: chasquido brillante que cae rápido a un cuerpo redondo, muy sensible a la fuerza
+    # (el bajo que dobla un riff famoso de 1985; Wikipedia / Reverb Machine)
+    voice('SKETCHBS', 5, [
+        op(0.5, 99, (99, 45, 30, 72), (99, 75, 0, 0), kvs=3, rs=2),
+        op(0.5, 90, (99, 78, 45, 72), (99, 30, 0, 0), kvs=7, rs=2),
+        op(0.5, 92, (99, 48, 30, 72), (99, 75, 0, 0), kvs=3, rs=2, dt=10),
+        op(3, 74, (99, 90, 50, 72), (99, 0, 0, 0), kvs=7),
+        OFF, OFF], fb=3),
+    # bajo slap en corcheas: ataque duro, caída media-corta, poco sustain (película de aviones, 1986)
+    voice('TOMCATBS', 5, [
+        op(0.5, 99, (99, 58, 40, 78), (99, 60, 0, 0), kvs=3, rs=3),
+        op(0.5, 92, (99, 82, 50, 78), (99, 25, 0, 0), kvs=7, rs=3),
+        op(1, 86, (99, 60, 40, 78), (99, 55, 0, 0), kvs=3, rs=3, dt=9),
+        op(3, 70, (99, 92, 55, 78), (99, 0, 0, 0), kvs=6),
+        OFF, OFF], fb=4),
+    # bajo grave tipo fretless con un "mwah" suave, ataque blando, sustain largo y oscuro (balada de 1986)
+    voice('BRTHLESS', 5, [
+        op(0.5, 99, (80, 40, 25, 55), (99, 92, 88, 0), kvs=2, rs=2),
+        op(0.5, 72, (55, 35, 25, 55), (85, 70, 55, 0), kvs=4, rs=2),
+        op(0.5, 88, (80, 42, 25, 55), (99, 90, 85, 0), kvs=2, rs=2, dt=9),
+        op(1, 52, (50, 35, 25, 55), (80, 60, 45, 0), kvs=3),
+        OFF, OFF], fb=1,
+        lfo=(30, 60, 3, 0, 0, 4, 2)),
+    # bajo funky de pulsación seca, con clic de ataque, muy dinámico (1984)
+    voice('CRISP BS', 5, [
+        op(0.5, 99, (99, 62, 45, 80), (99, 55, 0, 0), kvs=3, rs=3),
+        op(0.5, 86, (99, 85, 55, 80), (99, 20, 0, 0), kvs=7, rs=3),
+        op(1, 84, (99, 64, 45, 80), (99, 50, 0, 0), kvs=3, rs=3, dt=8),
+        op(7, 66, (99, 95, 60, 80), (99, 0, 0, 0), kvs=6),
+        OFF, OFF], fb=3),
+    # lengüeta suave con aire, ataque blando y vibrato: la "armónica" retocada a flauta (1984; SOS)
+    voice('EMOTNHRP', 5, [
+        op(1, 99, (62, 45, 99, 62), (99, 95, 95, 0), kvs=2),
+        op(2, 62, (55, 45, 99, 62), (95, 80, 80, 0), kvs=3),
+        op(1, 82, (62, 45, 99, 62), (99, 95, 95, 0), kvs=2, dt=9),
+        op(1, 48, (55, 45, 99, 62), (90, 75, 75, 0), kvs=3),
+        op(4, 40, (70, 60, 99, 62), (99, 30, 30, 0), kvs=2),
+        op(7, 52, (70, 60, 99, 62), (99, 35, 35, 0), kvs=2)], fb=6,
+        lfo=(32, 45, 7, 0, 0, 4, 3)),
+    # marimba con clic de baqueta, caída leñosa de menos de un segundo (el tema de una película de 1984)
+    voice('BANANAMR', 5, [
+        op(1, 99, (99, 62, 40, 62), (99, 0, 0, 0), kvs=4, rs=4),
+        op(3.5, 80, (99, 90, 45, 62), (99, 0, 0, 0), kvs=6, rs=4),
+        op(1, 88, (99, 64, 40, 62), (99, 0, 0, 0), kvs=4, rs=4, dt=9),
+        op(10, 60, (99, 96, 50, 62), (99, 0, 0, 0), kvs=6, rs=4),
+        OFF, OFF], fb=0),
+    # piano eléctrico: suave = mate y cálido, fuerte = campana; caída de varios segundos (una serie de 1990)
+    voice('OWLS EP', 5, [
+        op(1, 99, (96, 22, 22, 60), (99, 75, 0, 0), kvs=2, rs=3),
+        op(14, 56, (96, 52, 35, 75), (99, 70, 0, 0), kvs=7, rs=3, bp=41, rd=55, rc=0),
+        op(1, 99, (95, 18, 18, 48), (99, 95, 0, 0), kvs=2, rs=3, dt=0),
+        op(1, 74, (95, 45, 25, 50), (99, 78, 0, 0), kvs=7, rs=3),
+        op(1, 99, (95, 18, 18, 48), (99, 95, 0, 0), kvs=2, rs=3, dt=14),
+        op(1, 84, (95, 45, 25, 50), (99, 78, 0, 0), kvs=7, rs=3)], fb=5),
+    # piano eléctrico de balada, velocidad media, coros amplios (baladas de 1985)
+    voice('DIVA EP', 5, [
+        op(1, 99, (96, 25, 25, 62), (99, 78, 0, 0), kvs=2, rs=3),
+        op(14, 50, (95, 50, 35, 78), (99, 72, 0, 0), kvs=6, rs=3, bp=41, rd=50, rc=0),
+        op(1, 99, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=2),
+        op(1, 78, (95, 45, 25, 50), (99, 80, 0, 0), kvs=6, rs=3),
+        op(1, 99, (95, 20, 20, 50), (99, 95, 0, 0), kvs=2, rs=3, dt=12),
+        op(1, 86, (95, 45, 25, 50), (99, 80, 0, 0), kvs=6, rs=3)], fb=6,
+        lfo=(28, 0, 2, 0, 0, 4, 2)),
+    # piano eléctrico brillante y acuoso, caída larga (la música de un nivel bajo el agua, 1996)
+    voice('LAGOONEP', 5, [
+        op(1, 99, (96, 20, 18, 55), (99, 82, 0, 0), kvs=2, rs=2),
+        op(14, 66, (95, 45, 30, 70), (99, 78, 0, 0), kvs=5, rs=2, bp=41, rd=40, rc=0),
+        op(1, 99, (95, 16, 16, 45), (99, 95, 0, 0), kvs=2, rs=2, dt=1),
+        op(1, 88, (95, 38, 22, 45), (99, 85, 0, 0), kvs=5, rs=2),
+        op(1, 99, (95, 16, 16, 45), (99, 95, 0, 0), kvs=2, rs=2, dt=13),
+        op(1, 94, (95, 38, 22, 45), (99, 85, 0, 0), kvs=5, rs=2)], fb=6,
+        lfo=(34, 30, 4, 0, 0, 4, 2)),
 ]
 
 
 def main():
-    assert len(V) == 20, len(V)
+    assert len(V) == 31, len(V)
     rows, names = [], []
     for name, d in V:
         rows.append('    {%s},  /* %s */' % (','.join(str(x) for x in d), name))

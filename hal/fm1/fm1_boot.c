@@ -13,11 +13,14 @@
  *   [13] FM1_BF_* that happened in this boot, inverted (a bit goes to 0 when it happens)
  *   [16..23] the RAM breadcrumb the previous run left (fm1_rastro), 0xFF if there was none
  * Programar bits de 1 a 0 no necesita borrar: el sector se borra una vez cada 127 arranques.
- * Los arranques seguidos sin "anduvo bien" son arranques fallidos:
- *   2 seguidos -> modo seguro (sin sonido, USB activo: se puede reinstalar desde el instalador)
- *   4 seguidos -> modo de actualización del chip (USB 4C4A:8057, se rescata desde la computadora)
- * Prender y apagar el FM-1 cuatro veces seguidas (menos de 10 s cada vez) lleva también al modo
- * del chip, sin depender de ningún botón. */
+ * Un arranque sin "anduvo bien" es un arranque fallido solo si el siguiente empezó por un reinicio
+ * del chip (perro, falla, voltaje bajo...). Si empezó al prenderlo, alguien lo apagó antes de los
+ * 10 s: no es una falla (2026-10-20, registro del FM-1: las cinco entradas al modo seguro venían
+ * de dos encendidos cortos seguidos, todos terminados al apagar).
+ *   2 fallidos seguidos -> modo seguro (sin sonido, USB activo: se puede reinstalar)
+ *   4 arranques seguidos sin "anduvo bien", por la causa que sea -> modo de actualización del chip
+ *     (USB 4C4A:8057, se rescata desde la computadora). Prender y apagar el FM-1 cuatro veces
+ *     seguidas (menos de 10 s cada vez) lleva ahí sin depender de ningún botón. */
 #include "app_config.h"
 #include "system/includes.h"
 #include "asm/includes.h"
@@ -176,11 +179,17 @@ int fm1_boot_begin(int keys_safe)
             break;
         }
     }
-    /* arranques seguidos sin la marca de "anduvo bien" (slot == SLOTS: sector lleno) */
+    /* arranques seguidos sin la marca de "anduvo bien" (slot == SLOTS: sector lleno); los que
+     * terminaron con un reinicio del chip, no al apagarlo, son los fallidos */
+    uint8_t mot = motivo(), sig = mot;
+    uint32_t seguidos = 0;
     fails = 0;
-    for (i = slot; i > 0 && fails < 8u && rd((i - 1u) * REC + 1u) == 0xFFu; i--)
-        fails++;
-    uint8_t mot = motivo();
+    for (i = slot; i > 0 && seguidos < 8u && rd((i - 1u) * REC + 1u) == 0xFFu; i--) {
+        if (fails == seguidos && sig != FM1_RST_POWER && sig != FM1_RST_LONG)
+            fails++;
+        seguidos++;
+        sig = rd((i - 1u) * REC + 3u);       /* cómo empezó ese: cómo terminó el anterior */
+    }
     /* core 1 stays retired across resets until the FM-1 is powered on from off */
     c1_retirado = slot > 0 && slot <= SLOTS && !(rd((slot - 1u) * REC + 13u) & FM1_BF_C1_RETIRED) && mot != FM1_RST_POWER;
     if (slot >= SLOTS)                        /* lleno: empezar de nuevo */
@@ -194,7 +203,7 @@ int fm1_boot_begin(int keys_safe)
     }
     if (c1_retirado)
         fm1_boot_flag(FM1_BF_C1_RETIRED);
-    if (fails >= FAILS_UBOOT)
+    if (seguidos >= FAILS_UBOOT)
         fm1_enter_uboot();
     return (keys_safe || fails >= FAILS_SAFE) ? FM1_BOOT_SAFE : FM1_BOOT_NORMAL;
 }

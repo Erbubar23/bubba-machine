@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erbubar23
 // Un FM-1 de mentira para desarrollar la plataforma de control sin el aparato (control.html?mock=1).
-// Contesta los mismos SysEx que hal/fm1/fm1_consola.c con respuestas como las de la 0.9.0-beta:
+// Contesta los mismos SysEx que hal/fm1/fm1_consola.c con respuestas como las de la 0.10.0-beta:
 // 3 tomas, unos sonidos del usuario, el transporte parado. Las tomas y los borrados se guardan un
 // rato después, como en el aparato (un trabajo de flash al parar). window.bmMock deja tocar el estado
 // desde la consola del navegador o desde una prueba (bmMock.playing = 1, bmMock.busy = 1, …).
@@ -15,7 +15,7 @@ const takeSect = (len) => Math.ceil((TAKE_HDR + len) / SECTOR);
 const sndSect = (size) => Math.ceil((size + 4) / SECTOR);
 
 const st = {
-  version: "0.9.0-beta", playing: 0, cpu: 38, dual: 0, heap: 96 * 1024, heapMin: 81 * 1024, busy: 0, late: 0,
+  version: "0.10.0-beta", playing: 0, cpu: 38, dual: 0, heap: 96 * 1024, heapMin: 81 * 1024, busy: 0, late: 0,
   takes: [{ len: 23851, bpm: 1610, bars: 1, pads: 8 }, { len: 16000, bpm: 1200, bars: 1, pads: 0 }, { len: 12000, bpm: 1280, bars: 1, pads: 0 },
     null, null, null, null, null],
   snds: [
@@ -23,7 +23,7 @@ const st = {
     { eng: 3, size: 88, fp: 0x31C2, name: "FAT LEAD", author: "" },
     { eng: 4, size: 88 + 32 * 156, fp: 0x7E10, name: "MY DX BANK", author: "" },
   ],
-  lang: null, boot: Date.now() - 754000, log: "Bubba Machine 0.9.0-beta\nflash: zona de tomas leida, 3 tomas\nnucleo 1: listo\naudio: sonando\n",
+  lang: null, boot: Date.now() - 754000, log: "Bubba Machine 0.10.0-beta\nflash: zona de tomas leida, 3 tomas\nnucleo 1: listo\naudio: sonando\n",
   buf: [], arena: [], refused: [],
 };
 

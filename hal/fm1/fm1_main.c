@@ -861,6 +861,8 @@ static void bubba_task(void *p)
 
     fm1_flash_init();
     fm1_keys_init();
+    gpio_direction_output(FM1_LCD_BL, 0);    /* PA2 en bajo: sin eso la matriz no lee (SLOOP #167, Felucca 1.1.5.1) */
+    os_time_dly(1);
     for (int i = 0; i < 3; i++)              /* OCT- y OCT+ al prender = modo seguro */
         fm1_keys_frame(raw, NULL);
     modo = fm1_boot_begin(((raw[0] >> 4) & 1u) && ((raw[1] >> 4) & 1u));
@@ -977,7 +979,7 @@ static void bubba_task(void *p)
             if (d)
                 bm_app_encoder(&app, ENC_ROLE[e], d, t);
         }
-        if (fm1_scan_is_down(BTN_OCT_DN) && fm1_scan_is_down(BTN_OCT_UP)) {
+        if (fm1_scan_is_down(BTN_OCT_DN) && fm1_scan_is_down(BTN_OCT_UP) && !app.ctx.st.playing) {   /* no sonando (SLOOP) */
             if (!combo_t0)
                 combo_t0 = t | 1u;
             else if (t - combo_t0 > UBOOT_MS) {
@@ -988,6 +990,8 @@ static void bubba_task(void *p)
         } else {
             combo_t0 = 0;
         }
+        if (fm1_scan_vigilar(t))
+            fm1_log("barrido detenido: rearmado");
         fm1_miga("L3");
         midi_bombear();
         fm1_miga("L4");
@@ -1048,9 +1052,10 @@ static void bubba_task(void *p)
             fm1_log("etapa SONANDO anotada");
             seen |= 1;
         }
-        if (t - t0 > 1000u)
+        int quieto_audio = !app.ctx.st.playing;   /* escribir la flash pausa el audio: sonando, espera (Felucca 1.5.1) */
+        if (quieto_audio && t - t0 > 1000u)
             fm1_boot_stage(E_1S);
-        if (t - t0 > 5000u)
+        if (quieto_audio && t - t0 > 5000u)
             fm1_boot_stage(E_5S);
         if (t - heap_t > 5000u) {            /* memoria libre, para la consola */
             heap_t = t;
@@ -1058,7 +1063,7 @@ static void bubba_task(void *p)
         }
         fm1_miga("L8");
         fm1_latido();
-        if (!ok && t - t0 > OK_MS) {         /* 10 s andando: este arranque fue bueno */
+        if (!ok && quieto_audio && t - t0 > OK_MS) {   /* 10 s andando: este arranque fue bueno */
             fm1_boot_ok();
             ok = 1;
         }

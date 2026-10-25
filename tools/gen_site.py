@@ -65,7 +65,7 @@ TXT = {
         'foot': 'Bubba Machine %s · GPL-3.0-or-later · M-VAVE and FM-1 are trademarks of their respective owners; this project is not affiliated with M-VAVE.',
     },
 }
-IMAGES = ['00-home', '02-seq-tr', '37-pads', '52-seq-long-note', '56b-fm-alg5', '57-bittal-table', '60-buno-dco', '51-rec-gate-micro']
+IMAGES = ['00-home', '02-seq-tr', '81-b303-panel', '83-bmini-filter', '80-bx7-main', '85-bittal-osc1', '84-buno-dco', '90-slicer-trim']
 
 BY_SRC = {os.path.normpath(p[2]): (lang, p[0]) for _, _, d in PAGES for lang, p in d.items()}
 

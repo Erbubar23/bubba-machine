@@ -47,7 +47,7 @@
   <main class="doc">
 <h1 id="roadmap">Roadmap</h1>
 <p>Everything planned for Bubba Machine. <strong>All of it will be done, step by step</strong>, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.</p>
-<p>Items marked ✓ are already in the current version (0.9.0-beta); items marked <strong>in testing</strong> are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
+<p>Items marked ✓ are already in the current version (0.10.0-beta); items marked <strong>in testing</strong> are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see <a href="install.html">install</a>).</p>
 <h2 id="audio">Audio</h2>
 <p>The goal is the best quality the FM-1 allows. What improved, what it costs and what limits it today: <a href="audio.html">audio</a>.</p>
 <p><strong>Done</strong></p>
@@ -94,19 +94,21 @@
 </li><li>
 ✓ <strong>English screen, with language packs:</strong> Spanish is loaded separately (<code>tools/fm1/idioma.py</code>) and switched in SYSTEM › LANGUAGE.
 </li><li>
-✓ <strong>Pad sampler:</strong> 16 pads made from your takes, like a KO II or an OP-1 field, on a grid like the drums, with BREAK to vary it.
+✓ <strong>Slicer:</strong> 16 pads cut from your takes, like a KO II or an OP-1 field, on a step grid like the drums (0.10).
 </li><li>
-✓ <strong>MUTES</strong> and <strong>FILL</strong> screens, and drums in sections of 8.
+✓ <strong>MUTE SOUNDS</strong> on the drums, and drums in pages of 8 instruments.
 </li><li>
 ✓ <strong>The 0.6 face:</strong> header, viewport, keyboard and dials always in the same place; the <strong>BX-1</strong> mixer on HOME; ALGORITHM as each machine's mode.
 </li><li>
 ✓ <strong>Expressive REC:</strong> micro-timing, gate and P-Locks of what you turn while holding the note; long notes with two white keys.
+</li><li>
+✓ <strong>Each machine like the real one (0.10):</strong> HOME as a six-channel mixer; entering a channel gives the FM-1 to its machine, with the panel and menus of the TB-303, Minimoog, Juno-6, Vital or DX7; cyclic menu buttons; the BR-8 step sequencer; factory patterns.
 </li></ul>
 <p><strong>Planned: playing live (HOME again = the next page)</strong></p>
 <ol><li>
 <strong>MORPH A·B:</strong> move from one sound state to another with a knob (HOME's fourth macro).
 </li><li>
-✓ <strong>SCENES AND SONG:</strong> scenes as mutes on the console, CUE, and song entries with a pattern and a scene (0.9).
+✓ <strong>SCENES:</strong> four scenes of mutes per pattern on HOME (0.10). The song and CUE of 0.9 were removed in the 0.10 redesign.
 </li></ol>
 <p><strong>Planned: working on a track (the button again = the next page)</strong></p>
 <ol><li>
@@ -116,11 +118,11 @@
 </li><li>
 <strong>LFO › MOTION:</strong> a modulation sequencer and knob-movement recording.
 </li><li>
-✓ <strong>Per-channel mix and effects:</strong> the console's FX › CHANNEL (drive, pan, duck, BEAT FX) (0.9).
+✓ <strong>Per-channel effects:</strong> each machine has its own effects (DISTORTION, CHORUS, REVERB; OVERDRIVE on the BB-303; the BX-7 chain) (0.10).
 </li></ol>
 <p><strong>Other</strong></p>
 <ul><li>
-<strong>Pattern banks:</strong> more than 10 patterns, by growing the flash map or shrinking the patterns.
+<strong>Pattern banks:</strong> more than 9 patterns, by growing the flash map or shrinking the patterns.
 </li><li>
 <strong>Ghost notes on drums:</strong> a level P-Lock or a bigger format.
 </li></ul>

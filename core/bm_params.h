@@ -42,8 +42,34 @@ typedef struct {
 typedef struct { const char *name; uint8_t n; bm_pdef p[4]; } bm_ppage;
 
 /* ------------------------------------------------------------ BB-303 (TB-303): VCO, VCF y ENV
- * macros: 0 CUTOFF, 1 RESO, 2 ENV MOD, 3 DECAY · PRESETS: los sonidos de bm_ac_presets */
-enum { AC_WAVE, AC_NPRM };
+ * macros: 0 CUTOFF, 1 RESO, 2 ENV MOD, 3 DECAY · PRESETS: los sonidos de bm_ac_presets
+ * 2026-10-22: sus efectos, como los del TB-03 de Roland: OVERDRIVE (aquí) y DELAY / REVERB, que son
+ * los envíos del canal en la mezcla. AC_FX: bit 0 = OVERDRIVE prendido, bits 1 y 2 = DELAY y REVERB
+ * APAGADOS (así un patrón de antes, con 0, suena como siempre). AC_LATCH: el arpegiador sigue. */
+enum { AC_WAVE, AC_FX, AC_OD_G, AC_OD_T, AC_OD_L, AC_LATCH, AC_LFO_RATE, AC_LFO_DEPTH, AC_LFO_WAVE, AC_LFO_DEST, AC_NPRM };
+/* El LFO del BB-303 (la 303 no tiene; es un añadido): va al compás (RATE = lo que dura un ciclo), con
+ * las formas de siempre y patrones de 16 pasos hechos para darle movimiento a una línea. DEPTH 0 = nada. */
+enum { ACL_CUTOFF, ACL_PITCH, ACL_RESO, ACL_VOLUME, ACL_DESTS };
+enum { ACW_SINE, ACW_TRI, ACW_SAWUP, ACW_SAWDN, ACW_SQUARE, ACW_SH, ACW_PUMP, ACW_GATE, ACW_STEPS, ACW_332, ACW_BUILD, ACW_N };
+#define AC_LFO_RATES 8
+extern const uint16_t bm_acid_lfo_ticks[AC_LFO_RATES];     /* ticks de un ciclo (96 por negra) */
+extern const char *const bm_acid_lfo_rates[AC_LFO_RATES];
+extern const char *const bm_acid_lfo_waves[ACW_N];
+extern const char *const bm_acid_lfo_dests[ACL_DESTS];
+float bm_acid_lfo_shape(int wave, float ph, uint32_t cyc);   /* 0..1 en la fase ph (0..1) del ciclo número cyc */
+enum { ACF_OD, ACF_DELAY, ACF_REVERB, ACF_N };   /* las casillas, en el orden fijo del TB-03 */
+static inline bool bm_acid_fx_on(const uint8_t *prm, int f)
+{
+    return f == ACF_OD ? (prm[AC_FX] & 1u) != 0 : !(prm[AC_FX] & (1u << f));
+}
+static inline uint8_t bm_acid_fx_set(uint8_t m, int f, int on)
+{
+    uint8_t b = (uint8_t)(1u << f);
+    return (uint8_t)((f == ACF_OD) == !!on ? m | b : m & ~b);
+}
+void bm_acid_fx_defaults(uint8_t *prm);  /* OVERDRIVE apagado con sus valores de fábrica; envíos prendidos */
+/* el envío de delay (rev 0) o reverb (rev 1) del canal: lo apaga el FX de la BX-7 o del BB-303 */
+bool bm_send_on(const bm_pattern *p, int t, int rev);
 #define BM_AC_PAGES 2
 extern const bm_ppage bm_ac_pages[BM_AC_PAGES];
 typedef struct { const char *name; uint8_t cut, res, env, dec, acc, glide, wave; } bm_ac_preset;
@@ -51,20 +77,36 @@ typedef struct { const char *name; uint8_t cut, res, env, dec, acc, glide, wave;
 extern const bm_ac_preset bm_ac_presets[BM_AC_PRESETS];
 
 /* ------------------------------------------------------------ B-MINI (Minimoog): tres osciladores y escalera
- * macros: 0 CUTOFF, 1 EMPHASIS, 2 CONTOUR (cantidad de la envolvente), 3 F DECAY (64 = la de la página) */
+ * macros: 0 CUTOFF, 1 EMPHASIS, 2 CONTOUR (cantidad de la envolvente), 3 F DECAY (64 = la de la página)
+ * 2026-10-22, sus menús como los del POLY D de Behringer: la modulación mezcla el OSC 3 y el LFO
+ * (MN_MIX = lo que pone el OSC 3; 0 = solo el LFO, como antes) y va a los osciladores, al filtro o a
+ * los dos; el LFO es triángulo o cuadrada; el OSC 3 tiene el rango LO (MN_R3 = MN_R_LO: un LFO más).
+ * Sus efectos, los de las máquinas de panel (PX_*, más abajo). */
 enum { MN_W1, MN_R1, MN_L1, MN_W2, MN_R2, MN_T2, MN_L2, MN_W3, MN_R3, MN_T3, MN_L3, MN_NOISE,
        MN_DRIVE, MN_KEYT, MN_VELF, MN_FA, MN_FD, MN_FS, MN_FR, MN_AA, MN_AD, MN_AS, MN_AR,
-       MN_LRATE, MN_LAMT, MN_LDEST, MN_GLIDE, MN_MODE, MN_VELA, MN_TUNE, MN_NPRM };
+       MN_LRATE, MN_LAMT, MN_LDEST, MN_GLIDE, MN_MODE, MN_VELA, MN_TUNE, MN_LWAVE, MN_MIX, MN_NPRM };
 enum { MN_WAVE_TRI, MN_WAVE_SHARK, MN_WAVE_SAW, MN_WAVE_SQR, MN_WAVE_WIDE, MN_WAVE_NARROW, MN_WAVES };
-enum { MN_D_PITCH, MN_D_CUT, MN_LDESTS };
+enum { MN_D_PITCH, MN_D_CUT, MN_D_BOTH, MN_LDESTS };
+#define MN_R_LO 5                 /* OSC 3: el rango LO (después de 32' 16' 8' 4' 2') */
 enum { WM_POLY, WM_MONO, WM_LEGATO, WM_MODES };
 #define BM_MN_PAGES 9
 extern const bm_ppage bm_mn_pages[BM_MN_PAGES];
 
-/* ------------------------------------------------------------ BX-7 (DX7): el patch y encima los ajustes
- * macros: 0 MOD LVL, 1 FEEDBACK, 2 DECAY (R2-3), 3 RELEASE (R4); 64 = el patch tal cual */
-enum { FX_ALG, FX_LSPD, FX_LDLY, FX_LPMD, FX_LAMD, FX_NPRM };
-#define BM_FX_PAGES 4
+/* ------------------------------------------------------------ BX-7 (DX7): la voz (pat->fmv) y encima
+ * macros: 0 BRIGHT, 2 DECAY (R2-3), 3 RELEASE (R4); 64 = la voz tal cual. Después de FX_LAMD (sin uso
+ * desde 2026-10-21: la voz se edita entera) los efectos propios, como en el FM-1 de fábrica: seis
+ * casillas (filtro, reverb, delay, distorsión, chorus, phaser) en el orden BX_ORD0..5; reverb y delay
+ * son los envíos del canal en la mezcla (no se procesan dos veces). BX_MONO: MONO/POLY de EDIT;
+ * BX_LATCH: el arpegiador sigue con las teclas sueltas. */
+enum { FX_ALG, FX_LSPD, FX_LDLY, FX_LPMD, FX_LAMD,
+       BX_FXON, BX_ORD0, BX_ORD1, BX_ORD2, BX_ORD3, BX_ORD4, BX_ORD5,
+       BX_FLT_T, BX_FLT_C, BX_FLT_Q, BX_DST_G, BX_DST_T, BX_DST_L, BX_CHO_F, BX_CHO_D, BX_CHO_M,
+       BX_PHA_F, BX_PHA_D, BX_PHA_M, BX_MONO, BX_LATCH, FX_NPRM };
+enum { BXF_FILTER, BXF_REVERB, BXF_DELAY, BXF_DIST, BXF_CHORUS, BXF_PHASER, BXF_N };   /* las casillas, como en el FM-1 */
+#define BX_FX_FIRST BX_FXON
+#define BX_FX_LAST  BX_PHA_M
+void bm_bx7_fx_defaults(uint8_t *prm);   /* los efectos de fábrica: todo apagado salvo los envíos, orden 0..5 */
+#define BM_FX_PAGES 2
 extern const bm_ppage bm_fx_pages[BM_FX_PAGES];
 
 /* ------------------------------------------------------------ BUNO-6 (Juno-6): un DCO por voz y chorus
@@ -97,9 +139,27 @@ extern const char *const bm_btm_names[BTM_TARGETS];
 /* cuánto mueve la macro i (0..127, 64 = nada) el destino dest en un canal BITTAL: -1..1 */
 float bm_bt_macro(const uint8_t *prm, const uint8_t mac[4], int dest);
 
+/* ------------------------------------------------------------ máquinas de panel: B-MINI, BUNO-6, BITTAL
+ * (2026-10-22) Sus menús son los del B-MINI (core/bm_panel.c) y sus efectos los mismos: DISTORTION
+ * (DRIVE, TONE, LEVEL), CHORUS I / II (el del Juno; BUNO-6 usa el suyo, BN_CHORUS, con I+II) y la
+ * REVERB, que es el envío del canal; el DELAY solo se maneja desde HOME. Viven en las últimas casillas
+ * de prm, que los snapshots no guardan: un preset no los pisa. PX_FX: bit 0 = DISTORTION prendida,
+ * bit 1 = REVERB APAGADA (así 0 suena como siempre). PX_LATCH: el arpegiador sigue. */
+enum { PX_FX = 48, PX_DS_G, PX_DS_T, PX_DS_L, PX_CHORUS, PX_LATCH, PX_END };
+enum { PXF_DIST, PXF_CHORUS, PXF_REVERB, PXF_N };   /* las casillas, en el orden de la cadena */
+static inline bool bm_panel_eng(int e) { return e == ENG_MINI || e == ENG_BUNO || e == ENG_BITTAL; }
+static inline bool bm_px_eng(int e) { return bm_panel_eng(e) || e == ENG_BREAK; }   /* con estos efectos: las de panel y el Slicer */
+static inline int bm_px_chorus(const uint8_t *prm, int eng) { return eng == ENG_BUNO ? prm[BN_CHORUS] % BN_CHORUSES : prm[PX_CHORUS] % 3; }
+static inline bool bm_px_fx_on(const uint8_t *prm, int eng, int f)
+{
+    return f == PXF_DIST ? (prm[PX_FX] & 1u) != 0 : f == PXF_CHORUS ? bm_px_chorus(prm, eng) != 0 : !(prm[PX_FX] & 2u);
+}
+void bm_px_fx_defaults(uint8_t *prm);    /* DISTORTION apagada con sus valores de fábrica, sin chorus, REVERB prendida */
+extern const char *const bm_px_chorus_names[3];   /* OFF, I, II */
+
 /* ------------------------------------------------------------ batería: un instrumento (bm_lane) */
 enum { LN_LEN, LN_LEVEL, LN_TUNE, LN_DECAY, LN_MODEL, LN_TONE, LN_COLOR, LN_CHOKE };   /* = campos de bm_lane */
-#define BM_LANE_PAGES 2
+#define BM_LANE_PAGES 3
 extern const bm_ppage bm_lane_pages[BM_LANE_PAGES];   /* slot = campo LN_* */
 
 typedef struct { char name[6]; uint8_t model, tune, decay, tone, color, level, choke; } bm_kit_lane;

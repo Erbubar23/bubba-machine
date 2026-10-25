@@ -116,23 +116,29 @@ static void rv_step(float x, float decay, float damp, float *oL, float *oR)
     *oR = 0.6f * (rv_tap(&rl[5], 260) + rv_tap(&rl[5], 2000) - rv_tap(&rl[6], 1240) + rv_tap(&rl[7], 1990) - rv_tap(&rl[9], 1580) - rv_tap(&rl[10], 280));
 }
 
-/* ------------------------------------------------------------ chorus de BUNO-6 (dos tomas de un BBD)
+/* ------------------------------------------------------------ chorus del Juno (dos tomas de un BBD)
+ * El de BUNO-6 y el CHORUS I / II del B-MINI, uno por canal de notas (el B-MINI puede estar en varios).
  * Mono de entrada, estéreo de salida: el mismo retardo modulado con el LFO en fase opuesta en cada
  * lado. Velocidades y retardos de los citados para el Juno-60 (a confirmar con el manual de servicio). */
 #define CH_LEN 512u
-static float ch_buf[CH_LEN], ch_lfo, ch_lpL, ch_lpR;
-static uint32_t ch_w;      /* siempre < CH_LEN: como float, un contador libre pierde los decimales a los 6 min (2^24) */
+typedef struct {
+    float buf[CH_LEN], lfo, lpL, lpR;
+    uint32_t w;            /* siempre < CH_LEN: como float, un contador libre pierde los decimales a los 6 min (2^24) */
+    uint8_t on;
+} chorus_st;
+static chorus_st CHS[BM_SYN_TRACKS + 1];   /* uno por canal de notas y el del Slicer (T2), al final */
+static inline int ch_slot(int t) { return t >= BM_TR_TRACKS ? t - BM_TR_TRACKS : BM_SYN_TRACKS; }
 static const float CH_RATE[BN_CHORUSES] = {0.0f, 0.513f, 0.863f, 9.75f};
 static const float CH_MIN_MS[BN_CHORUSES] = {0.0f, 1.66f, 1.66f, 3.30f};
 static const float CH_MAX_MS[BN_CHORUSES] = {0.0f, 5.35f, 5.35f, 3.70f};
 
-static inline float ch_read(float dly)
+static inline float ch_read(const chorus_st *h, float dly)
 {
-    float rp = (float)ch_w - dly;
+    float rp = (float)h->w - dly;
     if (rp < 0.0f) rp += (float)CH_LEN;
     uint32_t i0 = (uint32_t)rp;
     float f = rp - (float)i0;
-    float a = ch_buf[i0 & (CH_LEN - 1u)], b = ch_buf[(i0 + 1u) & (CH_LEN - 1u)];
+    float a = h->buf[i0 & (CH_LEN - 1u)], b = h->buf[(i0 + 1u) & (CH_LEN - 1u)];
     return a + (b - a) * f;
 }
 
@@ -140,8 +146,7 @@ static inline float ch_read(float dly)
 void bm_dsp_reset(void)
 {
     rv_init();
-    memset(ch_buf, 0, sizeof ch_buf);
-    ch_lfo = ch_lpL = ch_lpR = 0.0f; ch_w = 0;
+    memset(CHS, 0, sizeof CHS);
 }
 
 void bm_dsp_tick(bm_ctx *c)
@@ -216,10 +221,15 @@ static int32_t mix_track(bm_ctx *c, int t, uint32_t n, float *L, float *R, float
     float gl = g * (float)bm_pan_l[tr->pan & 127] * K15;
     float gr = g * (float)bm_pan_r[tr->pan & 127] * K15;
     float gs = snd ? g * (float)tr->send * (1.0f / 128.0f) : 0.0f;
+    if (!bm_send_on(c->pat, t, 0)) gs = 0.0f;               /* DELAY apagado en el FX de la máquina */
     int32_t pk = 0;
     float dk = t >= 1 ? (float)tr->duck * (1.0f / 127.0f) : 0.0f;
-    int chm = tr->engine == ENG_BUNO ? c->pat->prm[t][BN_CHORUS] % BN_CHORUSES : 0;
-    if (chm && lr) {                                         /* BUNO-6: chorus estéreo (con ducking) */
+    int chm = bm_px_eng(tr->engine) ? bm_px_chorus(c->pat->prm[t], tr->engine) : 0;   /* BUNO-6 con I+II; los otros OFF, I, II */
+    if (t == 0) chm = 0;                                     /* la batería no tiene */
+    chorus_st *h = chm ? &CHS[ch_slot(t)] : NULL;
+    if (h && lr && !h->on) { memset(h->buf, 0, sizeof h->buf); h->lpL = h->lpR = 0.0f; }   /* recién prendido: sin restos */
+    if (t && lr) CHS[ch_slot(t)].on = (uint8_t)(chm != 0);   /* (la pasada de solo envío no cuenta) */
+    if (h && lr) {                                           /* BUNO-6 y B-MINI: chorus estéreo (con ducking) */
         float rate = CH_RATE[chm] / (float)BM_FS;
         float mn = CH_MIN_MS[chm] * 0.001f * (float)BM_FS, mx = CH_MAX_MS[chm] * 0.001f * (float)BM_FS;
         float mid = 0.5f * (mn + mx), dep = 0.5f * (mx - mn);
@@ -235,12 +245,12 @@ static int32_t mix_track(bm_ctx *c, int t, uint32_t n, float *L, float *R, float
             /* ducking a la entrada del chorus: el eco del BBD lo sigue 2-5 ms después (no se
              * oye) y cuesta una multiplicación. dk = 0: sin ducking (SC viejo, no importa) */
             float v = (float)xi * (1.0f - SC[i] * dk);
-            ch_lpL += kl * (v - ch_lpL); ch_lpR += kl * (ch_lpL - ch_lpR);
-            ch_buf[ch_w] = ch_lpR;
-            ch_lfo += rate; if (ch_lfo >= 1.0f) ch_lfo -= 1.0f;
-            float tri = 4.0f * fabsf(ch_lfo - 0.5f) - 1.0f;
-            float wl = ch_read(mid + dep * tri), wr = mono ? wl : ch_read(mid - dep * tri);
-            ch_w = (ch_w + 1u) & (CH_LEN - 1u);
+            h->lpL += kl * (v - h->lpL); h->lpR += kl * (h->lpL - h->lpR);
+            h->buf[h->w] = h->lpR;
+            h->lfo += rate; if (h->lfo >= 1.0f) h->lfo -= 1.0f;
+            float tri = 4.0f * fabsf(h->lfo - 0.5f) - 1.0f;
+            float wl = ch_read(h, mid + dep * tri), wr = mono ? wl : ch_read(h, mid - dep * tri);
+            h->w = (h->w + 1u) & (CH_LEN - 1u);
             L[i] += (v + wl) * cl; R[i] += (v + wr) * cr; S[i] += v * gs;
         }
     } else if (!lr) {                                        /* solo el envío (BEAT FX OFF, antes del efecto) */
@@ -276,7 +286,8 @@ static void dsp_guard(bm_ctx *c)
     if (bad(c->sc_env)) { c->sc_env = 0.0f; fix++; }
     if (bad(c->d_acc + c->d_prev + c->d_cur)) { c->d_acc = c->d_prev = c->d_cur = 0.0f; fix++; }
     if (bad(rv_lp1 + rv_lp2 + rv_bw + rv_fb1 + rv_fb2 + rv_acc + rv_prevL + rv_prevR + rv_curL + rv_curR)) { rv_init(); fix++; }
-    if (bad(ch_lfo + ch_lpL + ch_lpR)) { memset(ch_buf, 0, sizeof ch_buf); ch_lfo = ch_lpL = ch_lpR = 0.0f; fix++; }
+    for (int i = 0; i <= BM_SYN_TRACKS; i++)
+        if (bad(CHS[i].lfo + CHS[i].lpL + CHS[i].lpR)) { memset(CHS[i].buf, 0, sizeof CHS[i].buf); CHS[i].lfo = CHS[i].lpL = CHS[i].lpR = 0.0f; fix++; }
     if (bad(c->mf_ic1[0] + c->mf_ic1[1] + c->mf_ic2[0] + c->mf_ic2[1])) { c->mf_ic1[0] = c->mf_ic1[1] = c->mf_ic2[0] = c->mf_ic2[1] = 0.0f; fix++; }
     if (bad(c->pf_ic1[0] + c->pf_ic1[1] + c->pf_ic2[0] + c->pf_ic2[1] + c->gate_g + c->sh_l + c->sh_r)) {
         c->pf_ic1[0] = c->pf_ic1[1] = c->pf_ic2[0] = c->pf_ic2[1] = c->gate_g = c->sh_l = c->sh_r = 0.0f; fix++;
@@ -323,10 +334,14 @@ void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
         if (!(c->tact & (1u << t))) continue;
         const bm_track *tr = &c->pat->trk[t];
         int32_t *x = c->tbuf[t];
+        if (tr->engine == ENG_FM) bm_bx7_fx(c, t, x, n);             /* BX-7: su cadena de efectos (lo que esté prendido) */
+        else if (tr->engine == ENG_ACID) bm_acid_fx(c, t, x, n);     /* BB-303: su OVERDRIVE */
+        else if (bm_px_eng(tr->engine)) bm_px_fx(c, t, x, n);      /* B-MINI, BUNO-6, BITTAL y el Slicer: su DISTORTION (el CHORUS, en la mezcla) */
         dj_filter(c, t, tr->djf, x, n);
         if (tr->drive) ch_drive(x, n, tr->drive);
         float g = (float)tr->level * (1.0f / 400.0f) * K15;
         float rs = (float)tr->rsend * (1.0f / 128.0f);
+        if (!bm_send_on(c->pat, t, 1)) rs = 0.0f;                    /* REVERB apagada en el FX de la máquina */
         if (tr->engine == ENG_BITTAL) rs += bm_bt_macro(c->pat->prm[t], tr->macro, BTM_SPACE) * 0.8f;   /* macro SPACE */
         float grv = g * (rs < 0.0f ? 0.0f : rs);
         if (grv > 0.0f) {

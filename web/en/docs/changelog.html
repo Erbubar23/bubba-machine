@@ -47,6 +47,79 @@
   <main class="doc">
 <h1 id="changelog">Changelog</h1>
 <p>Every version of Bubba Machine. The format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a> and versions follow <a href="https://semver.org/">semantic versioning</a>: while the version starts with 0, any minor version may change how it plays or the pattern format.</p>
+<h2 id="0100-beta---2026-10-24">[0.10.0-beta] - 2026-10-24</h2>
+<p><strong>Every machine is its own instrument.</strong> HOME was rebuilt from scratch as a six-channel mixer, and entering a channel hands the whole FM-1 to its machine, laid out like the real one: TB-303, Minimoog, Juno-6, Vital and the FM-1's own DX7-style synth. The drums have a new step sequencer and the pad sampler became the <strong>BP-1 Slicer</strong>. Installed and running on the author's FM-1.</p>
+<blockquote><p>On first boot 0.10 erases the saved patterns and scenes <strong>once</strong> and loads three factory patterns. Takes and settings are kept. Until v1 there is still no backward compatibility.</p></blockquote>
+<h3 id="added">Added</h3>
+<ul><li>
+<strong>Factory patterns:</strong> 1 = a recreation of <em>Da Funk</em> (Daft Punk, 111 BPM), 2 = <em>Confusion</em> in its Pump Panel Reconstruction from <em>Blade</em> (New Order, 136 BPM, the 303 line from a published sheet), 3 = <em>Enjoy the Silence</em> (Depeche Mode, 113 BPM, drums from a published grid). They are played by the stock machines; nothing is sampled.
+</li><li>
+<strong>Scene B of every pattern is all muted</strong> (the six channels, drums too) until you store another scene over it.
+</li><li>
+<strong>BX-7 is back:</strong> the FM-1's own FM synth inside Bubba. Six operators, the 32 algorithms drawn on screen, 8 voices, its own effects chain, EDIT per operator (OP1-OP6), ENV, LFO and an arpeggiator with 7 modes and LATCH that records. 31 factory sounds, 11 of them from famous records.
+</li><li>
+<strong>BB-303 laid out as a TB-303:</strong> CUTOFF, RESONANCE, ENV MOD and DECAY on K1-K4, ALGORITHM = ACCENT, a second page with TUNING, WAVE, SLIDE and VOLUME. SCL edits ACCENT per step (SCL again = SLIDE). FX is OVERDRIVE → DELAY → REVERB like a TB-03. A synced LFO page with classic waves and rhythmic shapes (PUMP, GATE, STEPS, 3-3-2, BUILD) on cutoff, pitch, resonance or volume.
+</li><li>
+<strong>B-MINI, BUNO-6 and BITTAL have their own menus</strong>, following the panel of each machine (Minimoog, Juno-6, Vital) in tabs with four big knobs, and the filter curve, oscillator shape or wavetable drawn under them. Each has DISTORTION, CHORUS and REVERB per channel; SCL edits ACCENT and GLIDE per step.
+</li><li>
+<strong>BP-1 Slicer (the last channel):</strong> EDIT trims a take and slices it into the pads (AUTO, 8 or 16 slices), always writing a sequence that plays like the loop; it can also record the mix from the next bar into a pad. Each pad has PITCH, LEVEL, MODE, REVERSE, ATTACK, RELEASE and loop points, and SEQ is a step grid like the drums with a LENGTH/SPEED layer.
+</li><li>
+<strong>Drum sequencer (BR-8):</strong> white keys = steps, black keys = quick access to the instruments, page arrows, REPEAT, and layers for ACCENTS, sound, instrument and MUTE SOUNDS.
+</li><li>
+<strong>Machine GLO</strong> on every machine: LENGTH (1-64 steps), MACHINE, MIDI CH and MIDI OUT; on page 2 QUANT (25-100 % for live recording) and RESET.
+</li><li>
+<strong>MIDI OUT per channel:</strong> a channel can send its notes over USB on its own MIDI channel (factory: T1 = 1 … T6 = 6).
+</li><li>
+<strong>Step recording:</strong> REC while stopped inside SEQ writes the key or chord on the cursor step and moves on; PLAY + REC rewrites only the steps you play.
+</li><li>
+<code>tools/fm1/instalar.py</code> installs from the computer with a log; <code>consola.py estado</code> shows the key-scan latency.
+</li></ul>
+<h3 id="changed">Changed</h3>
+<ul><li>
+<strong>HOME is a mixer:</strong> K1-K4 = VOLUME, FILTER, DELAY and REVERB of the cursor channel, ALGORITHM = tempo, PRESETS = the channel's sound. White 1-9 = patterns (they change at the end of the bar), white 11-16 = channels, black 1-6 = mutes (hold = solo), black 8-11 = scenes A-D (hold a pattern + scene = store, tap = launch on the next bar, hold 3 s = delete). White 10 and black 7 do nothing.
+</li><li>
+<strong>9 patterns</strong> (was 10).
+</li><li>
+<strong>Choosing a machine:</strong> HOME's GLO › SELECT MACHINE or K2 on the machine's GLO. The drums stay on T1 and the Slicer stays last; the other channels pick BB-303, B-MINI, BX-7, BITTAL or BUNO-6. At most two heavy machines (BX-7, BUNO-6, BITTAL), each only once.
+</li><li>
+<strong>Menu buttons are cyclic:</strong> pressing a menu button again goes to its next page; HOME or another menu leaves. SELECT no longer turns pages. No help text on screen.
+</li><li>
+<strong>Recording works like SLOOP:</strong> a fixed length that wraps around and never grows. <strong>REC held 2 s clears the cursor channel's sequence</strong>, playing or stopped.
+</li><li>
+SAVE while playing waits and writes when you stop (the SAVE light blinks). SAVE has SAVE, SAVE AS and DELETE; SYSTEM keeps the basics.
+</li><li>
+Every knob is drawn once on screen; the SEL / ALG / PRE legends are bigger.
+</li><li>
+Pattern format 10.
+</li></ul>
+<h3 id="fixed">Fixed</h3>
+<ul><li>
+<strong>False safe mode</strong> after two quick power-offs: a boot only counts as failed if the next one starts from a chip reset.
+</li><li>
+<strong>Dim LEDs flickered:</strong> the key scan now times each LED on its own and makes up for interrupt latency.
+</li><li>
+<strong>Keys went dead after about 71 s</strong> (a timer could wrap around while being reprogrammed); the scan also re-arms itself if it stops.
+</li><li>
+A knob paused half-way through a click could count twice; key release takes 4 frames.
+</li><li>
+USB MIDI could lose note-offs.
+</li><li>
+The power-on key combo for safe mode did not read the keys.
+</li><li>
+Machine audit against the original manuals: BB-303 accent only on accented steps and slide only with a tie or legato playing; key stacks on mono machines; BX-7 transpose, osc sync and break point; B-MINI TUNE tunes everything; one BUNO-6 LFO per channel with its delay; several arpeggiator and recording fixes (wrong note lengths after a previous take, hung notes when turning the arp on).
+</li></ul>
+<h3 id="removed">Removed</h3>
+<ul><li>
+From the 0.9 console: the channel card, CUE, FX › CHANNEL, the song, MORE, and the old SOUND / INSTR / MIX / PADS / TAKES / LOOP / SCALE / CHORDS menus.
+</li><li>
+FREE REC (a free-length first take).
+</li><li>
+User sound banks on the BX-7 for now: factory sounds only.
+</li></ul>
+<h3 id="known-issues">Known issues</h3>
+<ul><li>
+In a long, very dense simulated session the voice brake can leave B-MINI almost silent in the last minute.
+</li></ul>
 <h2 id="090-beta---2026-10-18">[0.9.0-beta] - 2026-10-18</h2>
 <p><strong>HOME is the console.</strong> Ten patterns, six channels, mutes, scenes and CUE on the keys, like an MX-1; REC plays and records any channel without leaving the console; each machine keeps its own GLO. Beta: not fully tried on the device yet.</p>
 <blockquote><p>0.9 has only 10 patterns: on first boot patterns 11-16 are dropped, and the song and the scenes start empty (their format changed). Patterns 01-10, settings, takes and your sounds are kept.</p></blockquote>

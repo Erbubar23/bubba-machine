@@ -12,7 +12,7 @@ typedef char bm_assert_track[(sizeof(bm_track) == 48) ? 1 : -1];
 typedef char bm_assert_meta[(sizeof(bm_meta) == 64) ? 1 : -1];
 typedef char bm_assert_notes[(sizeof(bm_tr) <= sizeof(bm_notes)) ? 1 : -1];
 typedef char bm_assert_lane[(sizeof(bm_lane) == 8) ? 1 : -1];
-typedef char bm_assert_prm[(BT_NPRM <= BM_PRM && MN_NPRM <= BM_PRM && BN_NPRM <= BM_PRM) ? 1 : -1];
+typedef char bm_assert_prm[((int)BT_NPRM <= (int)PX_FX && (int)MN_NPRM <= (int)PX_FX && (int)BN_NPRM <= (int)PX_FX && PX_END <= BM_PRM) ? 1 : -1];
 
 const uint8_t bm_speed_tps[SPD_COUNT] = {12, 16, 24, 32, 48, 96};
 const char *const bm_speed_names[SPD_COUNT] = {"X2", "X3/2", "X1", "X3/4", "X1/2", "X1/4"};
@@ -83,15 +83,26 @@ void bm_track_clear_events(bm_pattern *p, int track)
             bm_event_clear(bm_ev(p, track, s, e));
 }
 
+/* El tope de cada byte de la voz de la DX7 (VCED): 6 operadores de 21 y 30 de la voz */
+int bm_fmv_max(int i)
+{
+    static const uint8_t OP[21] = {99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 3, 3, 7, 3, 7, 99, 1, 31, 99, 14};
+    static const uint8_t V[30] = {99, 99, 99, 99, 99, 99, 99, 99, 31, 7, 1, 99, 99, 99, 99, 1, 5, 7, 48,
+                                  126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 63};
+    if (i < 0 || i >= BM_FMV_BYTES) return 0;
+    return i < 126 ? OP[i % 21] : V[i - 126];
+}
+
 int bm_track_engine(int track)
 {
-    static const uint8_t E[BM_TRACKS] = {ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_FM, ENG_BITTAL, ENG_BUNO};
+    static const uint8_t E[BM_TRACKS] = {ENG_DRUM, ENG_BREAK, ENG_ACID, ENG_MINI, ENG_BITTAL, ENG_BUNO};
     return E[(unsigned)track % BM_TRACKS];
 }
 
 bool bm_engine_ok(int track, int engine)
 {
-    if (track >= BM_TR_TRACKS && track < BM_TRACKS) return engine >= ENG_ACID && engine < ENG_COUNT;
+    if (track >= BM_TR_TRACKS && track < BM_TRACKS)            /* 2026-10-21: solo la batería y el Slicer son fijos */
+        return engine == ENG_ACID || engine == ENG_MINI || engine == ENG_BUNO || engine == ENG_BITTAL || engine == ENG_FM;
     return engine == bm_track_engine(track);
 }
 
@@ -103,12 +114,21 @@ int bm_machine_conflict(const bm_pattern *p, int track, int engine)
     return -1;
 }
 
+int bm_heavy_count(const bm_pattern *p, int skip)
+{
+    int n = 0;
+    for (int o = BM_TR_TRACKS; o < BM_TRACKS; o++)
+        if (o != skip && bm_engine_heavy(p->trk[o].engine)) n++;
+    return n;
+}
+
 /* la máquina y su primer preset, sin P-Locks en las notas (los de otra máquina no significan nada) */
 static void machine_put(bm_pattern *p, int track, int engine)
 {
     bm_track *t = &p->trk[track];
     t->engine = (uint8_t)engine;
     t->source = 0;
+    memset(p->prm[track], 0, BM_PRM);                 /* nada de la máquina anterior (los efectos de la BX-7 vuelven a fábrica) */
     bm_preset_apply(p, track, 0);
     for (int s = 0; s < BM_STEPS; s++)
         for (int k = 0; k < BM_EVENTS; k++) {
@@ -121,6 +141,7 @@ void bm_track_set_engine(bm_pattern *p, int track, int engine)
 {
     if (track < BM_TR_TRACKS || !bm_engine_ok(track, engine)) return;
     if (p->trk[track].engine == engine || bm_machine_conflict(p, track, engine) >= 0) return;
+    if (bm_engine_heavy(engine) && bm_heavy_count(p, track) >= BM_HEAVY_MAX) return;
     machine_put(p, track, engine);
 }
 
@@ -140,6 +161,10 @@ static void heavy_fix(bm_pattern *p)
         }
         if (!changed) break;
     }
+    /* más pesadas que las que caben: la que no es de fábrica en su canal vuelve a la de fábrica */
+    for (int t = BM_TRACKS - 1; t >= BM_TR_TRACKS && bm_heavy_count(p, -1) > BM_HEAVY_MAX; t--)
+        if (bm_engine_heavy(p->trk[t].engine) && bm_track_engine(t) != p->trk[t].engine && !bm_engine_heavy(bm_track_engine(t)))
+            machine_put(p, t, bm_track_engine(t));
 }
 
 void bm_pattern_init(bm_pattern *p)
@@ -157,6 +182,7 @@ void bm_pattern_init(bm_pattern *p)
     bm_kit_apply(&p->tr[0], 0);
     p->meta.rv_size = 80; p->meta.rv_damp = 60; p->meta.rv_mix = 90; p->meta.mfilt = 64;
     for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) bm_preset_apply(p, t, p->trk[t].source);
+    bm_px_fx_defaults(p->prm[1]);                                  /* el Slicer: sus efectos (como las de panel) */
 }
 
 int bm_master_steps(const bm_meta *m) { return m->master * BM_PAGE_STEPS; }
@@ -300,6 +326,8 @@ int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap)
     }
     NEED((int)sizeof p->pad);
     memcpy(out + o, p->pad, sizeof p->pad); o += (int)sizeof p->pad;
+    NEED((int)sizeof p->fmv);
+    memcpy(out + o, p->fmv, sizeof p->fmv); o += (int)sizeof p->fmv;
     return o;
 }
 
@@ -338,15 +366,21 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
 {
     int o = 0;
     GET(64 + (int)sizeof p->trk);
-    if (in[offsetof(bm_meta, fmt)] != BM_PAT_FMT) return -1;      /* hasta la v1, sin compatibilidad hacia atrás */
+    int fmt = in[offsetof(bm_meta, fmt)];
+    if (fmt != BM_PAT_FMT && fmt != 9) return -1;                  /* hasta la v1: el de ahora y el anterior (prm de 48) */
     bm_pattern_init(p);
     memcpy(&p->meta, in, 64);
     p->meta.bpm_x10 = (uint16_t)(in[0] | (in[1] << 8));
     p->meta.fmt = BM_PAT_FMT;
     o = 64;
     memcpy(p->trk, in + o, sizeof p->trk); o += (int)sizeof p->trk;
-    GET((int)sizeof p->prm);
-    memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
+    if (fmt == 9) {
+        GET(BM_TRACKS * 48);
+        for (int t = 0; t < BM_TRACKS; t++) { memcpy(p->prm[t], in + o, 48); memset(p->prm[t] + 48, 0, BM_PRM - 48); o += 48; }
+    } else {
+        GET((int)sizeof p->prm);
+        memcpy(p->prm, in + o, sizeof p->prm); o += (int)sizeof p->prm;
+    }
     for (int t = 0; t < BM_TRACKS; t++) {                          /* T1 y T2 no cambian de máquina */
         uint8_t e = p->trk[t].engine;
         if (!bm_engine_ok(t, e)) { p->trk[t].engine = (uint8_t)bm_track_engine(t); p->trk[t].source = 0; bm_preset_apply(p, t, 0); }
@@ -377,6 +411,15 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
         }
     }
     heavy_fix(p);                                                  /* BUNO-6 y BITTAL, una vez cada una */
+    for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++)                 /* BB-303 de antes de sus FX: los de fábrica */
+        if (p->trk[t].engine == ENG_ACID && !p->prm[t][AC_OD_G] && !p->prm[t][AC_OD_T] && !p->prm[t][AC_OD_L]) {
+            uint8_t m = p->prm[t][AC_FX];
+            bm_acid_fx_defaults(p->prm[t]);
+            p->prm[t][AC_FX] = m;
+        }
+    for (int t = 1; t < BM_TRACKS; t++)                 /* B-MINI, BUNO-6, BITTAL de antes de sus FX: los de fábrica */
+        if (bm_px_eng(p->trk[t].engine) && !p->prm[t][PX_DS_G] && !p->prm[t][PX_DS_T] && !p->prm[t][PX_DS_L])
+            bm_px_fx_defaults(p->prm[t]);
     for (int t = 0; t < BM_SYN_TRACKS; t++) {
         GET(3);
         bm_loop *lp = &p->loop[t];
@@ -398,6 +441,9 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
         if (d->mode >= PAD_MODES) d->mode = PAD_ONESHOT;
         if (d->pitch > 48) d->pitch = 24;
     }
+    GET((int)sizeof p->fmv);
+    memcpy(p->fmv, in + o, sizeof p->fmv); o += (int)sizeof p->fmv;
+    for (int i = 0; i < BM_FMV_BYTES; i++) if (p->fmv[i] > bm_fmv_max(i)) p->fmv[i] = (uint8_t)bm_fmv_max(i);
     if (p->meta.bpm_x10 < 400 || p->meta.bpm_x10 > 2400) p->meta.bpm_x10 = 1200;
     if (p->meta.swing < 50 || p->meta.swing > 75) p->meta.swing = 50;
     if (p->meta.master > 8) p->meta.master = 4;
@@ -410,6 +456,7 @@ int bm_pattern_unpack(bm_pattern *p, const uint8_t *in, int len)
         if (tk->length < 1 || tk->length > BM_STEPS) tk->length = 16;
         if (tk->scl != 0xFF && tk->scl >= BM_SCALES) tk->scl = 0xFF;
         tk->scl_root %= 12; tk->midi_ch &= 15;
+        if (tk->qfree > 3) tk->qfree = 0;
         if (tk->pitch > 48) tk->pitch = 24;
     }
     return o;

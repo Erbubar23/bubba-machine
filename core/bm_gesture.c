@@ -15,16 +15,19 @@ void bm_gesture_init(bm_gesture *g, bm_gesture_cb cb, void *user)
 {
     memset(g, 0, sizeof *g);
     g->cb = cb; g->user = user;
-    for (int i = 0; i < BTN_COUNT; i++) cfg(g, i, 1, 1, 0, 1, 0);   /* toque + capa al mantener */
+    /* 1.0: solo SCL, EDIT, ENV y LFO tienen capa (dentro del secuenciador de la batería; REPETIR va en
+     * la negra 11). Los demás son de un toque, sin importar cuánto dure. */
+    for (int i = 0; i < BTN_COUNT; i++) cfg(g, i, 0, 0, 0, 1, 0);
+    cfg(g, BTN_SCL, 1, 1, 0, 1, 0);                   /* capa MUTE (silenciar sonidos) */
+    cfg(g, BTN_EDIT, 1, 1, 0, 1, 0);                  /* capa INSTRUMENTO (modelo) */
+    cfg(g, BTN_ENV, 1, 1, 0, 1, 0);                   /* capa SONIDO (golpe) */
+    cfg(g, BTN_LFO, 1, 1, 0, 1, 0);                   /* capa ACENTOS */
     cfg(g, BTN_PLAY, 0, 0, 1, 0, 0);
     cfg(g, BTN_OCT_DN, 0, 0, 1, 0, 0);
     cfg(g, BTN_OCT_UP, 0, 0, 1, 0, 0);
-    cfg(g, BTN_HOME, 1, 1, 0, 1, UI_LONG_MS);         /* capa CONTROLADOR · 2 s: SISTEMA */
-    cfg(g, BTN_SEQ, 1, 1, 0, 1, UI_LONG_MS);          /* capa LARGO Y VELOCIDAD · 2 s: TIEMPO */
-    cfg(g, BTN_EDIT, 1, 1, 0, 1, UI_LONG_MS);         /* capa BORRAR · 2 s: TOMAS / SONIDO INICIAL */
-    cfg(g, BTN_SAVE, 1, 1, 0, 1, UI_LONG_MS);         /* capa COPIAR PATRON · 2 s: guardado rápido */
-    /* REC: mantener = grabar mientras. Sin 2 s fijos: bm_app_button los pide al bajar con
-     * bm_gesture_set_long (LOOP: borrar el loop; en un canal sin grabar nada: borrar la pista). */
+    cfg(g, BTN_HOME, 0, 0, 0, 1, UI_LONG_MS);         /* 2 s: SISTEMA */
+    cfg(g, BTN_SAVE, 0, 0, 0, 1, UI_LONG_MS);         /* 2 s: guardado rápido */
+    cfg(g, BTN_REC, 0, 0, 0, 1, UI_LONG_MS);          /* 2 s en la BX-7: borra las notas del canal */
 }
 
 void bm_gesture_set_long(bm_gesture *g, int id, uint16_t long_ms)

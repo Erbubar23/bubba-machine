@@ -63,7 +63,7 @@ typedef enum {
     CMD_MIDI,           /* a=byte MIDI entrante */
     CMD_ARP,            /* a=pista b=0/1 (capa ARP) */
     CMD_ROLL,           /* a=canal de rejilla b=línea c=0/1 (0: sigue la cola) i=ticks entre golpes (0 = los mismos) */
-    CMD_REC,            /* a=0/1: grabación en vivo (para el roll) */
+    CMD_REC,            /* a=0/1: grabación en vivo (para el roll y el arpegiador) b=el canal que graba */
     CMD_LOOP,           /* a=pista synth b=acción (1 REC, 2 borrar, 3 on/off, 4 compases=c) */
     CMD_STRUM,          /* a=pista b=n c=vel i=notas empaquetadas (4 x 8 bit) */
     CMD_ALL_OFF,
@@ -74,7 +74,8 @@ typedef enum {
     CMD_PAD_KEY,        /* tecla de un pad: a=1 suena el pad b (vel c) mientras se sostiene · a=0 soltar */
     CMD_ROLL_CFG,       /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
     CMD_CLONE,          /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
-    CMD_MUTE_CUE        /* a=bits de los canales cuyo mute cambia en el próximo compás (CUE de HOME; parado: ya) */
+    CMD_MUTE_CUE,       /* a=bits de los canales cuyo mute cambia en el próximo compás (CUE de HOME; parado: ya) */
+    CMD_FMV             /* la voz de la BX-7: a=byte (0..155) b=valor */
 } bm_cmd_type;
 
 typedef struct {
@@ -196,14 +197,21 @@ struct bm_engine {
     uint8_t track;
     uint8_t lock_next[4];
     uint8_t legato_next;
+    uint8_t live_next;          /* la próxima nota viene del teclado (no del secuenciador) */
+    uint8_t held[8], nheld;     /* máquinas de una voz: las teclas sostenidas, para volver a la anterior al soltar */
+    uint8_t lfo_restart;        /* BUNO-6: se tocó después de soltar todo, el retardo del LFO vuelve a empezar */
+    float lfo_s, lfo_g;         /* BB-303: el LFO suavizado (0..1) y el nivel del bloque anterior */
     uint8_t machine;            /* la máquina con que se armó (ENG_*): si cambia, se reinicia */
 };
 
 extern const bm_engine_vt bm_eng_drum, bm_eng_sampler, bm_eng_wave, bm_eng_acid, bm_eng_fm, bm_eng_midi_out;
 /* FM: lo que hacen las macros y los ajustes (prm del canal) sobre el patch (para la pantalla) */
-int bm_fm_alg_of(const bm_track *t, const uint8_t *prm);   /* algoritmo 1..32 */
-int bm_fm_fb_of(const bm_track *t, int m2);           /* realimentación 0..7 */
-void bm_fm_patch_of(const bm_track *t, const uint8_t *prm, const bm_voice *v, uint8_t *p);   /* v NULL = las macros del canal */
+int bm_fm_alg_of(const bm_pattern *pat);              /* algoritmo de la BX-7: 1..32 */
+void bm_bx7_fx(struct bm_ctx *c, int t, int32_t *buf, uint32_t n);   /* core/bm_bx7fx.c: la cadena de efectos de la BX-7 */
+void bm_bx7_fx_reset(void);
+void bm_acid_fx(struct bm_ctx *c, int t, int32_t *buf, uint32_t n);  /* el OVERDRIVE del BB-303 (si está prendido) */
+void bm_px_fx(struct bm_ctx *c, int t, int32_t *buf, uint32_t n);    /* la DISTORTION de B-MINI, BUNO-6 y BITTAL (si está prendida) */
+void bm_fm_patch_of(const bm_pattern *pat, int track, const bm_voice *v, uint8_t *p);   /* v NULL = las macros del canal */
 extern const char *const bm_acid_names[2];             /* sierra o cuadrada */
 const bm_engine_vt *bm_engine_vt_for(int engine);
 
@@ -211,9 +219,13 @@ const bm_engine_vt *bm_engine_vt_for(int engine);
 typedef struct {
     uint8_t on;
     uint8_t held[8], n;
+    uint8_t ord[8];              /* las mismas notas, en el orden en que se tocaron (modo ORDER) */
+    uint8_t down;                /* teclas que siguen sostenidas (LATCH: la próxima después de soltar todas empieza otra) */
     uint8_t idx, cur, playing;
     uint16_t gate_left;
 } bm_arp;
+/* modos del arpegiador (bm_track.arp_mode), los del FM-1 de fábrica */
+enum { ARP_OFF, ARP_UP, ARP_DOWN, ARP_INCL, ARP_EXCL, ARP_RANDOM, ARP_ORDER, ARP_REPEAT, ARP_MODES };
 
 typedef struct { uint8_t lane, vel; uint16_t ticks; } bm_retrig;
 
@@ -247,6 +259,8 @@ typedef struct bm_ctx {
     /* reloj */
     uint32_t spt_q16, acc_q16, sample_clock;
     uint8_t playing, fill, ext_clock, song_on, rec;
+    uint8_t rec_trk;             /* el canal que graba (CMD_REC b): el arpegiador graba lo que toca ahí */
+    uint32_t live_held[BM_TRACKS][4];   /* las notas que se están tocando en vivo (bit por nota): al grabar no se repiten desde el patrón */
     uint32_t rtick, btick;
     int8_t queued;
     int8_t scene_q;
@@ -330,6 +344,7 @@ typedef struct bm_ctx {
      * BM_PAR_ELIGE se elige el reparto de los 64 posibles que deja más parejos los dos núcleos.
      * Los costos suben de golpe y bajan despacio: los picos (fills, acordes nuevos) cuentan. */
     uint32_t (*now)(void);
+    uint8_t fmv_gen;                              /* sube con cada cambio de la voz de la BX-7 (CMD_FMV, preset) */
     uint8_t par_auto;
     uint16_t par_n;
     uint32_t cost[BM_TRACKS], cost_over;          /* ticks de now por render */

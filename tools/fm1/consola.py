@@ -27,7 +27,11 @@ CAMPOS = ['version', 'uptime_ms', 'sys_hz', 'lsb_hz', 'halves', 'late', 'render_
           'voces',
           # 0.8.1
           'rst_raw', 'rst_pmu', 'rail_min', 'rail_now', 'vbat', 'batt_adc', 'pwr0', 'pwr1', 'rastro0', 'rastro1',
-          'loop_us', 'loop_max_us', 'c1', 'freno_ui', 'nan_fix']
+          'loop_us', 'loop_max_us', 'c1', 'freno_ui', 'nan_fix',
+          # 0.9.1
+          'scan_lat_us',
+          # 0.9.2
+          'scan_kick']
 NUCLEO1 = ['sin probar', 'probando', 'listo', 'no contestó al arrancar', 'retired: did not answer in time',
            'retired: misread a job', 'retired by an earlier boot (until power-off)']
 ETAPA = ['antes de la pantalla', 'pantalla y USB', 'núcleo listo', 'teclas', 'audio iniciado', 'audio sonando',
@@ -92,8 +96,10 @@ def mostrar(v):
     print('audio: %d bloques, %d tarde | cálculo %d us (prom %d, máx %d) de %d us = %.0f %% (máx %.0f %%) | núcleo %d' % (
         v['halves'], v['late'], v['render_us'], v['render_avg_us'], v['render_max_us'], v['budget_us'], pct, pmx,
         v['audio_cpu']))
-    print('pantalla/UI: %d us (máx %d) | barrido: %d interrupciones, la más larga %d us' % (
-        v['ui_us'], v['ui_max_us'], v['scan_ticks'], v['scanisr_max_us']))
+    print('pantalla/UI: %d us (máx %d) | barrido: %d interrupciones, la más larga %d us%s' % (
+        v['ui_us'], v['ui_max_us'], v['scan_ticks'], v['scanisr_max_us'],
+        (', atraso máx %d us' % v['scan_lat_us'] if 'scan_lat_us' in v else '') +
+        (', rearmado %d veces' % v['scan_kick'] if v.get('scan_kick') else '')))
     print('USB: %s | MIDI recibidos %d, enviados %d | arranques fallidos seguidos: %d' % (
         'configurado' if v['usb'] & 1 else ('encendido' if v['usb'] & 2 else 'apagado'), v['midi_in'], v['midi_out'],
         v['fails']))

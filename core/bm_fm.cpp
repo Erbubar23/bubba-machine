@@ -149,6 +149,7 @@ void bm_fm_start(int v, int t, const uint8_t *patch, int note, int vel, int src,
     z.alg = patch[BM_FM_ALG] & 31;
     z.gain = gain_for(z.alg);
     z.note.init(patch, note, vel, src, porta, &ctl(t));
+    if (patch[136]) z.note.oscSync();                     /* OSC KEY SYNC: la fase vuelve a 0 en cada nota (como Dexed) */
     z.lfo.reset(patch + 137);
     z.lfo.keydown();
     z.pos = _N_;
@@ -163,6 +164,7 @@ void bm_fm_update(int v, const uint8_t *patch, int note, int vel, int porta)
     z.alg = patch[BM_FM_ALG] & 31;
     z.gain = gain_for(z.alg);
     z.note.update(patch, note, vel, porta, &ctl(z.track));
+    z.lfo.reset(patch + 137);                             /* el LFO editado llega a lo que suena (no toca la fase) */
 }
 
 void bm_fm_release(int v)

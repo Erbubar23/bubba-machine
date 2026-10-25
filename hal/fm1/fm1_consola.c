@@ -191,6 +191,7 @@ void fm1_consola(const uint8_t *m, uint32_t n)
         fm1_stat[FM1_STAT_UI_MAX] = 0;
         fm1_stat[FM1_STAT_LOOP_US_MAX] = 0;
         fm1_stat[FM1_STAT_SCANISR_MAX] = 0;
+        fm1_stat[FM1_STAT_SCAN_LAT] = 0;
         responder(0x04, NULL, 0, NULL, 0);
         break;
     }

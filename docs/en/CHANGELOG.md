@@ -2,6 +2,52 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [0.10.0-beta] - 2026-10-24
+
+**Every machine is its own instrument.** HOME was rebuilt from scratch as a six-channel mixer, and entering a channel hands the whole FM-1 to its machine, laid out like the real one: TB-303, Minimoog, Juno-6, Vital and the FM-1's own DX7-style synth. The drums have a new step sequencer and the pad sampler became the **BP-1 Slicer**. Installed and running on the author's FM-1.
+
+> On first boot 0.10 erases the saved patterns and scenes **once** and loads three factory patterns. Takes and settings are kept. Until v1 there is still no backward compatibility.
+
+### Added
+- **Factory patterns:** 1 = a recreation of *Da Funk* (Daft Punk, 111 BPM), 2 = *Confusion* in its Pump Panel Reconstruction from *Blade* (New Order, 136 BPM, the 303 line from a published sheet), 3 = *Enjoy the Silence* (Depeche Mode, 113 BPM, drums from a published grid). They are played by the stock machines; nothing is sampled.
+- **Scene B of every pattern is all muted** (the six channels, drums too) until you store another scene over it.
+- **BX-7 is back:** the FM-1's own FM synth inside Bubba. Six operators, the 32 algorithms drawn on screen, 8 voices, its own effects chain, EDIT per operator (OP1-OP6), ENV, LFO and an arpeggiator with 7 modes and LATCH that records. 31 factory sounds, 11 of them from famous records.
+- **BB-303 laid out as a TB-303:** CUTOFF, RESONANCE, ENV MOD and DECAY on K1-K4, ALGORITHM = ACCENT, a second page with TUNING, WAVE, SLIDE and VOLUME. SCL edits ACCENT per step (SCL again = SLIDE). FX is OVERDRIVE → DELAY → REVERB like a TB-03. A synced LFO page with classic waves and rhythmic shapes (PUMP, GATE, STEPS, 3-3-2, BUILD) on cutoff, pitch, resonance or volume.
+- **B-MINI, BUNO-6 and BITTAL have their own menus**, following the panel of each machine (Minimoog, Juno-6, Vital) in tabs with four big knobs, and the filter curve, oscillator shape or wavetable drawn under them. Each has DISTORTION, CHORUS and REVERB per channel; SCL edits ACCENT and GLIDE per step.
+- **BP-1 Slicer (the last channel):** EDIT trims a take and slices it into the pads (AUTO, 8 or 16 slices), always writing a sequence that plays like the loop; it can also record the mix from the next bar into a pad. Each pad has PITCH, LEVEL, MODE, REVERSE, ATTACK, RELEASE and loop points, and SEQ is a step grid like the drums with a LENGTH/SPEED layer.
+- **Drum sequencer (BR-8):** white keys = steps, black keys = quick access to the instruments, page arrows, REPEAT, and layers for ACCENTS, sound, instrument and MUTE SOUNDS.
+- **Machine GLO** on every machine: LENGTH (1-64 steps), MACHINE, MIDI CH and MIDI OUT; on page 2 QUANT (25-100 % for live recording) and RESET.
+- **MIDI OUT per channel:** a channel can send its notes over USB on its own MIDI channel (factory: T1 = 1 … T6 = 6).
+- **Step recording:** REC while stopped inside SEQ writes the key or chord on the cursor step and moves on; PLAY + REC rewrites only the steps you play.
+- `tools/fm1/instalar.py` installs from the computer with a log; `consola.py estado` shows the key-scan latency.
+
+### Changed
+- **HOME is a mixer:** K1-K4 = VOLUME, FILTER, DELAY and REVERB of the cursor channel, ALGORITHM = tempo, PRESETS = the channel's sound. White 1-9 = patterns (they change at the end of the bar), white 11-16 = channels, black 1-6 = mutes (hold = solo), black 8-11 = scenes A-D (hold a pattern + scene = store, tap = launch on the next bar, hold 3 s = delete). White 10 and black 7 do nothing.
+- **9 patterns** (was 10).
+- **Choosing a machine:** HOME's GLO › SELECT MACHINE or K2 on the machine's GLO. The drums stay on T1 and the Slicer stays last; the other channels pick BB-303, B-MINI, BX-7, BITTAL or BUNO-6. At most two heavy machines (BX-7, BUNO-6, BITTAL), each only once.
+- **Menu buttons are cyclic:** pressing a menu button again goes to its next page; HOME or another menu leaves. SELECT no longer turns pages. No help text on screen.
+- **Recording works like SLOOP:** a fixed length that wraps around and never grows. **REC held 2 s clears the cursor channel's sequence**, playing or stopped.
+- SAVE while playing waits and writes when you stop (the SAVE light blinks). SAVE has SAVE, SAVE AS and DELETE; SYSTEM keeps the basics.
+- Every knob is drawn once on screen; the SEL / ALG / PRE legends are bigger.
+- Pattern format 10.
+
+### Fixed
+- **False safe mode** after two quick power-offs: a boot only counts as failed if the next one starts from a chip reset.
+- **Dim LEDs flickered:** the key scan now times each LED on its own and makes up for interrupt latency.
+- **Keys went dead after about 71 s** (a timer could wrap around while being reprogrammed); the scan also re-arms itself if it stops.
+- A knob paused half-way through a click could count twice; key release takes 4 frames.
+- USB MIDI could lose note-offs.
+- The power-on key combo for safe mode did not read the keys.
+- Machine audit against the original manuals: BB-303 accent only on accented steps and slide only with a tie or legato playing; key stacks on mono machines; BX-7 transpose, osc sync and break point; B-MINI TUNE tunes everything; one BUNO-6 LFO per channel with its delay; several arpeggiator and recording fixes (wrong note lengths after a previous take, hung notes when turning the arp on).
+
+### Removed
+- From the 0.9 console: the channel card, CUE, FX › CHANNEL, the song, MORE, and the old SOUND / INSTR / MIX / PADS / TAKES / LOOP / SCALE / CHORDS menus.
+- FREE REC (a free-length first take).
+- User sound banks on the BX-7 for now: factory sounds only.
+
+### Known issues
+- In a long, very dense simulated session the voice brake can leave B-MINI almost silent in the last minute.
+
 ## [0.9.0-beta] - 2026-10-18
 
 **HOME is the console.** Ten patterns, six channels, mutes, scenes and CUE on the keys, like an MX-1; REC plays and records any channel without leaving the console; each machine keeps its own GLO. Beta: not fully tried on the device yet.

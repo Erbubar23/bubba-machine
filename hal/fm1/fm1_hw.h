@@ -124,6 +124,7 @@ void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_rend
 void fm1_audio_stop(void);
 void fm1_audio_pause(int on);                             /* DMA e interrupción en pausa, sin rearmar el codec */
 void fm1_scan_pause(int on);
+int fm1_scan_vigilar(uint32_t ms);                        /* bucle principal: rearma un barrido detenido */
 uint32_t fm1_audio_halves(void);                          /* medios buffers calculados */
 uint32_t fm1_audio_late(void);                            /* medios buffers que llegaron tarde (silencio) */
 uint32_t fm1_scan_ticks(void);                            /* interrupciones del barrido (250 us cada una) */
@@ -166,6 +167,8 @@ enum {
                              * bits 16-31 wait turns per microsecond */
     FM1_STAT_FRENO_UI,      /* brake steps because the UI loop was slower than 60 ms */
     FM1_STAT_NAN_FIX,       /* NaN resets in the mix (bm_status.nan_fix) */
+    FM1_STAT_SCAN_LAT,      /* the longest delay of a scan interrupt, us (an LED that stayed on longer) */
+    FM1_STAT_SCAN_KICK,     /* 0.9.2: times the main loop re-armed a stalled scan timer */
     FM1_STAT_N
 };
 

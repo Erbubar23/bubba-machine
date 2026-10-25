@@ -74,15 +74,14 @@ const bm_ppage bm_mn_pages[BM_MN_PAGES] = {
                    P("VEL FILT", MN_VELF, 40, 127, PF_PCT, 0), P("VEL LVL", MN_VELA, 40, 127, PF_PCT, 0)}},
 };
 
-/* BX-7: ALGORITHM (con el dibujo), EG, VOICE y LFO. Las macros y el LFO van encima del patch. */
+/* BX-7 (2026-10-21): lo que va encima de la voz (pat->fmv), con 64 = la voz tal cual. La voz misma
+ * (algoritmo, feedback, LFO, operadores) se edita byte a byte con CMD_FMV desde core/bm_bx7.c.
+ * MAIN: lo de la pantalla principal · ENV: el ADSR de volumen del FM-1 de fábrica. */
 const bm_ppage bm_fx_pages[BM_FX_PAGES] = {
-    {"ALGORITHM", 4, {P("ALG", FX_ALG, 0, 32, PF_ALG, 0), P("FEEDBACK", PS_M0 + 1, 64, 127, PF_BIP, 0),
-                      P("MOD LVL", PS_M0 + 0, 64, 127, PF_BIP, 0), P("KEY VEL", PS_TRK(accent), 100, 127, PF_PCT, 0)}},
-    {"EG", 3, {P("R1 ATK", PS_TRK(attack), 0, 127, PF_PCT, 0), P("R2-3 DEC", PS_M0 + 2, 64, 127, PF_BIP, 0),
-               P("R4 REL", PS_M0 + 3, 64, 127, PF_BIP, 0)}},
-    {"VOICE", 2, {P("PORTA", PS_TRK(glide), 30, 127, PF_PCT, 0), P("TRANSP", PS_TRK(transpose), 24, 48, PF_TRSP, 0)}},
-    {"LFO", 4, {P("SPEED", FX_LSPD, 0, 100, PF_OVR, 0), P("DELAY", FX_LDLY, 0, 100, PF_OVR, 0),
-                P("PMD", FX_LPMD, 0, 100, PF_OVR, 0), P("AMD", FX_LAMD, 0, 100, PF_OVR, 0)}},
+    {"MAIN", 3, {P("BRIGHT", PS_M0 + 0, 64, 127, PF_BIP, 0), P("PORTA", PS_TRK(glide), 0, 127, PF_PCT, 0),
+                 P("KEY VEL", PS_TRK(accent), 100, 127, PF_PCT, 0)}},
+    {"ENV", 4, {P("ATTACK", PS_TRK(attack), 0, 127, PF_PCT, 0), P("DECAY", PS_M0 + 2, 64, 127, PF_BIP, 0),
+                P("SUSTAIN", PS_TRK(sustain), 64, 127, PF_BIP, 0), P("RELEASE", PS_M0 + 3, 64, 127, PF_BIP, 0)}},
 };
 
 /* BUNO-6: el panel del Juno-6 de izquierda a derecha */
@@ -149,8 +148,8 @@ static const bm_pdef MN_FDEC = P("F DECAY", PS_M0 + 3, 64, 127, PF_BIP, 0);
 static const bm_pdef BT_MAC[4] = {P("MACRO 1", PS_M0 + 0, 64, 127, PF_PCT, 0), P("MACRO 2", PS_M0 + 1, 0, 127, PF_PCT, 0),
                                   P("MACRO 3", PS_M0 + 2, 0, 127, PF_PCT, 0), P("MACRO 4", PS_M0 + 3, 0, 127, PF_PCT, 0)};
 
-/* T3-T6: las 5 máquinas, en el orden de la página MACHINE */
-const uint8_t bm_machines[BM_MACHINES] = {ENG_ACID, ENG_MINI, ENG_FM, ENG_BITTAL, ENG_BUNO};
+/* T3-T6: las máquinas que se eligen, en el orden de GLO > SELECT MACHINE */
+const uint8_t bm_machines[BM_MACHINES] = {ENG_ACID, ENG_MINI, ENG_BUNO, ENG_BITTAL, ENG_FM};
 
 const char *bm_machine_origin(int engine)
 {
@@ -173,6 +172,9 @@ const bm_ppage bm_lane_pages[BM_LANE_PAGES] = {
                   P("TONE", LN_TONE, 64, 127, PF_PCT, 0), P("COLOR", LN_COLOR, 64, 127, PF_PCT, 0)}},
     {"INSTRUMENT", 4, {P("MODEL", LN_MODEL, 0, DRM_COUNT - 1, PF_LIST, DRM_LIST), P("LEVEL", LN_LEVEL, 100, 127, PF_INT, 0),
                         P("CHOKE", LN_CHOKE, 0, 3, PF_LIST, CHOKES), P("LENGTH", LN_LEN, 16, 64, PF_INT, 0)}},
+    /* el secuenciador sin capa (2026-10-21): lo que más se toca del instrumento elegido */
+    {"SEQ", 4, {P("LEVEL", LN_LEVEL, 100, 127, PF_INT, 0), P("LENGTH", LN_LEN, 16, 64, PF_INT, 0),   /* LENGTH: todo el kit */
+                P("DECAY", LN_DECAY, 64, 127, PF_PCT, 0), P("TONE", LN_TONE, 64, 127, PF_PCT, 0)}},
 };
 
 /* AFINA: semitonos = (tune - 64) * 3 / 8 sobre el tono base del modelo (bm_drm_base_hz).
@@ -304,6 +306,101 @@ void bm_prm_defaults(bm_pattern *p, int t)
     for (int i = 0; i < n; i++)
         for (int k = 0; k < pg[i].n; k++)
             if (pg[i].p[k].slot != PS_TRK(transpose)) prm_set(p, t, &pg[i].p[k], pg[i].p[k].def);   /* el tono del canal queda */
+    if (e == ENG_FM) bm_bx7_fx_defaults(p->prm[t]);
+    if (e == ENG_ACID) bm_acid_fx_defaults(p->prm[t]);
+    if (bm_px_eng(e)) bm_px_fx_defaults(p->prm[t]);
+}
+
+typedef char bm_assert_px[(BM_SNAP_PRM <= PX_FX) ? 1 : -1];   /* un preset no pisa los efectos */
+
+void bm_px_fx_defaults(uint8_t *prm)
+{
+    prm[PX_FX] = 0;
+    prm[PX_DS_G] = 60; prm[PX_DS_T] = 70; prm[PX_DS_L] = 90;
+    prm[PX_CHORUS] = 0; prm[PX_LATCH] = 0;
+}
+
+const char *const bm_px_chorus_names[3] = {"OFF", "I", "II"};
+
+void bm_acid_fx_defaults(uint8_t *prm)
+{
+    prm[AC_FX] = 0;
+    prm[AC_OD_G] = 60; prm[AC_OD_T] = 70; prm[AC_OD_L] = 90;
+    prm[AC_LATCH] = 0;
+    prm[AC_LFO_RATE] = 4; prm[AC_LFO_DEPTH] = 0; prm[AC_LFO_WAVE] = ACW_SINE; prm[AC_LFO_DEST] = ACL_CUTOFF;   /* 1 compás, apagado */
+}
+
+const uint16_t bm_acid_lfo_ticks[AC_LFO_RATES] = {24, 48, 96, 192, 384, 768, 1536, 3072};
+const char *const bm_acid_lfo_rates[AC_LFO_RATES] = {"1/16", "1/8", "1/4", "1/2", "1 BAR", "2 BARS", "4 BARS", "8 BARS"};
+const char *const bm_acid_lfo_waves[ACW_N] = {"SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "S&H", "PUMP", "GATE", "STEPS", "3-3-2", "BUILD"};
+const char *const bm_acid_lfo_dests[ACL_DESTS] = {"CUTOFF", "PITCH", "RESO", "VOLUME"};
+
+/* los patrones: 16 pasos por ciclo (con RATE = 1 BAR, uno por semicorchea) */
+static const uint8_t LFO_GATE[16] = {1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1};      /* trance gate */
+static const uint8_t LFO_STEPS[16] = {0, 96, 45, 127, 19, 76, 114, 38, 6, 102, 57, 127, 25, 83, 51, 121};   /* una línea de filtro */
+static const uint8_t LFO_332[16] = {1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0};       /* tresillo: 3 + 3 + 2 */
+
+float bm_acid_lfo_shape(int wave, float ph, uint32_t cyc)
+{
+    if (ph < 0.0f) ph = 0.0f;
+    if (ph >= 1.0f) ph = 0.9999f;
+    int st = (int)(ph * 16.0f);
+    float in = ph * 16.0f - (float)st;                     /* dentro del paso, 0..1 */
+    switch (wave) {
+    case ACW_TRI: return ph < 0.5f ? 2.0f * ph : 2.0f - 2.0f * ph;
+    case ACW_SAWUP: return ph;
+    case ACW_SAWDN: return 1.0f - ph;
+    case ACW_SQUARE: return ph < 0.5f ? 1.0f : 0.0f;
+    case ACW_SH: {                                         /* un valor por ciclo, el mismo en cada vuelta del patrón */
+        uint32_t h = (cyc + 1u) * 2654435761u;
+        h ^= h >> 15; h *= 2246822519u; h ^= h >> 13;
+        return (float)(h & 1023u) * (1.0f / 1023.0f);
+    }
+    case ACW_PUMP: {                                       /* cuatro bombeos por ciclo: abajo en el golpe, sube rápido */
+        float q = ph * 4.0f;
+        q -= (float)(int)q;
+        float r = 1.0f - q;
+        return 1.0f - r * r * r;
+    }
+    case ACW_GATE: return LFO_GATE[st] ? 1.0f : 0.0f;
+    case ACW_STEPS: return (float)LFO_STEPS[st] * (1.0f / 127.0f);
+    case ACW_332: {                                        /* cada golpe arriba y cae hasta el siguiente */
+        int k = st;
+        while (k > 0 && !LFO_332[k]) k--;
+        float since = (float)(st - k) + in;
+        return 1.0f / (1.0f + 1.5f * since);
+    }
+    case ACW_BUILD: return (float)st * (1.0f / 15.0f);     /* una escalera que sube: con 4 u 8 compases, una subida */
+    default: return 0.5f - 0.5f * cosf(6.2831853f * ph);   /* SINE */
+    }
+}
+
+bool bm_send_on(const bm_pattern *p, int t, int rev)
+{
+    switch (p->trk[t].engine) {
+    case ENG_FM: return (p->prm[t][BX_FXON] >> (rev ? BXF_REVERB : BXF_DELAY)) & 1u;
+    case ENG_ACID: return bm_acid_fx_on(p->prm[t], rev ? ACF_REVERB : ACF_DELAY);
+    case ENG_MINI: case ENG_BUNO: case ENG_BITTAL: case ENG_BREAK: return !rev || bm_px_fx_on(p->prm[t], p->trk[t].engine, PXF_REVERB);   /* el DELAY, desde HOME */
+    default: return true;
+    }
+}
+
+void bm_bx7_fx_defaults(uint8_t *prm)
+{
+    for (int i = BX_FX_FIRST; i <= BX_LATCH; i++) prm[i] = 0;
+    prm[BX_FXON] = (uint8_t)(1u << BXF_REVERB | 1u << BXF_DELAY);   /* los envíos de la mezcla, como siempre */
+    for (int i = 0; i < BXF_N; i++) prm[BX_ORD0 + i] = (uint8_t)i;
+    prm[BX_FLT_C] = 90; prm[BX_FLT_Q] = 30;
+    prm[BX_DST_G] = 40; prm[BX_DST_T] = 80; prm[BX_DST_L] = 90;
+    prm[BX_CHO_F] = 30; prm[BX_CHO_D] = 60; prm[BX_CHO_M] = 50;
+    prm[BX_PHA_F] = 30; prm[BX_PHA_D] = 80; prm[BX_PHA_M] = 50;
+}
+
+static int bx_ord_ok(const uint8_t *prm)
+{
+    unsigned seen = 0;
+    for (int i = 0; i < BXF_N; i++) { if (prm[BX_ORD0 + i] >= BXF_N) return 0; seen |= 1u << prm[BX_ORD0 + i]; }
+    return seen == (1u << BXF_N) - 1u;
 }
 
 /* El preset: en BB-303 uno de bm_ac_presets; en BX-7 el patch (source) con los ajustes de fábrica
@@ -312,9 +409,19 @@ void bm_preset_apply(bm_pattern *p, int t, int preset)
 {
     int eng = p->trk[t].engine;
     if (!bm_engine_paged(eng)) return;
-    bm_prm_defaults(p, t);
-    if (eng == ENG_FM) return;
-    if (eng == ENG_ACID) {
+    if (eng == ENG_FM) {                       /* la voz del preset, para editarla; los efectos y MONO/POLY quedan */
+        uint8_t keep[BX_LATCH + 1];
+        memcpy(keep, p->prm[t], sizeof keep);
+        bm_prm_defaults(p, t);
+        if (bx_ord_ok(keep)) memcpy(p->prm[t] + BX_FX_FIRST, keep + BX_FX_FIRST, (size_t)(BX_LATCH + 1 - BX_FX_FIRST));
+        memcpy(p->fmv, bm_fm_patch(preset), BM_FMV_BYTES);
+        return;
+    }
+    if (eng == ENG_ACID) {                     /* el sonido del preset; los efectos y LATCH quedan */
+        uint8_t keep[AC_NPRM];
+        memcpy(keep, p->prm[t], sizeof keep);
+        bm_prm_defaults(p, t);
+        if (keep[AC_OD_G] || keep[AC_OD_T] || keep[AC_OD_L]) memcpy(p->prm[t] + AC_FX, keep + AC_FX, (size_t)(AC_NPRM - AC_FX));
         const bm_ac_preset *a = &bm_ac_presets[(preset % BM_AC_PRESETS + BM_AC_PRESETS) % BM_AC_PRESETS];
         bm_track *k = &p->trk[t];
         k->macro[0] = a->cut; k->macro[1] = a->res; k->macro[2] = a->env; k->macro[3] = a->dec;
@@ -322,12 +429,19 @@ void bm_preset_apply(bm_pattern *p, int t, int preset)
         p->prm[t][AC_WAVE] = a->wave;
         return;
     }
+    uint8_t keep[BM_PRM];                      /* B-MINI, BUNO-6, BITTAL: sus efectos y LATCH quedan */
+    memcpy(keep, p->prm[t], sizeof keep);
+    bm_prm_defaults(p, t);
     int n = bm_snap_count(eng);
     if (!n) return;
     const uint8_t *s = bm_snap_get(eng, (preset % n + n) % n);
     if (!s) return;
-    memcpy(p->prm[t], s + 40, BM_PRM < BM_SNAP_PRM ? BM_PRM : BM_SNAP_PRM);
+    memcpy(p->prm[t], s + 40, BM_PRM < BM_SNAP_PRM ? BM_PRM : BM_SNAP_PRM);   /* (los efectos, PX_*, no están: quedan) */
     memcpy(p->trk[t].macro, s + 36, 4);
+    if (bm_panel_eng(eng)) {
+        if (keep[PX_DS_G] || keep[PX_DS_T] || keep[PX_DS_L]) memcpy(p->prm[t] + PX_FX, keep + PX_FX, (size_t)(PX_END - PX_FX));
+        else bm_px_fx_defaults(p->prm[t]);
+    }
     if (eng == ENG_BITTAL) { p->prm[t][BT_TAB1] = 0; p->prm[t][BT_TAB2] = 0; }
 }
 
@@ -365,7 +479,7 @@ void bm_prm_fmt(const bm_pdef *d, int v, char *b, int cap)
     case PF_GLIDE: snprintf(b, (size_t)cap, "%d MS", (v + 8) * 1000 / 254); break;
     case PF_MOD:
         if (v == 64) snprintf(b, (size_t)cap, "OFF");
-        else snprintf(b, (size_t)cap, v < 64 ? "OSC %d%%" : "FILT %d%%", ((v < 64 ? 64 - v : v - 64) * 200 + 63) / 127);
+        else { int pc = ((v < 64 ? 64 - v : v - 64) * 200 + 63) / 127; snprintf(b, (size_t)cap, v < 64 ? "OSC %d%%" : "FILT %d%%", pc > 100 ? 100 : pc); }
         break;
     case PF_ALG: if (v) snprintf(b, (size_t)cap, "%d", v); else snprintf(b, (size_t)cap, "PATCH"); break;
     case PF_OVR: if (v) snprintf(b, (size_t)cap, "%d", v - 1); else snprintf(b, (size_t)cap, "PATCH"); break;

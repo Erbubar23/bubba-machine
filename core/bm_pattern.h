@@ -107,7 +107,7 @@ typedef struct {
     uint8_t arp_mode, arp_rate, arp_oct, arp_gate;
     uint8_t speed;         /* SPD_* */
     uint8_t length;        /* notas: 1..64 pasos (TR: largo por instrumento) */
-    uint8_t engine;        /* ENG_*: T1 y T2 fijos; T3-T6 una de las 5 máquinas de notas */
+    uint8_t engine;        /* ENG_*: T1 y T2 fijos; T3-T6 una de las 4 máquinas de notas */
     uint8_t accent;        /* cuánto más fuerte suena un acento (0 = igual) */
     uint8_t midi_ch;       /* MIDI: canal 0..15 */
     uint8_t scl_root, scl; /* escala propia del canal; scl 0xFF = la del proyecto */
@@ -119,7 +119,8 @@ typedef struct {
     uint8_t djf;           /* filtro DJ del canal (K2 de HOME): 0 abierto, 1-63 pasa-bajos, 65-127 pasa-altos */
     uint8_t drive;         /* HOME FX > CHANNEL K1: soft-clip mono del canal (0 = apagado, no cuesta nada) */
     uint8_t bfx_off;       /* HOME FX > CHANNEL K4: 1 = el BEAT FX (y el PUNCH) no toca este canal (0 = sí, como siempre) */
-    uint8_t rsv[4];
+    uint8_t qfree;         /* PLAY+REC: lo que se deja sin cuantizar, 0 = 100 % (de fábrica), 1 = 75, 2 = 50, 3 = 25 % */
+    uint8_t rsv[3];
 } bm_track;
 
 /* ------------------------------------------------------------ metadatos: 64 bytes */
@@ -152,6 +153,7 @@ typedef struct {
     bm_notes nt[BM_SYN_TRACKS];                      /* T3..T6 */
     bm_loop  loop[BM_SYN_TRACKS];
     uint8_t  prm[BM_TRACKS][BM_PRM];                 /* parámetros del motor de cada canal (bm_params.h) */
+    uint8_t  fmv[BM_FMV_BYTES];                      /* BX-7 (una sola por patrón): su voz entera, editable como en el FM-1 */
 } bm_pattern;
 
 /* Escenas y canción (0.9): una escena = solo mutes (los 6 canales y los instrumentos de BR-8 y
@@ -162,9 +164,9 @@ typedef struct {
     uint8_t n;
     uint8_t pat[BM_SONG_MAX];      /* patrón (bits 0-3) | (escena + 1) << 4 */
     uint8_t rep[BM_SONG_MAX];
-    bm_scene scene[BM_SCENES];
+    bm_scene scene[BM_PATTERNS][BM_SCENES];   /* 4 escenas por patrón */
 } bm_song;
-#define BM_SONG_VER   2            /* el objeto canción + escenas en la flash: otro número se ignora (sin conversión) */
+#define BM_SONG_VER   4            /* el objeto canción + escenas en la flash: otro número se ignora (sin conversión) */
 static inline int bm_song_pat(uint8_t e) { return e & 15; }
 static inline int bm_song_scene(uint8_t e) { return (e >> 4) - 1; }   /* -1 = sin escena */
 
@@ -190,10 +192,14 @@ void bm_track_defaults(bm_track *t, int track);
 void bm_tr_defaults(bm_tr *tr);
 void bm_pattern_init(bm_pattern *p);
 void bm_track_clear_events(bm_pattern *p, int track);
-bool bm_engine_ok(int track, int engine);       /* T1 BR-8, T2 BP-1; T3-T6 cualquiera de las 5 máquinas de notas */
+bool bm_engine_ok(int track, int engine);       /* T1 BR-8 y T2 BP-1 fijos; T3-T6 eligen entre BB-303, B-MINI, BUNO-6, BITTAL y BX-7 */
 int  bm_track_engine(int track);                 /* la máquina de fábrica del canal */
-/* BUNO-6 (~32 % de CPU, un solo chorus) y BITTAL (sus tablas en RAM): una sola vez por patrón */
-static inline bool bm_engine_heavy(int engine) { return engine == ENG_BUNO || engine == ENG_BITTAL; }
+int  bm_fmv_max(int i);                          /* el valor más alto del byte i de la voz de la BX-7 (VCED) */
+/* BUNO-6 (~32 % de CPU, un solo chorus), BITTAL (sus tablas en RAM) y BX-7 (8 voces FM): cada una una
+ * sola vez por patrón, y no más de BM_HEAVY_MAX a la vez (2026-10-21) */
+#define BM_HEAVY_MAX 2
+static inline bool bm_engine_heavy(int engine) { return engine == ENG_BUNO || engine == ENG_BITTAL || engine == ENG_FM; }
+int  bm_heavy_count(const bm_pattern *p, int skip);   /* pesadas en el patrón, sin contar el canal skip (-1: todas) */
 /* el otro canal que ya tiene esa máquina pesada (-1 si no hay o si no es pesada) */
 int  bm_machine_conflict(const bm_pattern *p, int track, int engine);
 /* T3-T6: cambia de máquina. Las notas, el largo y la mezcla quedan; el sonido pasa al primer preset

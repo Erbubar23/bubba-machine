@@ -9,6 +9,7 @@
  * compás y con una semilla, qué slice suena en cada paso. */
 #include <string.h>
 #include "bm_audio.h"
+#include "bm_params.h"
 #include "bm_util.h"
 
 static const uint8_t ARP_RATE[3] = {48, 24, 12};
@@ -177,6 +178,8 @@ void bm_gen_decide(bm_ctx *c, uint32_t blk)
     c->gen_blk = blk + 1;
 }
 
+static bool live_now(const bm_ctx *c, int t, uint8_t note);
+
 static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 {
     const bm_tr *tr = bm_trk_tr(c->pat, t);
@@ -196,6 +199,7 @@ static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
         int cond = (b & ST_COND_MASK) >> ST_COND_SH;
         if ((cond == 1 && !fill) || (cond == 2 && fill)) continue;
         uint8_t note = (uint8_t)l;
+        if (live_now(c, t, note)) continue;                        /* se está tocando en vivo (grabando): no dos veces */
         if (sub != 0xFF) { if (fired) continue; note = sub; }     /* BREAK cambió el pad: suena uno solo */
         if (fx & GEN_REV) note |= BRK_REV;
         if (fx & GEN_HALF) note |= BRK_HALF;
@@ -208,13 +212,20 @@ static void fire_tr(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 /* ------------------------------------------------------------ canales de notas */
 /* Una nota del paso s. El largo es en pasos; con gate (REC expresivo) el último paso suena solo ese
  * porcentaje, y con TIE se liga a la siguiente (slide). */
+/* grabando ese canal, la nota que se está tocando en vivo no se repite desde el patrón (recién grabada
+ * un poco antes del paso, sonaría dos veces y su gate cortaría la que sostienes) */
+static bool live_now(const bm_ctx *c, int t, uint8_t note)
+{
+    return c->rec && c->rec_trk == t && ((c->live_held[t][(note & 127) >> 5] >> (note & 31)) & 1u);
+}
+
 static int fire_ev(bm_ctx *c, int t, int s, int k, int tps, bool fill)
 {
     int i = t - BM_TR_TRACKS;
     const bm_track *tr = &c->pat->trk[t];
     bm_engine *e = &c->eng[t];
     const bm_event *ev = bm_evc(c->pat, t, s, k);
-    if (bm_event_empty(ev) || tr->mute) return 0;
+    if (bm_event_empty(ev) || tr->mute || live_now(c, t, ev->note)) return 0;
     if (ev->prob == BM_PROB_FILL) { if (!fill) return 0; }
     else if (ev->prob == BM_PROB_NOFILL) { if (fill) return 0; }
     else if (!c->fill && ev->prob < 100 && (bm_xorshift32(&c->rng) % 100u) >= ev->prob) return 0;
@@ -225,13 +236,14 @@ static int fire_ev(bm_ctx *c, int t, int s, int k, int tps, bool fill)
     if (legato) e->vt->set_macro(e, BM_MACRO_LEGATO, 1);
     int nv = bm_vel(c, t, 0);
     int vel = ev->vel >= BM_VEL_ACC ? 127 : bm_clampi(nv * ev->vel / BM_VEL_NORMAL, 1, 127);
+    if ((tr->engine == ENG_ACID || tr->engine == ENG_MINI) && ev->vel < BM_VEL_ACC) vel = bm_clampi(ev->vel, 1, 110);   /* 303 y B-MINI: acento = 127, el del paso (SCL) */
     e->vt->note_on(e, ev->note, (uint8_t)vel);
     if (c->gate[i][k].ticks && prev != ev->note) e->vt->note_off(e, prev);
     int l = ev->len & BM_LEN_MASK;
     if (l < 1) l = 1;
     c->gate[i][k].note = ev->note;
     c->gate[i][k].tie = (ev->len & BM_LEN_TIE) ? 1 : 0;
-    int ticks = c->gate[i][k].tie ? l * tps + tps / 4 : l * tps - 4;
+    int ticks = c->gate[i][k].tie ? l * tps + tps / 2 : l * tps - 4;
     if (!c->gate[i][k].tie && ev->gate >= 10 && ev->gate < 100) ticks = (l - 1) * tps + bm_clampi(tps * ev->gate / 100, 2, tps - 2);
     c->gate[i][k].ticks = (uint16_t)(ticks > 1 ? ticks : 1);
     return 1;
@@ -260,7 +272,9 @@ static void fire_syn(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 {
     const bm_track *tr = &c->pat->trk[t];
     int len = tr->length ? tr->length : 16;
-    int s = (int)(n % (uint32_t)len), s1 = (int)((n + 1) % (uint32_t)len);
+    int master = bm_master_steps(&c->pat->meta) * BM_TICKS_STEP;
+    uint32_t n1 = master && (n + 1) * (uint32_t)tps >= (uint32_t)master ? 0 : n + 1;   /* el maestro vuelve a 0 */
+    int s = (int)(n % (uint32_t)len), s1 = (int)(n1 % (uint32_t)len);
     int fired = 0;
     for (int k = 0; k < BM_EVENTS; k++) {
         const bm_event *ev = bm_evc(c->pat, t, s, k);
@@ -380,6 +394,7 @@ void bm_mutes_set(bm_pattern *p, uint8_t tm, const uint16_t lm[BM_TR_TRACKS])
 
 static void do_swap(bm_ctx *c, int to)
 {
+    c->dq_n = 0;                                               /* lo que esperaba era del patrón de antes */
     if (to < 0 || to == c->cur_pat || !c->swap) return;
     syn_gates_off(c);
     uint16_t lm[BM_TR_TRACKS];
@@ -404,8 +419,8 @@ static void do_swap(bm_ctx *c, int to)
 
 static void apply_scene(bm_ctx *c, int idx)
 {
-    if (!c->song || idx < 0 || idx >= BM_SCENES || !(c->song->scene[idx].flags & SCN_STORED)) return;
-    const bm_scene *s = &c->song->scene[idx];
+    if (!c->song || idx < 0 || idx >= BM_SCENES || !(c->song->scene[c->cur_pat % BM_PATTERNS][idx].flags & SCN_STORED)) return;
+    const bm_scene *s = &c->song->scene[c->cur_pat % BM_PATTERNS][idx];
     bm_mutes_set(c->pat, s->trk_mute, s->lane_mute);
     c->st.scene = (uint8_t)idx;
     c->st.edits++;
@@ -436,9 +451,19 @@ static void scene_step(bm_ctx *c)
     c->st.scene_q = c->scene_q < 0 ? 0xFF : (uint8_t)c->scene_q;
 }
 
-/* Cada compás: la escena que se lanzó y los mutes de CUE, todo junto (después del cambio de patrón). */
+/* Cada compás: el patrón en cola (entra desde su primer paso), la escena que se lanzó y los mutes de
+ * CUE, todo junto. Un patrón en cola espera al final del compás en curso, no al del ciclo maestro. */
 static void bar(bm_ctx *c)
 {
+    if (c->queued >= 0 && c->pchain_n <= 1) {
+        int to = c->queued;
+        c->queued = -1;
+        c->st.queued = 0xFF;
+        if (to != c->cur_pat) {
+            do_swap(c, to);
+            if (c->cur_pat == to) { c->rtick = 0; c->st.loops++; }   /* si el cambio falló, sigue el patrón de antes */
+        }
+    }
     if (c->scene_q >= 0 && c->scene_bar) scene_step(c);
     if (c->cue_x) {
         for (int t = 0; t < BM_TRACKS; t++) if ((c->cue_x >> t) & 1) c->pat->trk[t].mute ^= 1;
@@ -568,6 +593,36 @@ static bool arp_active(const bm_ctx *c, int t)
     return c->arp[t].on || c->pat->trk[t].arp_mode != 0;
 }
 
+/* Con REC sonando en este canal, la nota del arpegiador queda en el patrón (2026-10-21: "lo que
+ * arpegia se graba"): en el paso más cercano, con su largo en pasos o su gate si es más corta. */
+static void arp_record(bm_ctx *c, int t, uint8_t note, int ticks)
+{
+    int tps = bm_track_tps(c, t), len = c->pat->trk[t].length ? c->pat->trk[t].length : 16;
+    int master = bm_master_steps(&c->pat->meta) * BM_TICKS_STEP;
+    uint32_t q = (c->rtick + (uint32_t)tps / 2u) / (uint32_t)tps;
+    if (master) q %= ((uint32_t)master + (uint32_t)tps - 1u) / (uint32_t)tps;   /* pasado el final del maestro: el 0 */
+    int s = (int)(q % (uint32_t)len), slot = -1;
+    for (int k = 0; k < BM_EVENTS; k++) {
+        const bm_event *ev = bm_evc(c->pat, t, s, k);
+        if (!bm_event_empty(ev) && ev->note == note) { slot = k; break; }
+        if (slot < 0 && bm_event_empty(ev)) slot = k;
+    }
+    if (slot < 0) return;
+    bm_event *ev = bm_ev(c->pat, t, s, slot);
+    bm_event_clear(ev);
+    ev->note = note; ev->vel = 100;
+    ev->len = (uint8_t)bm_clampi((ticks + tps / 2) / tps, 1, BM_STEPS);
+    ev->gate = ticks < tps ? (uint8_t)bm_clampi(ticks * 100 / tps, 10, 89) : 0;
+}
+
+static bool arp_latch(const bm_ctx *c, int t)
+{
+    int eng = c->pat->trk[t].engine;
+    return (eng == ENG_FM && c->pat->prm[t][BX_LATCH]) || (eng == ENG_ACID && c->pat->prm[t][AC_LATCH]) || (bm_panel_eng(eng) && c->pat->prm[t][PX_LATCH]);
+}
+
+/* El arpegiador del FM-1 de fábrica: UP, DOWN, INCL (sube y baja repitiendo los extremos), EXCL (sin
+ * repetirlos), RANDOM, ORDER (como se tocaron) y REPEAT (cada nota dos veces), de 1 a 4 octavas. */
 static void arp_tick(bm_ctx *c)
 {
     for (int t = BM_TR_TRACKS; t < BM_TRACKS; t++) {
@@ -576,25 +631,33 @@ static void arp_tick(bm_ctx *c)
         const bm_track *tr = &c->pat->trk[t];
         bm_engine *e = &c->eng[t];
         if (a->playing && a->gate_left && --a->gate_left == 0) { e->vt->note_off(e, a->cur); a->playing = 0; }
+        if (a->n && a->down == 0 && !arp_latch(c, t)) {           /* LATCH se apagó con las teclas sueltas: para (FM-1) */
+            a->n = 0;
+            if (a->playing) { e->vt->note_off(e, a->cur); a->playing = 0; }
+        }
         if (!arp_active(c, t) || a->n == 0) continue;
         uint8_t rate = ARP_RATE[tr->arp_rate % 3];
-        if (c->st.free_ticks % rate) continue;
+        if ((c->playing ? c->btick : c->st.free_ticks) % rate) continue;   /* sonando: en fase con el compás */
         if (a->playing) { e->vt->note_off(e, a->cur); a->playing = 0; }
-        int oct = tr->arp_oct < 1 ? 1 : (tr->arp_oct > 3 ? 3 : tr->arp_oct);
+        int oct = tr->arp_oct < 1 ? 1 : (tr->arp_oct > 4 ? 4 : tr->arp_oct);
         int total = a->n * oct;
-        int mode = tr->arp_mode ? tr->arp_mode : 1;
+        int mode = tr->arp_mode % ARP_MODES ? tr->arp_mode % ARP_MODES : ARP_UP;
+        const uint8_t *src = mode == ARP_ORDER ? a->ord : a->held;
         int i;
-        if (mode == 4) i = (int)(bm_xorshift32(&c->rng) % (uint32_t)total);
-        else if (mode == 2) { i = total - 1 - (a->idx % total); a->idx++; }
-        else if (mode == 3 && total > 1) { int period = 2 * total - 2, p = a->idx % period; i = p < total ? p : period - p; a->idx++; }
+        if (mode == ARP_RANDOM) i = (int)(bm_xorshift32(&c->rng) % (uint32_t)total);
+        else if (mode == ARP_DOWN) { i = total - 1 - (a->idx % total); a->idx++; }
+        else if (mode == ARP_EXCL && total > 1) { int period = 2 * total - 2, p = a->idx % period; i = p < total ? p : period - p; a->idx++; }
+        else if (mode == ARP_INCL) { int period = 2 * total, p = a->idx % period; i = p < total ? p : period - 1 - p; a->idx++; }
+        else if (mode == ARP_REPEAT) { i = (a->idx / 2) % total; a->idx++; }
         else { i = a->idx % total; a->idx++; }
-        int note = a->held[i % a->n] + 12 * (i / a->n);
+        int note = src[i % a->n] + 12 * (i / a->n);
         a->cur = (uint8_t)(note > 127 ? 127 : note);
         e->vt->note_on(e, a->cur, 100);
         if (c->lp[t - BM_TR_TRACKS].mode == LOOP_REC || c->lp[t - BM_TR_TRACKS].mode == LOOP_DUB) loop_record(c, t - BM_TR_TRACKS, a->cur, 100);
         a->playing = 1;
         a->gate_left = (uint16_t)(rate * (tr->arp_gate ? tr->arp_gate : 50) / 100);
         if (!a->gate_left) a->gate_left = 1;
+        if (c->rec && c->playing && c->rec_trk == t) arp_record(c, t, a->cur, a->gate_left);
     }
 }
 
@@ -688,21 +751,34 @@ void bm_live_note(bm_ctx *c, int t, uint8_t note, uint8_t vel, int on)
 {
     if (t < 0 || t >= BM_TRACKS) return;
     bm_engine *e = &c->eng[t];
+    if (on && !(t >= BM_TR_TRACKS && is_note(c, t) && arp_active(c, t))) c->live_held[t][(note & 127) >> 5] |= 1u << (note & 31);
+    else if (!on) c->live_held[t][(note & 127) >> 5] &= ~(1u << (note & 31));
     if (!on)
         for (int i = 0; i < 8; i++)
             if (c->strum[i].vel && c->strum[i].track == t && c->strum[i].note == note) c->strum[i].vel = 0;
     if (t >= BM_TR_TRACKS && is_note(c, t) && arp_active(c, t)) {
         bm_arp *a = &c->arp[t];
+        int latch = arp_latch(c, t);
         if (on) {
+            if (latch && a->down == 0) a->n = 0;              /* LATCH: soltaste todas, esto es otro acorde */
+            if (a->down < 255) a->down++;
             for (int i = 0; i < a->n; i++) if (a->held[i] == note) return;
             if (a->n >= 8) return;
+            a->ord[a->n] = note;
             int i = a->n++;
             while (i > 0 && a->held[i - 1] > note) { a->held[i] = a->held[i - 1]; i--; }
             a->held[i] = note;
             if (a->n == 1) a->idx = 0;
         } else {
+            int in = 0;
+            for (int i = 0; i < a->n; i++) in |= a->held[i] == note;
+            if (!in && a->down == 0) { e->vt->note_off(e, note); return; }   /* sonó antes de prender el arpegiador */
+            if (a->down) a->down--;
+            if (latch) return;                                 /* LATCH: sigue sonando lo que tocaste */
             for (int i = 0; i < a->n; i++)
-                if (a->held[i] == note) { memmove(&a->held[i], &a->held[i + 1], (size_t)(a->n - i - 1)); a->n--; break; }
+                if (a->held[i] == note) { memmove(&a->held[i], &a->held[i + 1], (size_t)(a->n - i - 1)); break; }
+            for (int i = 0; i < a->n; i++)
+                if (a->ord[i] == note) { memmove(&a->ord[i], &a->ord[i + 1], (size_t)(a->n - i - 1)); a->n--; break; }
             if (a->n == 0 && a->playing) { e->vt->note_off(e, a->cur); a->playing = 0; }
         }
         return;
@@ -710,7 +786,9 @@ void bm_live_note(bm_ctx *c, int t, uint8_t note, uint8_t vel, int on)
     if (t >= BM_TR_TRACKS && is_note(c, t)) loop_record(c, t - BM_TR_TRACKS, note, on ? vel : 0);
     if (on) {
         if (t == 1) note = (uint8_t)(note | (((c->brk_live & 1) ? BRK_REV : 0) | ((c->brk_live & 2) ? BRK_HALF : 0)));
+        e->live_next = 1;
         e->vt->note_on(e, note, vel);
+        e->live_next = 0;
         if (bm_is_tr(c->pat, t)) c->st.lane_trig[t] |= (uint16_t)(1u << (note & 15));
     } else e->vt->note_off(e, note);
 }

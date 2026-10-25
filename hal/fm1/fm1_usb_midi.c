@@ -332,7 +332,7 @@ uint32_t fm1_midi_lost(void) { return tx_perdidos; }
 #define SYX_MAX 1024
 static u8 syx[SYX_MAX], listo[SYX_MAX];
 static u32 syx_n, listo_n;
-#define CORTOS 32
+#define CORTOS 128                             /* mensajes cortos esperando al bucle principal */
 static u8 cortos[CORTOS][3];
 static u8 c_w, c_r;
 
@@ -349,6 +349,8 @@ static void corto(u8 a, u8 b, u8 c)
 static void bombear(void)
 {
     while (rx_r != rx_w && !listo_n) {
+        if ((u8)((c_w + 1u) % CORTOS) == c_r)
+            break;                             /* llena: el resto espera en rxq (un note-off no se pierde; SLOOP) */
         u8 *p = rxq[rx_r];
         u8 cin = p[0] & 0x0F, k = 0;
         rx_r = (u16)((rx_r + 1u) % RXQ);
@@ -358,7 +360,7 @@ static void bombear(void)
         case 0x6: k = 2; break;
         case 0x7: k = 3; break;
         default:
-            if (cin >= 0x8 || cin == 0x2 || cin == 0x3)
+            if ((cin >= 0x8 || cin == 0x2 || cin == 0x3) && (p[1] & 0x80u))   /* sin byte de estado: mal formado */
                 corto(p[1], p[2], p[3]);
             continue;
         }

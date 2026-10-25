@@ -23,12 +23,6 @@ static int get_bit(const volatile uint32_t *b, int id) { return (b[id >> 5] >> (
 
 static int raw_at(const fm1_scan *s, int col, int row) { return (s->raw[col] >> row) & 1; }
 
-static void enc_step(fm1_scan *s, int e, int dir)
-{
-    s->enc_acc[e] = (int16_t)(s->enc_acc[e] + dir);
-    s->qsub[e] = 0;
-}
-
 uint8_t fm1_scan_column(fm1_scan *s, uint8_t rows)
 {
     uint8_t c = s->col;
@@ -49,37 +43,42 @@ uint8_t fm1_scan_column(fm1_scan *s, uint8_t rows)
             s->cnt[id] = 0;
         }
     }
-    if (c == FM1_COLS - 1) {                  /* fin de frame: cuadratura de los 7 encoders */
+    /* Fin de frame: cuadratura de los 7 encoders. Como lo dejaron Felucca (su #23, "perillas que saltan")
+     * y SLOOP después de medir el FM-1: un detent es un ciclo entero (4 transiciones) y la perilla
+     * descansa en UN estado, el de al prender (se reaprende solo si queda ~1 s quieta en otro). El paso
+     * se cuenta al volver a ese estado, redondeando a ciclos enteros (2 o más transiciones = uno: se
+     * perdona una perdida); un salto de dos estados sigue en la dirección que iba. Nunca un segundo
+     * estado de descanso: con la 0.9, una pausa a medio clic lo aprendía y desde ahí cada clic contaba
+     * dos veces. */
+    if (c == FM1_COLS - 1) {
         for (int e = 0; e < FM1_ENCS; e++) {
             int a = raw_at(s, s->map->enc_a[e][0], s->map->enc_a[e][1]);
             int b = raw_at(s, s->map->enc_b[e][0], s->map->enc_b[e][1]);
             uint8_t ns = (uint8_t)((a << 1) | b);
-            if (!s->seeded) {                     /* al prender, cada perilla está en un detent */
+            if (!s->seeded) {                     /* al prender, cada perilla está en su detent */
                 s->q[e] = ns;
-                s->rest[e] = (uint8_t)(1u << ns);
+                s->rest[e] = ns;
                 continue;
             }
             if (ns == s->q[e]) {
-                if (s->still[e] < 255u && ++s->still[e] == FM1_REST_FRAMES) {
-                    s->rest[e] |= (uint8_t)(1u << ns);     /* se quedó aquí: también es un detent */
-                    if (s->qsub[e] >= 2 || s->qsub[e] <= -2)
-                        enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);
+                if (s->still[e] < 0xFFFFu && ++s->still[e] == FM1_REST_FRAMES && ns != s->rest[e]) {
+                    s->rest[e] = ns;              /* ~1 s quieta aquí: este es el detent */
+                    s->qsub[e] = 0;
                 }
                 continue;
             }
             int8_t d = QDEC[(s->q[e] << 2) | ns];
+            if (d) s->qsub[e] = (int8_t)(s->qsub[e] + d);
+            else if (s->qsub[e] > 0) s->qsub[e] = (int8_t)(s->qsub[e] + 2);   /* dos estados de una: un giro rápido */
+            else if (s->qsub[e] < 0) s->qsub[e] = (int8_t)(s->qsub[e] - 2);
             s->q[e] = ns;
             s->still[e] = 0;
-            if (!d)
-                continue;                         /* salto de dos estados: dirección desconocida */
-            s->qsub[e] = (int8_t)(s->qsub[e] + d);
-            if ((s->rest[e] >> ns) & 1u) {
-                if (s->qsub[e] >= 2 || s->qsub[e] <= -2)
-                    enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);
-                else
-                    s->qsub[e] = 0;               /* volvió al mismo detent */
-            } else if (s->qsub[e] >= 4 || s->qsub[e] <= -4) {
-                enc_step(s, e, s->qsub[e] > 0 ? 1 : -1);    /* un ciclo entero sin pasar por un detent conocido */
+            if (s->qsub[e] > 100 || s->qsub[e] < -100) s->qsub[e] = 0;
+            if (ns == s->rest[e]) {               /* de vuelta en el detent: ciclos enteros */
+                int n = s->qsub[e] < 0 ? -s->qsub[e] : s->qsub[e];
+                n = n >= 2 ? (n + 2) / 4 : 0;
+                if (n) s->enc_acc[e] = (int16_t)(s->enc_acc[e] + (s->qsub[e] < 0 ? -n : n));
+                s->qsub[e] = 0;
             }
         }
         s->seeded = 1;

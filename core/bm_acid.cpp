@@ -10,7 +10,7 @@
  * the 150 Hz high-pass in its feedback), the measured CUTOFF / ENV MOD mapping, the accent circuit
  * (a 15 ms leaky integrator of the main envelope, added to the cutoff on accented notes, and the
  * main envelope added to the amp envelope), the fixed accent decay of 200 ms, the amp envelope
- * (instant attack, 1.23 s decay, 0.5 ms / 50 ms release) and its 200 Hz declicker, the pitch slew
+ * (instant attack, 1.23 s decay, 1 ms / 50 ms release) and its 200 Hz declicker, the pitch slew
  * of the slide, and the fixed filters around the VCF (44.5 Hz high-pass before, 24.2 Hz high-pass
  * and a 7.5 Hz notch after), with Open303's values. Changes: float, one sample per output sample
  * (no 4x oversampling: the cutoff is capped at 10 kHz), filter coefficients every 8 samples, a
@@ -40,7 +40,7 @@ struct OnePoleHp { float b0, a1; };           /* rosic OnePoleFilter HIGHPASS: y
 OnePoleHp hp_pre, hp_post, hp_fb;
 float n_b0, n_b1, n_a1, n_a2;                 /* notch (BANDREJECT), b2 = b0 */
 float d_b0, d_a1, d_a2;                       /* declicker LP12 at 200 Hz, b1 = 2 b0, b2 = b0 */
-float k_dec, k_rc2, k_rel_n, k_rel_a;         /* amp decay 1230 ms, accent RC 15 ms, releases 0.5 / 50 ms */
+float k_dec, k_rc2, k_rel_n, k_rel_a;         /* amp decay 1230 ms, accent RC 15 ms, releases 1 / 50 ms (Open303's triggerNote) */
 float c_acc;                                  /* main envelope of an accented note: 200 ms */
 
 const float CUT_LO = 313.8152786f, CUT_HI = 2394.411987f;   /* Open303's measured cutoff range */
@@ -59,7 +59,7 @@ struct Acid {
     float acc, lvl;                /* accent gain of the note (0 = none), level for quiet notes */
     float mc, kslew, scaler, offset, cut_hz, rskew;
     uint8_t key[4];                /* the knobs the cached coefficients came from */
-    uint8_t gate, accent, fresh;
+    uint8_t gate, accent, fresh, kslide;
 };
 static_assert(sizeof(Acid) <= BM_VPOOL_BYTES && alignof(Acid) <= 8, "BB-303 voice does not fit the shared pool (bm_vpool.h)");
 
@@ -125,7 +125,10 @@ void coefs(Acid &z, const bm_acid_par *p)
         z.key[3] = dk;
         z.mc = z.accent ? c_acc : expf(-1.0f / (0.001f * decay_ms_of(p->dec) * fs_));
     }
-    z.kslew = one_minus_exp(0.0002f * slide_ms_of(p->slide) * fs_);     /* Open303: tau = 0.2 x slide time */
+    if (z.fresh || z.kslide != p->slide) {
+        z.kslide = p->slide;
+        z.kslew = one_minus_exp(0.0002f * slide_ms_of(p->slide) * fs_);     /* Open303: tau = 0.2 x slide time */
+    }
     z.fresh = 0;
 }
 
@@ -168,7 +171,7 @@ void bm_acid_init(float fs)
     }
     k_dec = one_minus_exp(1.230f * fs_);
     k_rc2 = one_minus_exp(0.015f * fs_);
-    k_rel_n = one_minus_exp(0.0005f * fs_);
+    k_rel_n = one_minus_exp(0.001f * fs_);
     k_rel_a = one_minus_exp(0.050f * fs_);
     c_acc = expf(-1.0f / (0.200f * fs_));
     ready = 1;
@@ -219,17 +222,19 @@ int bm_acid_render(int v, const bm_acid_par *p, float *out, int n)
     const bool sq = (p->wave & 1) != 0;
     const float krel = z.accent ? k_rel_a : k_rel_n, kslew = z.kslew;
     const float ampenv = 0.45f + 4.0f * z.acc;        /* the MEG into the VCA (more with an accent) */
-    float gout = GAIN * z.lvl, dlast = 0.0f;
+    const float fm = p->lfo_fm, lfo_oct = p->lfo_oct;
+    float gout = GAIN * z.lvl * p->amp0, dlast = 0.0f;
+    const float gstep = GAIN * z.lvl * (p->amp1 - p->amp0) / (float)n;   /* the LFO on the level: a ramp, no clicks */
     for (int i0 = 0; i0 < n; i0 += 8) {
         int i1 = i0 + 8 < n ? i0 + 8 : n;
         /* the cutoff: nominal x 2^(ENV MOD part + accent part), Open303::getSample */
-        float oct = z.scaler * (z.menv - z.offset) + z.acc * z.rc2;
+        float oct = z.scaler * (z.menv - z.offset) + z.acc * z.rc2 + lfo_oct;
         filter_coefs(z, z.cut_hz * SemitonesToRatioSafe(12.0f * oct));
         const float b0 = z.b0, b2 = 2.0f * z.b0, k = z.k, g2 = 2.0f * z.g;
         for (int i = i0; i < i1; i++) {
             /* pitch slew (the slide) and the oscillator, polyBLEP */
             z.freq += kslew * (z.ftgt - z.freq);
-            float dt = z.freq;
+            float dt = z.freq * fm;
             float o = 2.0f * z.ph - 1.0f - blep(z.ph, dt);
             if (sq) {
                 float p2 = z.ph + 0.5f; if (p2 >= 1.0f) p2 -= 1.0f;
@@ -266,6 +271,7 @@ int bm_acid_render(int v, const bm_acid_par *p, float *out, int n)
             z.dz2 = d_b0 * a + d_a2 * d;
             dlast = d;
             out[i] = soft_limit(y * d * gout);
+            gout += gstep;
         }
     }
     /* NaN/inf in a state stays forever: once per block, back to zero and say so */

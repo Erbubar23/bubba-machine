@@ -285,6 +285,7 @@ static void sesion(fm1_update_show show)
         return;
     }
     show(5, 0);
+    fm1_boot_ok();                           /* reinicio pedido: no es un arranque fallido */
     os_time_dly(30);
     local_irq_disable();
     memcpy((void *)UPDATA_FLAG_ADDR, parm, sizeof parm);

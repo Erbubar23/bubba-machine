@@ -47,8 +47,11 @@ void fm1_keys_init(void)
         gpio_set_pull_up(ROW_IO[i], 1);
         gpio_direction_input(ROW_IO[i]);
     }
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         gpio_direction_output(LED_IO[i], 0);
+        gpio_set_hd(LED_IO[i], 1);           /* salida fuerte en las filas de LEDs, como el de fábrica */
+        gpio_set_hd1(LED_IO[i], 1);
+    }
     gpio_direction_output(FM1_SR_DATA, 0);
     gpio_direction_output(FM1_SR_CLK, 0);
     gpio_direction_output(FM1_SR_LATCH, 0);

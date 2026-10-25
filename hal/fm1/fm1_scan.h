@@ -22,8 +22,8 @@
 #define FM1_IDS 41
 #define FM1_ENCS 7
 #define FM1_DEB_PRESS 2
-#define FM1_DEB_RELEASE 8
-#define FM1_REST_FRAMES 24          /* frames quieta en un estado = es un detent (~65 ms a 364 Hz) */
+#define FM1_DEB_RELEASE 4           /* ~11 ms abierta a 364 frames/s (SLOOP ~9 ms): un toque rápido no se pierde */
+#define FM1_REST_FRAMES 364         /* ~1 s quieta fuera del detent: ese es el detent (como SLOOP / Felucca) */
 
 typedef struct {
     int8_t id[FM1_ROWS][FM1_COLS];          /* ID de tecla/botón o -1 */
@@ -39,8 +39,8 @@ typedef struct {
     volatile uint32_t edge_bits[2];         /* flancos pendientes; la UI los consume */
     uint8_t q[FM1_ENCS];                    /* último estado AB */
     int8_t qsub[FM1_ENCS];                  /* transiciones acumuladas hacia un detent */
-    uint8_t rest[FM1_ENCS];                 /* estados AB donde descansa (bit por estado) */
-    uint8_t still[FM1_ENCS];                /* frames sin cambiar */
+    uint8_t rest[FM1_ENCS];                 /* el estado AB donde descansa (uno solo) */
+    uint16_t still[FM1_ENCS];               /* frames sin cambiar */
     uint8_t seeded;
     volatile int16_t enc_acc[FM1_ENCS];     /* la UI lee y pone a cero */
 } fm1_scan;

@@ -2,7 +2,7 @@
 
 Everything planned for Bubba Machine. **All of it will be done, step by step**, with no dates: each step ships when it has been tested on the FM-1. The order inside each list is the order that matters today and may change.
 
-Items marked ✓ are already in the current version (0.9.0-beta); items marked **in testing** are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see [install](INSTALL.md)).
+Items marked ✓ are already in the current version (0.10.0-beta); items marked **in testing** are there but off by default until measured on the FM-1. Until v1, any version may erase what you saved (see [install](INSTALL.md)).
 
 ## Audio
 
@@ -35,23 +35,24 @@ The interface organizes the FM-1 into two places: **playing live** (HOME and its
 **Done**
 - ✓ **Key strip on screen:** the 11 black and 16 white keys with a short name and the same intensity as their light.
 - ✓ **English screen, with language packs:** Spanish is loaded separately (`tools/fm1/idioma.py`) and switched in SYSTEM › LANGUAGE.
-- ✓ **Pad sampler:** 16 pads made from your takes, like a KO II or an OP-1 field, on a grid like the drums, with BREAK to vary it.
-- ✓ **MUTES** and **FILL** screens, and drums in sections of 8.
+- ✓ **Slicer:** 16 pads cut from your takes, like a KO II or an OP-1 field, on a step grid like the drums (0.10).
+- ✓ **MUTE SOUNDS** on the drums, and drums in pages of 8 instruments.
 - ✓ **The 0.6 face:** header, viewport, keyboard and dials always in the same place; the **BX-1** mixer on HOME; ALGORITHM as each machine's mode.
 - ✓ **Expressive REC:** micro-timing, gate and P-Locks of what you turn while holding the note; long notes with two white keys.
+- ✓ **Each machine like the real one (0.10):** HOME as a six-channel mixer; entering a channel gives the FM-1 to its machine, with the panel and menus of the TB-303, Minimoog, Juno-6, Vital or DX7; cyclic menu buttons; the BR-8 step sequencer; factory patterns.
 
 **Planned: playing live (HOME again = the next page)**
 1. **MORPH A·B:** move from one sound state to another with a knob (HOME's fourth macro).
-2. ✓ **SCENES AND SONG:** scenes as mutes on the console, CUE, and song entries with a pattern and a scene (0.9).
+2. ✓ **SCENES:** four scenes of mutes per pattern on HOME (0.10). The song and CUE of 0.9 were removed in the 0.10 redesign.
 
 **Planned: working on a track (the button again = the next page)**
 1. **SEQ › LOOP › DICE:** controlled random variations, and the ACID generator for bass lines.
 2. **EDIT › SOUND › INSTR:** the A/B drum instrument.
 3. **LFO › MOTION:** a modulation sequencer and knob-movement recording.
-4. ✓ **Per-channel mix and effects:** the console's FX › CHANNEL (drive, pan, duck, BEAT FX) (0.9).
+4. ✓ **Per-channel effects:** each machine has its own effects (DISTORTION, CHORUS, REVERB; OVERDRIVE on the BB-303; the BX-7 chain) (0.10).
 
 **Other**
-- **Pattern banks:** more than 10 patterns, by growing the flash map or shrinking the patterns.
+- **Pattern banks:** more than 9 patterns, by growing the flash map or shrinking the patterns.
 - **Ghost notes on drums:** a level P-Lock or a bigger format.
 
 ## Tools and ecosystem

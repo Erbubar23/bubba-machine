@@ -56,6 +56,14 @@ The repositories:
 
 .bsnap files converted from a GPL-3.0 preset stay GPL-3.0, like the firmware. **Vital** is a synthesizer by Matt Tytel; Bubba Machine reads its preset format but has no relation to Vital or its author, and does not use its code.
 
+## Factory patterns
+
+Patterns 1-3 are recreations, played by the stock machines (no audio sampled): *Da Funk* (Daft Punk), *Confusion* in its Pump Panel Reconstruction from *Blade* (New Order) and *Enjoy the Silence* (Depeche Mode). The songs belong to their authors; the patterns only take tempo, key, chords and published sequencer sheets:
+
+- *Confusion*: the 303 line from the sheet on [djjondent.blogspot.com](https://djjondent.blogspot.com/), with the accents proposed on the Adafruit forums.
+- *Enjoy the Silence*: the drum grid from [drum-patterns.com](https://drum-patterns.com/) and the chorus chords from [Hooktheory](https://www.hooktheory.com/).
+- *Da Funk*: there is no published sheet; the notes follow Attack Magazine and Reverb Machine, and the order is by ear.
+
 ## What ships with the firmware or the emulator
 
 | Component | Where | License |

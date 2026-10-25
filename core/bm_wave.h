@@ -18,9 +18,15 @@ extern "C" {
 
 void bm_wv_init(float fs);
 /* eng = ENG_MINI, ENG_BITTAL o ENG_BUNO. legato 0: voz nueva · 1: sigue y solo cambia de nota (glide)
- * · 2: mono, redispara las envolventes desde la nota anterior. */
+ * · 2: mono, redispara las envolventes desde la nota anterior · 3: como 1, ligada por el GLIDE de un
+ * paso (el B-MINI se desliza aunque su GLIDE esté en 0). */
 void  bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float note, float vel, int legato);
 void  bm_wv_release(int v);
+void  bm_wv_lfo(int t, int eng, const uint8_t *prm, int n, int lane, int restart);   /* el LFO del canal, antes de las voces */
+/* BITTAL: la posición en la tabla (0..1) de cada oscilador en el último bloque que sonó, para dibujarla;
+ * bm_wv_btseq cuenta los bloques (si no cambia, no está sonando) */
+extern volatile float bm_wv_btpos[2];
+extern volatile uint32_t bm_wv_btseq;
 /* lane: 0 o 1, el búfer de trabajo del núcleo que calcula (con el audio en dos núcleos).
  * flags: WV_PARA (BUNO-6: the voice skips its VCF, bm_wv_bus filters the sum) and, for BITTAL, the
  * table readers (unison voices of both oscillators) this voice may use, 0 = all.

@@ -2,119 +2,89 @@
 # Para traducir: copia este archivo a lang/<codigo>.txt, pon "# NOMBRE: ..." arriba y
 # escribe "= traduccion" debajo de cada frase. Lo que no traduzcas se ve en ingles.
 
-# core/bm_ui_draw.c
-  REV
-
-# core/bm_ui_draw.c
-  SYNC
+# core/bm_panel.c
+ AMT
 
 # core/bm_app.c
  EMPTY
 
-# core/bm_ui_draw.c
-%d BARS  %d/%d NOTES  %s
+# core/bm_panel.c
+ TO
 
-# core/bm_ui_draw.c
-%d BARS %s
-
-# core/bm_ui_draw.c
-%d BPM %d BAR %u.%uS
-
-# core/bm_input.c
-%d EVENTS
-
-# core/bm_ui_draw.c
-%d PADS
-
-# core/bm_input.c core/bm_ui_draw.c
-%d STEPS
+# core/bm_slicer.c
+%d PADS + SEQUENCE
 
 # core/bm_ui_draw.c
 %d+%d, FREE %u.%uS
 
-# core/bm_app.c core/bm_input.c
+# core/bm_input.c
 %s ALREADY ON T%d
 
-# core/bm_input.c
-%s ERASED
+# core/bm_bx7.c
++EXP
 
-# core/bm_input.c
-%s LENGTH
+# core/bm_bx7.c
++LIN
+
+# core/bm_bx7.c
+-EXP
+
+# core/bm_bx7.c
+-LIN
 
 # core/bm_printf.c
 0123456789ABCDEF
 
-# core/bm_app.c
+# core/bm_params.c
 1 BAR
 
-# core/bm_ui_draw.c
-1 BAR = %u.%u S
-
-# core/bm_app.c
+# core/bm_params.c
 2 BARS
 
 # core/bm_input.c
-2 S = YES  ANY CONTROL = NO
+2 HEAVY ON
 
-# core/bm_input.c
-4 NOTES PER STEP
+# core/bm_params.c
+4 BARS
 
-# core/bm_input.c
-A%02d ALREADY HAS DATA
+# core/bm_params.c
+8 BARS
 
 # core/bm_app.c
 A%02d QUEUED
 
-# core/bm_input.c
+# core/bm_ui_draw.c
 ACC
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_input.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 ACCENT
 
-# core/bm_ui_draw.c
-ACCENT OPENS THE FILTER - TIE = SLIDE
-
 # core/bm_input.c
-ADD A PATTERN FIRST
+ACCENTS
 
-# core/bm_ui_draw.c
-AGAIN:
-
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_ui_draw.c
 ALG
-
-# core/bm_ui_draw.c
-ALG = MACHINE  PRE = SOUND
 
 # core/bm_input.c
 ALGO
 
-# core/bm_params.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_ui_draw.c
 ALGORITHM
 
-# core/bm_ui_draw.c
-ALGORITHM = CHORUS
+# core/bm_input.c
+ALGORITHM = THIS DRUM'S SOUND  K1-K3
 
 # core/bm_ui_draw.c
-ALGORITHM PICKS THE TARGET - HOLD EDIT 2 S = PASTE
-
-# core/bm_ui_draw.c
-ALL AT 0: THE GRID AS IS
-
-# core/bm_input.c core/bm_ui_draw.c
 ALWAYS
 
-# core/bm_ui_draw.c
-ALWAYS ON IN THIS TRACK
-
-# core/bm_input.c
-ALWAYS PLAYS
-
-# core/bm_params.c
+# core/bm_bx7.c
 AMD
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 AMOUNT
+
+# core/bm_bx7.c
+AMP MOD
 
 # core/bm_drums.cpp
 ANALOG HAT
@@ -125,80 +95,35 @@ ANALOG KICK
 # core/bm_drums.cpp
 ANALOG SNARE
 
-# core/bm_input.c
-ANCHOR
-
-# core/bm_ui_draw.c
-ANY OTHER CONTROL = NO
-
 # core/bm_ui_draw.c
 ARMED
 
-# core/bm_input.c
-ARMED: PLAY TO RECORD
-
-# core/bm_app.c core/bm_input.c
+# core/bm_b303.c core/bm_bx7.c
 ARP
 
-# core/bm_input.c
-ARP GATE
-
-# core/bm_input.c
-ARP MODE
-
-# core/bm_input.c
-ARP OCTAVES
-
-# core/bm_input.c
-ARP RATE
-
-# core/bm_input.c
-ARPEGGIO
-
-# core/bm_drums.cpp core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_drums.cpp core/bm_panel.c core/bm_params.c core/bm_slicer.c
 ATTACK
 
-# core/bm_ui_draw.c
-ATTACK, RELEASE, CHOKE GROUP, TEMPO SYNC
-
-# core/bm_input.c
-AUTO FILL
-
-# core/bm_input.c
-AUTOMATIC FILL
+# core/bm_slicer.c
+AUTO
 
 # core/bm_ui_draw.c
 AUTOSAVE
 
-# core/bm_ui_draw.c
-AVAILABLE
-
-# core/bm_pattern.c
+# core/bm_panel.c core/bm_pattern.c
 B-MINI
 
-# core/bm_input.c
-B-MINI MODE
+# core/gen/bm_fm_rom.c
+BANANAMR
+
+# core/bm_input.c core/bm_ui_draw.c
+BAR %d/%d
 
 # core/bm_ui_draw.c
-B1 = ACCENT
+BAR %d/%d  %d STEPS
 
-# core/bm_ui_draw.c
-BACK
-
-# core/bm_input.c
-BAR
-
-# core/bm_input.c
-BARS
-
-# core/bm_input.c
-BASE CHORD
-
-# core/bm_pattern.c
+# core/bm_b303.c core/bm_pattern.c
 BB-303
-
-# core/bm_input.c
-BB-303 WAVEFORM
 
 # core/bm_acid.cpp
 BB-303 voice does not fit the shared pool (bm_vpool.h)
@@ -224,26 +149,11 @@ BD808
 # core/bm_drums.cpp
 BD909
 
-# core/bm_input.c core/bm_ui_draw.c
-BEAT FX
-
 # core/bm_params.c
 BIG BEAT
 
-# core/bm_input.c core/bm_ui_draw.c
-BIT
-
-# core/bm_pattern.c
+# core/bm_panel.c core/bm_pattern.c
 BITTAL
-
-# core/bm_input.c
-BLACK %d
-
-# core/bm_ui_draw.c
-BLACK 4 = THE TAKE ON PAD %d
-
-# core/bm_ui_draw.c
-BLACK 4 = THE TAKE ON THIS PAD
 
 # core/bm_params.c
 BLIP
@@ -260,7 +170,10 @@ BLP
 # core/bm_params.c
 BOMBAY 82
 
-# core/bm_params.c
+# core/bm_panel.c
+BOTH
+
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 BP
 
 # core/bm_pattern.c
@@ -269,26 +182,29 @@ BP-1
 # core/bm_input.c core/bm_ui_draw.c
 BPM
 
-# core/bm_input.c
-BPM .1
-
 # core/bm_pattern.c
 BR-8
 
 # core/gen/bm_fm_rom.c
 BRASS 80
 
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c
 BREAK
+
+# core/bm_bx7.c core/bm_params.c
+BRIGHT
+
+# core/gen/bm_fm_rom.c
+BRTHLESS
 
 # core/bm_snap.c
 BUBBA
 
-# core/bm_pattern.c
-BUNO-6
+# core/bm_params.c
+BUILD
 
-# core/bm_input.c
-BUNO-6 CHORUS
+# core/bm_panel.c core/bm_pattern.c
+BUNO-6
 
 # core/gen/bm_fm_rom.c
 BUZZ
@@ -299,26 +215,11 @@ BX-1
 # core/bm_pattern.c
 BX-7
 
-# core/bm_input.c
-BX-7 ALGORITHM
-
 # core/bm_app.c
 BX-7 BANK: %d VOICES
 
 # core/bm_fm.cpp
 BX-7 voice does not fit the shared pool (bm_vpool.h)
-
-# core/bm_input.c
-CANCELED
-
-# core/bm_input.c
-CANNOT BE UNDONE
-
-# core/bm_input.c
-CAPT
-
-# core/bm_input.c
-CAPTURED: %d STEPS
 
 # core/bm_input.c
 CB
@@ -327,28 +228,10 @@ CB
 CC0
 
 # core/bm_input.c
-CC1 MOD
-
-# core/bm_input.c
-CC74
-
-# core/bm_input.c
 CG
 
 # core/bm_input.c
 CH
-
-# core/bm_input.c
-CHAIN OF %d PATTERNS
-
-# core/bm_input.c
-CHAIN OF %d SCENES
-
-# core/bm_ui_draw.c
-CHANGE: HOLD T%d ON HOME + ALG
-
-# core/bm_input.c core/bm_ui_draw.c
-CHANNEL
 
 # core/bm_params.c
 CHICAGO 86
@@ -356,20 +239,14 @@ CHICAGO 86
 # core/gen/bm_fm_rom.c
 CHIMES
 
-# core/bm_input.c core/bm_params.c
+# core/bm_params.c
 CHOKE
 
-# core/bm_input.c
-CHORD
-
-# core/bm_input.c
-CHORD SET
-
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
-CHORDS
-
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 CHORUS
+
+# core/bm_panel.c core/bm_slicer.c
+CHORUS REVERB
 
 # core/bm_input.c
 CL
@@ -393,6 +270,9 @@ CLAVI
 CLEAR PATTERN
 
 # core/bm_ui_draw.c
+CLEAR T%d
+
+# core/bm_ui_draw.c
 CLEAR? SAVE AGAIN
 
 # core/bm_ui_draw.c
@@ -404,38 +284,20 @@ CLOCK: EXTERNAL (MIDI)
 # core/bm_input.c
 CLOCK: INTERNAL
 
-# core/bm_input.c
-CLOSED
+# core/bm_bx7.c
+COARSE
 
-# core/bm_input.c
-CLR
-
-# core/bm_input.c core/bm_params.c
+# core/bm_params.c
 COLOR
-
-# core/bm_input.c
-COND
 
 # core/bm_params.c
 CONGA
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 CONTOUR
 
 # core/bm_params.c
 CONTROL
-
-# core/bm_input.c
-COPY A%02d TO A%02d?
-
-# core/bm_input.c
-COPY PATTERN
-
-# core/bm_input.c
-COPY T%d TO A%02d?
-
-# core/bm_ui_draw.c
-COPY TRACK
 
 # core/bm_params.c
 COWB
@@ -453,30 +315,21 @@ CP
 CPU!
 
 # core/bm_input.c
-CPY
-
-# core/bm_input.c
 CR
 
 # core/bm_params.c
 CRASH
 
-# core/bm_input.c
-CRE
+# core/gen/bm_fm_rom.c
+CRISP BS
 
-# core/bm_input.c core/bm_ui_draw.c
-CRESC
+# core/bm_bx7.c
+CURVES
 
-# core/bm_input.c core/bm_ui_draw.c
-CUE
+# core/bm_ui_draw.c
+CUT OFF
 
-# core/bm_input.c
-CUE OFF
-
-# core/bm_input.c
-CUE: MUTES AND SCENES ON THE NEXT BAR
-
-# core/bm_params.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c
 CUTOFF
 
 # core/bm_input.c
@@ -485,55 +338,34 @@ CY
 # core/bm_params.c
 CYMBL
 
-# core/bm_input.c
-DAMP
-
-# core/bm_input.c
-DB
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 DCO
+
+# core/bm_panel.c
+DCO MOD
 
 # core/bm_params.c
 DCO WAVE
 
-# core/bm_input.c
-DEC
-
-# core/bm_input.c core/bm_params.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 DECAY
 
-# core/bm_input.c core/bm_ui_draw.c
-DECRESC
-
-# core/bm_input.c
-DEL
-
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_input.c core/bm_panel.c core/bm_params.c
 DELAY
 
-# core/bm_ui_draw.c
-DELAY AND PUNCH-IN PAUSED WHILE RECORDING
+# core/bm_b303.c
+DELAY REVERB
 
 # core/bm_input.c
-DELAY FEEDBACK
+DELETE SCENE %c
 
-# core/bm_input.c
-DELAY MIX
+# core/bm_b303.c core/bm_bx7.c
+DEPTH
 
-# core/bm_input.c
-DELAY SEND
-
-# core/bm_input.c
-DELAY TIME
-
-# core/bm_input.c
-DELETE TAKE %02d?
-
-# core/bm_params.c
+# core/bm_b303.c core/bm_panel.c core/bm_params.c
 DEST
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_params.c
 DETUNE
 
 # core/bm_pattern.c
@@ -542,17 +374,20 @@ DIATONIC
 # core/bm_ui_draw.c
 DIM
 
-# core/bm_input.c
-DIR
+# core/bm_bx7.c
+DIST
+
+# core/bm_panel.c core/bm_slicer.c
+DISTORTION
+
+# core/gen/bm_fm_rom.c
+DIVA EP
 
 # core/bm_input.c
-DISCARD THE NEW TAKE?
+DLY FDBK
 
-# core/bm_input.c
-DLY
-
-# core/bm_input.c
-DLY MIX
+# core/bm_b303.c
+DLY ON
 
 # core/bm_input.c
 DLY TIME
@@ -560,26 +395,11 @@ DLY TIME
 # core/bm_pattern.c
 DORIAN
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_mach.c
 DOWN
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 DRIVE
-
-# core/bm_input.c
-DRIVE (SOFT-CLIP)
-
-# core/bm_input.c core/bm_ui_draw.c
-DUCK
-
-# core/bm_ui_draw.c
-DUCK %d%% (FX AGAIN: K1)
-
-# core/bm_ui_draw.c
-DUCK (SIDECHAIN FROM T1)
-
-# core/bm_input.c
-DUCK (SIDECHAIN)
 
 # core/bm_params.c
 E.BASS A
@@ -587,146 +407,65 @@ E.BASS A
 # core/bm_params.c
 E.BASS B
 
-# core/bm_input.c
-ECHO
-
-# core/bm_input.c
+# core/bm_bx7.c
 EDIT
 
-# core/bm_params.c
-EG
+# core/gen/bm_fm_rom.c
+EMOTNHRP
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 EMPHASIS
 
-# core/bm_ui_draw.c
+# core/bm_slicer.c core/bm_ui_draw.c
 EMPTY
 
-# core/bm_ui_draw.c
-EMPTY PAD
+# core/bm_slicer.c
+END
 
-# core/bm_input.c
-EMPTY PAD: TAKES > PAD
-
-# core/bm_input.c
-EMPTY STEP
-
-# core/bm_ui_draw.c
-EMPTY STEP - HOLD + ANOTHER WHITE = LONG NOTE
-
-# core/bm_input.c
-EMPTY STEP: PLAY A NOTE THERE FIRST
-
-# core/bm_input.c
-ENTRY
-
-# core/bm_input.c
-ENTRY %d: NO SCENE
-
-# core/bm_input.c
-ENTRY %d: SCENE %c
-
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 ENV
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV +/-
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV 1
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV 2
 
-# core/bm_params.c
+# core/bm_b303.c core/bm_params.c core/bm_ui_draw.c
 ENV MOD
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV/GATE
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV2 AMT
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 ENV2 POS
 
-# core/bm_input.c
-ERASE
-
-# core/bm_ui_draw.c
-ERASE LOOP
-
-# core/bm_ui_draw.c
-ERASE T%d
-
-# core/bm_ui_draw.c
-EVENTS
-
-# core/bm_input.c
-EVERY %d
-
-# core/bm_input.c
-EVERY 2
-
-# core/bm_input.c
-EVERY 4
-
-# core/bm_input.c
-EVERY 8
-
-# core/bm_input.c
-EXIT: ARP OR HOME  BLACK 11 = FILL
-
-# core/bm_input.c
-EXIT: ARP OR HOME  REC IS RECORDING
+# core/bm_mach.c
+EXCL
 
 # core/bm_input.c
 EXIT: BLACK 11 OR HOME
 
 # core/bm_input.c
-EXIT: LFO OR HOME  BLACK 9/10 = PAGE
+EXIT: EDIT OR HOME  WHITE = PICK
 
 # core/bm_input.c
-EXIT: RELEASE ARP
+EXIT: ENV OR HOME  BLACK = SOUND, BAR
 
 # core/bm_input.c
-EXIT: RELEASE ARP  BLACK 11 = FILL
-
-# core/bm_input.c
-EXIT: RELEASE ARP  REC IS RECORDING
+EXIT: LFO OR HOME  BLACK = SOUND, BAR
 
 # core/bm_input.c
 EXIT: RELEASE BLACK 11
 
 # core/bm_input.c
-EXIT: RELEASE EDIT  B7-10 = CLR SCENE
-
-# core/bm_input.c
-EXIT: RELEASE EDIT  BLACK 7 = REDO
-
-# core/bm_input.c
-EXIT: RELEASE ENV  BLACK 9/10 = PAGE
-
-# core/bm_input.c
-EXIT: RELEASE FX
-
-# core/bm_input.c
-EXIT: RELEASE GLO  PLAY = TAP TEMPO
-
-# core/bm_input.c
-EXIT: RELEASE HOME  B1-6 MUTE
-
-# core/bm_input.c
-EXIT: RELEASE LFO  BLACK 9/10 = PAGE
-
-# core/bm_input.c
-EXIT: RELEASE SAVE
-
-# core/bm_input.c
-EXIT: RELEASE SCL
-
-# core/bm_input.c
-EXIT: RELEASE SEQ  BLACK 1-6 = SPEED
+EXIT: SCL OR HOME  BLACK = SOUND, BAR
 
 # core/bm_ui_draw.c
 EXT
@@ -749,12 +488,6 @@ F DECAY
 # core/bm_app.c
 FAC ?
 
-# core/bm_input.c
-FACTORY
-
-# core/bm_input.c
-FACTORY IS READ ONLY
-
 # core/bm_ui_draw.c
 FAST SCREEN
 
@@ -764,35 +497,26 @@ FAST SCREEN OFF
 # core/bm_input.c
 FAST SCREEN ON (TEST)
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c
 FEEDBACK
 
-# core/bm_input.c
-FIL
-
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_ui_draw.c
 FILL
 
-# core/bm_input.c
-FILL ONLY
-
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_input.c core/bm_panel.c core/bm_params.c
 FILTER
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 FILTER +
 
-# core/bm_ui_draw.c
-FILTER OFF
-
-# core/bm_params.c
+# core/bm_bx7.c core/bm_params.c
 FINE
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_ui_draw.c
 FIXED
 
 # core/bm_ui_draw.c
-FIXED MACHINE
+FL
 
 # core/bm_input.c core/bm_ui_draw.c
 FLAM
@@ -806,71 +530,44 @@ FLUTE
 # core/bm_drums.cpp core/bm_input.c core/bm_params.c
 FM
 
-# core/bm_ui_draw.c
-FOR TRACKS WITHOUT THEIR OWN SCALE
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 FRAME
 
-# core/bm_ui_draw.c
-FREE %u.%u S - %d SOUNDS ON TOP
-
-# core/bm_ui_draw.c
-FREE REC
-
-# core/bm_ui_draw.c
-FREE REC %u.%u
-
-# core/bm_input.c
-FREE REC: REC AGAIN CLOSES
-
-# core/bm_input.c core/bm_ui_draw.c
-FREEZE
-
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 FREQ
-
-# core/bm_input.c
-FROM
-
-# core/bm_input.c
-FROM STEP 1
 
 # core/gen/bm_fm_rom.c
 FULLTINE
 
-# core/bm_input.c
+# core/bm_slicer.c
 FWD
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_ui_draw.c
 FX
 
-# core/bm_ui_draw.c
-FX AGAIN = NEXT PAGE
-
-# core/bm_input.c
+# core/bm_bx7.c
 GAIN
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_mach.c core/bm_panel.c core/bm_params.c
 GATE
-
-# core/bm_input.c
-GATE LENGTH
-
-# core/bm_input.c
-GHOST
 
 # core/gen/bm_fm_rom.c
 GLASS
 
-# core/bm_input.c core/bm_params.c
+# core/bm_ui_draw.c
+GLD
+
+# core/bm_panel.c core/bm_params.c
 GLIDE
 
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_ui_draw.c
 GLO
 
 # core/bm_snap.c
 GPL-3.0
+
+# core/bm_ui_draw.c
+HARD
 
 # core/bm_pattern.c
 HARM MIN
@@ -881,79 +578,22 @@ HAT
 # core/bm_params.c
 HAT 808
 
-# core/bm_ui_draw.c
-HELD: KEY, THRU AND LOOP KEEP PLAYING
-
-# core/bm_ui_draw.c
-HELD: THE LOOP REPEATS - RELEASED: TO THE END
-
-# core/bm_input.c
-HERMITE
-
 # core/bm_input.c
 HH
 
 # core/bm_drums.cpp
 HH808
 
-# core/bm_input.c
-HI
-
-# core/bm_input.c core/bm_params.c
+# core/bm_params.c
 HIT
-
-# core/bm_input.c
-HLF
-
-# core/bm_input.c
-HOLD %s 2 S = YES
-
-# core/bm_ui_draw.c
-HOLD ARP = LIVE ARPEGGIO
-
-# core/bm_ui_draw.c
-HOLD EDIT + BLACK 4 = CAPTURE INTO THE GRID
-
-# core/bm_ui_draw.c
-HOLD FX = PUNCH-IN
-
-# core/bm_ui_draw.c
-HOLD GLO = TRANSPOSE, PLAY = TAP
-
-# core/bm_input.c
-HOLD KEYS = ARPEGGIATE IN TEMPO
-
-# core/bm_ui_draw.c
-HOLD REC = RECORD WHILE HELD
-
-# core/bm_input.c
-HOLD WHITE = ERASE LIVE  B6 = UNDO
-
-# core/bm_input.c
-HOLD WHITE = ROLL  BLACK 1-6 = RATE
-
-# core/bm_input.c
-HOME
-
-# core/bm_ui_draw.c
-HOME + EDIT
-
-# core/bm_ui_draw.c
-HOME + FX = DELAY, REVERB AND SIDECHAIN
-
-# core/bm_input.c
-HOME + THIS BUTTON: NOTHING
-
-# core/bm_ui_draw.c
-HOME = DISCARD? - REC = ANOTHER TAKE
 
 # core/gen/bm_fm_rom.c
 HOUSE BS
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_input.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 HP
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_panel.c core/bm_params.c
 HPF
 
 # core/bm_params.c
@@ -968,32 +608,23 @@ I+II
 # core/bm_ui_draw.c
 IDLE LEDS
 
-# core/bm_input.c core/bm_params.c core/bm_pattern.c
+# core/bm_params.c core/bm_pattern.c
 II
 
-# core/bm_input.c core/bm_pattern.c
+# core/bm_pattern.c
 III
 
-# core/bm_input.c
-INF
+# core/bm_mach.c
+INCL
 
-# core/bm_input.c core/bm_snap.c
+# core/bm_snap.c
 INIT
 
 # core/bm_params.c
 INIT 1982
 
-# core/bm_input.c
-INIT KIT
-
-# core/bm_input.c
-INIT KIT ON T%d?
-
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_app.c
 INIT SOUND
-
-# core/bm_input.c
-INIT SOUND ON T%d?
 
 # core/bm_params.c
 INSPIRED BY THE DX7
@@ -1010,85 +641,28 @@ INSPIRED BY THE TB-303
 # core/bm_params.c
 INSPIRED BY VITAL
 
-# core/bm_app.c core/bm_input.c
+# core/bm_input.c
 INSTR
 
-# core/bm_input.c
-INSTRUM
-
-# core/bm_params.c
+# core/bm_input.c core/bm_params.c
 INSTRUMENT
-
-# core/bm_input.c
-INSTRUMENTS 1-8
-
-# core/bm_input.c
-INSTRUMENTS 9-16
 
 # core/bm_ui_draw.c
 INTERNAL
 
-# core/bm_input.c
-INTERPOLATION
-
-# core/bm_input.c
-IT IS NOT SAVED YET
-
-# core/bm_input.c
-IT IS THE CURRENT PATTERN
-
-# core/bm_ui_draw.c
-IT SAVES WHEN YOU STOP - WHITES = LISTEN
-
-# core/bm_input.c core/bm_pattern.c
+# core/bm_pattern.c
 IV
 
-# core/bm_input.c
-K-HI
-
-# core/bm_input.c
-K-LO
-
-# core/bm_ui_draw.c
-K1 = DUCK (T1 SIDECHAIN)
-
-# core/bm_ui_draw.c
-K1 = DUCK - SELECT LEFT = LEVEL, PAN, SENDS
-
-# core/bm_ui_draw.c
-K1 START - K2 END - EDIT = SOUND, ENV, LOOP
-
-# core/bm_ui_draw.c
-K3 PLAY: ONESHOT, KEY, THRU OR LOOP
-
-# core/bm_ui_draw.c
-K4 = SONG ON/OFF
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 KBD CTRL
 
-# core/bm_input.c
-KEEP HOLDING %s = YES
-
-# core/bm_input.c
+# core/bm_slicer.c
 KEY
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_params.c
 KEY VEL
 
-# core/bm_input.c
-KEYS = TRANSPOSE PROJECT  K2 = OCTAVE
-
-# core/bm_ui_draw.c
-KEYS ARE SILENT IN THE RECORDER
-
-# core/bm_input.c
-KEYS IN
-
-# core/bm_input.c
-KEYS IN SCALE
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 KEYTRK
 
 # core/bm_params.c
@@ -1100,32 +674,26 @@ KICK2
 # core/bm_params.c
 KICK3
 
-# core/bm_input.c core/bm_ui_draw.c
-KILL HI
-
-# core/bm_input.c core/bm_ui_draw.c
-KILL LO
-
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c
 KIT
 
-# core/bm_ui_draw.c
-KIT FROM THIS TAKE: BLACK 1 HITS, 2 = 16, 3 = 8
-
-# core/bm_input.c
-KIT: %d PADS
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 KYBD
 
 # core/bm_params.c
 L CONTOUR
 
-# core/bm_params.c
+# core/bm_bx7.c
+L CURVE
+
+# core/bm_bx7.c
+L DEPTH
+
+# core/bm_panel.c core/bm_params.c
 LADDER
 
-# core/bm_input.c
-LANE LEN
+# core/gen/bm_fm_rom.c
+LAGOONEP
 
 # core/bm_ui_draw.c
 LANGUAGE
@@ -1133,101 +701,80 @@ LANGUAGE
 # core/bm_app.c
 LANGUAGE PACK IS DAMAGED
 
+# core/bm_mach.c
+LATCH
+
 # core/bm_ui_draw.c
 LATCHED
 
 # core/gen/bm_fm_rom.c
 LEAD
 
-# core/bm_input.c
-LED
-
-# core/bm_ui_draw.c
-LEFT
-
-# core/bm_input.c core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 LEGATO
 
-# core/bm_ui_draw.c
-LEGATO: ONE VOICE, TIED
-
-# core/bm_ui_draw.c
-LEGATO: TIED NOTES GLIDE
-
-# core/bm_input.c core/bm_params.c
+# core/bm_input.c core/bm_mach.c core/bm_params.c core/bm_slicer.c
 LENGTH
 
 # core/bm_input.c
-LENGTH AND SPEED
+LENGTH/SPEED
 
 # core/bm_input.c
 LENGTHS %d-%d
 
-# core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 LEVEL
 
-# core/bm_params.c
+# core/bm_bx7.c
+LEVEL 1
+
+# core/bm_bx7.c core/bm_params.c
 LEVEL 2
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c
+LEVEL 3
+
+# core/bm_bx7.c
+LEVEL 4
+
+# core/bm_bx7.c
+LEVELS
+
+# core/bm_b303.c core/bm_bx7.c core/bm_mach.c core/bm_panel.c core/bm_params.c
 LFO
 
 # core/bm_params.c
 LFO 1
 
-# core/bm_ui_draw.c
-LIMIT: MEMORY
+# core/bm_bx7.c
+LFO SYNC
 
-# core/bm_ui_draw.c
-LIMIT: RECORDING RAM
-
-# core/bm_input.c
-LINEAR
-
-# core/bm_ui_draw.c
-LINES = 1 BAR
-
-# core/bm_ui_draw.c
-LIVE CHORDS
-
-# core/bm_input.c
+# core/bm_panel.c
 LO
 
 # core/bm_ui_draw.c
 LOAD IN %u.%u S
 
-# core/bm_input.c
-LOCK
-
-# core/bm_input.c
-LONG NOTE: %d STEPS
-
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_slicer.c
 LOOP
 
-# core/bm_input.c
-LOOP BARS
-
-# core/bm_input.c
-LOOP ERASED
-
-# core/bm_input.c
+# core/bm_slicer.c
 LOOP IN
 
-# core/bm_input.c
+# core/bm_slicer.c
 LOOP OUT
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_panel.c
+LOUDNESS
+
+# core/bm_bx7.c core/bm_input.c core/bm_ui_draw.c
 LP
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 LP 12
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 LP 24
-
-# core/bm_input.c core/bm_ui_draw.c
-LPF
 
 # core/bm_input.c
 LT
@@ -1259,19 +806,13 @@ M4 AMT
 # core/bm_params.c
 M4 TO
 
-# core/bm_input.c
+# core/bm_input.c core/bm_mach.c
 MACHINE
-
-# core/bm_ui_draw.c
-MACHINES
-
-# core/bm_input.c
-MACRO
 
 # core/bm_params.c
 MACRO 1
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 MACRO 1-2
 
 # core/bm_params.c
@@ -1280,35 +821,26 @@ MACRO 2
 # core/bm_params.c
 MACRO 3
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 MACRO 3-4
 
 # core/bm_params.c
 MACRO 4
 
+# core/bm_bx7.c core/bm_params.c
+MAIN
+
 # core/bm_pattern.c
 MAJOR
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 MANUAL
 
 # core/gen/bm_fm_rom.c
 MARIMBA
 
-# core/bm_input.c core/bm_ui_draw.c
-MASTER
-
 # core/bm_ui_draw.c
-MASTER > K2 PICKS IT
-
-# core/bm_input.c
-MASTER FILTER
-
-# core/bm_input.c
-MASTER LENGTH
-
-# core/bm_ui_draw.c
-MAX 3.0 S PER TAKE
+MASTER FX
 
 # core/bm_ui_draw.c
 MEDIUM
@@ -1319,37 +851,19 @@ METAL
 # core/bm_drums.cpp
 METAL HAT
 
-# core/bm_input.c
-MICRO
+# core/bm_mach.c core/bm_slicer.c
+MIDI CH
 
-# core/bm_input.c
-MICRO TIMING
-
-# core/bm_app.c
-MIDI
-
-# core/bm_input.c
-MIDI CHANNEL
-
-# core/bm_input.c
+# core/bm_mach.c core/bm_slicer.c
 MIDI OUT
-
-# core/bm_input.c
-MIDI OUT OFF
-
-# core/bm_input.c
-MIDI OUT ON: NOTES ALSO GO OUT
-
-# core/bm_input.c
-MIDI PROGRAM
 
 # core/bm_pattern.c
 MINOR
 
-# core/bm_app.c core/bm_drums.cpp core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c core/bm_drums.cpp
 MIX
 
-# core/bm_params.c
+# core/bm_params.c core/bm_ui_draw.c
 MIXER
 
 # core/bm_pattern.c
@@ -1358,50 +872,20 @@ MIXO
 # core/bm_params.c
 MOD AMT
 
-# core/bm_params.c
-MOD LVL
+# core/bm_panel.c
+MOD MIX
 
 # core/bm_params.c
 MOD RATE
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_mach.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 MODE
 
-# core/bm_params.c
+# core/bm_input.c core/bm_panel.c core/bm_params.c
 MODEL
 
-# core/bm_ui_draw.c
-MODELED
-
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 MONO
-
-# core/bm_ui_draw.c
-MONO: EVERY NOTE RETRIGGERS
-
-# core/bm_ui_draw.c
-MONO: ONE VOICE, RETRIGGERS
-
-# core/bm_input.c
-MOVE
-
-# core/bm_input.c
-MOVE  BRIGHT + WASH
-
-# core/bm_input.c
-MOVE  DARK + ECHO
-
-# core/bm_input.c
-MOVE  OFF
-
-# core/bm_ui_draw.c
-MOVE BRIGHT
-
-# core/bm_ui_draw.c
-MOVE DARK
-
-# core/bm_input.c
-MST FILT
 
 # core/bm_input.c
 MT
@@ -1413,19 +897,16 @@ MTL
 MUTE
 
 # core/bm_input.c
-MUTE INSTRUMENTS
+MUTE SOUNDS
 
 # core/bm_input.c
 MUTED
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 NARROW
 
 # core/bm_pattern.c
 NEO SOUL
-
-# core/bm_input.c
-NEW KIT FROM TAKE %02d?
 
 # core/bm_params.c
 NO
@@ -1433,11 +914,8 @@ NO
 # core/bm_app.c
 NO CHANGE: STOP AND SAVE
 
-# core/bm_input.c core/bm_ui_draw.c
-NO FILL
-
 # core/bm_ui_draw.c
-NO KIT
+NO FILL
 
 # core/bm_input.c
 NO LANGUAGE PACK: LOAD ONE BY USB
@@ -1445,70 +923,55 @@ NO LANGUAGE PACK: LOAD ONE BY USB
 # core/bm_app.c
 NO ROOM IN TAKES: DISCARDED
 
+# core/bm_slicer.c
+NO ROOM: DELETE A TAKE
+
 # core/bm_app.c
 NO ROOM: DELETE A TAKE OR A SOUND
-
-# core/bm_ui_draw.c
-NO TABLE
 
 # core/bm_input.c
 NO TAKE
 
-# core/bm_ui_draw.c
-NO TAKES YET
-
-# core/bm_drums.cpp core/bm_params.c
+# core/bm_drums.cpp core/bm_panel.c core/bm_params.c
 NOISE
 
 # core/bm_app.c
 NONE
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_ui_draw.c
 NORMAL
 
 # core/bm_app.c
 NOT A USER SOUND
 
-# core/bm_ui_draw.c
-NOT SAVED YET
-
-# core/bm_input.c
-NOTES
-
-# core/bm_ui_draw.c
-NOTES TO NOTES, HITS TO HITS: THE MACHINES DO NOT CHANGE
-
-# core/bm_app.c core/bm_input.c
-NOTHING TO PASTE HERE
-
-# core/bm_app.c
-NOTHING TO REDO
-
-# core/bm_app.c
-NOTHING TO UNDO
-
-# core/bm_input.c
-NOW
-
 # core/bm_input.c
 NZ
 
-# core/bm_input.c
-OCT+
+# core/bm_ui_draw.c
+OCT 1-8
 
-# core/bm_input.c
-OCT-
+# core/bm_ui_draw.c
+OCT 9-16
 
-# core/bm_input.c
+# core/bm_ui_draw.c
+OCT- SOFT  OCT+ HARD
+
+# core/bm_mach.c
 OCTAVE
 
 # core/bm_input.c
 OCTAVE %+d
 
-# core/bm_input.c
-OCTAVES
+# core/bm_mach.c
+OCTAVE %d
 
-# core/bm_app.c core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+# core/bm_mach.c
+OCTAVE +%d
+
+# core/bm_mach.c
+OCTAVE 0  TRANSPOSE 0
+
+# core/bm_input.c core/bm_mach.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 OFF
 
 # core/bm_input.c
@@ -1517,7 +980,7 @@ OH
 # core/bm_params.c
 OHAT
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_input.c core/bm_mach.c core/bm_panel.c core/bm_slicer.c core/bm_ui_draw.c
 ON
 
 # core/bm_ui_draw.c
@@ -1526,14 +989,11 @@ ON (TEST)
 # core/bm_ui_draw.c
 ON T%d
 
-# core/bm_ui_draw.c
-ONE AT A TIME
-
 # core/bm_input.c
+ONE BAR ONLY
+
+# core/bm_slicer.c
 ONESHOT
-
-# core/bm_input.c
-ONLY IN THE FILL
 
 # core/bm_ui_draw.c
 ONLY WHEN STOPPED (CUTS AUDIO)
@@ -1544,92 +1004,92 @@ ONLY WHEN STOPPED - SAVE 2 S: QUICK SAVE
 # core/bm_params.c
 OP HH
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c
+OP1
+
+# core/bm_bx7.c
+OP2
+
+# core/bm_bx7.c
+OP3
+
+# core/bm_bx7.c
+OP4
+
+# core/bm_bx7.c
+OP5
+
+# core/bm_bx7.c
+OP6
+
+# core/bm_input.c
 OPEN
 
-# core/bm_ui_draw.c
-OR HOME + REC: SONG REC
+# core/bm_mach.c
+ORDER
 
 # core/gen/bm_fm_rom.c
 ORGAN
 
-# core/bm_params.c
+# core/bm_panel.c
+OSC
+
+# core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 OSC 1
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 OSC 1 +
 
-# core/bm_input.c
-OSC 1 TABLE
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 OSC 2
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 OSC 2 +
 
-# core/bm_params.c
+# core/bm_mach.c core/bm_panel.c core/bm_params.c
 OSC 3
 
-# core/bm_params.c
+# core/bm_bx7.c
+OSC SYNC
+
+# core/bm_bx7.c
+OUT LVL
+
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 OUTPUT
 
 # core/bm_input.c
 OUTSIDE THE LENGTH
 
-# core/bm_ui_draw.c
-OVERDUB
+# core/bm_b303.c
+OVERDRIVE
+
+# core/gen/bm_fm_rom.c
+OWLS EP
+
+# core/bm_bx7.c
+P SENS
 
 # core/bm_input.c
-OWN
+P%d LENGTH %d
 
-# core/bm_ui_draw.c
-OWN TRACK SCALE
-
-# core/bm_input.c
+# core/bm_input.c core/bm_slicer.c
 PAD
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c core/bm_slicer.c
 PAD %d
 
-# core/bm_input.c
-PAD %d COPIED
-
-# core/bm_input.c
-PAD %d EMPTY
-
-# core/bm_app.c
-PADS
-
-# core/bm_input.c
-PADS 1-8
-
-# core/bm_input.c
-PADS 9-16
-
-# core/bm_input.c
+# core/bm_mach.c
 PAGE
 
-# core/bm_input.c
+# core/bm_ui_draw.c
 PAGE %d/%d
 
-# core/bm_input.c core/bm_ui_draw.c
-PAN
+# core/bm_b303.c
+PANEL
 
-# core/bm_ui_draw.c
-PASTE
-
-# core/bm_input.c
-PASTED ON PAD %d
-
-# core/bm_input.c core/bm_params.c
+# core/bm_params.c
 PATCH
-
-# core/bm_input.c
-PATTERN
-
-# core/bm_input.c
-PATTERN (QUEUED)
 
 # core/bm_app.c
 PATTERN A%02d
@@ -1637,14 +1097,8 @@ PATTERN A%02d
 # core/bm_input.c
 PATTERN CLEARED
 
-# core/bm_input.c
-PATTERN COPIED
-
 # core/bm_app.c
 PATTERN FULL: NO ROOM
-
-# core/bm_ui_draw.c
-PAUSED: TAKE
 
 # core/bm_pattern.c
 PENTA MA
@@ -1655,56 +1109,53 @@ PENTA MI
 # core/bm_params.c
 PERC
 
+# core/bm_bx7.c
+PHASER
+
 # core/bm_params.c
 PHILLY 95
 
 # core/bm_pattern.c
 PHRYG
 
-# core/bm_input.c
-PIANO ROLL
-
-# core/bm_ui_draw.c
-PICK A NOTE TRACK
-
 # core/gen/bm_fm_rom.c
 PIPE ORG
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c
+PIT
+
+# core/bm_panel.c core/bm_params.c core/bm_slicer.c
 PITCH
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c
+PITCH LEVELS
+
+# core/bm_bx7.c
+PITCH RATES
+
+# core/bm_bx7.c
+PLACED
+
+# core/bm_ui_draw.c
 PLAY
 
 # core/bm_input.c
-PLAY = LOOP: HELD REPEATS THE LOOP
-
-# core/bm_input.c core/bm_ui_draw.c
 PLAYS
 
 # core/gen/bm_fm_rom.c
 PLUCKED
 
-# core/bm_params.c
+# core/bm_bx7.c
 PMD
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 POLY
-
-# core/bm_ui_draw.c
-POLY: UP TO 4 VOICES
-
-# core/bm_ui_draw.c
-POLYMETER
 
 # core/gen/bm_fm_rom.c
 POP BASS
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_params.c
 PORTA
-
-# core/bm_ui_draw.c
-PORTA WITH TIE  %+d ST
 
 # core/bm_params.c
 POS 1
@@ -1712,7 +1163,7 @@ POS 1
 # core/bm_params.c
 POS 2
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 POSITION
 
 # core/bm_input.c
@@ -1721,160 +1172,106 @@ PRC
 # core/bm_ui_draw.c
 PRE
 
-# core/bm_ui_draw.c
-PRE = SOUND
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c
+PRESET
 
 # core/bm_ui_draw.c
 PRESETS
 
-# core/bm_ui_draw.c
-PRESETS = ANOTHER KIT
-
-# core/bm_input.c
-PROB
-
-# core/bm_input.c
-PROB/FILL
-
-# core/bm_input.c
-PROG
-
 # core/bm_pattern.c
 PROGRESSIONS
 
-# core/bm_input.c
-PROJECT
-
-# core/bm_input.c
-PROJECT ROOT
-
-# core/bm_input.c core/bm_ui_draw.c
-PROJECT SCALE
-
-# core/bm_input.c
-PROJECT TRANSPOSE
-
-# core/bm_input.c
-PST
+# core/bm_panel.c core/bm_params.c
+PULSE
 
 # core/bm_params.c
-PULSE
+PUMP
 
 # core/bm_drums.cpp
 PUNCH
 
-# core/bm_input.c
-PUNCH-IN
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 PWM
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 PWM MODE
+
+# core/gen/bm_fm_rom.c
+QUERY BS
+
+# core/gen/bm_fm_rom.c
+QUERYBRS
 
 # core/bm_input.c core/bm_ui_draw.c
 QUICK SAVE
 
-# core/bm_params.c
-R1 ATK
+# core/bm_bx7.c
+R CURVE
 
-# core/bm_params.c
-R2-3 DEC
+# core/bm_bx7.c
+R DEPTH
 
-# core/bm_params.c
-R4 REL
-
-# core/bm_input.c
-RAMP
-
-# core/bm_input.c
-RAND
-
-# core/bm_params.c core/bm_ui_draw.c
+# core/bm_mach.c core/bm_panel.c core/bm_params.c
 RANDOM
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 RANGE
 
-# core/bm_input.c core/bm_params.c
+# core/bm_b303.c core/bm_bx7.c core/bm_mach.c core/bm_panel.c core/bm_params.c
 RATE
 
-# core/bm_drums.cpp
+# core/bm_bx7.c
+RATE 1
+
+# core/bm_bx7.c
+RATE 2
+
+# core/bm_bx7.c
+RATE 3
+
+# core/bm_bx7.c
+RATE 4
+
+# core/bm_bx7.c
+RATE SCL
+
+# core/bm_bx7.c
+RATES
+
+# core/bm_bx7.c core/bm_drums.cpp
 RATIO
 
 # core/bm_input.c
 RD
 
 # core/bm_ui_draw.c
-READY
-
-# core/bm_input.c core/bm_ui_draw.c
 REC
 
-# core/bm_ui_draw.c
-REC 2 S: ERASE THE LOOP
+# core/bm_mach.c
+REC ARMED: PLAY A NOTE
 
-# core/bm_ui_draw.c
-REC = ARM (K1: BAR OR NOW)
-
-# core/bm_ui_draw.c
-REC = RECORD ONE
-
-# core/bm_ui_draw.c
-REC = STOP - STOPS BY ITSELF AT THE LIMIT
-
-# core/bm_input.c
+# core/bm_input.c core/bm_mach.c
 REC OFF
 
 # core/bm_input.c
 REC ON
 
-# core/bm_input.c
-REC STEP
-
-# core/bm_ui_draw.c
-REC: RECORD > PLAY > OVERDUB - STARTS ON THE NEXT BAR
-
-# core/bm_app.c
-RECORD
-
-# core/bm_ui_draw.c
-RECORDED
-
-# core/bm_input.c core/bm_ui_draw.c
-RECORDING
-
-# core/bm_input.c
-RED
-
-# core/bm_app.c
-REDONE ON T%d
-
 # core/gen/bm_fm_rom.c
 REED HRP
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 RELEASE
 
-# core/bm_ui_draw.c
-RELEASE = ENTER %s
-
-# core/bm_ui_draw.c
-RELEASE = NO
-
-# core/bm_ui_draw.c
-RELEASE = STAY ON MIX
-
-# core/bm_input.c
+# core/bm_input.c core/bm_mach.c
 REPEAT
 
-# core/bm_ui_draw.c
-REPEAT: RETRIGS - BREAK: REVERSE, HALF, SILENCE
-
-# core/bm_input.c core/bm_params.c
+# core/bm_input.c core/bm_panel.c core/bm_params.c
 RES
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_mach.c core/bm_slicer.c
+RESET
+
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 RESO
 
 # core/bm_drums.cpp core/bm_params.c
@@ -1883,38 +1280,23 @@ RESON
 # core/bm_drums.cpp
 RESONATOR
 
-# core/bm_input.c
+# core/bm_slicer.c
 REV
-
-# core/bm_input.c
-REV 4
-
-# core/bm_input.c
-REV 8
 
 # core/bm_input.c
 REV MIX
 
-# core/bm_ui_draw.c
-REV4
+# core/bm_b303.c core/bm_slicer.c
+REV ON
 
-# core/bm_ui_draw.c
-REV8
+# core/bm_input.c
+REV SIZE
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_b303.c core/bm_bx7.c core/bm_input.c core/bm_panel.c core/bm_slicer.c
 REVERB
 
-# core/bm_input.c
-REVERB DAMP
-
-# core/bm_input.c
-REVERB MIX
-
-# core/bm_input.c
-REVERB SEND
-
-# core/bm_input.c
-REVERB SIZE
+# core/bm_slicer.c
+REVERSE
 
 # core/bm_params.c
 RIDE
@@ -1926,27 +1308,36 @@ RIM
 ROBOT FUNK
 
 # core/bm_input.c
-ROLL
-
-# core/bm_input.c
-ROLL RATE
-
-# core/bm_input.c
-ROLL SWING
-
-# core/bm_input.c
-ROLL TAIL
-
-# core/bm_input.c
 ROOT
 
 # core/bm_input.c
 ROW
 
 # core/bm_input.c
+RPT
+
+# core/bm_input.c
 RS
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_slicer.c
+SAMPLE
+
+# core/bm_slicer.c
+SAMPLE ARMED
+
+# core/bm_slicer.c
+SAMPLE ARMED: PRESS PLAY
+
+# core/bm_slicer.c
+SAMPLE STOPPED
+
+# core/bm_slicer.c
+SAMPLE: NEXT BAR
+
+# core/bm_slicer.c
+SAMPLING %u.%u S
+
+# core/bm_ui_draw.c
 SAVE
 
 # core/bm_input.c
@@ -1954,9 +1345,6 @@ SAVE AGAIN = CLEAR
 
 # core/bm_ui_draw.c
 SAVE AS
-
-# core/bm_ui_draw.c
-SAVE SONG AND SCENES
 
 # core/bm_ui_draw.c
 SAVED
@@ -1967,38 +1355,44 @@ SAVED A%02d
 # core/bm_input.c
 SAVED AS A%02d
 
+# core/bm_input.c
+SAVES WHEN STOPPED
+
 # core/bm_app.c
 SAVING THE TAKE
 
-# core/bm_engines.c core/bm_input.c core/bm_params.c
+# core/bm_b303.c core/bm_engines.c core/bm_panel.c core/bm_params.c core/bm_ui_draw.c
 SAW
 
-# core/bm_input.c
-SC REL
+# core/bm_bx7.c
+SAW DN
 
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_params.c
+SAW DOWN
+
+# core/bm_bx7.c core/bm_params.c
+SAW UP
+
+# core/bm_input.c
 SCALE
 
-# core/bm_ui_draw.c
-SCALE (FROM THE PROJECT)
+# core/bm_bx7.c
+SCALING
 
 # core/bm_input.c
 SCENE %c
 
 # core/bm_input.c
-SCENE %c CLEARED
+SCENE %c A%02d STORED
 
 # core/bm_input.c
-SCENE %c STORED
+SCENE %c DELETED
 
 # core/bm_input.c
 SCENE %c: NEXT BAR
 
-# core/bm_input.c
-SCL
-
-# core/bm_ui_draw.c
-SCL AGAIN: CHORDS - HOME + SCL: PROJECT
+# core/bm_mach.c
+SCROLL
 
 # core/bm_input.c
 SD
@@ -2022,19 +1416,19 @@ SEL
 SELECT
 
 # core/bm_ui_draw.c
-SELECT = TRACK  ALGORITHM = MACHINE (2 S)
+SELECT MACHINE
 
-# core/bm_ui_draw.c
-SELECT HIT - ALGORITHM PROB - PRESETS LENGTH
+# core/bm_bx7.c
+SELECT MOVES IT
 
-# core/bm_ui_draw.c
-SELECT PICKS, SAVE RUNS - HOLD SAVE = COPY PATTERN
+# core/bm_bx7.c
+SEND
 
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_bx7.c
+SEND: ALWAYS AFTER THE FX
+
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c
 SEQ
-
-# core/bm_input.c
-SET
 
 # core/bm_input.c
 SH
@@ -2045,32 +1439,29 @@ SHAK
 # core/bm_params.c
 SHAKE
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 SHAPE
 
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 SHARK
 
-# core/bm_input.c
-SIDECHAIN RELEASE
-
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 SINE
 
-# core/bm_input.c
-SIZE
-
-# core/bm_params.c
-SLIDE
+# core/gen/bm_fm_rom.c
+SKETCHBS
 
 # core/bm_ui_draw.c
-SLOOP T%d %s
+SLD
 
-# core/bm_input.c
-SLOOP: T%d %s
+# core/bm_b303.c core/bm_params.c core/bm_ui_draw.c
+SLIDE
 
-# core/bm_input.c
-SNAP
+# core/bm_bx7.c
+SLOT
+
+# core/bm_slicer.c
+SMP
 
 # core/bm_drums.cpp
 SNAPPY
@@ -2078,154 +1469,76 @@ SNAPPY
 # core/bm_params.c
 SNARE
 
-# core/bm_input.c core/bm_ui_draw.c
-SONG
-
-# core/bm_input.c
-SONG AND SCENES SAVED
-
-# core/bm_input.c
-SONG FULL
-
-# core/bm_input.c core/bm_ui_draw.c
-SONG OFF
-
-# core/bm_input.c core/bm_ui_draw.c
-SONG ON
-
 # core/bm_ui_draw.c
-SONG REC
+SOFT
 
 # core/bm_input.c
-SONG REC OFF
+SOLO OFF
 
-# core/bm_input.c
-SONG REC ON
-
-# core/bm_app.c core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c core/bm_slicer.c
 SOUND
 
 # core/bm_app.c
 SOUND DELETED
 
+# core/bm_mach.c core/bm_slicer.c
+SOUND RESET
+
 # core/bm_app.c
 SOUND SAVED: %s
 
-# core/bm_input.c core/bm_ui_draw.c
-SOURCE
+# core/bm_input.c
+SOUNDS 1-8
 
-# core/bm_ui_draw.c
-SOURCE: MIX
+# core/bm_input.c
+SOUNDS 9-16
 
 # core/bm_drums.cpp core/bm_params.c
 SPACE
 
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_input.c core/bm_mach.c
 SPEED
 
 # core/bm_ui_draw.c
 SPLIT L/R
 
-# core/bm_engines.c core/bm_input.c core/bm_params.c
+# core/bm_ui_draw.c
+SQR
+
+# core/bm_b303.c core/bm_bx7.c core/bm_engines.c core/bm_panel.c core/bm_params.c
 SQUARE
 
-# core/bm_input.c core/bm_ui_draw.c
-SR
-
-# core/bm_input.c
-ST
-
-# core/bm_input.c
+# core/bm_slicer.c
 START
 
-# core/bm_input.c
-START ON THE HIT
-
-# core/bm_input.c
-STARTS ON THE BAR
-
-# core/bm_ui_draw.c
-STARTS ON THE BAR - REC AGAIN = CANCEL
-
-# core/bm_input.c
-STARTS WHEN YOU PRESS REC
-
-# core/bm_input.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c
 STEP
 
+# core/bm_b303.c
+STEP %d: NO NOTE
+
+# core/bm_input.c
+STEP REC
+
 # core/bm_ui_draw.c
-STEP %02d
+STEP REC %d/%d
 
-# core/bm_input.c
-STEP %02d %s
-
-# core/bm_input.c
-STEP %02d CONDITION
-
-# core/bm_input.c
-STEP %02d HIT
-
-# core/bm_input.c
-STEP %02d REPEAT
-
-# core/bm_input.c
-STEP HAS NO NOTES: WRITE THEM IN SEQ
-
-# core/bm_input.c
+# core/bm_b303.c core/bm_panel.c core/bm_params.c
 STEPS
-
-# core/bm_ui_draw.c
-STEPS %d-%d
 
 # core/bm_ui_draw.c
 STEREO
 
-# core/bm_input.c
-STOP TO COPY
-
-# core/bm_app.c core/bm_input.c
+# core/bm_app.c
 STOP TO SAVE
 
-# core/bm_input.c
-STORE SCENE %c
+# core/bm_slicer.c
+STOP: THE LAST SAMPLE IS SAVED FIRST
 
 # core/gen/bm_fm_rom.c
 STRINGS
 
-# core/bm_input.c
-STRUM
-
-# core/bm_input.c
-STRUM (MS)
-
-# core/bm_input.c
-STU
-
-# core/bm_input.c
-STUT 16
-
-# core/bm_input.c
-STUT 32
-
-# core/bm_input.c
-STUT 4
-
-# core/bm_input.c
-STUT 8
-
-# core/bm_ui_draw.c
-STUT16
-
-# core/bm_ui_draw.c
-STUT32
-
-# core/bm_ui_draw.c
-STUT4
-
-# core/bm_ui_draw.c
-STUT8
-
-# core/bm_input.c core/bm_params.c
+# core/bm_input.c core/bm_panel.c core/bm_params.c
 SUB
 
 # core/gen/bm_fm_rom.c
@@ -2234,23 +1547,11 @@ SUB BASS
 # core/gen/bm_fm_rom.c
 SUPER FM
 
-# core/bm_input.c
-SUS2
-
-# core/bm_input.c
-SUS4
-
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 SUSTAIN
 
 # core/bm_input.c
 SWING
-
-# core/bm_input.c
-SWING  50=STRAIGHT
-
-# core/bm_input.c
-SYNC
 
 # core/bm_ui_draw.c
 SYNC LATENCY
@@ -2276,80 +1577,23 @@ SYNTH SNARE
 # core/bm_ui_draw.c
 SYSTEM
 
-# core/bm_input.c
-T%d BEAT FX
-
-# core/bm_input.c
-T%d COPIED TO T%d
-
-# core/bm_input.c
-T%d DELAY
-
-# core/bm_input.c
-T%d DRIVE
-
-# core/bm_app.c
-T%d ERASED (HOME+OCT- UNDOES)
+# core/bm_input.c core/bm_mach.c
+T%d CLEARED
 
 # core/bm_input.c
 T%d FILTER
 
 # core/bm_input.c
-T%d LENGTH %d
-
-# core/bm_input.c
-T%d LEVEL
-
-# core/bm_input.c
-T%d PAN
-
-# core/bm_input.c
-T%d REVERB
-
-# core/bm_input.c
-T%d SPEED
-
-# core/bm_input.c
 T%d SPEED %s
 
-# core/bm_input.c
-T%d TRANSPOSE
-
-# core/bm_input.c
-T%d: %d BAR
-
-# core/bm_input.c
-T%d: %d BARS
-
-# core/bm_input.c
-T%d: NEXT BAR
-
-# core/bm_input.c
-T1 AND T2 ARE FIXED MACHINES
-
-# core/bm_ui_draw.c
-T1 IS THE SIDECHAIN SOURCE
-
-# core/bm_input.c core/bm_ui_draw.c
-T1 IS THE SOURCE
-
-# core/bm_input.c core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 TABLE
 
-# core/bm_input.c
-TAIL
-
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c core/bm_slicer.c
 TAKE
 
-# core/bm_input.c
-TAKE %02d > PAD %d
-
-# core/bm_input.c
-TAKE %02d DELETED
-
 # core/bm_app.c
-TAKE %02d SAVED: TAKES > KIT
+TAKE %02d ON PAD %d
 
 # core/bm_app.c
 TAKE %02d%s
@@ -2357,86 +1601,26 @@ TAKE %02d%s
 # core/bm_app.c
 TAKE %02d: KIT READY
 
-# core/bm_input.c
-TAKE BPM
-
-# core/bm_input.c
-TAKE DISCARDED
-
-# core/bm_input.c
-TAKE KEPT (NOT SAVED)
-
-# core/bm_app.c core/bm_ui_draw.c
-TAKES
-
-# core/bm_ui_draw.c
-TAKES (HOLD EDIT): BLACK 1 = KIT FROM A TAKE
-
-# core/bm_input.c
-TAKES FULL: DELETE ONE
-
 # core/bm_ui_draw.c
 TAKES+SOUNDS
-
-# core/bm_ui_draw.c
-TAKES: FREE %u.%u OF 6 S
-
-# core/bm_input.c
-TAP
-
-# core/bm_input.c
-TAP TEMPO
-
-# core/bm_input.c core/bm_ui_draw.c
-TAPE
 
 # core/bm_input.c
 TARGET
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_input.c
 TEMPO
 
-# core/bm_input.c
-TEMPO (FINE)
-
 # core/bm_ui_draw.c
-TESTING: SAFE MODE TURNS IT OFF AFTER A CRASH
+TEMPO AND SCALE
 
 # core/bm_app.c
 THAT IS NOT A BUBBA SOUND
 
-# core/bm_ui_draw.c
-THE GRID, VARIED EVERY BAR
-
 # core/bm_input.c
-THE PADS ARE REPLACED
+THIS MACHINE IS FIXED
 
-# core/bm_input.c
-THE SAMPLER IS NOT COPIED
-
-# core/bm_input.c
-THE SAMPLER STAYS HERE
-
-# core/bm_input.c
-THE SOUND SETTINGS ARE LOST
-
-# core/bm_input.c core/bm_ui_draw.c
-THROW
-
-# core/bm_input.c
+# core/bm_slicer.c
 THRU
-
-# core/bm_input.c
-TICKS
-
-# core/bm_input.c core/bm_ui_draw.c
-TIE
-
-# core/bm_ui_draw.c
-TIME
-
-# core/bm_input.c
-TIMES
 
 # core/gen/bm_fm_rom.c
 TINEKEYS
@@ -2453,49 +1637,40 @@ TOM L
 # core/bm_params.c
 TOM M
 
-# core/bm_input.c core/bm_params.c
+# core/gen/bm_fm_rom.c
+TOMCATBS
+
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c core/bm_slicer.c
 TONE
 
 # core/bm_input.c
 TRACK
 
-# core/bm_app.c core/bm_input.c
-TRACK COPIED
-
-# core/bm_app.c
-TRACK PASTED
-
-# core/bm_input.c
-TRACK SCALE
-
-# core/bm_input.c core/bm_params.c
+# core/bm_bx7.c core/bm_input.c core/bm_params.c
 TRANSP
 
-# core/bm_input.c
+# core/bm_bx7.c
 TRANSPOSE
 
-# core/bm_input.c
-TRANSPOSE %+d
-
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 TRI
 
-# core/bm_input.c
-TRIAD
+# core/bm_params.c
+TRIANGLE
 
-# core/bm_ui_draw.c
+# core/bm_slicer.c
 TRIM
 
 # core/gen/bm_fm_rom.c
 TUBECHIM
 
-# core/bm_input.c core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 TUNE
 
-# core/bm_params.c
+# core/bm_b303.c core/bm_params.c core/bm_ui_draw.c
 TUNING
 
-# core/bm_input.c
+# core/bm_mach.c core/bm_slicer.c
 TURN
 
 # core/bm_ui_draw.c
@@ -2507,13 +1682,10 @@ TWO CORES OFF
 # core/bm_input.c
 TWO CORES ON (TEST)
 
-# core/bm_input.c
-UND
+# core/bm_bx7.c
+TYPE
 
-# core/bm_app.c
-UNDONE ON T%d
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 UNISON
 
 # core/bm_snap.c
@@ -2522,14 +1694,8 @@ UNLICENSE
 # core/bm_ui_draw.c
 UNSAVED
 
-# core/bm_input.c core/bm_ui_draw.c
+# core/bm_mach.c
 UP
-
-# core/bm_input.c
-UP-DN
-
-# core/bm_ui_draw.c
-UP-DOWN
 
 # core/bm_params.c
 UPRIGHT
@@ -2537,22 +1703,13 @@ UPRIGHT
 # core/bm_input.c
 VALUE
 
-# core/bm_input.c
-VARY
-
-# core/bm_ui_draw.c
-VARY: OTHER PADS - ANCHOR: THE BEATS STAY
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 VCA
 
-# core/bm_ui_draw.c
-VCA: ENV
+# core/bm_panel.c
+VCF
 
-# core/bm_ui_draw.c
-VCA: GATE
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 VCF MOD
 
 # core/bm_params.c
@@ -2564,111 +1721,63 @@ VEL FILT
 # core/bm_params.c
 VEL LVL
 
-# core/bm_params.c
+# core/bm_bx7.c
+VEL SENS
+
+# core/bm_panel.c core/bm_params.c
 VELO
 
 # core/bm_ui_draw.c
 VERSION
 
-# core/bm_input.c core/bm_pattern.c
+# core/bm_pattern.c
 VI
 
-# core/bm_input.c
-VIEW
-
-# core/bm_input.c
-VIEW: NOTES
-
-# core/bm_input.c
-VIEW: PIANO ROLL (THE WHOLE LOOP)
-
-# core/bm_input.c core/bm_pattern.c
+# core/bm_pattern.c
 VII
 
-# core/bm_params.c
+# core/bm_bx7.c core/bm_panel.c core/bm_params.c
 VOICE
 
-# core/bm_input.c
-VOICING
+# core/bm_mach.c
+VOICE RESET
 
-# core/bm_ui_draw.c
-W1-10 = ADD A PATTERN
+# core/bm_b303.c core/bm_input.c core/bm_params.c core/bm_ui_draw.c
+VOLUME
 
-# core/bm_input.c
-W1-10 PATTERN  W11-16 GO TO MACHINE
-
-# core/bm_ui_draw.c
-W11-16 = GO THERE ON RELEASE - ALG = BPM .1
-
-# core/bm_ui_draw.c
-W11-16 = TRACK
-
-# core/bm_input.c core/bm_params.c
+# core/bm_b303.c core/bm_bx7.c core/bm_panel.c core/bm_params.c
 WAVE
 
 # core/bm_wave.cpp
 WAVE voice does not fit the shared pool (bm_vpool.h)
 
-# core/bm_input.c
-WHITE %d
-
-# core/bm_input.c
-WHITE = CYCLE ACCENT AND GHOST
+# core/bm_ui_draw.c
+WAVEFORM
 
 # core/bm_input.c
 WHITE = CYCLE X1-X4 AND FLAM
 
 # core/bm_input.c
-WHITE = ERASE INSTRUMENT  B6 = UNDO
+WHITE = MUTE OR PLAY THAT SOUND
 
 # core/bm_input.c
-WHITE = ERASE STEP  BLACK 6 = UNDO
+WHITE = PICK AND HEAR  K1-K4 = THE HIT
 
 # core/bm_input.c
-WHITE = MAKE NOTE FILL-ONLY
+WHITE = TOGGLE ACCENT  K1 = AMOUNT
 
-# core/bm_input.c
-WHITE = PASTE  BLACK+WHITE = ONE TRACK
-
-# core/bm_ui_draw.c
-WHITE = PLAY AND PICK A PAD - PRESETS = ITS TAKE
-
-# core/bm_input.c
-WHITE = PLAY CHORD  BLACK 1-4 = EXTEND
-
-# core/bm_input.c
-WHITE = PLAY EFFECT  BLACK 1-6 = MUTE
-
-# core/bm_input.c
-WHITE = SET LENGTH  BLACK 11 = +16
-
-# core/bm_input.c
-WHITE = TIE TO NEXT NOTE  K1 = GLIDE
-
-# core/bm_input.c
-WHITE = TOGGLE ACCENT
-
-# core/bm_input.c
-WHITE = TOGGLE MUTE  BLACK 1-8 = PLAY
-
-# core/bm_input.c
-WHOLE
-
-# core/bm_params.c
+# core/bm_panel.c core/bm_params.c
 WIDE
 
 # core/bm_params.c
 WINDSOR 93
 
-# core/bm_input.c core/bm_params.c
+# core/bm_params.c
 YES
-
-# core/bm_ui_draw.c
-YOU
 
 # core/bm_input.c core/bm_params.c
 ZAP
 
-# core/bm_input.c
+# core/bm_slicer.c
 ZOOM
 

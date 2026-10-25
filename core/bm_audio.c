@@ -180,12 +180,16 @@ static void apply(bm_ctx *c, const bm_cmd *k)
     case CMD_SET_PRM:
         if (k->a < BM_TRACKS && k->b < BM_PRM) c->pat->prm[k->a][k->b] = k->c;
         break;
+    case CMD_FMV:
+        if (k->a < BM_FMV_BYTES) { c->pat->fmv[k->a] = (uint8_t)bm_clampi(k->b, 0, bm_fmv_max(k->a)); c->fmv_gen++; }
+        break;
     case CMD_PRESET:
         if (k->a >= BM_TRACKS) break;
         if (bm_is_tr(c->pat, k->a)) bm_kit_apply(bm_trk_tr(c->pat, k->a), k->b);
         else if (k->b == 0xFF) { bm_prm_defaults(c->pat, k->a); break; }   /* INIT SOUND: el preset queda */
         else bm_preset_apply(c->pat, k->a, k->b);
         c->pat->trk[k->a].source = k->b;
+        c->fmv_gen++;
         break;
     case CMD_LANE_MUTE:
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;
@@ -337,7 +341,7 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         c->roll_cfg.ramp = k->a; c->roll_cfg.swing = k->b; c->roll_cfg.tail = k->c;
         c->roll_cfg.ramp_len = (uint16_t)k->u.i;
         break;
-    case CMD_REC: c->rec = k->a; break;
+    case CMD_REC: c->rec = k->a; c->rec_trk = k->b; break;
     case CMD_LOOP: bm_loop_cmd(c, k->a, k->b, k->c); break;
     case CMD_STRUM: {
         uint8_t n[4] = {(uint8_t)k->u.i, (uint8_t)(k->u.i >> 8), (uint8_t)(k->u.i >> 16), (uint8_t)(k->u.i >> 24)};

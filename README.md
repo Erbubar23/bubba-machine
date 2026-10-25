@@ -12,15 +12,15 @@ Batería, sampler de pads, bajo, FM, wavetable y polifónico, calculados en vivo
 </p>
 
 <p align="center">
-<img src="assets/screens/00-home.png" width="200" alt="HOME: la consola BX-1 con las seis máquinas">
+<img src="assets/screens/00-home.png" width="200" alt="HOME: el mezclador de los seis canales">
 <img src="assets/screens/02-seq-tr.png" width="200" alt="BR-8: la batería TR">
-<img src="assets/screens/57-bittal-table.png" width="200" alt="BITTAL: la tabla del oscilador en 2.5D">
-<img src="assets/screens/37-pads.png" width="200" alt="BP-1: la onda con el pad entre corchetes">
+<img src="assets/screens/81-b303-panel.png" width="200" alt="BB-303: el panel de la TB-303">
+<img src="assets/screens/90-slicer-trim.png" width="200" alt="BP-1: el Slicer cortando una toma">
 </p>
 
 ---
 
-> **Estado: 0.9.0-beta.** Corre en el aparato y se instala desde el navegador, plug and play, pero es una **beta**: se probó en un solo FM-1 y todavía cambia mucho (la 0.9.0-beta, todavía sin probar del todo en el aparato). **Una actualización puede borrar lo que guardaste** (patrones, canción, ajustes y tomas): hasta la v1 no hay compatibilidad hacia atrás. Ver [cómo instalar](docs/INSTALAR.md) y [cómo volver al firmware de fábrica](docs/INSTALAR.md#volver-al-firmware-de-fábrica).
+> **Estado: 0.10.0-beta.** Corre en el aparato y se instala desde el navegador, plug and play, pero es una **beta**: se probó en un solo FM-1 y todavía cambia mucho (la 0.10.0-beta corre en el FM-1 del autor). **Una actualización puede borrar lo que guardaste** (patrones, escenas, ajustes y tomas): hasta la v1 no hay compatibilidad hacia atrás. Ver [cómo instalar](docs/INSTALAR.md) y [cómo volver al firmware de fábrica](docs/INSTALAR.md#volver-al-firmware-de-fábrica).
 
 ## El objetivo: una máquina hi-fi
 
@@ -36,20 +36,19 @@ Bubba Machine busca **el mejor sonido que puede dar el hardware del FM-1**, sin 
 
 Bubba Machine convierte el FM-1 en una groovebox de directo con **seis canales**, **cuatro gestos por botón y HOME en todas partes**:
 
-- **T1 BR-8, batería estilo TR:** 16 instrumentos con su propia línea y su propio largo (polímetro), acento, repetición, flam, P-Locks y pasos que solo suenan en el fill. Roll y borrado estilo TR mientras suena.
-- **T2 BP-1, sampler de pads:** 16 pads hechos con tus tomas, como un KO II o un OP-1 field. Cada pad tiene su inicio, su largo, su tono y su modo de tecla (sostenido puede seguir por la toma). Una rejilla como la de la batería los toca y BREAK la varía compás a compás. Grabadora propia y biblioteca de tomas.
+- **T1 BR-8, batería estilo TR:** 16 instrumentos, cada uno con su largo (polímetro), con acentos, repeticiones y mutes, en un secuenciador por pasos con acceso rápido a cada instrumento.
+- **BP-1 Slicer, el último canal:** corta una toma en 16 pads como un KO II o un OP-1 field (AUTO, 8 o 16 cortes) y escribe la secuencia que suena como el loop. Cada pad tiene su tono, nivel, modo, reversa, ataque, release y loop; una rejilla por pasos los toca. Puede grabar la mezcla en un pad.
 - **Pantalla en inglés**, para que se entienda en todo el mundo, con el español como paquete de idioma que se carga aparte ([cómo](docs/MANUAL.md#idioma-de-la-pantalla)).
-- **T3-T6 eligen su máquina:** **BB-303** (bajo ácido sobre Open303), **B-MINI** (tres osciladores con filtro escalera), **BX-7** (FM de 6 operadores, lee bancos .syx de la DX7), **BITTAL** (wavetable que carga presets de Vital) y **BUNO-6** (polifónico con chorus). Banco de 92 sonidos, muchos históricos, y un [editor web](https://erbubar23.github.io/bubba-machine/control.html#sounds) para sumar los tuyos. Arpegiador, loopera, escala propia y MIDI OUT por canal.
-- **HOME es la consola BX-1:** 10 patrones, los seis canales, mutes, solo, escenas y CUE en las teclas, y la mezcla y los efectos de cada canal. REC en la consola graba cualquier canal sin entrar (estilo SLOOP).
-- **REC expresivo:** cada nota guarda su micro-tiempo, su largo y lo que moviste mientras la tocabas.
-- **Tiempo por pista:** cada pista tiene su largo (1-64) y su velocidad (×2 a ×1/4).
-- **Acordes en cuadrícula:** 16 acordes con su grado y su función por color.
-- **Directo:** 4 escenas de mutes con cadenas, CUE, grabación de la canción, fills automáticos, 16 efectos punch-in y mutes por pista e instrumento que se mantienen al cambiar de patrón.
-- **Guardado seguro** en flash (CRC, commit al final, wear-leveling y autoguardado al parar), MIDI IN, reloj externo y Split Sync.
+- **Los demás canales eligen su máquina, y cada una es su instrumento:** al entrar, la máquina toma todo el FM-1 con el panel y los menús de la original. **BB-303** (la TB-303 sobre Open303, con ACCENT y SLIDE por paso y overdrive estilo TB-03), **B-MINI** (Minimoog), **BX-7** (el FM del FM-1: 6 operadores, 32 algoritmos, sus efectos y arpegiador), **BITTAL** (wavetable estilo Vital) y **BUNO-6** (Juno-6 con chorus). Sonidos de fábrica, muchos históricos, y MIDI OUT por canal.
+- **HOME es el mezclador:** 9 patrones, los seis canales con volumen, filtro, delay y reverb, mutes, solo y 4 escenas de mutes por patrón (de fábrica la B deja todo muteado).
+- **Patrones de fábrica:** recreaciones de *Da Funk* (Daft Punk), *Confusion* en la versión de *Blade* (New Order) y *Enjoy the Silence* (Depeche Mode), tocadas por las máquinas.
+- **Grabación como SLOOP:** largo fijo que da la vuelta, cuantización de lo que tocas en vivo, paso a paso dentro de SEQ, y REC sostenido para borrar la secuencia del canal.
+- **Tiempo por pista:** cada pista tiene su largo (1-64 pasos) y su velocidad.
+- **Guardado seguro** en flash (CRC, commit al final, wear-leveling y autoguardado al parar), MIDI IN, reloj externo y salida de sync.
 
 ## Pruébalo
 
-Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) en Chrome o Edge y pulsa *Encender*. Arranca con una demo; la barra espaciadora es PLAY. También funciona sin internet: abre `web/emulador.html` desde tu copia del repo.
+Abre el [emulador web](https://erbubar23.github.io/bubba-machine/emulador.html) en Chrome o Edge y pulsa *Encender*. Arranca con el patrón 1 (*Da Funk*); la barra espaciadora es PLAY. También funciona sin internet: abre `web/emulador.html` desde tu copia del repo.
 
 ## Documentación
 
@@ -81,11 +80,11 @@ M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afil
 
 ## In English
 
-**Bubba Machine** is a free (GPL-3.0-or-later) **hi-fi** groovebox firmware for the M-VAVE FM-1: BR-8 modeled drums, BP-1 pad sampler, and on T3-T6 your choice of BB-303 acid bass (after Open303), B-MINI, BX-7 FM (reads DX7 .syx banks), BITTAL wavetable (loads Vital presets) and BUNO-6 polysynth with chorus, plus the BX-1 console on HOME. Written from scratch in C99.
+**Bubba Machine** is a free (GPL-3.0-or-later) **hi-fi** groovebox firmware for the M-VAVE FM-1: BR-8 modeled drums, the BP-1 Slicer, and on the other channels your choice of BB-303 (a TB-303 after Open303), B-MINI (Minimoog), BX-7 (the FM-1's own 6-operator FM), BITTAL wavetable and BUNO-6 (Juno-6) — each one taking over the FM-1 with the panel and menus of the real machine — plus a six-channel mixer on HOME and three factory patterns. Written from scratch in C99.
 
 - **The goal is hi-fi:** the best sound the FM-1's hardware can give. Every machine and the mix run at 44.1 kHz / 24-bit in floating point, everything is computed live (no low-res samples), each machine has its own engine modeled on the real one, and both 360 MHz cores can share the work (TWO CORES). Every change is measured on the device ([audio quality](docs/en/AUDIO.md)).
 
-- **Status:** 0.9.0-beta. It runs on the device and installs from the browser, plug and play, but it is a **beta**: tested on a single FM-1 and still changing a lot (0.9.0-beta, not fully tried on the device yet). **An update may erase what you saved** (patterns, song, settings and takes): there is no backward compatibility until v1. You can also try it in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html).
+- **Status:** 0.10.0-beta. It runs on the device and installs from the browser, plug and play, but it is a **beta**: tested on a single FM-1 and still changing a lot (0.10.0-beta runs on the author's FM-1). **An update may erase what you saved** (patterns, scenes, settings and takes): there is no backward compatibility until v1. You can also try it in the [web emulator](https://erbubar23.github.io/bubba-machine/emulador.html).
 - **Website and docs in English:** [erbubar23.github.io/bubba-machine/en](https://erbubar23.github.io/bubba-machine/en/), with the [manual](docs/en/MANUAL.md), [install status](docs/en/INSTALL.md), [audio quality](docs/en/AUDIO.md) and [roadmap](docs/en/ROADMAP.md). The firmware screens are in English; Spanish is an optional language pack. Issues and pull requests in English are welcome.
 - **Clean room:** all project code is original; synthesis libraries (Plaits, msfa, Open303) and the community Vital presets in the factory bank keep their free licenses ([credits](docs/en/CREDITS.md)). Only hardware facts from public FM-1 reverse engineering were used.
 - M-VAVE and FM-1 are trademarks of their respective owners. This project is not affiliated with or endorsed by M-VAVE.

@@ -109,7 +109,7 @@ struct Voice {
     float lph, lsh, ldel;        /* LFO: fase, valor del azar, rampa del retardo (BUNO-6) */
     float cut_prev, gate_g;
     uint32_t rng;
-    uint8_t first, gate;
+    uint8_t first, gate, tieg;   /* tieg: B-MINI, la nota llegó ligada por un GLIDE de paso (SCL) */
     uint8_t key[8];
     float k[8];
 };
@@ -121,8 +121,11 @@ inline bool mine(int v) { return bm_vpool_is(v, VP_WAVE) != 0; }
 
 /* BUNO-6, per channel: what acts on the sum of its voices (bm_wv_bus) — the HPF, and the VCF when
  * the paraphonic fast path is on */
-struct Bus { Ladder lad; float hp, cut_prev; uint8_t para; };
+struct Bus { Ladder lad; float hp, cut_prev, lph, ldel; uint8_t para; };
 Bus bus_[BM_TRACKS];
+/* el LFO del canal en este bloque, por carril (el audio puede ir en los dos núcleos: un canal por carril) */
+float lfo_now_[2];
+int lane_now_;
 
 inline float rnd(uint32_t &s) { s = s * 1664525u + 1013904223u; return (float)(int32_t)s * (1.0f / 2147483648.0f); }
 inline float ka_of(float t) { return 1.0f - expf(-1.466f / (t * fs_ + 1.0f)); }
@@ -169,6 +172,7 @@ inline float ladder_g(float semis)
 /* búfer de trabajo, uno por núcleo: con el audio en dos núcleos, T3 (B-MINI) calcula en uno y T5-T6
  * (BITTAL, BUNO-6) en el otro al mismo tiempo */
 float SB[2][BM_BLOCK];
+extern "C" { volatile float bm_wv_btpos[2]; volatile uint32_t bm_wv_btseq; }
 
 /* ------------------------------------------------------------ B-MINI */
 float mini_osc(Osc &o, int w, float dt)
@@ -186,21 +190,42 @@ float mini_osc(Osc &o, int w, float dt)
     return y;
 }
 
-static const float RANGE[5] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};   /* 32' 16' 8' 4' 2' */
+static const float RANGE[6] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 1.0f / 256.0f};   /* 32' 16' 8' 4' 2' y LO (8 octavas abajo) */
+
+/* lo que vale el oscilador en su fase, sin antialias: el OSC 3 como modulador (una vez por bloque) */
+static float mini_mod_osc(const Osc &o, int w)
+{
+    switch (w) {
+    case MN_WAVE_TRI: return o.tri();
+    case MN_WAVE_SHARK: return 0.5f * (o.tri() + 2.0f * o.ph - 1.0f);
+    case MN_WAVE_SQR: return o.ph < 0.5f ? 1.0f : -1.0f;
+    case MN_WAVE_WIDE: return o.ph < 0.3f ? 1.0f : -1.0f;
+    case MN_WAVE_NARROW: return o.ph < 0.12f ? 1.0f : -1.0f;
+    default: return 2.0f * o.ph - 1.0f;
+    }
+}
 
 int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1)
 {
-    glide(z, prm[MN_GLIDE], n);
-    float lamt = pc(prm[MN_LAMT]), lfo = 0.0f;
-    if (lamt > 0.0f) { z.lph += bm_lfo_hz(prm[MN_LRATE]) * (float)n / fs_; if (z.lph >= 1.0f) z.lph -= (float)(int)z.lph; lfo = 4.0f * fabsf(z.lph - 0.5f) - 1.0f; }
+    int gl = prm[MN_GLIDE];
+    if (z.tieg && gl < 30) gl = 30;                                /* GLIDE de paso: se oye aunque la perilla esté en 0 */
+    glide(z, gl, n);
+    /* la modulación, como en el POLY D: MOD MIX entre el OSC 3 y el LFO (el del canal, bm_wv_lfo), a los
+     * osciladores, al filtro o a los dos, con su cantidad */
+    float lamt = pc(prm[MN_LAMT]), mod = 0.0f;
+    if (lamt > 0.0f) {
+        float s3 = pc(prm[MN_MIX]);
+        mod = (1.0f - s3) * lfo_now_[lane_now_] + (s3 > 0.0f ? s3 * mini_mod_osc(z.o[2], prm[MN_W3] % MN_WAVES) : 0.0f);
+    }
     int ld = prm[MN_LDEST] % MN_LDESTS;
-    float pitch = z.note + (ld == MN_D_PITCH ? lfo * lamt * lamt * 2.0f : 0.0f);
-    float f0 = hz_of(pitch) / fs_;
-    float tune = bip(prm[MN_TUNE]) * 1.0f;                          /* TUNE: ±1 semitono a 2 y 3 */
+    bool to_osc = ld != MN_D_CUT, to_cut = ld != MN_D_PITCH;
+    /* TUNE: el A-440 del Minimoog, afina los tres osciladores juntos (±1 semitono) */
+    float pitch = z.note + bip(prm[MN_TUNE]);
+    float f0 = hz_of(pitch) / fs_, vib = to_osc ? SemitonesToRatioSafe(mod * lamt * lamt * 2.0f) : 1.0f;
     float fr[3];
-    fr[0] = f0 * RANGE[prm[MN_R1] % 5];
-    fr[1] = f0 * RANGE[prm[MN_R2] % 5] * SemitonesToRatioSafe(bip(prm[MN_T2]) * 7.0f + tune);
-    fr[2] = f0 * RANGE[prm[MN_R3] % 5] * SemitonesToRatioSafe(bip(prm[MN_T3]) * 7.0f - tune * 0.5f);
+    fr[0] = f0 * vib * RANGE[prm[MN_R1] % 5];
+    fr[1] = f0 * vib * RANGE[prm[MN_R2] % 5] * SemitonesToRatioSafe(bip(prm[MN_T2]) * 7.0f);
+    fr[2] = f0 * RANGE[prm[MN_R3] % 6] * SemitonesToRatioSafe(bip(prm[MN_T3]) * 7.0f);   /* el que modula no se modula */
     for (int i = 0; i < 3; i++) CONSTRAIN(fr[i], 0.00001f, 0.25f);
 
     /* las dos envolventes; la macro F DECAY (64 = nada) corre la caída de la de filtro */
@@ -225,7 +250,8 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
     /* filtro: CUTOFF, EMPHASIS y CONTOUR (la cantidad de la envolvente de filtro) */
     float cut = (float)mac[0] * (120.0f / 127.0f) + pc(mac[2]) * 72.0f * z.ef.v
               + pc(prm[MN_KEYT]) * (z.note - 60.0f) + pc(prm[MN_VELF]) * z.vel * 24.0f
-              + (ld == MN_D_CUT ? lfo * lamt * 36.0f : 0.0f);
+              + (to_cut ? mod * lamt * 36.0f : 0.0f)
+              + (z.vel > 0.99f ? 14.0f : 0.0f);                    /* ACCENT (SCL): más filtro */
     if (z.first) { z.cut_prev = cut; z.first = 0; }
     float kres = pc(mac[1]) * 3.95f;
     float c0 = z.cut_prev, dc = (cut - c0) / (float)n;
@@ -236,7 +262,7 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
         for (int i = i0; i < i1; i++) b1[i] = z.lad.Process(b1[i], G, kres);
     }
     float fsus = pc(prm[MN_FS]), as = pc(prm[MN_AS]);
-    float velg = 1.0f - pc(prm[MN_VELA]) * (1.0f - z.vel);
+    float velg = (1.0f - pc(prm[MN_VELA]) * (1.0f - z.vel)) * (z.vel > 0.99f ? 1.3f : 1.0f);   /* y más fuerte */
     float ka = z.k[4], kd = z.k[5], kr = z.k[7];
     for (int i = 0; i < n; i++) out[i] = b1[i] * z.ea.Next(ka, kd, as, kr) * velg * 1.2f;
     ka = z.k[0]; kd = z.k[1]; kr = z.k[3];
@@ -254,13 +280,8 @@ int render_mini(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
 
 int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1, bool para)
 {
-    /* LFO triangular con retardo: la rampa sube después de la nota */
-    z.lph += bm_lfo_hz(prm[BN_LRATE]) * (float)n / fs_;
-    if (z.lph >= 1.0f) z.lph -= (float)(int)z.lph;
-    float dl = bm_env_s(prm[BN_LDELAY]);
-    z.ldel += (float)n / (fs_ * (dl > 0.002f ? dl : 0.002f));
-    if (z.ldel > 1.0f) z.ldel = 1.0f;
-    float lfo = (4.0f * fabsf(z.lph - 0.5f) - 1.0f) * (prm[BN_LDELAY] ? z.ldel : 1.0f);
+    /* el LFO del Juno: uno para todas las voces, con su retardo (bm_wv_lfo) */
+    float lfo = lfo_now_[lane_now_];
 
     static const uint8_t KI[8] = {BN_A, BN_D, 0xFF, BN_R, 0xFF, 0xFF, 0xFF, 0xFF};
     static const float SC[8] = {1, 1, 1, 1, 1, 1, 1, 1};
@@ -302,7 +323,7 @@ int render_buno(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, 
             float G = ladder_g(c0 + dc * (float)((i0 + i1) / 2));
             for (int i = i0; i < i1; i++) b1[i] = z.lad.Process(b1[i], G, kres);
         }
-    } else { z.first = 0; z.cut_prev = (float)mac[0] * (120.0f / 127.0f); }   /* (where the VCF resumes) */
+    } else { z.first = 0; z.cut_prev = (float)mac[0] * (120.0f / 127.0f); z.lad.Init(); }   /* (where the VCF resumes, clean) */
     /* VCA: con la envolvente o en GATE (con 2 ms de suavizado) */
     float s = pc(prm[BN_S]);
     float velg = (1.0f - pc(prm[BN_VELA]) * (1.0f - z.vel)) * 1.3f;
@@ -403,6 +424,7 @@ inline void cap_readers(int &u1, int &u2, int budget)
 
 int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out, int n, float *b1, int readers)
 {
+    bm_wv_btseq++;
     glide(z, prm[BT_GLIDE], n);
     float lamt = pc(prm[BT_LAMT]) + 0.5f * bm_bt_macro(prm, mac, BTM_LFO), lfo = 0.0f;
     CONSTRAIN(lamt, 0.0f, 1.0f);
@@ -437,6 +459,7 @@ int render_bittal(Voice &z, const uint8_t *prm, const uint8_t mac[4], float *out
         float det = (pc(prm[b + 5]) + 0.5f * dets) * 0.02f;
         if (det < 0.0f) det = 0.0f;
         wt_osc(z, o, o, f0 * SemitonesToRatioSafe(semi), pos, uni, det, lvl, b1, n);
+        bm_wv_btpos[o] = pos < 0.0f ? 0.0f : pos > 1.0f ? 1.0f : pos;       /* (para la pantalla) */
     }
     float drive = pc(prm[BT_DRIVE]) + bm_bt_macro(prm, mac, BTM_DRIVE);
     CONSTRAIN(drive, 0.0f, 1.0f);
@@ -532,12 +555,16 @@ void bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float
     }
     Voice &z = V(v);
     (void)mac;
-    int gl = eng == ENG_MINI ? prm[MN_GLIDE] : eng == ENG_BITTAL ? prm[BT_GLIDE] : 0;
+    int tied = legato == 3;                              /* 3: ligada por el GLIDE del paso (B-MINI) */
+    if (tied) legato = 1;
+    z.tieg = (uint8_t)(tied && eng == ENG_MINI);
+    int gl = eng == ENG_MINI ? (z.tieg ? 30 : prm[MN_GLIDE]) : eng == ENG_BITTAL ? prm[BT_GLIDE] : 0;
     bool alive = z.ea.st != ST_OFF && z.ea.st != ST_R;
     if (legato == 1 && alive) { z.target = note; if (!gl) z.note = note; z.vel = vel; z.gate = 1; return; }
     bool sounding = legato == 2 && z.ea.st != ST_OFF;
+    bool from = sounding || (legato == 2 && eng == ENG_MINI);
     z.target = note;
-    if (!sounding || !gl) z.note = note;
+    if (!from || !gl) z.note = note;
     z.vel = vel;
     if (!sounding) {
         z.f1.Init(); z.f2.Init(); z.lad.Init();
@@ -548,7 +575,7 @@ void bm_wv_start(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float
         z.first = 1;
     }
     z.gate = 1;
-    z.lph = eng == ENG_BUNO ? z.lph : 0.0f; z.lsh = rnd(z.rng); z.ldel = 0.0f;
+    z.lph = 0.0f; z.lsh = rnd(z.rng); z.ldel = 0.0f;              /* BITTAL: su LFO por voz, desde la nota */
     z.ea.Gate(true); z.ef.Gate(true);
 }
 
@@ -560,11 +587,35 @@ void bm_wv_release(int v)
 
 float bm_wv_level(int v) { return mine(v) ? V(v).ea.v : 0.0f; }
 
+/* El LFO del canal (B-MINI y BUNO-6), una vez por bloque antes de las voces: corre libre, como el
+ * oscilador 3 del Minimoog y el LFO del Juno (uno para todas las voces). El retardo del Juno vuelve a
+ * empezar cuando se toca después de soltar todo (restart = 1). */
+void bm_wv_lfo(int t, int eng, const uint8_t *prm, int n, int lane, int restart)
+{
+    if (t < 0 || t >= BM_TRACKS) return;
+    Bus &b = bus_[t];
+    int rate = eng == ENG_BUNO ? prm[BN_LRATE] : prm[MN_LRATE];
+    b.lph += bm_lfo_hz(rate) * (float)n / fs_;
+    if (!(b.lph >= 0.0f && b.lph < 1e6f)) b.lph = 0.0f;
+    if (b.lph >= 1.0f) b.lph -= (float)(int)b.lph;
+    float v = 4.0f * fabsf(b.lph - 0.5f) - 1.0f;
+    if (eng == ENG_MINI && prm[MN_LWAVE]) v = b.lph < 0.5f ? 1.0f : -1.0f;   /* B-MINI: TRI o SQUARE, como el POLY D */
+    if (eng == ENG_BUNO && prm[BN_LDELAY]) {
+        if (restart) b.ldel = 0.0f;
+        float dl = bm_env_s(prm[BN_LDELAY]);
+        b.ldel += (float)n / (fs_ * (dl > 0.002f ? dl : 0.002f));
+        if (b.ldel > 1.0f) b.ldel = 1.0f;
+        v *= b.ldel;
+    }
+    lfo_now_[lane & 1] = v;
+}
+
 int bm_wv_render(int v, int eng, const uint8_t *prm, const uint8_t mac[4], float *out, int n, int lane, int flags)
 {
     if (n <= 0) return 0;
     if (!mine(v)) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }
     Voice &z = V(v);
+    lane_now_ = lane & 1;
     int alive = render(z, eng, prm, mac, out, n, lane, flags);
     /* Un NaN en un filtro o una envolvente se queda: la última muestra y los estados, una vez por
      * bloque. Si algo se rompió, la voz vuelve a cero, el bloque sale en silencio y se avisa (-1). */

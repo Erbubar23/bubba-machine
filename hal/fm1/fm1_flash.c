@@ -60,7 +60,7 @@ static void inval(uint32_t a, uint32_t n)
 
 static int dentro(uint32_t a, uint32_t n)
 {
-    return a >= FM1_W_LO && n <= FM1_W_HI - FM1_W_LO && a + n <= FM1_W_HI;
+    return a >= FM1_W_LO && a <= FM1_W_HI && n <= FM1_W_HI - a;   /* (a + n podría dar la vuelta) */
 }
 
 int fm1_flash_read(uint32_t a, void *d, uint32_t n)

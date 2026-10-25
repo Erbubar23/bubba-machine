@@ -21,7 +21,7 @@ typedef struct {
 extern const bm_rom_loop bm_rom_loops[];
 
 /* Patches de fábrica del motor FM (tools/gen_fm.py): voz de la DX7 sin empaquetar, 156 bytes. */
-#define BM_FM_PATCHES   20
+#define BM_FM_PATCHES   31
 extern const uint8_t bm_fm_rom[BM_FM_PATCHES][156];
 extern const char bm_fm_names[BM_FM_PATCHES][9];
 extern const int bm_rom_nloops;

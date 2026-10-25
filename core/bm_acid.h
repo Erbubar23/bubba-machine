@@ -15,8 +15,12 @@
 extern "C" {
 #endif
 
-/* the knobs, 0..127 (as on the panel: CUTOFF, RESO, ENV MOD, DECAY, ACCENT, SLIDE, WAVE) */
-typedef struct { uint8_t cut, res, env, dec, acc, slide, wave; } bm_acid_par;
+/* the knobs, 0..127 (as on the panel: CUTOFF, RESO, ENV MOD, DECAY, ACCENT, SLIDE, WAVE), and what
+ * the LFO adds this block: octaves on the cutoff, a pitch ratio and the level from amp0 to amp1 */
+typedef struct {
+    uint8_t cut, res, env, dec, acc, slide, wave;
+    float lfo_oct, lfo_fm, amp0, amp1;
+} bm_acid_par;
 
 void  bm_acid_init(float fs);         /* the fixed coefficients (when a channel becomes a BB-303) */
 /* note: 0..127 (already transposed). accent: the step has an accent. legato: 1 = slide from the note

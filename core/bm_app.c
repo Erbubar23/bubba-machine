@@ -757,8 +757,8 @@ static void settings_defaults(bm_settings *s)
 {
     memset(s, 0, sizeof *s);
     s->ver = BM_FMT; s->factory = BM_FACTORY_VER; s->sync_ppqn = 2; s->drive = 25; s->led_dim = 1; s->autosave = 1; s->enter = 2;
-    /* dual_core apagado: en 0.6.1 venía encendido y en el aparato iba más lento que un núcleo (123 %
-     * contra ~105 %). Desde 0.6.2 usa el núcleo 1 por interrupción (hal/fm1/fm1_cpu1.c), a prueba. */
+    /* TWO CORES on: core 1 by soft-IRQ mailbox (hal/fm1/fm1_cpu1.c). Needed for dense A2 on 320 MHz. */
+    s->dual_core = 1;
 }
 
 static void apply_settings(bm_app *a)

@@ -1299,14 +1299,35 @@ static void env_contour(bm_gfx *g, const uint8_t *q, int y0, int h, uint16_t c)
     env_shape(g, 4, y0, 232, h, tm, lv, 0.0f, c);
 }
 
+/* BUNO-6 LFO preview. Integer phase avoids a pi32 soft-float (pointer,float) miscompile
+ * that bus-faulted in the old float-arg helper (RETI in buno_lfo_at / panel_lfo_at). */
+static float buno_lfo_at_i(const uint8_t *p, int x, int w)
+{
+    if (w < 1) w = 1;
+    if (x < 0) x = 0;
+    /* two cycles across w (same as osc_shape ph2 0..2 → preview x 0..1) */
+    int phase = (int)(((long)x * 2) % w);
+    float f = (float)phase / (float)w;
+    float tri = f < 0.5f ? (4.0f * f - 1.0f) : (3.0f - 4.0f * f);
+    int delay = p[BN_LDELAY];
+    if (delay <= 0) return tri;
+    /* delay ramp: full by x/(w*delay/127) */
+    int thresh = (int)(((long)w * delay + 126) / 127);
+    if (thresh < 1) thresh = 1;
+    float r = x < thresh ? (float)x / (float)thresh : 1.0f;
+    return tri * r;
+}
+
 /* lo que sale del LFO (y de la modulación) en el recuadro de abajo, x 0..1 */
 static float panel_lfo_at(int eng, const uint8_t *p, float x)
 {
     float ph = x * 2.0f, f = ph - (float)(int)ph;
     float tri = 4.0f * fabsf(f - 0.5f) - 1.0f, sqr = f < 0.5f ? 1.0f : -1.0f;
-    if (eng == ENG_BUNO) {                                         /* el Juno: triángulo, entra con su DELAY */
-        float d = (float)p[BN_LDELAY] / 127.0f, r = d > 0.0f ? x / d : 1.0f;
-        return tri * (r < 1.0f ? r : 1.0f);
+    if (eng == ENG_BUNO) {                                         /* integer helper: float-arg path faults on pi32 */
+        int xi = (int)(x * 222.0f);
+        if (xi < 0) xi = 0;
+        if (xi > 221) xi = 221;
+        return buno_lfo_at_i(p, xi, 222);
     }
     if (eng == ENG_BITTAL) {
         switch (p[BT_LSHAPE] % BT_LSHAPES) {
@@ -1409,7 +1430,14 @@ static float wv_buno(const bm_app *a, float ph2)
     return n > 0.0f ? v / n : 0.0f;
 }
 
-static float wv_blfo(const bm_app *a, float ph2) { return panel_lfo_at(ENG_BUNO, a->pat.prm[a->track], ph2 * 0.5f); }
+static float wv_blfo(const bm_app *a, float ph2)
+{
+    /* ph2 is 0..2 from osc_shape; map to pixel index on PIC_W */
+    int xi = (int)(ph2 * 0.5f * (float)PIC_W);
+    if (xi < 0) xi = 0;
+    if (xi >= PIC_W) xi = PIC_W - 1;
+    return buno_lfo_at_i(a->pat.prm[a->track], xi, PIC_W);
+}
 
 /* debajo del panel, lo que mueve la sección: el filtro, la onda del oscilador o el contorno */
 static void panel_picture(bm_gfx *g, const bm_app *a, int y0, int h)
@@ -1466,7 +1494,9 @@ static void draw_panel(bm_gfx *g, const bm_app *a)
             uint16_t c = amt ? col : C_DGREY;
             gfx_rect(g, 8, 158, 224, 34, C_DDGREY);
             for (int x = 0; x < 222; x++) {
-                int y = 175 - (int)(panel_lfo_at(eng, p, (float)x / 222.0f) * 14.0f);
+                float lv = eng == ENG_BUNO ? buno_lfo_at_i(p, x, 222)
+                                          : panel_lfo_at(eng, p, (float)x / 222.0f);
+                int y = 175 - (int)(lv * 14.0f);
                 if (x) gfx_line(g, 8 + x, py, 9 + x, y, c);
                 py = y;
             }

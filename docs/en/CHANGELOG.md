@@ -39,6 +39,8 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 - USB MIDI could lose note-offs.
 - The power-on key combo for safe mode did not read the keys.
 - Machine audit against the original manuals: BB-303 accent only on accented steps and slide only with a tie or legato playing; key stacks on mono machines; BX-7 transpose, osc sync and break point; B-MINI TUNE tunes everything; one BUNO-6 LFO per channel with its delay; several arpeggiator and recording fixes (wrong note lengths after a previous take, hung notes when turning the arp on).
+- **BUNO-6 EDIT / LFO preview rebooted the FM-1** (soft-float helper with a float argument bus-faulted on pi32). The preview now uses an integer-phase path.
+- **Dense pattern underruns (A2):** TWO CORES on by default, hot render in RAM, tighter dual-core brake, and ALNK0 kept alive with ISR silence during flash quiet.
 
 ### Removed
 - From the 0.9 console: the channel card, CUE, FX › CHANNEL, the song, MORE, and the old SOUND / INSTR / MIX / PADS / TAKES / LOOP / SCALE / CHORDS menus.

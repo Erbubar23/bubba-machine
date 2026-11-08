@@ -39,7 +39,7 @@ Mediciones hechas en el FM-1 del autor con `tools/fm1/traza.py` (pruebas del lab
 
 | Antes (docs/ARQUITECTURA_FM1.md) | Ahora, con datos |
 |---|---|
-| Código caliente en RAM | **No hace falta para los bucles**: la caché de instrucciones alcanza. Solo para lo que deba correr mientras se escribe la flash. |
+| Código caliente en RAM | **No hace falta para microbucles** (biquad flash ≈ RAM): la caché de instrucciones alcanza. **Sí hace falta** para lo que deba correr con XIP apagado (escritura flash) y, bajo carga densa, para el render completo (thrash SFC / Class U; ver `ARQUITECTURA_FM1.md`). |
 | Probar las vías de la caché de datos | **Hecho**: 32 KiB, medido. |
 | `-O2` en el audio | Sigue; medir. |
 | Dos núcleos | **Confirmado 1.83×**: repartir las voces en dos tareas. |

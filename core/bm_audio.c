@@ -409,7 +409,7 @@ static int midiendo(const bm_ctx *c) { return c->now && c->par_auto && (c->par_n
  * piece by piece (all the tracks of a piece, then the next piece): every engine gets exactly the
  * calls it got with one core and one job per 64-frame block. tsb[k] |= the tracks that sounded in
  * mix block k. prof: this is the audio core (the profile is not shared with the other one). */
-static void run_tracks(bm_ctx *c, uint8_t mask, uint32_t a, uint32_t b, int mide, uint8_t *tsb, int prof)
+BM_RAM_CODE static void run_tracks(bm_ctx *c, uint8_t mask, uint32_t a, uint32_t b, int mide, uint8_t *tsb, int prof)
 {
     BM_PROF_T0();
     (void)prof;
@@ -467,7 +467,7 @@ static void par_balance(bm_ctx *c)
  * blocks are). A sequencer step at frame p of the chunk runs after the blocks that end at or
  * before p are mixed and before the rest: the same order as when each 64-frame block was
  * computed and mixed in turn (a step on a block edge runs after the mix of the block before). */
-static void mix_upto(bm_ctx *c, int32_t *out, const uint8_t *tsb, uint32_t *mixed, uint32_t upto, uint32_t len, int mide)
+BM_RAM_CODE static void mix_upto(bm_ctx *c, int32_t *out, const uint8_t *tsb, uint32_t *mixed, uint32_t upto, uint32_t len, int mide)
 {
     BM_PROF_T0();
     for (;;) {
@@ -486,7 +486,7 @@ static void mix_upto(bm_ctx *c, int32_t *out, const uint8_t *tsb, uint32_t *mixe
     }
 }
 
-void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
+BM_RAM_CODE void bm_audio_render(bm_ctx *c, int32_t *out, uint32_t out_frames)
 {
     bm_cmd k;
     int guard = 0;

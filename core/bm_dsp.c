@@ -299,7 +299,7 @@ static void dsp_guard(bm_ctx *c)
     if (fix) c->st.nan_fix += fix;
 }
 
-void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
+BM_RAM_CODE void bm_dsp_mix(bm_ctx *c, int32_t *out, uint32_t n)
 {
     static float L[BM_BLOCK], R[BM_BLOCK], S[BM_BLOCK], SC[BM_BLOCK];
     const bm_meta *m = &c->pat->meta;

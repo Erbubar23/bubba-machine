@@ -78,12 +78,12 @@ static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3
  * is above half of its time), the cap goes down one voice too; it only goes back up after a
  * UI_VENTANA with no slow UI. Fast UI samples (ticks that draw nothing) neither count nor reset
  * anything; a slow UI with little audio is the UI's own and does not count. */
-#define FRENO2_PICO  80u
-#define FRENO2_PROM  65u
-#define ALIVIO2_PROM 50u
-#define UI_LENTO_US  60000u
+#define FRENO2_PICO  72u                    /* brake before half-buffer underrun when TWO CORES is on */
+#define FRENO2_PROM  58u
+#define ALIVIO2_PROM 45u
+#define UI_LENTO_US  45000u                 /* slow LCD frames that steal audio budget */
 #define UI_VENTANA   172u                   /* renders of 5.8 ms: ~1 s */
-#define UI_AUDIO_MIN 50u                    /* % of the budget: below this a slow UI is the UI's own */
+#define UI_AUDIO_MIN 45u                    /* % of the budget: below this a slow UI is the UI's own */
 
 static volatile uint8_t par_sesion;         /* lab 36: the core 1 spins through a whole render (off since 0.8.1) */
 static volatile uint16_t lab_par;           /* lab 36: 0x100 | arg, se aplica al empezar un render */

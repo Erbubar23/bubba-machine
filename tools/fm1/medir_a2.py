@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Erbubar23
-"""A2 LATE harness over USB MIDI (consola lab).
+"""Pattern-02 LATE harness over USB MIDI (prefer tools/fm1/medir_patron.py).
 
   py -3 tools/fm1/medir_a2.py [--segundos 120] [--escena A|B|C]
   py -3 tools/fm1/medir_a2.py --flash-stress [--veces 20]
   py -3 tools/fm1/medir_a2.py --dual 0|1
 
-Selects HOME → pattern 02 → scene → PLAY, reports LATE/halves delta and saves perfil.
-Flash-stress: while stopped, lab 4; checks halves keep advancing (Class F keep-alive).
+HOME → pattern 02 → scene → PLAY; reports LATE/halves. Flash-stress: lab 4 while
+stopped; halves should keep advancing during quiet flash writes.
 """
 import argparse, datetime, os, sys, time
 

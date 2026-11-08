@@ -122,7 +122,7 @@ Cada núcleo tiene un papel fijo, y todo lo que puede esperar sale del audio. Ni
 
 Lo que bloquea la capa 3 hoy:
 - **La pantalla espera cada envío por SPI** (12-25 ms por cuadro). Con DMA, el próximo cuadro se dibuja mientras sale el anterior.
-- **Guardar apaga el audio** (`fm1_quiet`): el código corre desde la flash y mientras se escribe no se puede leer. Cada guardado es un corte. Con el código del audio en RAM (`.volatile_ram_code`, como Felucca) el audio sigue; lo limita la RAM libre (sección 7).
+- **Guardar y el XIP:** `fm1_quiet` ya no para el DMA de ALNK0: el ISR en RAM rellena silencio mientras se escribe la flash (Class F). El render caliente también vive en `.volatile_ram_code` para no depender del XIP bajo carga densa (Class U); lo limita la RAM libre (sección 7).
 
 ### Fases
 
@@ -131,6 +131,7 @@ Lo que bloquea la capa 3 hoy:
 | **0.6.2** | Freno de voces; TWO CORES apagado de fábrica; el núcleo 1 por interrupción (a prueba); el laboratorio cabe en el montón y la prueba 35 (núcleo 1 y coma flotante) | `consola.py estado`, `traza.py perfil`, `traza.py una 35` |
 | 0.6.3 | Reparto que se ajusta solo (por el costo de cada canal en el bloque anterior, que el perfil ya mide); BUNO-6 partido por voces entre los dos núcleos y más barato (voces a media frecuencia, coeficientes por bloque); reverb a media frecuencia | carga con el mismo patrón |
 | 0.7 | Pantalla por DMA; guardado sin cortar el audio, si alcanza la RAM | µs de la UI, cortes al guardar |
+| **0.10 (rama)** | TWO CORES encendido de fábrica; render caliente en RAM; silencio ISR durante `fm1_quiet`; freno dual-core más tenso; LFO preview de BUNO-6 sin float-arg en pi32 | `consola.py estado`, LATE en A2, EDIT/LFO en BUNO-6 |
 
 ## 7. Memoria: qué ocupa la RAM y dónde ayuda un caché por contenido
 

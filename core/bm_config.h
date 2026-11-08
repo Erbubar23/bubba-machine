@@ -105,4 +105,11 @@
 #define BM_GLOB_HI       0x0E0000u
 #define BM_SLOT_SIZE     0x2000u  /* 8 KiB = 2 sectores */
 
+/* FM-1: hot render in internal RAM (avoids flash XIP stalls). No-op on PC. */
+#if defined(CONFIG_CPU_WL82)
+#define BM_RAM_CODE __attribute__((section(".volatile_ram_code"), used))
+#else
+#define BM_RAM_CODE
+#endif
+
 #endif

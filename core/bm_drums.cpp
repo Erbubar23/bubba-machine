@@ -218,7 +218,7 @@ void bm_drm_trigger(int v, int model, float hz, float tone, float decay, float c
     }
 }
 
-int bm_drm_render(int v, float *out, int n)
+BM_RAM_CODE int bm_drm_render(int v, float *out, int n)
 {
     if (n <= 0) return 0;
     if (!drum_voice(v)) { memset(out, 0, sizeof(float) * (size_t)n); return 0; }

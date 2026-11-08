@@ -122,7 +122,7 @@ typedef void (*fm1_audio_render)(int32_t *lr, uint32_t frames);   /* estéreo, 2
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* dma: 2 mitades */
 void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb);   /* sin ALNK0 */
 void fm1_audio_stop(void);
-void fm1_audio_pause(int on);                             /* DMA e interrupción en pausa, sin rearmar el codec */
+void fm1_audio_pause(int on);                             /* flash quiet: DMA stays up, ISR silence only */
 void fm1_scan_pause(int on);
 int fm1_scan_vigilar(uint32_t ms);                        /* bucle principal: rearma un barrido detenido */
 uint32_t fm1_audio_halves(void);                          /* medios buffers calculados */

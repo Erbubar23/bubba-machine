@@ -78,12 +78,12 @@ static const uint8_t ENC_ROLE[7] = {ENC_SELECT, ENC_ALGO, ENC_K1, ENC_K2, ENC_K3
  * is above half of its time), the cap goes down one voice too; it only goes back up after a
  * UI_VENTANA with no slow UI. Fast UI samples (ticks that draw nothing) neither count nor reset
  * anything; a slow UI with little audio is the UI's own and does not count. */
-#define FRENO2_PICO  80u
-#define FRENO2_PROM  65u
-#define ALIVIO2_PROM 50u
-#define UI_LENTO_US  60000u
+#define FRENO2_PICO  72u                    /* brake before half-buffer underrun when TWO CORES is on */
+#define FRENO2_PROM  58u
+#define ALIVIO2_PROM 45u
+#define UI_LENTO_US  45000u                 /* slow LCD frames that steal audio budget */
 #define UI_VENTANA   172u                   /* renders of 5.8 ms: ~1 s */
-#define UI_AUDIO_MIN 50u                    /* % of the budget: below this a slow UI is the UI's own */
+#define UI_AUDIO_MIN 45u                    /* % of the budget: below this a slow UI is the UI's own */
 
 static volatile uint8_t par_sesion;         /* lab 36: the core 1 spins through a whole render (off since 0.8.1) */
 static volatile uint16_t lab_par;           /* lab 36: 0x100 | arg, se aplica al empezar un render */
@@ -657,6 +657,24 @@ int fm1_lab(int cmd, int arg)
         bm_app_button(&app, arg, 1, timer_get_ms());
         os_time_dly(10);
         bm_app_button(&app, arg, 0, timer_get_ms());
+        return 0;
+    case 8:                                  /* pulsar una tecla cromática (0..26) */
+        if (modo != FM1_BOOT_NORMAL || arg < 0 || arg >= BM_KEYS)
+            return -1;
+        log_num("lab: tecla ", (uint32_t)arg, " pulsada");
+        bm_app_key(&app, arg, 1, timer_get_ms());
+        os_time_dly(10);
+        bm_app_key(&app, arg, 0, timer_get_ms());
+        return 0;
+    case 9:                                  /* TWO CORES: arg 0=off, 1=on (persisted) */
+        if (modo != FM1_BOOT_NORMAL || (arg != 0 && arg != 1))
+            return -1;
+        if (app.set.dual_core != (uint8_t)arg) {
+            app.set.dual_core = (uint8_t)arg;
+            app.set_dirty = 1;
+            app.t_edit = timer_get_ms();
+        }
+        log_num("lab: dual_core ", (uint32_t)arg, "");
         return 0;
     case 26: {                               /* canal (bits 4-6) al motor (bits 0-3), para medir motores; */
         if (modo != FM1_BOOT_NORMAL)         /* antes guarda el canal como estaba (lab 32 lo vuelve) */

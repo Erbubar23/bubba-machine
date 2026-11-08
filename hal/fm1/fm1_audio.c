@@ -17,12 +17,12 @@
  *
  * La interrupción solo anota qué mitad quedó libre y despierta a la tarea "audio" (prioridad
  * 30, above the SDK's sys_event at 29: the highest one FreeRTOS allows here, the one the SDK's own
- * audio_decoder uses), que calcula el bloque del núcleo. A block that took longer than a half
- * (late): the half that is playing is not touched and nobody sleeps; the next free half is
- * computed right away (0.8.1: before, both halves went silent and the task slept a 10 ms tick, so
- * each late block was an audible gap). Only after LATE_SEGUIDOS late blocks in a row (the audio
- * cannot keep up at all) does the task leave the free half silent and give up one tick, so the
- * rest of the system (and the watchdog) still get time. */
+ * audio_decoder uses), que calcula el bloque del núcleo en un scratch y solo lo copia al DMA si
+ * todavía va a tiempo. Late: the playing half is never written; the current free half is zeroed
+ * (clean silence instead of a torn buffer). No 10 ms sleep on late (that was an audible gap).
+ * alnk0_isr and the publish/late helper live in .volatile_ram_code so they do not depend on XIP
+ * after the UI has thrashed the instruction cache. During flash erase/program XIP is off: the ISR
+ * keeps DMA alive with silence and does not wake the flash-resident audio task (fm1_audio_pause). */
 #include <string.h>
 #include "app_config.h"
 #include "system/includes.h"
@@ -32,6 +32,8 @@
 #include "fm1_hw.h"
 
 #define BM_FS_OUT_HZ 44118u          /* core/bm_config.h BM_FS_OUT */
+#define HALF_FRAMES_MAX 256u         /* fm1_main.c HALF_FRAMES */
+#define AUDIO_PRIO    30             /* configMAX_PRIORITIES - 1 */
 
 static int32_t *buf;
 static uint32_t half_words;
@@ -39,8 +41,11 @@ static fm1_audio_render render;
 static volatile uint32_t halves, late, seq;
 static volatile uint8_t calculando;
 static volatile uint8_t libre;
+static volatile uint8_t quiet;       /* flash write: ISR fills silence, no task wake */
 static int en_marcha, tarea, mudo;
 static OS_SEM sem;
+/* one half of stereo int32: render here, memcpy to DMA only if still on time */
+static int32_t scratch[HALF_FRAMES_MAX * 2u];
 
 static void codec_linea(uint32_t io, int v)
 {
@@ -48,7 +53,16 @@ static void codec_linea(uint32_t io, int v)
     gpio_direction_output(io, v);
 }
 
-static ___interrupt void alnk0_isr(void)
+/* No libc: must run with XIP off (flash program). */
+SEC_USED(.volatile_ram_code) static void zero_half(uint8_t half)
+{
+    uint32_t n = half_words, i;
+    int32_t *p = buf + (uint32_t)half * n;
+    for (i = 0; i < n; i++)
+        p[i] = 0;
+}
+
+SEC_USED(.volatile_ram_code) static ___interrupt void alnk0_isr(void)
 {
     uint8_t p = JL_ALNK0->CON2;
     if (p & 0x70u)                                        /* avisos de los otros canales */
@@ -58,15 +72,42 @@ static ___interrupt void alnk0_isr(void)
     libre = (uint8_t)(((JL_ALNK0->CON0 >> 15) & 1u) ^ 1u);   /* la mitad que no suena */
     JL_ALNK0->CON2 |= 0x08u;
     seq++;
+    if (quiet) {
+        zero_half(libre);
+        halves++;
+        return;                                           /* do not wake flash-resident audio_task */
+    }
     os_sem_post(&sem);
 }
 
-#define LATE_SEGUIDOS 8u                                  /* ~46 ms without keeping up */
-#define AUDIO_PRIO    30                                  /* configMAX_PRIORITIES - 1 */
+/* Snapshot the free half and plant silence there before the (flash-resident) render runs. */
+SEC_USED(.volatile_ram_code) static __attribute__((noinline)) void audio_begin(uint8_t *half_out, uint32_t *s_out)
+{
+    uint8_t half = libre;
+    *half_out = half;
+    *s_out = seq;
+    memset(buf + (uint32_t)half * half_words, 0, half_words * 4u);
+}
+
+/* After render: copy scratch into the reserved half if still free, else leave that half as the
+ * silence we planted at the start (it may already be playing) and silence the newest free half. */
+SEC_USED(.volatile_ram_code) static __attribute__((noinline)) void audio_commit(uint8_t half, uint32_t s0)
+{
+    uint32_t n = half_words;
+    if (seq == s0) {
+        memcpy(buf + (uint32_t)half * n, scratch, n * 4u);
+        return;
+    }
+    late++;
+    if (seq - s0 > 1u)                                    /* more than one behind: only the next one counts */
+        os_sem_set(&sem, 1);
+    /* half was pre-zeroed: if DMA already took it, the underrun is clean silence. Do not write it
+     * again. Zero the half that is free now so the next period is silent too, not stale. */
+    memset(buf + (uint32_t)libre * n, 0, n * 4u);
+}
 
 static void audio_task(void *p)
 {
-    uint32_t seguidos = 0;
     (void)p;
     for (;;) {
         if (mudo) {                                       /* sin salida: el núcleo corre igual, callado */
@@ -77,15 +118,18 @@ static void audio_task(void *p)
             continue;
         }
         os_sem_pend(&sem, 0);
-        uint32_t s = seq, t0 = fm1_scan_now_us();
-        int32_t *h = buf + (uint32_t)libre * half_words;
+        uint8_t half;
+        uint32_t s, t0 = fm1_scan_now_us();
+        uint32_t frames = half_words / 2u;
+        audio_begin(&half, &s);
         calculando = 1;
         if (render && en_marcha)
-            render(h, half_words / 2u);
+            render(scratch, frames);
         else
-            memset(h, 0, half_words * 4u);
-        halves++;
+            memset(scratch, 0, half_words * 4u);
         calculando = 0;
+        audio_commit(half, s);
+        halves++;
         uint32_t dt = fm1_scan_now_us() - t0;
         if (dt > 1000000u)
             dt = 0;                                       /* el reloj no anda (barrido apagado) */
@@ -94,29 +138,19 @@ static void audio_task(void *p)
             fm1_stat[FM1_STAT_RENDER_MAX] = dt;
         fm1_stat[FM1_STAT_RENDER_AVG] = (fm1_stat[FM1_STAT_RENDER_AVG] * 15u + dt) / 16u;
         fm1_stat[FM1_STAT_AUDIO_CPU] = current_cpu_id();
-        if (seq != s) {                                   /* se liberó otra mitad mientras calculaba */
-            late++;
-            if (seq - s > 1u)                             /* more than one behind: only the next one counts */
-                os_sem_set(&sem, 1);
-            if (++seguidos >= LATE_SEGUIDOS) {
-                seguidos = 0;
-                os_sem_set(&sem, 0);
-                memset(buf + (uint32_t)libre * half_words, 0, half_words * 4u);   /* the free half only */
-                os_time_dly(1);
-            }
-        } else {
-            seguidos = 0;
-        }
     }
 }
 
 void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb)
 {
+    if (frames_per_half > HALF_FRAMES_MAX)
+        frames_per_half = HALF_FRAMES_MAX;
     fm1_stat[FM1_STAT_BUDGET] = frames_per_half * 1000000u / BM_FS_OUT_HZ;
     buf = dma;
     half_words = frames_per_half * 2u;
     render = cb;
     memset(buf, 0, half_words * 2u * 4u);
+    memset(scratch, 0, sizeof scratch);
 
     codec_linea(IO_PORTC_06, 0);                          /* codec deshabilitado mientras se configura */
     os_time_dly(1);
@@ -155,6 +189,8 @@ void fm1_audio_start(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb
 /* el núcleo corre sin tocar ALNK0 ni el codec (modo de prueba desde el modo seguro) */
 void fm1_audio_start_mute(int32_t *dma, uint32_t frames_per_half, fm1_audio_render cb)
 {
+    if (frames_per_half > HALF_FRAMES_MAX)
+        frames_per_half = HALF_FRAMES_MAX;
     buf = dma;
     half_words = frames_per_half * 2u;
     render = cb;
@@ -176,20 +212,23 @@ void fm1_audio_stop(void)
     en_marcha = 0;
 }
 
-/* pausa para escribir la flash: sin DMA no hay interrupción; se espera a que la tarea termine el
- * bloque que esté calculando (código en la flash). Al volver, silencio y DMA de nuevo. */
+/* Flash write keep-alive: DMA stays running; ISR plants silence without waking audio_task
+ * (render lives in flash / XIP, which is offline while NOR is programmed). */
 void fm1_audio_pause(int on)
 {
     if (!en_marcha || mudo)
         return;
     if (on) {
-        JL_ALNK0->CON0 &= ~0x800u;
+        quiet = 1;
         for (int i = 0; i < 20 && calculando; i++)
             os_time_dly(1);
+        if (buf && half_words)
+            memset(buf, 0, half_words * 2u * 4u);
     } else {
-        memset(buf, 0, half_words * 2u * 4u);
+        if (buf && half_words)
+            memset(buf, 0, half_words * 2u * 4u);
         JL_ALNK0->CON2 = 0x0Fu;
-        JL_ALNK0->CON0 |= 0x800u;
+        quiet = 0;
     }
 }
 

@@ -8,9 +8,9 @@
   py -3 tools/fm1/consola.py flash 0xBF000 64     flash
   py -3 tools/fm1/consola.py cero                 pone a cero los máximos
   py -3 tools/fm1/consola.py log                  el registro de texto del firmware
-  py -3 tools/fm1/consola.py lab N [ARG]          laboratorio (en modo seguro): 1 barrido, 2 audio en
-                                                  silencio, 3 tono, 4 flash ARG veces, 5 audio detenido,
-                                                  6 arrancar Bubba con audio
+  py -3 tools/fm1/consola.py lab N [ARG]          laboratorio: 1 barrido, 2 audio silencio, 3 tono,
+                                                  4 flash ARG veces, 5 audio detenido, 6 Bubba+audio,
+                                                  7 botón, 8 tecla cromática, 9 dual_core 0|1
 
 Cierra antes el instalador web u otro programa que use el MIDI del FM-1. Lee el aparato y no
 escribe nada, salvo la prueba de flash del laboratorio (sector de prueba 0xE1000).

@@ -658,6 +658,24 @@ int fm1_lab(int cmd, int arg)
         os_time_dly(10);
         bm_app_button(&app, arg, 0, timer_get_ms());
         return 0;
+    case 8:                                  /* pulsar una tecla cromática (0..26) */
+        if (modo != FM1_BOOT_NORMAL || arg < 0 || arg >= BM_KEYS)
+            return -1;
+        log_num("lab: tecla ", (uint32_t)arg, " pulsada");
+        bm_app_key(&app, arg, 1, timer_get_ms());
+        os_time_dly(10);
+        bm_app_key(&app, arg, 0, timer_get_ms());
+        return 0;
+    case 9:                                  /* TWO CORES: arg 0=off, 1=on (persisted) */
+        if (modo != FM1_BOOT_NORMAL || (arg != 0 && arg != 1))
+            return -1;
+        if (app.set.dual_core != (uint8_t)arg) {
+            app.set.dual_core = (uint8_t)arg;
+            app.set_dirty = 1;
+            app.t_edit = timer_get_ms();
+        }
+        log_num("lab: dual_core ", (uint32_t)arg, "");
+        return 0;
     case 26: {                               /* canal (bits 4-6) al motor (bits 0-3), para medir motores; */
         if (modo != FM1_BOOT_NORMAL)         /* antes guarda el canal como estaba (lab 32 lo vuelve) */
             return -1;

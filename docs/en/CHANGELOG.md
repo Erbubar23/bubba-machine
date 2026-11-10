@@ -2,6 +2,12 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [Unreleased]
+
+### Fixed
+- **MASTER at boot:** volume followed a hard-coded loud level until the pot was moved; it now takes the knob (including fully down) before audio starts.
+- **Slow SPEED + long LENGTH:** a channel at ×1/2 or ×1/4 with LENGTH 64 now plays all 64 steps (the master cycle stretches to fit); before, the master length cut it short.
+
 ## [0.10.0-beta] - 2026-10-24
 
 **Every machine is its own instrument.** HOME was rebuilt from scratch as a six-channel mixer, and entering a channel hands the whole FM-1 to its machine, laid out like the real one: TB-303, Minimoog, Juno-6, Vital and the FM-1's own DX7-style synth. The drums have a new step sequencer and the pad sampler became the **BP-1 Slicer**. Installed and running on the author's FM-1.

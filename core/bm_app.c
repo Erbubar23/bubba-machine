@@ -783,6 +783,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->slice_sens = 64; a->pad_key = -1;
     a->solo_key = -1; a->solo_track = -1;
     a->mach_trk = BM_TR_TRACKS;
+    a->master_sent = 0xFFFF;                  /* aún no hay lectura: la primera siempre manda CMD_MASTER */
     static const uint8_t ln[BM_TRACKS] = {0, 0, 45, 57, 60, 64};
     memcpy(a->last_note, ln, sizeof ln);
     for (int k = 0; k < BM_KEYS; k++) a->key_rec_step[k] = -1;
@@ -854,9 +855,15 @@ void bm_app_battery(bm_app *a, uint8_t pct) { a->battery = pct > 100 ? 100 : pct
 
 void bm_app_master(bm_app *a, uint16_t adc)
 {
+    if (a->master_sent == 0xFFFF) {                           /* arranque: respetar el pot aunque esté en 0 */
+        a->master_adc = adc;
+        a->master_sent = adc;
+        app_push_i(a, CMD_MASTER, 0, 0, 0, adc);
+        return;
+    }
     a->master_adc = (uint16_t)((a->master_adc * 3u + adc) / 4u);
-    int d = (int)a->master_adc - (int)a->master_sent;
-    if (d > 4 || d < -4 || (adc == 0 && a->master_sent) || (adc >= 1023 && a->master_sent < 1023)) {
+    int drift = (int)a->master_adc - (int)a->master_sent;
+    if (drift > 4 || drift < -4 || (adc == 0 && a->master_sent) || (adc >= 1023 && a->master_sent < 1023)) {
         a->master_sent = (adc == 0 || adc >= 1023) ? adc : a->master_adc;
         app_push_i(a, CMD_MASTER, 0, 0, 0, a->master_sent);
     }

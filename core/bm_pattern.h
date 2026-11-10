@@ -207,6 +207,9 @@ int  bm_machine_conflict(const bm_pattern *p, int track, int engine);
 void bm_track_set_engine(bm_pattern *p, int track, int engine);
 int  bm_pattern_count_events(const bm_pattern *p);
 int  bm_master_steps(const bm_meta *m);       /* 0 = infinito */
+/* ticks del ciclo maestro: al menos master×24, y lo bastante para que cada canal
+ * complete su LENGTH a su SPEED (si no, un X1/2 de 64 pasos no llegaba al final) */
+uint32_t bm_master_ticks(const bm_pattern *pat);
 
 /* Formato disperso en flash. Devuelven bytes, o -1 si no cabe / es inválido o de otra versión. */
 int bm_pattern_pack(const bm_pattern *p, uint8_t *out, int cap);

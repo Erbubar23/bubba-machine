@@ -23,7 +23,7 @@ void bm_gesture_init(bm_gesture *g, bm_gesture_cb cb, void *user)
     cfg(g, BTN_ENV, 1, 1, 0, 1, 0);                   /* capa SONIDO (golpe) */
     cfg(g, BTN_LFO, 1, 1, 0, 1, 0);                   /* capa ACENTOS */
     cfg(g, BTN_PLAY, 0, 0, 1, 0, 0);
-    cfg(g, BTN_OCT_DN, 0, 0, 1, 0, 0);
+    cfg(g, BTN_OCT_DN, 0, 0, 1, 0, UI_STEP_CLEAR_MS); /* 1 s en STEP REC: borra el paso del cursor */
     cfg(g, BTN_OCT_UP, 0, 0, 1, 0, 0);
     cfg(g, BTN_HOME, 0, 0, 0, 1, UI_LONG_MS);         /* 2 s: SISTEMA */
     cfg(g, BTN_SAVE, 0, 0, 0, 1, UI_LONG_MS);         /* 2 s: guardado rápido */

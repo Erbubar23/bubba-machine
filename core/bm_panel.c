@@ -180,7 +180,7 @@ static const bxp *cur(const bm_app *a, int *n)
     *n = pages(m, a->bx.page);
     int s = panel_sub(a);
     switch (a->bx.page) {
-    case BXP_SEQ: return MACH_SEQ;
+    case BXP_SEQ: return mach_seq_page(a);
     case BXP_ENV: return m->env[s];
     case BXP_LFO: return m->lfo[s];
     case BXP_FX: return s ? m->fx2 : PX_FX1;

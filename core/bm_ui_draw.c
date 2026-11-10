@@ -66,6 +66,7 @@ static const char *hold_target(const bm_app *a, int id)
         snprintf(b, sizeof b, TF("CLEAR T%d"), app_pos(a->track) + 1);
         return b;
     }
+    if (id == BTN_OCT_DN && mach_step_mode(a)) return "CLEAR STEP";   /* OCT− en STEP REC: borra el paso */
     return id == BTN_HOME ? "SYSTEM" : id == BTN_SAVE ? "QUICK SAVE" : NULL;
 }
 

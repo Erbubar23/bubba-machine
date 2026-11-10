@@ -1668,6 +1668,8 @@ void app_input_tick(bm_app *a)
 {
     uint32_t now = a->now;
     mach_tick(a);
+    if (a->bx.rst_confirm && (int32_t)(now - a->rst_t) >= (int32_t)UI_RST_IDLE_MS)
+        a->bx.rst_confirm = 0;                                   /* GLO RESET: 1 s sin giro → TURN */
     if (a->held_white >= 0 && !a->held_long && now - a->step_t0 >= UI_HOLD_MS) a->held_long = 1;
     for (int k = 0; k < BM_KEYS; k++) {
         if (!a->keys_down[k] || !a->key_t0[k] || now - a->key_t0[k] < UI_HOLD_MS) continue;

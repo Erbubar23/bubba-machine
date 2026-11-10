@@ -47,6 +47,8 @@ typedef struct {
     uint8_t fxpos, grab;          /* FX: la casilla elegida y si SCL la tomó para moverla */
     uint8_t armed;                /* REC parado: la primera nota arranca y graba */
     uint8_t step;                 /* SEQ, paso a paso (REC parado): el paso que se escribe */
+    uint8_t step_len;             /* paso a paso: largo de las notas que se escriben (1..LENGTH; 0 = 1) */
+    uint8_t rst_confirm;          /* GLO RESET: 0 = TURN; 1..255 = barra CONFIRM? (lleno = resetea) */
     uint8_t chord, nslot;         /* paso a paso: hay teclas del paso apretadas y cuántas notas lleva */
     uint8_t blk;                  /* BB-303 SCL: la página de 16 pasos */
     uint8_t vman, vpage;          /* piano roll: K3 eligió la página que se ve (si no, sigue al cabezal / cursor) */
@@ -141,6 +143,7 @@ typedef struct bm_app {
     uint8_t mach_arm;             /* 1 = la cuenta de 2 s corre (ALGORITHM la movió a otra) */
     uint8_t mach_trk;             /* el canal que cambia de máquina (la tarjeta o GLO > MACHINES) */
     uint32_t mach_t0;             /* cuándo se llegó a la elegida */
+    uint32_t rst_t;               /* último giro de GLO RESET (CONFIRM?) */
     uint8_t sel_lane[BM_TRACKS];
     int8_t oct;
     uint8_t rec, fill;

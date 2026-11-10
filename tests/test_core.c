@@ -2597,6 +2597,23 @@ static void test_b303(void)
     CHECK(app.pat.trk[2].qfree == 1 && !strcmp(app.ov.val, "75%"));
     enc(ENC_K3, 1);
     CHECK(app.pat.trk[2].qfree == 0);
+    /* RESET: girar llena CONFIRM? (lento); 1 s parado vuelve a TURN; al llenarse, resetea */
+    {
+        uint8_t cut0 = app.pat.trk[2].macro[0];
+        app.pat.trk[2].macro[0] = (uint8_t)(cut0 ^ 0x55);
+        enc(ENC_K4, 1);
+        bm_app_legend(&app, L);
+        CHECK(!strcmp(L[3].val, "CONFIRM?") && L[3].pct > 0 && L[3].pct < 255);
+        CHECK(app.pat.trk[2].macro[0] == (uint8_t)(cut0 ^ 0x55));   /* todavía no */
+        run_ms(1100);                                               /* 1 s sin giro: cancela */
+        bm_app_legend(&app, L);
+        CHECK(!strcmp(L[3].val, "TURN") && L[3].pct == 0);
+        CHECK(app.pat.trk[2].macro[0] == (uint8_t)(cut0 ^ 0x55));
+        for (int i = 0; i < 16; i++) enc(ENC_K4, 1);              /* 16 giros × 16 = llena y resetea */
+        bm_app_legend(&app, L);
+        CHECK(!strcmp(L[3].val, "TURN") && L[3].pct == 0);
+        CHECK(strstr(app.toast, "RESET") != NULL);
+    }
     /* REC armado en el panel: la primera nota arranca y graba; tocar ligado = SLIDE */
     btn(BTN_EDIT, 30);
     CHECK(app.bx.page == BXP_MAIN);
@@ -2816,6 +2833,21 @@ static void test_roll_machines(void)
             CHECK(app.bx.step == 0);
             key(kb, 60);
             CHECK(step_has(3, 0, nb) && !step_has(3, 0, na) && step_n(3, 0) == 1);
+            /* K1 LENGTH: el largo de las notas nuevas; también edita las del cursor */
+            CHECK(app.bx.step == 1);
+            bm_app_legend(&app, L);
+            CHECK(!strcmp(L[0].name, "LENGTH"));
+            enc(ENC_K1, 3);
+            CHECK(app.bx.step_len == 4);
+            key(ka, 60);
+            CHECK(app.bx.step == 2 && step_has(3, 1, na) && (bm_evc(&app.pat, 3, 1, 0)->len & BM_LEN_MASK) == 4);
+            enc(ENC_SELECT, -1);                                 /* vuelve al paso con la nota larga */
+            CHECK(app.bx.step == 1);
+            enc(ENC_K1, -2);
+            CHECK(app.bx.step_len == 2 && (bm_evc(&app.pat, 3, 1, 0)->len & BM_LEN_MASK) == 2);
+            /* OCT− 1 s: borra el paso del cursor y avanza (anillo CLEAR STEP) */
+            btn(BTN_OCT_DN, 1100);
+            CHECK(step_n(3, 1) == 0 && app.bx.step == 2);
             /* PLAY: sigue grabando en vivo, con el largo de lo que sostienes */
             btn(BTN_PLAY, 20);
             CHECK(app.ctx.st.playing && app.rec && !mach_step_mode(&app));

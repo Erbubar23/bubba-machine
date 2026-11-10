@@ -2,6 +2,13 @@
 
 Every version of Bubba Machine. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [semantic versioning](https://semver.org/): while the version starts with 0, any minor version may change how it plays or the pattern format.
 
+## [Unreleased]
+
+### Added
+- **STEP REC note length:** K1 LENGTH sets how many steps new notes last and edits notes on the cursor step.
+- **STEP REC clear:** OCT− held 1 s clears the cursor step and advances (header ring like REC clear).
+- **GLO RESET confirm:** turning RESET fills an inline CONFIRM? bar (~16 clicks); 1 s idle cancels back to TURN; when full, the sound resets.
+
 ## [0.10.0-beta] - 2026-10-24
 
 **Every machine is its own instrument.** HOME was rebuilt from scratch as a six-channel mixer, and entering a channel hands the whole FM-1 to its machine, laid out like the real one: TB-303, Minimoog, Juno-6, Vital and the FM-1's own DX7-style synth. The drums have a new step sequencer and the pad sampler became the **BP-1 Slicer**. Installed and running on the author's FM-1.

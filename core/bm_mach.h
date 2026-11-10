@@ -14,7 +14,7 @@
  * preset, o el LATCH del arpegiador. K_PRMI: un byte de prm al revés (max - v); K_R3: el RANGE del OSC 3
  * del B-MINI, con LO primero (en prm va al final, MN_R_LO). */
 enum { K_NONE, K_FMV, K_OP, K_TRK, K_MAC, K_PRM, K_LEN, K_ON, K_RST, K_LATCH, K_MACH, K_VIEWX, K_VIEWY, K_QUANT,
-       K_PRMI, K_R3,
+       K_PRMI, K_R3, K_STEPLEN,
        K_SLICE };                        /* el Slicer: un campo del pad elegido o de su ventana (core/bm_slicer.c) */
 enum { F_INT, F_P1, F_LIST, F_ONOFF, F_BIP, F_PCT, F_RAWPCT, F_TRSP, F_DT, F_HZ, F_NOTE, F_BARS, F_STEPS, F_CH,
        F_OHZ, F_DMS, F_GLIDE,       /* el corte, la caída y el slide del BB-303 */
@@ -29,6 +29,7 @@ extern const bxp MACH_SEQ[4];                 /* SEQ: SPEED; K3/K4 recorren el p
 extern const bxp MACH_GLO[2][4];              /* GLO: LENGTH, MACHINE, MIDI CH, MIDI OUT; pág 2 QUANT (K3), RESET */
 extern const char *const MACH_QUANTS[4];
 #define MACH_QUANT {"QUANT", K_QUANT, 0, 0, 3, F_LIST, MACH_QUANTS}   /* PLAY+REC: 25 50 75 100 % */
+const bxp *mach_seq_page(const bm_app *a);    /* SEQ: con STEP REC, K1 = largo de nota */
 extern const bxp MACH_ARP[2][4];              /* ARP: MODE OCTAVE RATE GATE / LATCH */
 
 int  mach_get(const bm_app *a, const bxp *p);
@@ -36,6 +37,7 @@ void mach_fmt(const bxp *p, int v, char *b, int cap);
 int  mach_pct(const bxp *p, int v);
 /* gira la perilla k: escribe el valor y devuelve el nuevo (-1 si no cambió; el título lo arma quien llama) */
 int  mach_turn(bm_app *a, const bxp *p, int d);
+bool mach_rst_fill(bm_app *app, int delta);           /* GLO RESET: llena CONFIRM?; true = lleno (hay que resetear) */
 void mach_legend(const bm_app *a, const bxp *P, bm_legend L[4]);
 bool mach_oct(bm_app *a, int id, bm_gkind k);         /* OCT -/+ (los dos: todo a 0); true = lo usó */
 void mach_rec(bm_app *a, bm_gkind k);                 /* REC tipo SLOOP; sostenido 2 s borra el canal */

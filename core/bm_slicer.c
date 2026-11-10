@@ -229,12 +229,17 @@ int slicer_turn(bm_app *a, const bxp *p, int d)
     bm_pad *q = pad_of(a);
     int l = pad_sel(a), cur = slicer_get(a, p), v;
     int step = p->max <= 16 ? app_lst(a, d) : d;
+    if (p->idx != S_RST && a->bx.rst_confirm) a->bx.rst_confirm = 0;   /* otra perilla: cancela CONFIRM? */
     switch (p->idx) {
     case S_START: return trim(a, 0, d);
     case S_LEN: return trim(a, 1, d);
     case S_ZOOM: v = bm_clampi(cur + step, 0, 3); a->bx.szoom = (uint8_t)v; return v == cur ? -1 : v;
     case S_BARS: v = bm_clampi(cur + step, 0, bars_max(a)); a->bx.sbars = (uint8_t)v; return v == cur ? -1 : v;
-    case S_RST: sound_reset(a); return -1;
+    case S_RST: {                                             /* GLO RESET: girar llena CONFIRM?; al llenarse, resetea */
+        if (!mach_rst_fill(a, d)) return a->bx.rst_confirm ? 0 : -1;
+        sound_reset(a);
+        return -1;
+    }
     case S_KLEN: app_kit_len(a, SL, p == &SL_GRID[1] ? 1 : 0, d); return -1;   /* el aviso lo da ella (K2 en la rejilla, K1 en GLO) */
     default: break;
     }
@@ -260,6 +265,11 @@ void slicer_legend_of(const bm_app *a, const bxp *P, bm_legend L[4])
     char b[12];
     for (int k = 0; k < 4; k++) {
         if (!slicer_live(a, &P[k])) continue;             /* sin función: nada (ni el nombre) */
+        if (P[k].kind == K_SLICE && P[k].idx == S_RST) {
+            if (a->bx.rst_confirm) { snprintf(b, sizeof b, "%s", "CONFIRM?"); app_layer_legend(a, L, k, P[k].name, b, a->bx.rst_confirm); }
+            else { snprintf(b, sizeof b, "%s", "TURN"); app_layer_legend(a, L, k, P[k].name, b, 0); }
+            continue;
+        }
         int v = slicer_get(a, &P[k]);
         slicer_fmt(a, &P[k], v, b, sizeof b);
         app_layer_legend(a, L, k, P[k].name, b, slicer_pct(a, &P[k], v));

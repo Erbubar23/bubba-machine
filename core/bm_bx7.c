@@ -110,7 +110,7 @@ static const bxp *cur(const bm_app *a, int *n)
 {
     const bm_bx7ui *u = &a->bx;
     switch (u->page) {
-    case BXP_SEQ: *n = 1; return MACH_SEQ;
+    case BXP_SEQ: *n = 1; return mach_seq_page(a);
     case BXP_ENV: *n = 1; return P_ENV[0];
     case BXP_LFO: *n = 2; return P_LFO[u->sub[BXP_LFO] % 2];
     case BXP_GLO: *n = 2; return u->sub[BXP_GLO] % 2 ? P_GLO2 : MACH_GLO[0];

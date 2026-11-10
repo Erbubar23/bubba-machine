@@ -60,6 +60,9 @@
 /* ---- UI (§6) ---- */
 #define UI_HOLD_MS       300u
 #define UI_LONG_MS       2000u   /* pulsación larga: pantallas especiales */
+#define UI_STEP_CLEAR_MS 1000u   /* STEP REC: OCT− borra el paso (más corto que REC 2 s) */
+#define UI_RST_STEP      16u     /* GLO RESET: avance de CONFIRM? por detent (~16 giros) */
+#define UI_RST_IDLE_MS   1000u   /* GLO RESET: sin giro, vuelve a TURN */
 #define UI_OVERLAY_MS    1500u
 #define UI_TOAST_MS      1500u
 #define UI_FPS           30u

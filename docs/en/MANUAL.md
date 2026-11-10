@@ -221,7 +221,7 @@ BB-303, B-MINI, BUNO-6, BITTAL and BX-7 share the same base:
 - **PRESETS:** the machine's factory sounds; B-MINI, BITTAL and BUNO-6 also show the sounds you added from the control platform.
 - **SEQ:** the channel as a **piano roll**, one page of 16 steps (the page of the playhead when playing, of the cursor when stopped). **SELECT** moves the step cursor. **K2 SPEED** (×2 to ×1/4), **K3 PAGE** (the 16 steps you see), **K4 SCROLL** (the pitches you see). SEQ again = the main page.
 - **ARP** (2 pages): **MODE** (OFF, UP, DOWN, INCL, EXCL, RANDOM, ORDER, REPEAT) · **OCTAVE** (1-4) · **RATE** (1/8, 1/16, 1/32) · **GATE** (20-100 %); page 2: **LATCH**. With REC on, the arpeggio is recorded.
-- **GLO** (2 pages): **LENGTH** (1-64 steps) · **MACHINE** (only the machines this channel can have now; leave it 2 s on one to load it) · **MIDI CH** · **MIDI OUT** (the channel also sends its notes over USB MIDI on its MIDI CH); page 2: **QUANT** (K3) · **RESET** (K4: turn it and the sound goes back to its preset). The BX-7 has **TRANSP** on K1 of page 2.
+- **GLO** (2 pages): **LENGTH** (1-64 steps) · **MACHINE** (only the machines this channel can have now; leave it 2 s on one to load it) · **MIDI CH** · **MIDI OUT** (the channel also sends its notes over USB MIDI on its MIDI CH); page 2: **QUANT** (K3) · **RESET** (K4: turn to fill CONFIRM? — stop for 1 s and it cancels; when full, the sound goes back to its preset). The BX-7 has **TRANSP** on K1 of page 2.
 
 ![The B-MINI's SEQ](../../assets/screens/82-mini-seq.png)
 
@@ -231,7 +231,7 @@ Recording follows SLOOP: **the channel keeps its length**; at the end it goes ar
 
 - **Playing:** REC records at once. The first time you touch a step in a pass, what was there is replaced; notes added in the same pass make a chord. Steps you don't touch stay. Each note keeps **how long you held it** (never longer than the bar it starts in, nor than the channel).
 - **Stopped, outside SEQ:** REC arms (**REC ARMED: PLAY A NOTE**, REC breathes): the first note starts playback and records. PLAY also starts it.
-- **Stopped, on SEQ: STEP REC.** The key (or chord) rewrites the step under the cursor and the cursor moves on when you let go; SELECT moves the cursor (skipping steps = rests). Each note is one step long.
+- **Stopped, on SEQ: STEP REC.** The key (or chord) rewrites the step under the cursor and the cursor moves on when you let go; SELECT moves the cursor (skipping steps = rests). **K1 LENGTH** sets how many steps each new note lasts (and edits notes already on the cursor step). **OCT− held 1 s** clears the cursor step and advances (yellow ring, like REC clear).
 - **QUANT** (GLO page 2): how much of your timing is corrected, **25 / 50 / 75 / 100 %** (100 % = exactly on the step). Only the start; the length stays as you held it.
 - **REC held 2 s** clears the channel, playing or stopped.
 
@@ -341,7 +341,7 @@ The white keys are always the 16 pads (play and select; on = selected, medium = 
 | **ENV** | **ENV** | ATTACK | RELEASE | LOOP IN | LOOP OUT (only in LOOP mode) |
 | **FX** | DISTORTION; again CHORUS and REVERB | as on the panel machines | | | |
 | **GLO** | **GLO 1/2** | LENGTH (all pads) | — | MIDI CH | MIDI OUT |
-| **GLO again** | **GLO 2/2** | — | — | — | RESET (the pads' sound and the FX back to factory; the cuts stay) |
+| **GLO again** | **GLO 2/2** | — | — | — | RESET (turn to fill CONFIRM? — 1 s idle cancels; pads' sound and FX back to factory; the cuts stay) |
 
 **In TRIM, the black keys:** **AUTO**, **8** and **16** cut the selected pad's take (lit when it has one) and **always rewrite the sequence**; **SMP** (black 11) records **the mix** from the next bar (stopped: it starts with PLAY), for the bars on K4. SMP again stops. The new take is saved when you stop the transport and goes on the selected pad. The header shows **SAMPLING 1.2 S** while it records.
 

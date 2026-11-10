@@ -5,6 +5,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 ## [Unreleased]
 
 ### Fixed
+- **Could not leave Bubba from the Firmware Hub:** step 1 of the update only accepted M-VAVE's loader, so Install of Felucca-family firmwares failed (soft-brick without OCT−). Bubba now stages Felucca's loader as well; the boot-area match stays only for M-VAVE's loader.
 - **MASTER at boot:** volume followed a hard-coded loud level until the pot was moved; it now takes the knob (including fully down) before audio starts.
 - **Slow SPEED + long LENGTH:** a channel at ×1/2 or ×1/4 with LENGTH 64 now plays all 64 steps (the master cycle stretches to fit); before, the master length cut it short.
 - **BUNO-6 EDIT / LFO preview rebooted the FM-1** (soft-float helper with a float argument bus-faulted on pi32). The preview now uses an integer-phase path.

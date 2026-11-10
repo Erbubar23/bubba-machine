@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Erbubar23 */
-/* Servicio de actualización por USB-MIDI, compatible con M-UPGRADE y con web/instalar.html.
+/* Servicio de actualización por USB-MIDI, compatible con M-UPGRADE, web/instalar.html y el hub.
  *
  * Protocolo (FM-1-RE, docs/io/11-ota-protocol.md): el computador saluda y el FM-1 contesta su
  * identidad; con la orden de actualizar, el FM-1 pide partes del paquete (lecturas con
  * dirección y largo) y el computador contesta. Aquí se hace el paso 1:
  *   1. cabecera del paquete y lista de archivos (CRC);
- *   2. el cargador del paquete tiene que ser el oficial de M-VAVE (CRC conocidos);
- *   3. los primeros 16 KiB de flash.bin tienen que ser iguales a los del aparato (el cargador
- *      oficial los reescribe: así nunca cambia el arranque);
+ *   2. el cargador del paquete: el oficial de M-VAVE (CRC conocidos) o el de Felucca
+ *      (marcador "FELUCCA-LOADER-1"), ambos con cabecera JLFS bien hecha;
+ *   3. si es el oficial (reescribe el arranque): los primeros 16 KiB de flash.bin tienen que
+ *      ser iguales a los del aparato; el de Felucca solo escribe la app, no se compara;
  *   4. el cargador se copia a la zona de espera (FM1_OTA_AREA), se relee y se comprueba;
  *   5. el computador confirma ("success" en la dirección 0xE0000000);
  *   6. registro de actualización (UPDATA_PARM del SDK) en flash y en RAM, y reinicio: el
@@ -175,11 +176,54 @@ static void zona_borrar(void)
         fm1_flash_erase(FM1_OTA_AREA + a);
 }
 
+/* cabecera JLFS del cargador bien hecha y cabe en la zona de espera */
+static int cargador_jlfs_ok(const uint8_t *b, uint32_t ota_len, uint32_t len)
+{
+    return crc16(b + 2, 30, 0) == rd16(b) && rd32(b + 4) == 0x20u && b[12] == 0x41u &&
+           ota_len == len + 0x20u && len <= FM1_OTA_LEN - 0x200u &&
+           crc16(b + 0x22, 30, 0) == rd16(b + 0x20) && rd32(b + 0x28) == LDR_LOAD;
+}
+
+static int cargador_oficial(const uint8_t *b, uint32_t len)
+{
+    return rd16(b) == LDR_HCRC && rd16(b + 2) == LDR_DCRC && len == LDR_LEN;
+}
+
+/* primer bloque LZ4 del cargador de Felucca (crt0_ldr.S); el tamaño interior acota el cuerpo */
+static int cargador_felucca(const uint8_t *b)
+{
+    static const char MARCA[16] = "FELUCCA-LOADER-1";
+    uint32_t i;
+
+    if (rd32(b + 0x24) > 0x14000u)
+        return 0;
+    for (i = 0x48; i + 16u <= 0x48u + 64u; i++)
+        if (!memcmp(b + i, MARCA, 16))
+            return 1;
+    return 0;
+}
+
+/* el oficial reescribe el arranque: tiene que coincidir con el del aparato */
+static int arranque_igual(uint32_t fl_off, uint8_t *pkg, uint8_t *dev)
+{
+    uint32_t i;
+
+    for (i = 0; i < 0x4000u; i += REQ_MAX) {
+        if (leer(fl_off + i, pkg, REQ_MAX) || fm1_flash_read(i, dev, REQ_MAX))
+            return -6;
+        if (memcmp(pkg, dev, REQ_MAX))
+            return -7;
+    }
+    return 0;
+}
+
 /* pasos 1..5; 0 = el computador confirmó */
 static int preparar(fm1_update_show show)
 {
     static uint8_t hdr[0x400], b[REQ_MAX], mio[REQ_MAX];
     uint32_t i, n, nent, fl_off = 0, ota_off = 0, ota_len = 0, len, c, crc;
+    int oficial, rc;
+
     show(1, 0);
     if (leer(0, hdr, 512) || leer(512, hdr + 512, 512))
         return -1;
@@ -200,22 +244,19 @@ static int preparar(fm1_update_show show)
     }
     if (!fl_off || !ota_off)
         return -3;
-    /* el cargador: solo el oficial */
     if (leer(ota_off, b, 512))
         return -4;
     len = rd32(b + 8);
-    if (crc16(b + 2, 30, 0) != rd16(b) || rd32(b + 4) != 0x20u || b[12] != 0x41u || ota_len != len + 0x20u ||
-        crc16(b + 0x22, 30, 0) != rd16(b + 0x20) || rd32(b + 0x28) != LDR_LOAD ||
-        rd16(b) != LDR_HCRC || rd16(b + 2) != LDR_DCRC || len != LDR_LEN || len > FM1_OTA_LEN - 0x200u)
+    if (!cargador_jlfs_ok(b, ota_len, len))
+        return -5;
+    oficial = cargador_oficial(b, len);
+    if (!oficial && !cargador_felucca(b))
         return -5;
     c = rd16(b + 2);
-    /* el arranque del paquete tiene que ser el del aparato */
-    show(2, 0);
-    for (i = 0; i < 0x4000u; i += REQ_MAX) {
-        if (leer(fl_off + i, b, REQ_MAX) || fm1_flash_read(i, mio, REQ_MAX))
-            return -6;
-        if (memcmp(b, mio, REQ_MAX))
-            return -7;
+    if (oficial) {
+        show(2, 0);
+        if ((rc = arranque_igual(fl_off, b, mio)) != 0)
+            return rc;
     }
     /* copiar el cargador a la zona de espera, releerlo y la cabecera al final */
     show(3, 0);

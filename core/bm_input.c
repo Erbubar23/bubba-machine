@@ -522,8 +522,8 @@ void app_rec_at(bm_app *a, int k, int t, const uint8_t *notes, int n, uint32_t r
     int tps = bm_speed_tps[a->pat.trk[t].speed % SPD_COUNT];
     int len = a->pat.trk[t].length ? a->pat.trk[t].length : 16;
     uint32_t q = (rt + (uint32_t)tps / 2) / (uint32_t)tps;
-    int master = bm_master_steps(&a->pat.meta) * BM_TICKS_STEP;
-    if (master) q %= ((uint32_t)master + (uint32_t)tps - 1u) / (uint32_t)tps;   /* pasado el final del maestro: el 0 */
+    uint32_t master = bm_master_ticks(&a->pat);
+    if (master) q %= (master + (uint32_t)tps - 1u) / (uint32_t)tps;   /* pasado el final del maestro: el 0 */
     int s = (int)(q % (uint32_t)len);
     int micro = bm_clampi((int)(rt - q * (uint32_t)tps), -11, 11);   /* lo que se adelantó o se atrasó */
     if (micro > -3 && micro < 3) micro = 0;                    /* lo que está casi en el paso, en el paso */

@@ -219,9 +219,9 @@ BB-303, B-MINI, BUNO-6, BITTAL and BX-7 share the same base:
 
 - **Keys:** chromatic from F, played live. **OCT − / +** change the octave when you let go (±3); **both together** set octave and transpose back to 0.
 - **PRESETS:** the machine's factory sounds; B-MINI, BITTAL and BUNO-6 also show the sounds you added from the control platform.
-- **SEQ:** the channel as a **piano roll**, one page of 16 steps (the page of the playhead when playing, of the cursor when stopped). **SELECT** moves the step cursor. **K2 SPEED** (×2 to ×1/4), **K3 PAGE** (the 16 steps you see), **K4 SCROLL** (the pitches you see). SEQ again = the main page.
+- **SEQ:** the channel as a **piano roll**, one page of 16 steps (the page of the playhead when playing, of the cursor when stopped). **SELECT** moves the step cursor. **K2 SPEED** (×2 to ×1/4; slower than ×1 still plays the whole LENGTH, just stretched), **K3 PAGE** (the 16 steps you see), **K4 SCROLL** (the pitches you see). SEQ again = the main page.
 - **ARP** (2 pages): **MODE** (OFF, UP, DOWN, INCL, EXCL, RANDOM, ORDER, REPEAT) · **OCTAVE** (1-4) · **RATE** (1/8, 1/16, 1/32) · **GATE** (20-100 %); page 2: **LATCH**. With REC on, the arpeggio is recorded.
-- **GLO** (2 pages): **LENGTH** (1-64 steps) · **MACHINE** (only the machines this channel can have now; leave it 2 s on one to load it) · **MIDI CH** · **MIDI OUT** (the channel also sends its notes over USB MIDI on its MIDI CH); page 2: **QUANT** (K3) · **RESET** (K4: turn it and the sound goes back to its preset). The BX-7 has **TRANSP** on K1 of page 2.
+- **GLO** (2 pages): **LENGTH** (1-64 steps; with SPEED below ×1 the whole length still plays) · **MACHINE** (only the machines this channel can have now; leave it 2 s on one to load it) · **MIDI CH** · **MIDI OUT** (the channel also sends its notes over USB MIDI on its MIDI CH); page 2: **QUANT** (K3) · **RESET** (K4: turn it and the sound goes back to its preset). The BX-7 has **TRANSP** on K1 of page 2.
 
 ![The B-MINI's SEQ](../../assets/screens/82-mini-seq.png)
 

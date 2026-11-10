@@ -4,9 +4,10 @@
  *
  * Reloj de 96 PPQN calculado desde el contador de muestras. Cada canal avanza
  * a su velocidad (ticks por paso) y con su largo; cada instrumento TR, con el
- * suyo. El "largo maestro" reinicia todos juntos y es donde cambian patrones,
- * escenas y canción. El sampler (T2) tiene un generador que decide, compás por
- * compás y con una semilla, qué slice suena en cada paso. */
+ * suyo. El "largo maestro" reinicia todos juntos (al menos ese largo en ticks
+ * de ×1, y lo bastante para que cada canal complete LENGTH×SPEED) y es donde
+ * cambian patrones, escenas y canción. El sampler (T2) tiene un generador que
+ * decide, compás por compás y con una semilla, qué slice suena en cada paso. */
 #include <string.h>
 #include "bm_audio.h"
 #include "bm_params.h"
@@ -272,8 +273,8 @@ static void fire_syn(bm_ctx *c, int t, uint32_t n, int tps, bool fill)
 {
     const bm_track *tr = &c->pat->trk[t];
     int len = tr->length ? tr->length : 16;
-    int master = bm_master_steps(&c->pat->meta) * BM_TICKS_STEP;
-    uint32_t n1 = master && (n + 1) * (uint32_t)tps >= (uint32_t)master ? 0 : n + 1;   /* el maestro vuelve a 0 */
+    uint32_t master = bm_master_ticks(c->pat);
+    uint32_t n1 = master && (n + 1) * (uint32_t)tps >= master ? 0 : n + 1;   /* el maestro vuelve a 0 */
     int s = (int)(n % (uint32_t)len), s1 = (int)(n1 % (uint32_t)len);
     int fired = 0;
     for (int k = 0; k < BM_EVENTS; k++) {
@@ -598,9 +599,9 @@ static bool arp_active(const bm_ctx *c, int t)
 static void arp_record(bm_ctx *c, int t, uint8_t note, int ticks)
 {
     int tps = bm_track_tps(c, t), len = c->pat->trk[t].length ? c->pat->trk[t].length : 16;
-    int master = bm_master_steps(&c->pat->meta) * BM_TICKS_STEP;
+    uint32_t master = bm_master_ticks(c->pat);
     uint32_t q = (c->rtick + (uint32_t)tps / 2u) / (uint32_t)tps;
-    if (master) q %= ((uint32_t)master + (uint32_t)tps - 1u) / (uint32_t)tps;   /* pasado el final del maestro: el 0 */
+    if (master) q %= (master + (uint32_t)tps - 1u) / (uint32_t)tps;   /* pasado el final del maestro: el 0 */
     int s = (int)(q % (uint32_t)len), slot = -1;
     for (int k = 0; k < BM_EVENTS; k++) {
         const bm_event *ev = bm_evc(c->pat, t, s, k);
@@ -833,8 +834,8 @@ void bm_seq_tick(bm_ctx *c)
     looper_tick(c);
     c->rtick++; c->btick++;
     c->st.btick = c->btick;
-    int master = bm_master_steps(&c->pat->meta) * BM_TICKS_STEP;
-    if (master && c->rtick >= (uint32_t)master) {
+    uint32_t master = bm_master_ticks(c->pat);
+    if (master && c->rtick >= master) {
         c->rtick = 0;
         c->st.loops++;
         boundary(c);

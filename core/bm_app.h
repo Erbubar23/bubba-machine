@@ -182,7 +182,7 @@ typedef struct bm_app {
     uint32_t toast_until;
     uint32_t autosave_until;          /* marca de autoguardado en el encabezado (sin aviso) */
     uint8_t battery;
-    uint16_t master_adc, master_sent;
+    uint16_t master_adc, master_sent; /* master_sent=0xFFFF: aún no se leyó el pot */
     uint32_t now, boot_t;
     uint8_t last_trig[BM_TRACKS];
     uint32_t trig_until[BM_TRACKS];

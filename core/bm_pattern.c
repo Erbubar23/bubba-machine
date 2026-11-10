@@ -187,6 +187,26 @@ void bm_pattern_init(bm_pattern *p)
 
 int bm_master_steps(const bm_meta *m) { return m->master * BM_PAGE_STEPS; }
 
+uint32_t bm_master_ticks(const bm_pattern *pat)
+{
+    int master_steps = bm_master_steps(&pat->meta);
+    if (!master_steps) return 0;                                  /* infinito: sin reinicio global */
+    uint32_t period = (uint32_t)master_steps * (uint32_t)BM_TICKS_STEP;
+    for (int track = 0; track < BM_TRACKS; track++) {
+        int ticks_per_step = bm_speed_tps[pat->trk[track].speed % SPD_COUNT];
+        if (bm_is_grid(pat, track)) {
+            for (int lane = 0; lane < BM_LANES; lane++) {
+                uint32_t cycle = (uint32_t)bm_trk_len(pat, track, lane) * (uint32_t)ticks_per_step;
+                if (cycle > period) period = cycle;
+            }
+        } else {
+            uint32_t cycle = (uint32_t)bm_trk_len(pat, track, -1) * (uint32_t)ticks_per_step;
+            if (cycle > period) period = cycle;
+        }
+    }
+    return period;
+}
+
 int bm_pattern_count_events(const bm_pattern *p)
 {
     int n = 0;

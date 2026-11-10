@@ -946,7 +946,8 @@ static void bubba_task(void *p)
     fm1_miga("A2");
     fm1_boot_stage(E_NUCLEO);
     fm1_miga("A3");
-    bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
+    for (int i = 0; i < 8; i++)              /* varias lecturas: el pot MASTER manda antes de que suene */
+        bm_app_master(&app, (uint16_t)adc_get_value(FM1_ADC_MASTER));
     bm_app_battery(&app, 100);               /* sin curva medida todavía: ver README_PORT.md */
     if (!lab_scan)
         fm1_scan_start();

@@ -43,10 +43,10 @@ The page downloads **the same `.fwsc` package as the release** (the one the FM-1
 
 How it works inside:
 
-- The running firmware prepares **M-VAVE's official update loader** and restarts into it.
+- The running firmware prepares the **update loader from the package** (M-VAVE's for Bubba/V15 packages, Felucca's for most Firmware Hub firmwares) and restarts into it.
 - That loader writes the new program.
-- The chip's boot area and the device data (above `0xED000`) are not touched.
-- The package refuses to install if the device's boot area is not identical to the file's.
+- The chip's boot area and the device data (above `0xED000`) are not touched by Felucca's loader; M-VAVE's may rewrite the boot area, so those packages only install when the device's boot area matches the file's.
+- From Bubba you can Install another firmware on the [FM-1 Firmware Hub](https://thefirmwarehub.com/) without holding OCT−.
 
 ## Back to the factory firmware
 

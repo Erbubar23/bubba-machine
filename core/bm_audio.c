@@ -52,7 +52,7 @@ void bm_audio_init(bm_ctx *c, bm_pattern *pat, bm_song *song, bm_cmdq *q, bm_aud
     c->queued = -1;
     c->sc_trig_at = -1;
     c->punch_req = c->punch_cur = 0xFF;
-    c->master_target = 820; c->master_gain = 0;
+    c->master_target = 0; c->master_gain = 0;   /* silencio hasta la primera lectura del pot MASTER */
     c->fade_gain = 1.0f;
     c->drive = 25;
     c->sync_ppqn = 2;

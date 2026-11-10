@@ -494,6 +494,19 @@ static void test_timing(void)
     while (app.ctx.st.tn[0] < 20) bm_app_audio(&app, abuf, 64);
     int s_kick = bm_app_track_step(&app, 0, 0), s_shk = bm_app_track_step(&app, 0, 12);
     CHECK(s_kick == (int)(app.ctx.st.tn[0] % 16) && s_shk == (int)(app.ctx.st.tn[0] % 12));
+    /* LENGTH 64 a X1/2: el ciclo maestro se alarga para tocar los 64 pasos */
+    btn(BTN_PLAY, 20);
+    app.pat.trk[2].length = 64;
+    app.pat.trk[2].speed = SPD_X1_2;
+    CHECK(bm_master_ticks(&app.pat) == 64u * 48u);
+    c.type = CMD_PLAY; c.a = 1; bm_cmd_push(&app.cmdq, &c);
+    int saw63 = 0;
+    for (int i = 0; i < 80000 && app.ctx.btick < 64 * 48 + 8; i++) {
+        bm_app_audio(&app, abuf, 32);
+        if (bm_app_track_step(&app, 2, -1) == 63) saw63 = 1;
+    }
+    CHECK(saw63);
+    btn(BTN_PLAY, 20);
 }
 
 static void test_tr_features(void)
@@ -1254,6 +1267,22 @@ static void test_rec_expressive(void)
     for (int v = 0; v < BM_VOICES; v++) if (app.ctx.voice[v].active && app.ctx.voice[v].track == 3) later = 1;
     CHECK(!early && later);
     btn(BTN_PLAY, 20);
+}
+
+static void test_master_boot(void)
+{
+    printf("MASTER al arrancar: el pot manda aunque esté en 0 (antes el audio arrancaba en 820)\n");
+    bm_sim_flash_erase_all(&sim);
+    bm_platform pf; bm_sim_platform(&sim, &pf);
+    now_ms = 1000; next_tick = now_ms; acc = 0;
+    bm_app_init(&app, &pf, now_ms);
+    CHECK(app.ctx.master_target == 0 && app.master_sent == 0xFFFF);
+    bm_app_master(&app, 0);                                         /* pot en silencio: igual tiene que mandar */
+    run_ms(20);
+    CHECK(app.ctx.master_target == 0 && app.master_sent == 0);
+    for (int i = 0; i < 8; i++) bm_app_master(&app, 400);
+    run_ms(20);
+    CHECK(app.ctx.master_target > 350 && app.ctx.master_target < 450);
 }
 
 static void test_factory_and_persist(void)
@@ -3312,6 +3341,7 @@ int main(int argc, char **argv)
     test_machines();
     test_migrate();
     test_fm();
+    test_master_boot();
     test_factory_and_persist();
     test_old_version();
     test_draw_cost();

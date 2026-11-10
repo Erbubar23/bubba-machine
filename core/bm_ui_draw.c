@@ -1156,24 +1156,100 @@ static void filter_curve(bm_gfx *g, int y0, int h, float fc, int res, int type, 
     }
 }
 
-/* Dos ciclos de una forma de onda (fn devuelve -1..1 para una fase 0..2: dos ciclos, para que el
- * sub de una octava abajo haga uno) */
-typedef float (*wave_fn)(const bm_app *a, float ph2);
-static void osc_shape(bm_gfx *g, const bm_app *a, int y0, int h, wave_fn fn, uint16_t col)
+/* Wave preview kinds — Q14 samples (±16384 ≈ ±1), no soft-float in the per-pixel loop. */
+enum { WV_303 = 0, WV_MINI, WV_BUNO, WV_BLFO };
+#define Q14 16384
+
+/* phase index 0..w-1 covering two cycles across the preview width */
+static int phase_i(int x, int w)
+{
+    if (w < 1) w = 1;
+    if (x < 0) x = 0;
+    return (int)(((long)x * 2) % w);
+}
+
+static int wv_303_q(const bm_app *a, int x, int w)
+{
+    int ph = phase_i(x, w);
+    if (a->pat.prm[a->track][AC_WAVE] & 1)
+        return ph * 2 < w ? Q14 : -Q14;
+    return Q14 - (ph * 2 * Q14) / w;
+}
+
+static int wv_mini_q(const bm_app *a, int x, int w, int wv)
+{
+    int ph = phase_i(x, w), half = w / 2;
+    if (half < 1) half = 1;
+    int saw = Q14 - (ph * 2 * Q14) / w;
+    int tri = ph < half ? (ph * 2 * Q14) / half - Q14 : (3 * Q14) - (ph * 2 * Q14) / half;
+    switch (wv % MN_WAVES) {
+    case MN_WAVE_TRI: return tri;
+    case MN_WAVE_SHARK: return (tri + saw) / 2;
+    case MN_WAVE_SQR: return ph * 2 < w ? Q14 : -Q14;
+    case MN_WAVE_WIDE: return ph * 10 < w * 3 ? Q14 : -Q14;
+    case MN_WAVE_NARROW: return ph * 25 < w * 3 ? Q14 : -Q14; /* ~0.12 */
+    default: return saw;
+    }
+}
+
+static float buno_lfo_at_i(const uint8_t *p, int x, int w);
+
+static int wv_blfo_q(const bm_app *a, int x, int w)
+{
+    float f = buno_lfo_at_i(a->pat.prm[a->track], x, w > 0 ? w : PIC_W);
+    return (int)(f * (float)Q14);
+}
+
+/* Dos ciclos de una forma de onda. Integer phase + Q14 samples (pi32-safe). */
+static void osc_shape(bm_gfx *g, const bm_app *a, int y0, int h, int kind, uint16_t col)
 {
     if (!gfx_strip_hit(g, y0, h + 1)) return;
     int mid = y0 + h / 2, amp = h / 2 - 4, py = mid;
+    const uint8_t *q = a->pat.prm[a->track];
+    int s = panel_sub(a);
+    int mini_wv = q[s == 1 ? MN_W1 : s == 2 ? MN_W2 : MN_W3] % MN_WAVES;
+    /* buno mix: precompute levels so the pixel loop stays branch-light */
+    int bp = q[BN_PULSE], bs = q[BN_SAW], bsub = q[BN_SUB], bpwm = q[BN_PWM];
     gfx_rect(g, PIC_X - 2, y0, PIC_W + 4, h, C_DDGREY);
     gfx_hline(g, PIC_X, mid, PIC_W, C_DDGREY);
     for (int x = 0; x < PIC_W; x++) {
-        float v = fn(a, (float)x * 2.0f / (float)PIC_W);
-        int y = mid - (int)((v > 1.0f ? 1.0f : v < -1.0f ? -1.0f : v) * (float)amp);
+        int vq;
+        if (kind == WV_MINI)
+            vq = wv_mini_q(a, x, PIC_W, mini_wv);
+        else if (kind == WV_BUNO) {
+            int ph = phase_i(x, PIC_W), v = 0, n = 0;
+            if (bp) {
+                int pw = PIC_W / 2 - bpwm * PIC_W * 45 / (127 * 100);
+                if (pw < 1) pw = 1;
+                v += ph < pw ? Q14 : -Q14; n++;
+            }
+            if (bs) { v += Q14 - (ph * 2 * Q14) / PIC_W; n++; }
+            if (bsub) {
+                int slev = bsub; /* 0..127 */
+                v += (x * 2 < PIC_W ? slev : -slev) * Q14 / 127;
+                n++;
+            }
+            vq = n ? v / n : 0;
+        } else if (kind == WV_BLFO)
+            vq = wv_blfo_q(a, x, PIC_W);
+        else
+            vq = wv_303_q(a, x, PIC_W);
+        if (vq > Q14) vq = Q14;
+        if (vq < -Q14) vq = -Q14;
+        int y = mid - (vq * amp) / Q14;
         if (x) hit_seg(g, PIC_X + x - 1, py, PIC_X + x, y, col);
         py = y;
     }
 }
 
-static float frac1(float x) { return x - (float)(int)x; }
+/* phase 0..1 over half of w (two cycles) — for LFO previews that still use float math inside */
+static float phase1(int x, int w)
+{
+    if (w < 1) w = 1;
+    if (x < 0) x = 0;
+    int phase = (int)(((long)x * 2) % w);
+    return (float)phase / (float)w;
+}
 
 /* SCL del BB-303 y del B-MINI: el roll de la página de 16 pasos y debajo el ACCENT y el SLIDE (o GLIDE)
  * de cada paso; la fila que se edita, encendida */
@@ -1204,12 +1280,6 @@ static void draw_scl(bm_gfx *g, const bm_app *a, const char *row2)
             else gfx_rect(g, x, y, 12, 12, has ? (act ? C_GREY : C_DGREY) : C_DDGREY);
         }
     }
-}
-
-static float wv_303(const bm_app *a, float ph2)                 /* SAW o SQR, como el interruptor */
-{
-    float p = frac1(ph2);
-    return (a->pat.prm[a->track][AC_WAVE] & 1) ? (p < 0.5f ? 1.0f : -1.0f) : 1.0f - 2.0f * p;
 }
 
 static void draw_b303(bm_gfx *g, const bm_app *a)
@@ -1285,7 +1355,7 @@ static void draw_b303(bm_gfx *g, const bm_app *a)
     }
     dial(g, 210, 105, 12, tr->level, 127, pg ? k4 : off, "VOLUME");
     /* abajo, lo que mueve la página: el filtro (CUT OFF y RESO) o la onda (SAW / SQR) */
-    if (pg) osc_shape(g, a, 134, 58, wv_303, col);
+    if (pg) osc_shape(g, a, 134, 58, WV_303, col);
     else filter_curve(g, 134, 58, bm_acid_cut_hz(tr->macro[0]), tr->macro[1], FC_LP4, col);
 }
 
@@ -1299,15 +1369,34 @@ static void env_contour(bm_gfx *g, const uint8_t *q, int y0, int h, uint16_t c)
     env_shape(g, 4, y0, 232, h, tm, lv, 0.0f, c);
 }
 
-/* lo que sale del LFO (y de la modulación) en el recuadro de abajo, x 0..1 */
-static float panel_lfo_at(int eng, const uint8_t *p, float x)
+/* BUNO-6 LFO preview. Integer phase avoids a pi32 soft-float (pointer,float) miscompile
+ * that bus-faulted in the old float-arg helper (RETI in buno_lfo_at / panel_lfo_at). */
+static float buno_lfo_at_i(const uint8_t *p, int x, int w)
 {
-    float ph = x * 2.0f, f = ph - (float)(int)ph;
+    if (w < 1) w = 1;
+    if (x < 0) x = 0;
+    /* two cycles across w (same as osc_shape ph2 0..2 → preview x 0..1) */
+    int phase = (int)(((long)x * 2) % w);
+    float f = (float)phase / (float)w;
+    float tri = f < 0.5f ? (4.0f * f - 1.0f) : (3.0f - 4.0f * f);
+    int delay = p[BN_LDELAY];
+    if (delay <= 0) return tri;
+    /* delay ramp: full by x/(w*delay/127) */
+    int thresh = (int)(((long)w * delay + 126) / 127);
+    if (thresh < 1) thresh = 1;
+    float r = x < thresh ? (float)x / (float)thresh : 1.0f;
+    return tri * r;
+}
+
+/* LFO preview for B-MINI / BITTAL: integer phase (same ABI class as buno_lfo_at_i). */
+static float panel_lfo_at_i(int eng, const uint8_t *p, int x, int w)
+{
+    if (eng == ENG_BUNO)
+        return buno_lfo_at_i(p, x, w);
+    if (w < 1) w = 1;
+    if (x < 0) x = 0;
+    float ph = (float)x / (float)w * 2.0f, f = ph - (float)(int)ph;
     float tri = 4.0f * fabsf(f - 0.5f) - 1.0f, sqr = f < 0.5f ? 1.0f : -1.0f;
-    if (eng == ENG_BUNO) {                                         /* el Juno: triángulo, entra con su DELAY */
-        float d = (float)p[BN_LDELAY] / 127.0f, r = d > 0.0f ? x / d : 1.0f;
-        return tri * (r < 1.0f ? r : 1.0f);
-    }
     if (eng == ENG_BITTAL) {
         switch (p[BT_LSHAPE] % BT_LSHAPES) {
         case BT_L_SIN: return sinf(ph * 6.2831853f);
@@ -1382,35 +1471,6 @@ static void px_fx_boxes(bm_gfx *g, const bm_app *a, int s)
     }
 }
 
-/* las formas del B-MINI (la del oscilador de la sección) */
-static float wv_mini(const bm_app *a, float ph2)
-{
-    const uint8_t *q = a->pat.prm[a->track];
-    int s = panel_sub(a), w = q[s == 1 ? MN_W1 : s == 2 ? MN_W2 : MN_W3] % MN_WAVES;
-    float p = frac1(ph2), saw = 1.0f - 2.0f * p, tri = p < 0.5f ? 4.0f * p - 1.0f : 3.0f - 4.0f * p;
-    switch (w) {
-    case MN_WAVE_TRI: return tri;
-    case MN_WAVE_SHARK: return 0.5f * (tri + saw);
-    case MN_WAVE_SQR: return p < 0.5f ? 1.0f : -1.0f;
-    case MN_WAVE_WIDE: return p < 0.3f ? 1.0f : -1.0f;
-    case MN_WAVE_NARROW: return p < 0.12f ? 1.0f : -1.0f;
-    default: return saw;
-    }
-}
-
-/* el DCO del Juno: el pulso (con su ancho), el diente de sierra y el sub de una octava abajo, sumados */
-static float wv_buno(const bm_app *a, float ph2)
-{
-    const uint8_t *q = a->pat.prm[a->track];
-    float p = frac1(ph2), v = 0.0f, n = 0.0f;
-    if (q[BN_PULSE]) { v += p < 0.5f - (float)q[BN_PWM] / 127.0f * 0.45f ? 1.0f : -1.0f; n += 1.0f; }
-    if (q[BN_SAW]) { v += 1.0f - 2.0f * p; n += 1.0f; }
-    if (q[BN_SUB]) { float s = (float)q[BN_SUB] / 127.0f; v += (ph2 < 1.0f ? s : -s); n += s; }
-    return n > 0.0f ? v / n : 0.0f;
-}
-
-static float wv_blfo(const bm_app *a, float ph2) { return panel_lfo_at(ENG_BUNO, a->pat.prm[a->track], ph2 * 0.5f); }
-
 /* debajo del panel, lo que mueve la sección: el filtro, la onda del oscilador o el contorno */
 static void panel_picture(bm_gfx *g, const bm_app *a, int y0, int h)
 {
@@ -1421,13 +1481,13 @@ static void panel_picture(bm_gfx *g, const bm_app *a, int y0, int h)
     switch (eng) {
     case ENG_MINI:
         if (s == 0) filter_curve(g, y0, h, bm_cut_hz(tr->macro[0]), tr->macro[1], FC_LP4, col);
-        else if (s <= 3) osc_shape(g, a, y0, h, wv_mini, p[s == 1 ? MN_L1 : s == 2 ? MN_L2 : MN_L3] ? col : C_DGREY);
+        else if (s <= 3) osc_shape(g, a, y0, h, WV_MINI, p[s == 1 ? MN_L1 : s == 2 ? MN_L2 : MN_L3] ? col : C_DGREY);
         else env_contour(g, p + MN_AA, y0, h, col);
         return;
     case ENG_BUNO:
         if (s == 0 || s == 3) filter_curve(g, y0, h, bm_cut_hz(tr->macro[0]), tr->macro[1], FC_LP4, col);
-        else if (s == 1) osc_shape(g, a, y0, h, wv_buno, col);
-        else if (s == 2) osc_shape(g, a, y0, h, wv_blfo, p[BN_LFODCO] ? col : C_DGREY);
+        else if (s == 1) osc_shape(g, a, y0, h, WV_BUNO, col);
+        else if (s == 2) osc_shape(g, a, y0, h, WV_BLFO, p[BN_LFODCO] ? col : C_DGREY);
         else env_contour(g, p + BN_A, y0, h, col);
         return;
     default: {                                                    /* BITTAL */
@@ -1466,7 +1526,8 @@ static void draw_panel(bm_gfx *g, const bm_app *a)
             uint16_t c = amt ? col : C_DGREY;
             gfx_rect(g, 8, 158, 224, 34, C_DDGREY);
             for (int x = 0; x < 222; x++) {
-                int y = 175 - (int)(panel_lfo_at(eng, p, (float)x / 222.0f) * 14.0f);
+                float lv = panel_lfo_at_i(eng, p, x, 222);
+                int y = 175 - (int)(lv * 14.0f);
                 if (x) gfx_line(g, 8 + x, py, 9 + x, y, c);
                 py = y;
             }

@@ -7,6 +7,8 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 ### Fixed
 - **MASTER at boot:** volume followed a hard-coded loud level until the pot was moved; it now takes the knob (including fully down) before audio starts.
 - **Slow SPEED + long LENGTH:** a channel at ×1/2 or ×1/4 with LENGTH 64 now plays all 64 steps (the master cycle stretches to fit); before, the master length cut it short.
+- **BUNO-6 EDIT / LFO preview rebooted the FM-1** (soft-float helper with a float argument bus-faulted on pi32). The preview now uses an integer-phase path.
+- **BUNO-6 DCO / PULSE (and related oscillator wave previews) rebooted the FM-1** on the same soft-float ABI class; `osc_shape` now uses integer phase and Q14 samples (no float-returning wave callbacks).
 
 ## [0.10.0-beta] - 2026-10-24
 

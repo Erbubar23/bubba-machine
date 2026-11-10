@@ -1449,11 +1449,25 @@ static void enc_source(bm_app *a, int t, int d)
         app_overlay(a, -1, ti, b, "", i * 255 / (n > 1 ? n - 1 : 1), -1, bm_track_color(1));
         return;
     }
-    int lim = bm_sound_count(a, t), e = a->pat.trk[t].engine;
-    int v = wrap(a->pat.trk[t].source % lim + lst(a, d), lim);
-    if (kind == KIND_TR || bm_engine_paged(e)) { app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0); app_edited(a); }
-    else app_set_track(a, t, TRK_OFF(source), v);
-    a->pat.trk[t].source = (uint8_t)v;
+    int bank = app_sound_bank_count(a, t), e = a->pat.trk[t].engine;
+    int lim = bm_sound_count(a, t);
+    int cur = (a->edit_on[t] && a->edit_valid[t]) ? bank : (a->pat.trk[t].source % (bank > 0 ? bank : 1));
+    int v = wrap(cur + lst(a, d), lim);
+    if (kind == KIND_TR || bm_engine_paged(e)) {
+        if (bm_engine_paged(e) && a->edit_valid[t] && v == bank) {
+            a->edit_on[t] = 1;
+            app_push_ptr(a, CMD_EDIT_SNAP, (uint8_t)t, &a->edit[t]);
+            app_edited(a);
+        } else {
+            a->edit_on[t] = 0;
+            app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0);
+            app_edited(a);
+            a->pat.trk[t].source = (uint8_t)v;
+        }
+    } else {
+        app_set_track(a, t, TRK_OFF(source), v);
+        a->pat.trk[t].source = (uint8_t)v;
+    }
     char ti[22];
     if (kind == KIND_TR) snprintf(ti, sizeof ti, "T%d KIT", app_pos(t) + 1);
     else snprintf(ti, sizeof ti, "T%d %s %s", app_pos(t) + 1, bm_engine_names[e % ENG_COUNT], T("SOUND"));

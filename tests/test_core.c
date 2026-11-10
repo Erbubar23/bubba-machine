@@ -2475,6 +2475,32 @@ static double draw_us(long *math);
 
 static int fx_name_is(int f) { return app.pat.prm[3][BX_ORD0 + app.bx.fxpos] == f; }
 
+static void test_edited_sound(void)
+{
+    printf("*EDITED: un ajuste de instrumento crea el scratch; PRESETS vuelve a él; el FX se queda al saltar; otro patrón lo tira\n");
+    boot(1);
+    ch(2);                                                       /* BB-303 */
+    btn(BTN_EDIT, 30);
+    CHECK(app.view == V_MACH && app.bx.page == BXP_MAIN && app.track == 2);
+    app.pat.prm[2][AC_FX] = 0xA5;                                /* marca de FX de canal (no scratch) */
+    uint8_t cut0 = app.pat.trk[2].macro[0];
+    enc(ENC_K1, 10); run_ms(20);
+    CHECK(app.edit_valid[2] && app.edit_on[2]);
+    CHECK(!strcmp(bm_sound_name(&app, 2), "*EDITED"));
+    uint8_t cut_ed = app.pat.trk[2].macro[0];
+    CHECK(cut_ed != cut0);
+    enc(ENC_PRESETS, 1); run_ms(20);                             /* sale de *EDITED → banco */
+    CHECK(!app.edit_on[2] && app.edit_valid[2]);
+    CHECK(strcmp(bm_sound_name(&app, 2), "*EDITED") != 0);
+    CHECK(app.pat.prm[2][AC_FX] == 0xA5);                        /* apply de banco no toca el FX del canal */
+    enc(ENC_PRESETS, -1); run_ms(20);                            /* vuelve a *EDITED */
+    CHECK(app.edit_on[2] && !strcmp(bm_sound_name(&app, 2), "*EDITED"));
+    CHECK(app.pat.trk[2].macro[0] == cut_ed);
+    CHECK(app.pat.prm[2][AC_FX] == 0xA5);
+    app_select_pattern(&app, 1); run_ms(40);                     /* otro patrón: tira todos los scratch */
+    CHECK(!app.edit_valid[2] && !app.edit_on[2]);
+}
+
 static void test_b303(void)
 {
     printf("BB-303: la TB-303 en el FM-1 (panel, ACCENT con LFO, SLIDE ligado, FX del TB-03, piano roll)\n");
@@ -3322,6 +3348,7 @@ int main(int argc, char **argv)
     test_drum_seq();
     test_glo();
     test_bx7();
+    test_edited_sound();
     test_b303();
     test_roll_machines();
     test_bmini();

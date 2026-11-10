@@ -205,6 +205,10 @@ typedef struct bm_app {
     uint8_t snap_buf[BM_SNAP_MAX];  /* un sonido que llega de afuera (bm_app_sound_load) */
     uint16_t snap_len;
     bm_bx7ui bx;                  /* la BX-7 (core/bm_bx7.c) */
+    /* *EDITED: scratch PRESETS slot (RAM). valid=buffer ready; on=PRESETS points at it; base=last bank index. */
+    uint8_t edit_valid[BM_TRACKS], edit_on[BM_TRACKS], edit_base[BM_TRACKS];
+    uint8_t edit_pat;             /* patrón al que pertenecen los scratch (se limpian al cambiar) */
+    bm_edit_snap edit[BM_TRACKS];
 } bm_app;
 
 void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now);

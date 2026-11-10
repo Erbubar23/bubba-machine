@@ -24,7 +24,7 @@ const char *bm_track_name(const bm_app *a, int t)
 uint16_t bm_track_color(int t) { return TRACK_COLORS[t % BM_TRACKS]; }
 const char *bm_kit_name(int kit) { return bm_kits[(kit % BM_KITS_N + BM_KITS_N) % BM_KITS_N].name; }
 
-int bm_sound_count(const bm_app *a, int t)
+int app_sound_bank_count(const bm_app *a, int t)
 {
     if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
     if (a->pat.trk[t].engine == ENG_ACID) return BM_AC_PRESETS;
@@ -33,13 +33,51 @@ int bm_sound_count(const bm_app *a, int t)
     return n ? n : 1;
 }
 
+int bm_sound_count(const bm_app *a, int t)
+{
+    int n = app_sound_bank_count(a, t);
+    if (t >= 0 && t < BM_TRACKS && a->edit_valid[t] && bm_engine_paged(a->pat.trk[t].engine)) n++;
+    return n;
+}
+
 const char *bm_sound_name(const bm_app *a, int t)
 {
-    int s = a->pat.trk[t].source % bm_sound_count(a, t);
+    if (t >= 0 && t < BM_TRACKS && a->edit_on[t] && a->edit_valid[t] && bm_engine_paged(a->pat.trk[t].engine))
+        return "*EDITED";
+    int s = a->pat.trk[t].source % app_sound_bank_count(a, t);
     if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
     if (a->pat.trk[t].engine == ENG_ACID) return bm_ac_presets[s].name;
     if (a->pat.trk[t].engine == ENG_FM) return bm_fm_patch_name(s);
     return bm_snap_name(a->pat.trk[t].engine, s);
+}
+
+void app_edit_clear(bm_app *a, int t)
+{
+    if (t < 0) {
+        for (int i = 0; i < BM_TRACKS; i++) { a->edit_valid[i] = 0; a->edit_on[i] = 0; a->edit_base[i] = 0; }
+        return;
+    }
+    if (t < BM_TRACKS) { a->edit_valid[t] = 0; a->edit_on[t] = 0; }
+}
+
+void app_edit_touch(bm_app *a, int t)
+{
+    if (t < BM_TR_TRACKS || t >= BM_TRACKS) return;
+    int eng = a->pat.trk[t].engine;
+    if (!bm_engine_paged(eng)) return;
+    int bank = app_sound_bank_count(a, t);
+    if (!a->edit_on[t]) {
+        int src = a->pat.trk[t].source % (bank > 0 ? bank : 1);
+        a->edit_base[t] = (uint8_t)src;
+    }
+    memcpy(a->edit[t].prm, a->pat.prm[t], BM_PRM);
+    memcpy(a->edit[t].macro, a->pat.trk[t].macro, 4);
+    if (eng == ENG_FM) {
+        memcpy(a->edit[t].fmv, a->pat.fmv, BM_FMV_BYTES);
+        a->edit[t].has_fmv = 1;
+    } else a->edit[t].has_fmv = 0;
+    a->edit_valid[t] = 1;
+    a->edit_on[t] = 1;
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
 void bm_app_cpu(bm_app *a, int pct) { a->cpu = (uint8_t)bm_clampi(pct, 0, 255); }
@@ -838,6 +876,7 @@ void bm_app_init(bm_app *a, const bm_platform *pf, uint32_t now)
     a->set.last_pat %= BM_PATTERNS;
     a->ctx.cur_pat = a->set.last_pat;
     a->ctx.st.pattern = a->set.last_pat;
+    a->edit_pat = a->set.last_pat;
     bm_engines_sync(&a->ctx);
     bm_seq_set_bpm(&a->ctx, a->pat.meta.bpm_x10);
     apply_settings(a);
@@ -907,6 +946,7 @@ int app_set_machine(bm_app *a, int t, int eng)
 {
     if (!bm_engine_ok(t, eng) || t < BM_TR_TRACKS || a->pat.trk[t].engine == eng) return -1;
     if (bm_machine_conflict(&a->pat, t, eng) >= 0) return -1;
+    app_edit_clear(a, t);
     app_push(a, CMD_ENGINE, (uint8_t)t, (uint8_t)eng, 0);
     app_edited(a);
     char b[30]; snprintf(b, sizeof b, "T%d = %s", app_pos(t) + 1, bm_engine_names[eng]);
@@ -925,6 +965,7 @@ void app_select_pattern(bm_app *a, int idx)
         snprintf(b, sizeof b, TF("A%02d QUEUED"), idx + 1);
     } else {
         if (idx == a->ctx.st.pattern) return;
+        app_edit_clear(a, -1);
         app_save_jobs(a, a->dirty);
         app_job(a, JOB_LOAD, idx);
         snprintf(b, sizeof b, TF("PATTERN A%02d"), idx + 1);
@@ -938,6 +979,10 @@ void bm_app_tick(bm_app *a, uint32_t now)
     a->now = now;
     bm_status *st = &a->ctx.st;
     if (a->view == V_BOOT && now - a->boot_t >= UI_BOOT_MS) { a->view = V_HOME; a->scr.force = 1; }
+    if (st->pattern != a->edit_pat) {                         /* cambio de patrón (cola o LOAD): *EDITED no cruza */
+        a->edit_pat = st->pattern;
+        app_edit_clear(a, -1);
+    }
     bm_gesture_poll(&a->ges, now);
     app_input_tick(a);
     app_tables(a);

@@ -75,8 +75,17 @@ typedef enum {
     CMD_ROLL_CFG,       /* ROLL: a=rampa (0 no, 1 CRESC, 2 DECRESC) b=swing 50..75 c=cola en ticks i=largo de la rampa */
     CMD_CLONE,          /* a=canal de origen b=destino (T3-T6): su máquina y su sonido (HOME + EDIT) */
     CMD_MUTE_CUE,       /* a=bits de los canales cuyo mute cambia en el próximo compás (CUE de HOME; parado: ya) */
-    CMD_FMV             /* la voz de la BX-7: a=byte (0..155) b=valor */
+    CMD_FMV,            /* la voz de la BX-7: a=byte (0..155) b=valor */
+    CMD_EDIT_SNAP       /* a=canal · ptr=bm_edit_snap: aplica el scratch *EDITED (FX del canal se quedan) */
 } bm_cmd_type;
+
+/* Cuerpo de CMD_EDIT_SNAP (vive en bm_app.edit[t]; la UI lo pasa por ptr). */
+typedef struct {
+    uint8_t macro[4];
+    uint8_t prm[BM_PRM];
+    uint8_t fmv[BM_FMV_BYTES];
+    uint8_t has_fmv;
+} bm_edit_snap;
 
 typedef struct {
     uint8_t type, a, b, c;

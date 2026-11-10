@@ -191,6 +191,25 @@ static void apply(bm_ctx *c, const bm_cmd *k)
         c->pat->trk[k->a].source = k->b;
         c->fmv_gen++;
         break;
+    case CMD_EDIT_SNAP: {                                          /* *EDITED: voz del scratch; FX del canal quedan */
+        if (k->a >= BM_TRACKS || !k->u.ptr) break;
+        const bm_edit_snap *s = (const bm_edit_snap *)k->u.ptr;
+        int t = k->a, eng = c->pat->trk[t].engine;
+        uint8_t keep[BM_PRM];
+        memcpy(keep, c->pat->prm[t], BM_PRM);
+        memcpy(c->pat->prm[t], s->prm, BM_PRM);
+        memcpy(c->pat->trk[t].macro, s->macro, 4);
+        if (eng == ENG_FM) {
+            if (s->has_fmv) memcpy(c->pat->fmv, s->fmv, BM_FMV_BYTES);
+            memcpy(c->pat->prm[t] + BX_FX_FIRST, keep + BX_FX_FIRST, (size_t)(BX_LATCH + 1 - BX_FX_FIRST));
+        } else if (eng == ENG_ACID) {
+            memcpy(c->pat->prm[t] + AC_FX, keep + AC_FX, (size_t)(AC_NPRM - AC_FX));
+        } else if (bm_panel_eng(eng)) {
+            memcpy(c->pat->prm[t] + PX_FX, keep + PX_FX, (size_t)(PX_END - PX_FX));
+        }
+        c->fmv_gen++;
+        break;
+    }
     case CMD_LANE_MUTE:
         if (k->a < BM_TRACKS && bm_is_grid(c->pat, k->a)) bm_trk_tr(c->pat, k->a)->mute = (uint16_t)k->u.i;
         break;

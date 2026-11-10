@@ -69,6 +69,9 @@ void app_rec_at(bm_app *a, int k, int t, const uint8_t *notes, int n, uint32_t r
 void app_note_keys(const bm_app *a, bm_keyfn *K, int t);   /* el teclado cromático de un canal de notas */
 void app_rec_set(bm_app *a, int on);
 void app_enc_source(bm_app *a, int t, int d);         /* PRESETS: el sonido del canal */
+void app_edit_clear(bm_app *a, int t);                /* t < 0: todos; tira *EDITED */
+void app_edit_touch(bm_app *a, int t);                /* instrument tweak → capture + select *EDITED */
+int  app_sound_bank_count(const bm_app *a, int t);    /* PRESETS bank size without *EDITED */
 void app_layer_legend(const bm_app *a, bm_legend *L, int k, const char *name, const char *val, int pct);
 /* lo de la entrada que comparte el Slicer (core/bm_slicer.c) */
 void app_pad_down(bm_app *a, int k, int pad);         /* una tecla toca (y con REC sonando graba) un pad */

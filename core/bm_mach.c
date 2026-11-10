@@ -149,7 +149,12 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     }
     if (p->kind == K_RST) {                                   /* GLO RESET: girar llena CONFIRM?; al llenarse, resetea */
         if (!mach_rst_fill(a, d)) return a->bx.rst_confirm ? 0 : -1;
-        app_push(a, CMD_PRESET, (uint8_t)t, a->pat.trk[t].source, 0);
+        int bank = a->edit_valid[t] ? a->edit_base[t] : a->pat.trk[t].source;
+        int n = app_sound_bank_count(a, t);
+        if (n > 0) bank %= n;
+        app_edit_clear(a, t);
+        app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)bank, 0);
+        a->pat.trk[t].source = (uint8_t)bank;
         app_edited(a);
         app_toast(a, eng_of(a) == ENG_FM ? "VOICE RESET" : "SOUND RESET");
         return -1;
@@ -158,20 +163,41 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     if (p->kind == K_ON || p->kind == K_LATCH) step = d > 0 ? 1 : -1;
     int v = bm_clampi(cur_v + step, p->lo, p->max);
     if (v == cur_v) return -1;
+    int touch = 0;
     switch (p->kind) {
-    case K_FMV: app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); break;
-    case K_OP: app_push(a, CMD_FMV, (uint8_t)op_byte(a, p->idx), (uint8_t)v, 0); app_edited(a); break;
+    case K_FMV:
+        a->pat.fmv[p->idx] = (uint8_t)v;
+        app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); touch = 1; break;
+    case K_OP: {
+        uint8_t off = (uint8_t)op_byte(a, p->idx);
+        a->pat.fmv[off] = (uint8_t)v;
+        app_push(a, CMD_FMV, off, (uint8_t)v, 0); app_edited(a); touch = 1; break;
+    }
     case K_TRK:
         app_set_track(a, t, p->idx, v);
         if (p->idx == TRK(arp_mode) && !v) app_push(a, CMD_ARP, (uint8_t)t, 0, 0);   /* sin arpegiador: suelta lo que tenía */
         break;
-    case K_MAC: app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); break;
-    case K_PRM: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)v); app_edited(a); break;
+    case K_MAC:
+        a->pat.trk[t].macro[p->idx & 3] = (uint8_t)v;
+        app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); touch = 1; break;
+    case K_PRM:
+        a->pat.prm[t][p->idx] = (uint8_t)v;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)v); app_edited(a);
+        if (a->bx.page != BXP_FX) touch = 1;                   /* FX page: no *EDITED */
+        break;
     case K_LATCH: app_push(a, CMD_SET_PRM, (uint8_t)t, (uint8_t)latch_prm(a), (uint8_t)v); app_edited(a); break;
     case K_LEN: app_set_track(a, t, TRK(length), v); break;
     case K_QUANT: app_set_track(a, t, TRK(qfree), 3 - v); break;
-    case K_PRMI: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)(p->max - v)); app_edited(a); break;
-    case K_R3: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)(v ? v - 1 : MN_R_LO)); app_edited(a); break;
+    case K_PRMI: {
+        uint8_t raw = (uint8_t)(p->max - v);
+        a->pat.prm[t][p->idx] = raw;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); touch = 1; break;
+    }
+    case K_R3: {
+        uint8_t raw = (uint8_t)(v ? v - 1 : MN_R_LO);
+        a->pat.prm[t][p->idx] = raw;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); touch = 1; break;
+    }
     case K_ON: {
         uint8_t m;
         if (eng_of(a) == ENG_ACID) {
@@ -192,6 +218,7 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     }
     default: break;
     }
+    if (touch) app_edit_touch(a, t);
     return v;
 }
 

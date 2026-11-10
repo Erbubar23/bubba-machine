@@ -20,6 +20,9 @@
 # core/bm_input.c
 %s ALREADY ON T%d
 
+# core/bm_app.c
+*EDITED
+
 # core/bm_bx7.c
 +EXP
 

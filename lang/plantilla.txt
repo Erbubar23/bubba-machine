@@ -20,6 +20,9 @@
 # core/bm_input.c
 %s ALREADY ON T%d
 
+# core/bm_app.c
+*EDITED
+
 # core/bm_bx7.c
 +EXP
 
@@ -270,10 +273,16 @@ CLAVI
 CLEAR PATTERN
 
 # core/bm_ui_draw.c
+CLEAR STEP
+
+# core/bm_ui_draw.c
 CLEAR T%d
 
 # core/bm_ui_draw.c
 CLEAR? SAVE AGAIN
+
+# core/bm_mach.c
+CLEARED
 
 # core/bm_ui_draw.c
 CLOCK
@@ -289,6 +298,9 @@ COARSE
 
 # core/bm_params.c
 COLOR
+
+# core/bm_mach.c core/bm_slicer.c
+CONFIRM?
 
 # core/bm_params.c
 CONGA

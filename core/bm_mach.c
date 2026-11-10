@@ -22,6 +22,10 @@ static const char *const ARPR[3] = {"1/8", "1/16", "1/32"};
 const bxp MACH_SEQ[4] = {
     NONE, {"SPEED", K_TRK, TRK(speed), 0, SPD_COUNT - 1, F_LIST, bm_speed_names},
     {"PAGE", K_VIEWX, 0, 0, 3, F_P1, NULL}, {"SCROLL", K_VIEWY, 0, 16, 112, F_BIP, NULL}};   /* K3/K4: recorrer el piano roll */
+static const bxp MACH_SEQ_STEP[4] = {
+    {"LENGTH", K_STEPLEN, 0, 1, BM_STEPS, F_STEPS, NULL},
+    {"SPEED", K_TRK, TRK(speed), 0, SPD_COUNT - 1, F_LIST, bm_speed_names},
+    {"PAGE", K_VIEWX, 0, 0, 3, F_P1, NULL}, {"SCROLL", K_VIEWY, 0, 16, 112, F_BIP, NULL}};
 /* el GLO de cada máquina: lo primero, el largo; después cambiar de máquina (solo las que se pueden) */
 const bxp MACH_GLO[2][4] = {
     {{"LENGTH", K_LEN, 0, 1, BM_STEPS, F_STEPS, NULL}, {"MACHINE", K_MACH, 0, 0, ENG_COUNT - 1, F_LIST, bm_engine_names},
@@ -59,6 +63,7 @@ int mach_get(const bm_app *a, const bxp *p)
     case K_VIEWX: return mach_view_page(a);
     case K_VIEWY: return 64 + a->bx.vy;
     case K_QUANT: return 3 - (tr->qfree & 3);
+    case K_STEPLEN: return bm_clampi(a->bx.step_len ? a->bx.step_len : 1, 1, mach_len(a));
     case K_PRMI: return p->max - a->pat.prm[a->track][p->idx];
     case K_R3: { int r = a->pat.prm[a->track][p->idx]; return r >= MN_R_LO ? 0 : r + 1; }
     default: return 0;
@@ -99,10 +104,22 @@ void mach_fmt(const bxp *p, int v, char *b, int cap)
 
 int mach_pct(const bxp *p, int v) { return p->max > p->lo ? (v - p->lo) * 255 / (p->max - p->lo) : 0; }
 
+bool mach_rst_fill(bm_app *app, int delta)
+{
+    int detents = app_lst(app, delta);
+    if (!detents) return false;
+    app->rst_t = app->now;
+    int fill = (int)app->bx.rst_confirm + (detents > 0 ? detents : -detents) * (int)UI_RST_STEP;
+    if (fill < 255) { app->bx.rst_confirm = (uint8_t)fill; return false; }
+    app->bx.rst_confirm = 0;
+    return true;
+}
+
 int mach_turn(bm_app *a, const bxp *p, int d)
 {
     int t = a->track;
     if (p->kind == K_NONE) return -1;
+    if (p->kind != K_RST && a->bx.rst_confirm) a->bx.rst_confirm = 0;   /* otra perilla: cancela CONFIRM? */
     if (p->kind == K_MACH) { app_mach_pick(a, d); return -1; }   /* la cuenta y el aviso: bm_input.c */
     if (p->kind == K_VIEWX) {                                 /* la página de 16 pasos que se ve */
         int np = (mach_len(a) + 15) / 16, v = bm_clampi(mach_view_page(a) + app_lst(a, d), 0, np - 1);
@@ -113,8 +130,31 @@ int mach_turn(bm_app *a, const bxp *p, int d)
         a->bx.vy = (int8_t)bm_clampi(a->bx.vy + app_lst(a, d), -48, 48);
         return 64 + a->bx.vy;
     }
-    if (p->kind == K_RST) {                                   /* el sonido vuelve al del preset */
-        app_push(a, CMD_PRESET, (uint8_t)t, a->pat.trk[t].source, 0);
+    if (p->kind == K_STEPLEN) {                               /* STEP REC: largo de las notas del cursor */
+        int length = mach_len(a), current = mach_get(a, p);
+        int value = bm_clampi(current + app_lst(a, d), 1, length);
+        if (value == current) return -1;
+        a->bx.step_len = (uint8_t)value;
+        if (mach_step_mode(a)) {
+            int track = a->track, step = a->bx.step % length;
+            for (int slot = 0; slot < BM_EVENTS; slot++) {
+                bm_event ev = *bm_evc(&a->pat, track, step, slot);
+                if (bm_event_empty(&ev)) continue;
+                ev.len = (uint8_t)((ev.len & BM_LEN_TIE) | (value & BM_LEN_MASK));
+                app_push_ev(a, track, step, slot, &ev);
+            }
+            app_edited(a);
+        }
+        return value;
+    }
+    if (p->kind == K_RST) {                                   /* GLO RESET: girar llena CONFIRM?; al llenarse, resetea */
+        if (!mach_rst_fill(a, d)) return a->bx.rst_confirm ? 0 : -1;
+        int bank = a->edit_valid[t] ? a->edit_base[t] : a->pat.trk[t].source;
+        int bank_count = app_sound_bank_count(a, t);
+        if (bank_count > 0) bank %= bank_count;
+        app_edit_clear(a, t);
+        app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)bank, 0);
+        a->pat.trk[t].source = (uint8_t)bank;
         app_edited(a);
         app_toast(a, eng_of(a) == ENG_FM ? "VOICE RESET" : "SOUND RESET");
         return -1;
@@ -123,20 +163,41 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     if (p->kind == K_ON || p->kind == K_LATCH) step = d > 0 ? 1 : -1;
     int v = bm_clampi(cur_v + step, p->lo, p->max);
     if (v == cur_v) return -1;
+    int capture_edit = 0;
     switch (p->kind) {
-    case K_FMV: app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); break;
-    case K_OP: app_push(a, CMD_FMV, (uint8_t)op_byte(a, p->idx), (uint8_t)v, 0); app_edited(a); break;
+    case K_FMV:
+        a->pat.fmv[p->idx] = (uint8_t)v;
+        app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); capture_edit = 1; break;
+    case K_OP: {
+        uint8_t off = (uint8_t)op_byte(a, p->idx);
+        a->pat.fmv[off] = (uint8_t)v;
+        app_push(a, CMD_FMV, off, (uint8_t)v, 0); app_edited(a); capture_edit = 1; break;
+    }
     case K_TRK:
         app_set_track(a, t, p->idx, v);
         if (p->idx == TRK(arp_mode) && !v) app_push(a, CMD_ARP, (uint8_t)t, 0, 0);   /* sin arpegiador: suelta lo que tenía */
         break;
-    case K_MAC: app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); break;
-    case K_PRM: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)v); app_edited(a); break;
+    case K_MAC:
+        a->pat.trk[t].macro[p->idx & 3] = (uint8_t)v;
+        app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); capture_edit = 1; break;
+    case K_PRM:
+        a->pat.prm[t][p->idx] = (uint8_t)v;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)v); app_edited(a);
+        if (a->bx.page != BXP_FX) capture_edit = 1;            /* FX page: no *EDITED */
+        break;
     case K_LATCH: app_push(a, CMD_SET_PRM, (uint8_t)t, (uint8_t)latch_prm(a), (uint8_t)v); app_edited(a); break;
     case K_LEN: app_set_track(a, t, TRK(length), v); break;
     case K_QUANT: app_set_track(a, t, TRK(qfree), 3 - v); break;
-    case K_PRMI: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)(p->max - v)); app_edited(a); break;
-    case K_R3: app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)(v ? v - 1 : MN_R_LO)); app_edited(a); break;
+    case K_PRMI: {
+        uint8_t raw = (uint8_t)(p->max - v);
+        a->pat.prm[t][p->idx] = raw;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); capture_edit = 1; break;
+    }
+    case K_R3: {
+        uint8_t raw = (uint8_t)(v ? v - 1 : MN_R_LO);
+        a->pat.prm[t][p->idx] = raw;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); capture_edit = 1; break;
+    }
     case K_ON: {
         uint8_t m;
         if (eng_of(a) == ENG_ACID) {
@@ -157,6 +218,7 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     }
     default: break;
     }
+    if (capture_edit) app_edit_touch(a, t);
     return v;
 }
 
@@ -166,8 +228,12 @@ void mach_legend(const bm_app *a, const bxp *P, bm_legend L[4])
     for (int k = 0; k < 4; k++) {
         if (P[k].kind == K_NONE) continue;
         int v = mach_get(a, &P[k]);
-        if (P[k].kind == K_RST) snprintf(b, sizeof b, "%s", "TURN");
-        else mach_fmt(&P[k], v, b, sizeof b);
+        if (P[k].kind == K_RST) {
+            if (a->bx.rst_confirm) { snprintf(b, sizeof b, "%s", "CONFIRM?"); app_layer_legend(a, L, k, P[k].name, b, a->bx.rst_confirm); }
+            else { snprintf(b, sizeof b, "%s", "TURN"); app_layer_legend(a, L, k, P[k].name, b, 0); }
+            continue;
+        }
+        mach_fmt(&P[k], v, b, sizeof b);
         app_layer_legend(a, L, k, P[k].name, b, mach_pct(&P[k], v));
     }
 }
@@ -184,6 +250,21 @@ bool mach_oct(bm_app *a, int id, bm_gkind k)
             a->oct_used = 1;
             app_set_track(a, a->track, TRK(transpose), 24);
             app_toast(a, "OCTAVE 0  TRANSPOSE 0");
+        }
+        return true;
+    }
+    if (k == G_LONG) {                                        /* STEP REC: OCT− 1 s borra el paso del cursor (sin avanzar) */
+        if (id == BTN_OCT_DN && mach_step_mode(a)) {
+            bm_bx7ui *ui = &a->bx;
+            int track = a->track, step = ui->step % mach_len(a);
+            bm_event empty;
+            bm_event_clear(&empty);
+            for (int slot = 0; slot < BM_EVENTS; slot++) app_push_ev(a, track, step, slot, &empty);
+            ui->chord = 0;
+            a->rec_steps |= 1ull << step;
+            a->oct_used = 1;
+            app_edited(a);
+            app_toast(a, TF("CLEARED"));
         }
         return true;
     }
@@ -238,13 +319,16 @@ int mach_view_page(const bm_app *a)
 
 bool mach_step_mode(const bm_app *a) { return a->rec && !a->ctx.st.playing && a->view == V_MACH && a->bx.page == BXP_SEQ; }
 
+const bxp *mach_seq_page(const bm_app *a) { return mach_step_mode(a) ? MACH_SEQ_STEP : MACH_SEQ; }
+
 /* Paso a paso: la primera tecla reescribe el paso del cursor (lo de antes se borra), las que se suman
- * mientras está apretada hacen un acorde; al soltarlas todas, el cursor pasa al siguiente. Cada nota,
- * un paso de largo (los largos se graban sonando). */
+ * mientras está apretada hacen un acorde; al soltarlas todas, el cursor pasa al siguiente. El largo
+ * lo pone K1 (LENGTH); en vivo, el de lo que sostienes. */
 static void step_write(bm_app *a, uint8_t note, int vel)
 {
     bm_bx7ui *u = &a->bx;
     int t = a->track, s = u->step % mach_len(a);
+    int len = bm_clampi(u->step_len ? u->step_len : 1, 1, mach_len(a));
     bm_event ev;
     if (!u->chord) {
         bm_event_clear(&ev);
@@ -253,7 +337,7 @@ static void step_write(bm_app *a, uint8_t note, int vel)
     }
     if (u->nslot >= BM_EVENTS) return;
     bm_event_clear(&ev);
-    ev.note = note; ev.len = 1;
+    ev.note = note; ev.len = (uint8_t)len;
     ev.vel = (uint8_t)bm_clampi(vel, 1, BM_VEL_ACC - 1);      /* el ACCENT del BB-303 se pone con SCL */
     app_push_ev(a, t, s, u->nslot++, &ev);
     a->rec_steps |= 1ull << s;
@@ -307,7 +391,7 @@ uint8_t mach_common_led(const bm_app *a, int i)
     return 0xFF;
 }
 
-void mach_head(bm_app *a) { a->bx.grab = 0; a->bx.armed = 0; a->bx.chord = 0; }
+void mach_head(bm_app *a) { a->bx.grab = 0; a->bx.armed = 0; a->bx.chord = 0; a->bx.rst_confirm = 0; }
 
 /* ------------------------------------------------------------ el reparto según la máquina del canal */
 bool mach_has(int engine) { return engine == ENG_FM || engine == ENG_ACID || bm_panel_eng(engine) || engine == ENG_BREAK; }

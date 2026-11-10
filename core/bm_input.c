@@ -1449,15 +1449,30 @@ static void enc_source(bm_app *a, int t, int d)
         app_overlay(a, -1, ti, b, "", i * 255 / (n > 1 ? n - 1 : 1), -1, bm_track_color(1));
         return;
     }
-    int lim = bm_sound_count(a, t), e = a->pat.trk[t].engine;
-    int v = wrap(a->pat.trk[t].source % lim + lst(a, d), lim);
-    if (kind == KIND_TR || bm_engine_paged(e)) { app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0); app_edited(a); }
-    else app_set_track(a, t, TRK_OFF(source), v);
-    a->pat.trk[t].source = (uint8_t)v;
-    char ti[22];
-    if (kind == KIND_TR) snprintf(ti, sizeof ti, "T%d KIT", app_pos(t) + 1);
-    else snprintf(ti, sizeof ti, "T%d %s %s", app_pos(t) + 1, bm_engine_names[e % ENG_COUNT], T("SOUND"));
-    app_overlay(a, -1, ti, bm_sound_name(a, t), "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
+    int bank = app_sound_bank_count(a, t), engine = a->pat.trk[t].engine;
+    int limit = bm_sound_count(a, t);
+    int current = (a->edit_on[t] && a->edit_valid[t]) ? bank
+                : (a->pat.trk[t].source % (bank > 0 ? bank : 1));
+    int index = wrap(current + lst(a, d), limit);
+    if (kind == KIND_TR || bm_engine_paged(engine)) {
+        if (bm_engine_paged(engine) && a->edit_valid[t] && index == bank) {
+            a->edit_on[t] = 1;
+            app_push_ptr(a, CMD_EDIT_SNAP, (uint8_t)t, &a->edit[t]);
+            app_edited(a);
+        } else {
+            a->edit_on[t] = 0;
+            app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)index, 0);
+            app_edited(a);
+            a->pat.trk[t].source = (uint8_t)index;
+        }
+    } else {
+        app_set_track(a, t, TRK_OFF(source), index);
+        a->pat.trk[t].source = (uint8_t)index;
+    }
+    char title[22];
+    if (kind == KIND_TR) snprintf(title, sizeof title, "T%d KIT", app_pos(t) + 1);
+    else snprintf(title, sizeof title, "T%d %s %s", app_pos(t) + 1, bm_engine_names[engine % ENG_COUNT], T("SOUND"));
+    app_overlay(a, -1, title, bm_sound_name(a, t), "", index * 255 / (limit > 1 ? limit - 1 : 1), -1, bm_track_color(t));
 }
 
 static void system_change(bm_app *a, int d)
@@ -1668,6 +1683,8 @@ void app_input_tick(bm_app *a)
 {
     uint32_t now = a->now;
     mach_tick(a);
+    if (a->bx.rst_confirm && (int32_t)(now - a->rst_t) >= (int32_t)UI_RST_IDLE_MS)
+        a->bx.rst_confirm = 0;                                   /* GLO RESET: 1 s sin giro → TURN */
     if (a->held_white >= 0 && !a->held_long && now - a->step_t0 >= UI_HOLD_MS) a->held_long = 1;
     for (int k = 0; k < BM_KEYS; k++) {
         if (!a->keys_down[k] || !a->key_t0[k] || now - a->key_t0[k] < UI_HOLD_MS) continue;

@@ -1449,29 +1449,30 @@ static void enc_source(bm_app *a, int t, int d)
         app_overlay(a, -1, ti, b, "", i * 255 / (n > 1 ? n - 1 : 1), -1, bm_track_color(1));
         return;
     }
-    int bank = app_sound_bank_count(a, t), e = a->pat.trk[t].engine;
-    int lim = bm_sound_count(a, t);
-    int cur = (a->edit_on[t] && a->edit_valid[t]) ? bank : (a->pat.trk[t].source % (bank > 0 ? bank : 1));
-    int v = wrap(cur + lst(a, d), lim);
-    if (kind == KIND_TR || bm_engine_paged(e)) {
-        if (bm_engine_paged(e) && a->edit_valid[t] && v == bank) {
+    int bank = app_sound_bank_count(a, t), engine = a->pat.trk[t].engine;
+    int limit = bm_sound_count(a, t);
+    int current = (a->edit_on[t] && a->edit_valid[t]) ? bank
+                : (a->pat.trk[t].source % (bank > 0 ? bank : 1));
+    int index = wrap(current + lst(a, d), limit);
+    if (kind == KIND_TR || bm_engine_paged(engine)) {
+        if (bm_engine_paged(engine) && a->edit_valid[t] && index == bank) {
             a->edit_on[t] = 1;
             app_push_ptr(a, CMD_EDIT_SNAP, (uint8_t)t, &a->edit[t]);
             app_edited(a);
         } else {
             a->edit_on[t] = 0;
-            app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)v, 0);
+            app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)index, 0);
             app_edited(a);
-            a->pat.trk[t].source = (uint8_t)v;
+            a->pat.trk[t].source = (uint8_t)index;
         }
     } else {
-        app_set_track(a, t, TRK_OFF(source), v);
-        a->pat.trk[t].source = (uint8_t)v;
+        app_set_track(a, t, TRK_OFF(source), index);
+        a->pat.trk[t].source = (uint8_t)index;
     }
-    char ti[22];
-    if (kind == KIND_TR) snprintf(ti, sizeof ti, "T%d KIT", app_pos(t) + 1);
-    else snprintf(ti, sizeof ti, "T%d %s %s", app_pos(t) + 1, bm_engine_names[e % ENG_COUNT], T("SOUND"));
-    app_overlay(a, -1, ti, bm_sound_name(a, t), "", v * 255 / (lim > 1 ? lim - 1 : 1), -1, bm_track_color(t));
+    char title[22];
+    if (kind == KIND_TR) snprintf(title, sizeof title, "T%d KIT", app_pos(t) + 1);
+    else snprintf(title, sizeof title, "T%d %s %s", app_pos(t) + 1, bm_engine_names[engine % ENG_COUNT], T("SOUND"));
+    app_overlay(a, -1, title, bm_sound_name(a, t), "", index * 255 / (limit > 1 ? limit - 1 : 1), -1, bm_track_color(t));
 }
 
 static void system_change(bm_app *a, int d)

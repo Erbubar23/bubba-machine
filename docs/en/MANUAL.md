@@ -231,7 +231,7 @@ Recording follows SLOOP: **the channel keeps its length**; at the end it goes ar
 
 - **Playing:** REC records at once. The first time you touch a step in a pass, what was there is replaced; notes added in the same pass make a chord. Steps you don't touch stay. Each note keeps **how long you held it** (never longer than the bar it starts in, nor than the channel).
 - **Stopped, outside SEQ:** REC arms (**REC ARMED: PLAY A NOTE**, REC breathes): the first note starts playback and records. PLAY also starts it.
-- **Stopped, on SEQ: STEP REC.** The key (or chord) rewrites the step under the cursor and the cursor moves on when you let go; SELECT moves the cursor (skipping steps = rests). **K1 LENGTH** sets how many steps each new note lasts (and edits notes already on the cursor step). **OCT− held 1 s** clears the cursor step and advances (yellow ring, like REC clear).
+- **Stopped, on SEQ: STEP REC.** The key (or chord) rewrites the step under the cursor and the cursor moves on when you let go; SELECT moves the cursor (skipping steps = rests). **K1 LENGTH** sets how many steps each new note lasts (and edits notes already on the cursor step). **OCT− held 1 s** clears the cursor step without advancing (yellow ring, like REC clear).
 - **QUANT** (GLO page 2): how much of your timing is corrected, **25 / 50 / 75 / 100 %** (100 % = exactly on the step). Only the start; the length stays as you held it.
 - **REC held 2 s** clears the channel, playing or stopped.
 

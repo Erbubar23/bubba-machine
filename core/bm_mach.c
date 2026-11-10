@@ -131,27 +131,27 @@ int mach_turn(bm_app *a, const bxp *p, int d)
         return 64 + a->bx.vy;
     }
     if (p->kind == K_STEPLEN) {                               /* STEP REC: largo de las notas del cursor */
-        int L = mach_len(a), cur_v = mach_get(a, p);
-        int v = bm_clampi(cur_v + app_lst(a, d), 1, L);
-        if (v == cur_v) return -1;
-        a->bx.step_len = (uint8_t)v;
+        int length = mach_len(a), current = mach_get(a, p);
+        int value = bm_clampi(current + app_lst(a, d), 1, length);
+        if (value == current) return -1;
+        a->bx.step_len = (uint8_t)value;
         if (mach_step_mode(a)) {
-            int t = a->track, s = a->bx.step % L;
-            for (int e = 0; e < BM_EVENTS; e++) {
-                bm_event ev = *bm_evc(&a->pat, t, s, e);
+            int track = a->track, step = a->bx.step % length;
+            for (int slot = 0; slot < BM_EVENTS; slot++) {
+                bm_event ev = *bm_evc(&a->pat, track, step, slot);
                 if (bm_event_empty(&ev)) continue;
-                ev.len = (uint8_t)((ev.len & BM_LEN_TIE) | (v & BM_LEN_MASK));
-                app_push_ev(a, t, s, e, &ev);
+                ev.len = (uint8_t)((ev.len & BM_LEN_TIE) | (value & BM_LEN_MASK));
+                app_push_ev(a, track, step, slot, &ev);
             }
             app_edited(a);
         }
-        return v;
+        return value;
     }
     if (p->kind == K_RST) {                                   /* GLO RESET: girar llena CONFIRM?; al llenarse, resetea */
         if (!mach_rst_fill(a, d)) return a->bx.rst_confirm ? 0 : -1;
         int bank = a->edit_valid[t] ? a->edit_base[t] : a->pat.trk[t].source;
-        int n = app_sound_bank_count(a, t);
-        if (n > 0) bank %= n;
+        int bank_count = app_sound_bank_count(a, t);
+        if (bank_count > 0) bank %= bank_count;
         app_edit_clear(a, t);
         app_push(a, CMD_PRESET, (uint8_t)t, (uint8_t)bank, 0);
         a->pat.trk[t].source = (uint8_t)bank;
@@ -163,15 +163,15 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     if (p->kind == K_ON || p->kind == K_LATCH) step = d > 0 ? 1 : -1;
     int v = bm_clampi(cur_v + step, p->lo, p->max);
     if (v == cur_v) return -1;
-    int touch = 0;
+    int capture_edit = 0;
     switch (p->kind) {
     case K_FMV:
         a->pat.fmv[p->idx] = (uint8_t)v;
-        app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); touch = 1; break;
+        app_push(a, CMD_FMV, p->idx, (uint8_t)v, 0); app_edited(a); capture_edit = 1; break;
     case K_OP: {
         uint8_t off = (uint8_t)op_byte(a, p->idx);
         a->pat.fmv[off] = (uint8_t)v;
-        app_push(a, CMD_FMV, off, (uint8_t)v, 0); app_edited(a); touch = 1; break;
+        app_push(a, CMD_FMV, off, (uint8_t)v, 0); app_edited(a); capture_edit = 1; break;
     }
     case K_TRK:
         app_set_track(a, t, p->idx, v);
@@ -179,11 +179,11 @@ int mach_turn(bm_app *a, const bxp *p, int d)
         break;
     case K_MAC:
         a->pat.trk[t].macro[p->idx & 3] = (uint8_t)v;
-        app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); touch = 1; break;
+        app_set_track(a, t, (uint8_t)(offsetof(bm_track, macro) + (p->idx & 3)), v); capture_edit = 1; break;
     case K_PRM:
         a->pat.prm[t][p->idx] = (uint8_t)v;
         app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, (uint8_t)v); app_edited(a);
-        if (a->bx.page != BXP_FX) touch = 1;                   /* FX page: no *EDITED */
+        if (a->bx.page != BXP_FX) capture_edit = 1;            /* FX page: no *EDITED */
         break;
     case K_LATCH: app_push(a, CMD_SET_PRM, (uint8_t)t, (uint8_t)latch_prm(a), (uint8_t)v); app_edited(a); break;
     case K_LEN: app_set_track(a, t, TRK(length), v); break;
@@ -191,12 +191,12 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     case K_PRMI: {
         uint8_t raw = (uint8_t)(p->max - v);
         a->pat.prm[t][p->idx] = raw;
-        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); touch = 1; break;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); capture_edit = 1; break;
     }
     case K_R3: {
         uint8_t raw = (uint8_t)(v ? v - 1 : MN_R_LO);
         a->pat.prm[t][p->idx] = raw;
-        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); touch = 1; break;
+        app_push(a, CMD_SET_PRM, (uint8_t)t, p->idx, raw); app_edited(a); capture_edit = 1; break;
     }
     case K_ON: {
         uint8_t m;
@@ -218,7 +218,7 @@ int mach_turn(bm_app *a, const bxp *p, int d)
     }
     default: break;
     }
-    if (touch) app_edit_touch(a, t);
+    if (capture_edit) app_edit_touch(a, t);
     return v;
 }
 
@@ -253,16 +253,15 @@ bool mach_oct(bm_app *a, int id, bm_gkind k)
         }
         return true;
     }
-    if (k == G_LONG) {                                        /* STEP REC: OCT− 1 s borra el paso del cursor */
+    if (k == G_LONG) {                                        /* STEP REC: OCT− 1 s borra el paso del cursor (sin avanzar) */
         if (id == BTN_OCT_DN && mach_step_mode(a)) {
-            bm_bx7ui *u = &a->bx;
-            int t = a->track, s = u->step % mach_len(a);
-            bm_event z;
-            bm_event_clear(&z);
-            for (int e = 0; e < BM_EVENTS; e++) app_push_ev(a, t, s, e, &z);
-            u->chord = 0;
-            u->step = (uint8_t)((s + 1) % mach_len(a));
-            a->rec_steps |= 1ull << s;
+            bm_bx7ui *ui = &a->bx;
+            int track = a->track, step = ui->step % mach_len(a);
+            bm_event empty;
+            bm_event_clear(&empty);
+            for (int slot = 0; slot < BM_EVENTS; slot++) app_push_ev(a, track, step, slot, &empty);
+            ui->chord = 0;
+            a->rec_steps |= 1ull << step;
             a->oct_used = 1;
             app_edited(a);
             app_toast(a, TF("CLEARED"));

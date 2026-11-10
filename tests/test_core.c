@@ -2871,9 +2871,9 @@ static void test_roll_machines(void)
             CHECK(app.bx.step == 1);
             enc(ENC_K1, -2);
             CHECK(app.bx.step_len == 2 && (bm_evc(&app.pat, 3, 1, 0)->len & BM_LEN_MASK) == 2);
-            /* OCT− 1 s: borra el paso del cursor y avanza (anillo CLEAR STEP) */
+            /* OCT− 1 s: borra el paso del cursor sin avanzar (anillo CLEAR STEP) */
             btn(BTN_OCT_DN, 1100);
-            CHECK(step_n(3, 1) == 0 && app.bx.step == 2);
+            CHECK(step_n(3, 1) == 0 && app.bx.step == 1);
             /* PLAY: sigue grabando en vivo, con el largo de lo que sostienes */
             btn(BTN_PLAY, 20);
             CHECK(app.ctx.st.playing && app.rec && !mach_step_mode(&app));

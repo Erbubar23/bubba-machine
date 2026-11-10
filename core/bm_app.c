@@ -24,60 +24,69 @@ const char *bm_track_name(const bm_app *a, int t)
 uint16_t bm_track_color(int t) { return TRACK_COLORS[t % BM_TRACKS]; }
 const char *bm_kit_name(int kit) { return bm_kits[(kit % BM_KITS_N + BM_KITS_N) % BM_KITS_N].name; }
 
-int app_sound_bank_count(const bm_app *a, int t)
+int app_sound_bank_count(const bm_app *app, int track)
 {
-    if (bm_is_tr(&a->pat, t)) return BM_KITS_N;
-    if (a->pat.trk[t].engine == ENG_ACID) return BM_AC_PRESETS;
-    if (a->pat.trk[t].engine == ENG_FM) return BM_FM_PATCHES;   /* bancos de usuario apagados hasta tener todas las máquinas */
-    int n = bm_snap_count(a->pat.trk[t].engine);
-    return n ? n : 1;
+    if (bm_is_tr(&app->pat, track)) return BM_KITS_N;
+    if (app->pat.trk[track].engine == ENG_ACID) return BM_AC_PRESETS;
+    if (app->pat.trk[track].engine == ENG_FM) return BM_FM_PATCHES; /* bancos de usuario apagados hasta tener todas las máquinas */
+    int count = bm_snap_count(app->pat.trk[track].engine);
+    return count ? count : 1;
 }
 
 int bm_sound_count(const bm_app *a, int t)
 {
-    int n = app_sound_bank_count(a, t);
-    if (t >= 0 && t < BM_TRACKS && a->edit_valid[t] && bm_engine_paged(a->pat.trk[t].engine)) n++;
-    return n;
+    int count = app_sound_bank_count(a, t);
+    if (t >= 0 && t < BM_TRACKS && a->edit_valid[t] && bm_engine_paged(a->pat.trk[t].engine)) count++;
+    return count;
 }
 
 const char *bm_sound_name(const bm_app *a, int t)
 {
     if (t >= 0 && t < BM_TRACKS && a->edit_on[t] && a->edit_valid[t] && bm_engine_paged(a->pat.trk[t].engine))
         return "*EDITED";
-    int s = a->pat.trk[t].source % app_sound_bank_count(a, t);
-    if (bm_is_tr(&a->pat, t)) return bm_kit_name(s);
-    if (a->pat.trk[t].engine == ENG_ACID) return bm_ac_presets[s].name;
-    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_patch_name(s);
-    return bm_snap_name(a->pat.trk[t].engine, s);
+    int source = a->pat.trk[t].source % app_sound_bank_count(a, t);
+    if (bm_is_tr(&a->pat, t)) return bm_kit_name(source);
+    if (a->pat.trk[t].engine == ENG_ACID) return bm_ac_presets[source].name;
+    if (a->pat.trk[t].engine == ENG_FM) return bm_fm_patch_name(source);
+    return bm_snap_name(a->pat.trk[t].engine, source);
 }
 
-void app_edit_clear(bm_app *a, int t)
+void app_edit_clear(bm_app *app, int track)
 {
-    if (t < 0) {
-        for (int i = 0; i < BM_TRACKS; i++) { a->edit_valid[i] = 0; a->edit_on[i] = 0; a->edit_base[i] = 0; }
+    if (track < 0) {
+        for (int i = 0; i < BM_TRACKS; i++) {
+            app->edit_valid[i] = 0;
+            app->edit_on[i] = 0;
+            app->edit_base[i] = 0;
+        }
         return;
     }
-    if (t < BM_TRACKS) { a->edit_valid[t] = 0; a->edit_on[t] = 0; }
+    if (track < BM_TRACKS) {
+        app->edit_valid[track] = 0;
+        app->edit_on[track] = 0;
+    }
 }
 
-void app_edit_touch(bm_app *a, int t)
+void app_edit_touch(bm_app *app, int track)
 {
-    if (t < BM_TR_TRACKS || t >= BM_TRACKS) return;
-    int eng = a->pat.trk[t].engine;
-    if (!bm_engine_paged(eng)) return;
-    int bank = app_sound_bank_count(a, t);
-    if (!a->edit_on[t]) {
-        int src = a->pat.trk[t].source % (bank > 0 ? bank : 1);
-        a->edit_base[t] = (uint8_t)src;
+    if (track < BM_TR_TRACKS || track >= BM_TRACKS) return;
+    int engine = app->pat.trk[track].engine;
+    if (!bm_engine_paged(engine)) return;
+    int bank = app_sound_bank_count(app, track);
+    if (!app->edit_on[track]) {
+        int source = app->pat.trk[track].source % (bank > 0 ? bank : 1);
+        app->edit_base[track] = (uint8_t)source;
     }
-    memcpy(a->edit[t].prm, a->pat.prm[t], BM_PRM);
-    memcpy(a->edit[t].macro, a->pat.trk[t].macro, 4);
-    if (eng == ENG_FM) {
-        memcpy(a->edit[t].fmv, a->pat.fmv, BM_FMV_BYTES);
-        a->edit[t].has_fmv = 1;
-    } else a->edit[t].has_fmv = 0;
-    a->edit_valid[t] = 1;
-    a->edit_on[t] = 1;
+    memcpy(app->edit[track].prm, app->pat.prm[track], BM_PRM);
+    memcpy(app->edit[track].macro, app->pat.trk[track].macro, 4);
+    if (engine == ENG_FM) {
+        memcpy(app->edit[track].fmv, app->pat.fmv, BM_FMV_BYTES);
+        app->edit[track].has_fmv = 1;
+    } else {
+        app->edit[track].has_fmv = 0;
+    }
+    app->edit_valid[track] = 1;
+    app->edit_on[track] = 1;
 }
 uint16_t bm_knob_color(int i) { return KNOB_COLORS[i & 3]; }
 void bm_app_cpu(bm_app *a, int pct) { a->cpu = (uint8_t)bm_clampi(pct, 0, 255); }

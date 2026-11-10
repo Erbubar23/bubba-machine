@@ -6,7 +6,7 @@ Every version of Bubba Machine. The format follows [Keep a Changelog](https://ke
 
 ### Added
 - **STEP REC note length:** K1 LENGTH sets how many steps new notes last and edits notes on the cursor step.
-- **STEP REC clear:** OCT− held 1 s clears the cursor step and advances (header ring like REC clear).
+- **STEP REC clear:** OCT− held 1 s clears the cursor step without advancing (header ring like REC clear).
 - **GLO RESET confirm:** turning RESET fills an inline CONFIRM? bar (~16 clicks); 1 s idle cancels back to TURN; when full, the sound resets.
 - **\*EDITED PRESETS scratch:** tweaking an instrument control selects a session-only \*EDITED slot so PRESETS can restore those edits; FX and mix knobs do not create it; changing machine clears it.
 

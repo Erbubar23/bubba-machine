@@ -88,3 +88,5 @@ M-VAVE y FM-1 son marcas de sus respectivos dueños. Este proyecto no está afil
 - **Website and docs in English:** [erbubar23.github.io/bubba-machine/en](https://erbubar23.github.io/bubba-machine/en/), with the [manual](docs/en/MANUAL.md), [install status](docs/en/INSTALL.md), [audio quality](docs/en/AUDIO.md) and [roadmap](docs/en/ROADMAP.md). The firmware screens are in English; Spanish is an optional language pack. Issues and pull requests in English are welcome.
 - **Clean room:** all project code is original; synthesis libraries (Plaits, msfa, Open303) and the community Vital presets in the factory bank keep their free licenses ([credits](docs/en/CREDITS.md)). Only hardware facts from public FM-1 reverse engineering were used.
 - M-VAVE and FM-1 are trademarks of their respective owners. This project is not affiliated with or endorsed by M-VAVE.
+
+You can also try Bubba Machine in the browser, no flashing needed, in the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
